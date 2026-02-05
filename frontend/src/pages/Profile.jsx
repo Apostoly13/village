@@ -180,6 +180,12 @@ function ProfilePage({ user }) {
                       🦉 Night Owl
                     </span>
                   )}
+                  {profile.is_single_parent && (
+                    <Badge variant="secondary" className="bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/20">
+                      <Heart className="h-3 w-3 mr-1" />
+                      Single Parent
+                    </Badge>
+                  )}
                 </div>
                 {genderLabel && (
                   <p className="text-muted-foreground">{genderLabel}</p>
