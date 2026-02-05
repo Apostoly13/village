@@ -84,30 +84,55 @@ const ProtectedRoute = ({ children }) => {
   const [user, setUser] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
+  const checkedRef = useRef(false);
 
   useEffect(() => {
     // Skip if user passed from AuthCallback
     if (location.state?.user) {
       setUser(location.state.user);
       setIsAuthenticated(true);
+      localStorage.setItem("user", JSON.stringify(location.state.user));
+      return;
+    }
+
+    // If we already have user data, don't re-check
+    if (user && isAuthenticated) {
+      return;
+    }
+
+    // Only check auth once per mount
+    if (checkedRef.current) {
       return;
     }
 
     const checkAuth = async () => {
+      checkedRef.current = true;
+      
       // First check localStorage
       const storedUser = localStorage.getItem("user");
       if (storedUser) {
+        // Try to parse and use cached user first for faster UX
         try {
+          const cachedUser = JSON.parse(storedUser);
+          setUser(cachedUser);
+          setIsAuthenticated(true);
+          
+          // Verify in background
           const response = await fetch(`${API_URL}/api/auth/me`, {
             credentials: "include"
           });
           
           if (response.ok) {
-            const userData = await response.json();
-            setUser(userData);
-            setIsAuthenticated(true);
-            return;
+            const freshUser = await response.json();
+            setUser(freshUser);
+            localStorage.setItem("user", JSON.stringify(freshUser));
+          } else {
+            // Session expired, clear and redirect
+            localStorage.removeItem("user");
+            setIsAuthenticated(false);
+            navigate("/login", { replace: true });
           }
+          return;
         } catch (error) {
           console.error("Auth check failed:", error);
         }
@@ -119,7 +144,7 @@ const ProtectedRoute = ({ children }) => {
     };
 
     checkAuth();
-  }, [location.state, navigate]);
+  }, [location.state, navigate, user, isAuthenticated]);
 
   if (isAuthenticated === null) {
     return (
