@@ -67,7 +67,8 @@ class UserProfile(BaseModel):
     interests: List[str] = []
     location: Optional[str] = None
     gender: Optional[str] = None  # female, male, non-binary, prefer-not-say
-    connect_with: Optional[str] = "all"  # all, mums, dads, same
+    connect_with: Optional[str] = "all"  # all, mums, dads, single-parents, same
+    is_single_parent: bool = False
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class UserProfileUpdate(BaseModel):
@@ -79,6 +80,7 @@ class UserProfileUpdate(BaseModel):
     location: Optional[str] = None
     gender: Optional[str] = None
     connect_with: Optional[str] = None
+    is_single_parent: Optional[bool] = None
 
 class ForumCategory(BaseModel):
     model_config = ConfigDict(extra="ignore")
