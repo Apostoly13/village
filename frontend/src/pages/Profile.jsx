@@ -10,7 +10,7 @@ import { Switch } from "../components/ui/switch";
 import { Badge } from "../components/ui/badge";
 import Navigation from "../components/Navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Edit2, MessageCircle, Save, X, Heart, UserPlus, UserCheck, Clock, Users } from "lucide-react";
+import { ArrowLeft, Edit2, MessageCircle, Save, X, Heart, UserPlus, UserCheck, Clock, Users, ChevronRight } from "lucide-react";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -26,6 +26,7 @@ function ProfilePage({ user }) {
   const [saving, setSaving] = useState(false);
   const [friendStatus, setFriendStatus] = useState(null);
   const [friendActionLoading, setFriendActionLoading] = useState(false);
+  const [friends, setFriends] = useState([]);
   
   const [nickname, setNickname] = useState("");
   const [bio, setBio] = useState("");
@@ -91,9 +92,25 @@ function ProfilePage({ user }) {
       }
     };
     
+    const fetchFriends = async () => {
+      if (!isOwnProfile) return;
+      try {
+        const response = await fetch(API_URL + "/api/friends", {
+          credentials: "include"
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setFriends(data);
+        }
+      } catch (error) {
+        console.error("Error fetching friends:", error);
+      }
+    };
+    
     fetchProfile();
     fetchFriendStatus();
-  }, [profileUserId, user?.user_id]);
+    fetchFriends();
+  }, [profileUserId, user?.user_id, isOwnProfile]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -503,6 +520,67 @@ function ProfilePage({ user }) {
             </div>
           )}
         </div>
+
+        {/* Friends Section - Only show on own profile */}
+        {isOwnProfile && (
+          <div className="bg-card rounded-2xl p-6 border border-border/50">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-heading font-bold text-lg text-foreground flex items-center gap-2">
+                <Users className="h-5 w-5 text-primary" />
+                Friends ({friends.length})
+              </h2>
+              <Link to="/friends">
+                <Button variant="ghost" size="sm" className="rounded-full text-primary" data-testid="view-all-friends">
+                  View All
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </Link>
+            </div>
+            
+            {friends.length === 0 ? (
+              <div className="text-center py-6">
+                <p className="text-muted-foreground mb-3">No friends yet. Connect with other parents!</p>
+                <Link to="/chat">
+                  <Button variant="outline" size="sm" className="rounded-full">
+                    Join a Chat Room
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-3">
+                {friends.slice(0, 6).map((friend) => (
+                  <Link 
+                    key={friend.user_id} 
+                    to={`/profile/${friend.user_id}`}
+                    className="flex flex-col items-center gap-2 p-2 rounded-xl hover:bg-secondary/50 transition-colors"
+                    data-testid={`friend-preview-${friend.user_id}`}
+                  >
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage src={friend.picture} />
+                      <AvatarFallback className="bg-primary/20 text-primary">
+                        {friend.name?.[0]?.toUpperCase() || '?'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm text-foreground truncate max-w-[70px]">
+                      {friend.nickname || friend.name?.split(' ')[0]}
+                    </span>
+                  </Link>
+                ))}
+                {friends.length > 6 && (
+                  <Link 
+                    to="/friends"
+                    className="flex flex-col items-center justify-center gap-2 p-2 rounded-xl hover:bg-secondary/50 transition-colors"
+                  >
+                    <div className="h-12 w-12 rounded-full bg-secondary flex items-center justify-center">
+                      <span className="text-sm font-bold text-muted-foreground">+{friends.length - 6}</span>
+                    </div>
+                    <span className="text-sm text-muted-foreground">more</span>
+                  </Link>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </main>
     </div>
   );
