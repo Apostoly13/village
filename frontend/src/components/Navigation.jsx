@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import { Home, MessageSquare, Users, Mail, User, LogOut, Menu, X } from "lucide-react";
+import { Home, MessageSquare, Users, Mail, User, LogOut, Menu, X, Moon, Sun } from "lucide-react";
 import { toast } from "sonner";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -18,6 +18,7 @@ export default function Navigation({ user }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [darkMode, setDarkMode] = useState(document.documentElement.classList.contains('dark'));
 
   const navItems = [
     { icon: Home, label: "Home", href: "/dashboard", testId: "nav-home" },
@@ -25,6 +26,17 @@ export default function Navigation({ user }) {
     { icon: Users, label: "Chat", href: "/chat", testId: "nav-chat" },
     { icon: Mail, label: "Messages", href: "/messages", testId: "nav-messages" },
   ];
+
+  const toggleTheme = () => {
+    setDarkMode(!darkMode);
+    if (!darkMode) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    }
+  };
 
   const handleLogout = async () => {
     try {
