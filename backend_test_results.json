@@ -1,0 +1,83 @@
+{
+  "timestamp": "2026-02-05T10:35:16.607693",
+  "total_tests": 15,
+  "passed_tests": 15,
+  "success_rate": "100.0%",
+  "results": [
+    {
+      "test": "Seed Data",
+      "success": true,
+      "details": "Status: 200"
+    },
+    {
+      "test": "User Registration",
+      "success": true,
+      "details": "Status: 200"
+    },
+    {
+      "test": "Get Current User",
+      "success": true,
+      "details": "Status: 200"
+    },
+    {
+      "test": "Register for Login Test",
+      "success": true,
+      "details": "Status: 200"
+    },
+    {
+      "test": "User Login",
+      "success": true,
+      "details": "Status: 200"
+    },
+    {
+      "test": "Get Forum Categories",
+      "success": true,
+      "details": "Status: 200"
+    },
+    {
+      "test": "Get Feed",
+      "success": true,
+      "details": "Status: 200"
+    },
+    {
+      "test": "Get Categories for Post",
+      "success": true,
+      "details": "Status: 200"
+    },
+    {
+      "test": "Create Forum Post",
+      "success": true,
+      "details": "Status: 200"
+    },
+    {
+      "test": "Get Forum Posts",
+      "success": true,
+      "details": "Status: 200"
+    },
+    {
+      "test": "Search Posts",
+      "success": true,
+      "details": "Status: 200"
+    },
+    {
+      "test": "Get Chat Rooms",
+      "success": true,
+      "details": "Status: 200"
+    },
+    {
+      "test": "Update Profile",
+      "success": true,
+      "details": "Status: 200"
+    },
+    {
+      "test": "Get Conversations",
+      "success": true,
+      "details": "Status: 200"
+    },
+    {
+      "test": "User Logout",
+      "success": true,
+      "details": "Status: 200"
+    }
+  ]
+}
