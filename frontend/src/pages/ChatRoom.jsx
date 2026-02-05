@@ -168,16 +168,20 @@ export default function ChatRoom({ user }) {
                   >
                     <div className={`flex items-end gap-2 max-w-[80%] ${isOwnMessage(msg) ? 'flex-row-reverse' : ''}`}>
                       {!isOwnMessage(msg) && (
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={msg.author_picture} />
-                          <AvatarFallback className="bg-primary/20 text-primary text-sm">
-                            {msg.author_name?.[0]?.toUpperCase() || '?'}
-                          </AvatarFallback>
-                        </Avatar>
+                        <Link to={`/profile/${msg.author_id}`} className="flex-shrink-0">
+                          <Avatar className="h-8 w-8 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
+                            <AvatarImage src={msg.author_picture} />
+                            <AvatarFallback className="bg-primary/20 text-primary text-sm">
+                              {msg.author_name?.[0]?.toUpperCase() || '?'}
+                            </AvatarFallback>
+                          </Avatar>
+                        </Link>
                       )}
                       <div>
                         {!isOwnMessage(msg) && (
-                          <p className="text-xs text-muted-foreground mb-1 ml-1">{msg.author_name}</p>
+                          <Link to={`/profile/${msg.author_id}`} className="hover:underline">
+                            <p className="text-xs text-muted-foreground mb-1 ml-1 cursor-pointer hover:text-primary transition-colors">{msg.author_name}</p>
+                          </Link>
                         )}
                         <div className={`rounded-2xl px-4 py-2 ${
                           isOwnMessage(msg) 
