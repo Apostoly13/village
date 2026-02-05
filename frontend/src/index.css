@@ -39,7 +39,7 @@
         --cream: 30 40% 96%;
     }
 
-    .dark {
+    :root.dark, .dark {
         /* Dark Mode - Night Light */
         --background: 240 6% 7%;
         --foreground: 240 6% 90%;
