@@ -133,6 +133,60 @@ export default function Dashboard({ user }) {
           ))}
         </div>
 
+        {/* Single Parents Connection Section */}
+        {singleParents.length > 0 && (
+          <div className="mb-8 p-6 rounded-2xl bg-pink-500/5 border border-pink-500/20">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-pink-500/20 flex items-center justify-center">
+                  <Heart className="h-5 w-5 text-pink-500" />
+                </div>
+                <div>
+                  <h3 className="font-heading font-bold text-foreground">Single Parents in The Village</h3>
+                  <p className="text-sm text-muted-foreground">Connect with others who understand your journey</p>
+                </div>
+              </div>
+              <Link to="/chat">
+                <Button variant="outline" size="sm" className="rounded-full border-pink-500/30 text-pink-600 dark:text-pink-400 hover:bg-pink-500/10">
+                  <Users className="h-4 w-4 mr-2" />
+                  Join Chat
+                </Button>
+              </Link>
+            </div>
+            <div className="flex items-center gap-3 overflow-x-auto pb-2 hide-scrollbar">
+              {singleParents.slice(0, 8).map((parent, idx) => (
+                <Link 
+                  key={parent.user_id} 
+                  to={`/profile/${parent.user_id}`}
+                  className="flex-shrink-0 flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-pink-500/10 transition-colors"
+                  data-testid={`single-parent-${idx}`}
+                >
+                  <Avatar className="h-14 w-14 ring-2 ring-pink-500/30">
+                    <AvatarImage src={parent.picture} />
+                    <AvatarFallback className="bg-pink-500/20 text-pink-600">
+                      {parent.name?.[0]?.toUpperCase() || '?'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm font-medium text-foreground truncate max-w-[80px]">
+                    {parent.nickname || parent.name?.split(' ')[0]}
+                  </span>
+                </Link>
+              ))}
+              {singleParents.length > 8 && (
+                <Link 
+                  to="/chat"
+                  className="flex-shrink-0 flex flex-col items-center justify-center gap-2 p-3 rounded-xl hover:bg-pink-500/10 transition-colors"
+                >
+                  <div className="h-14 w-14 rounded-full bg-pink-500/20 flex items-center justify-center">
+                    <span className="text-sm font-bold text-pink-600">+{singleParents.length - 8}</span>
+                  </div>
+                  <span className="text-sm text-muted-foreground">more</span>
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Feed */}
         <div className="space-y-4">
           <h2 className="font-heading text-xl font-bold text-foreground">Recent Posts</h2>
