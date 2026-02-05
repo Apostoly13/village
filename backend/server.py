@@ -158,6 +158,17 @@ class DirectMessage(BaseModel):
     message_id: str = Field(default_factory=lambda: f"dm_{uuid.uuid4().hex[:12]}")
     sender_id: str
     receiver_id: str
+
+class FriendRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    request_id: str = Field(default_factory=lambda: f"freq_{uuid.uuid4().hex[:12]}")
+    from_user_id: str
+    to_user_id: str
+    status: str = "pending"  # pending, accepted, declined
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class FriendRequestCreate(BaseModel):
+    to_user_id: str
     sender_name: str
     content: str
     is_read: bool = False
