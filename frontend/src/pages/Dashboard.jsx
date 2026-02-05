@@ -99,7 +99,7 @@ export default function Dashboard({ user }) {
         {/* Quick Links */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
           {[
-            { icon: "🦉", label: "Night Chat", href: "/chat", testId: "quick-chat-link" },
+            { icon: "🌙", label: "3am Club", href: "/chat", testId: "quick-chat-link" },
             { icon: "💬", label: "Forums", href: "/forums", testId: "quick-forums-link" },
             { icon: "✉️", label: "Messages", href: "/messages", testId: "quick-messages-link" },
             { icon: "👤", label: "Profile", href: "/profile", testId: "quick-profile-link" }
