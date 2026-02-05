@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import { Home, MessageSquare, Users, Mail, User, LogOut, Menu, X, Moon, Sun } from "lucide-react";
+import { Home, MessageSquare, Users, Mail, User, LogOut, Menu, X, Moon, Sun, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -19,6 +19,24 @@ export default function Navigation({ user }) {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(document.documentElement.classList.contains('dark'));
+  const [friendRequestCount, setFriendRequestCount] = useState(0);
+
+  useEffect(() => {
+    const fetchFriendRequests = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/friends/requests`, { credentials: "include" });
+        if (response.ok) {
+          const data = await response.json();
+          setFriendRequestCount(data.length);
+        }
+      } catch (error) {
+        console.error("Error fetching friend requests:", error);
+      }
+    };
+    fetchFriendRequests();
+    const interval = setInterval(fetchFriendRequests, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const navItems = [
     { icon: Home, label: "Home", href: "/dashboard", testId: "nav-home" },
@@ -81,6 +99,20 @@ export default function Navigation({ user }) {
           </div>
 
           <div className="flex items-center gap-2">
+            <Link to="/friends" data-testid="nav-friends">
+              <Button 
+                variant="ghost" 
+                size="icon"
+                className="rounded-full relative"
+              >
+                <UserPlus className="h-5 w-5" />
+                {friendRequestCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center font-medium" data-testid="friend-request-badge">
+                    {friendRequestCount > 9 ? '9+' : friendRequestCount}
+                  </span>
+                )}
+              </Button>
+            </Link>
             <Button 
               variant="ghost" 
               size="icon"
