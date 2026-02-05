@@ -146,6 +146,17 @@ export default function Navigation({ user }) {
                     Profile
                   </Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/friends" className="cursor-pointer" data-testid="dropdown-friends">
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Friends
+                    {friendRequestCount > 0 && (
+                      <span className="ml-auto w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
+                        {friendRequestCount}
+                      </span>
+                    )}
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator className="bg-border/50" />
                 <DropdownMenuItem onClick={handleLogout} className="text-destructive cursor-pointer" data-testid="dropdown-logout">
                   <LogOut className="h-4 w-4 mr-2" />
@@ -208,6 +219,20 @@ export default function Navigation({ user }) {
             >
               <User className="h-5 w-5" />
               Profile
+            </Link>
+            
+            <Link 
+              to="/friends" 
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
+            >
+              <UserPlus className="h-5 w-5" />
+              Friends
+              {friendRequestCount > 0 && (
+                <span className="ml-auto w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
+                  {friendRequestCount}
+                </span>
+              )}
             </Link>
             
             <button 
