@@ -1,0 +1,124 @@
+{
+  "identity": {
+    "name": "NightOwl Parents",
+    "persona": "The Supportive Night Watch",
+    "tone": "Calming, Intimate, Non-judgmental, Warm, Safe",
+    "aesthetic": "Night Light - Deep warm grays, soft amber glows, cozy atmosphere"
+  },
+  "typography": {
+    "headings": {
+      "fontFamily": "Nunito, sans-serif",
+      "weights": ["600", "700", "800"],
+      "usage": "Use for all section titles, modal headers, and hero text. The rounded nature of Nunito feels friendly and safe."
+    },
+    "body": {
+      "fontFamily": "DM Sans, sans-serif",
+      "weights": ["400", "500"],
+      "usage": "Use for all paragraph text, inputs, and chat messages. High readability in low light."
+    },
+    "mono": {
+      "fontFamily": "JetBrains Mono, monospace",
+      "usage": "Use sparingly for timestamps or technical data if needed."
+    }
+  },
+  "colors": {
+    "palette": {
+      "mode": "dark",
+      "background": "#121214",
+      "foreground": "#E1E1E6",
+      "card": "#1C1C1E",
+      "card_foreground": "#E1E1E6",
+      "popover": "#1C1C1E",
+      "popover_foreground": "#E1E1E6",
+      "primary": "#F5C542",
+      "primary_foreground": "#1C1C1E",
+      "secondary": "#2C2C2E",
+      "secondary_foreground": "#E1E1E6",
+      "muted": "#2C2C2E",
+      "muted_foreground": "#A1A1AA",
+      "accent": "#2C2C2E",
+      "accent_foreground": "#F5C542",
+      "destructive": "#FF453A",
+      "destructive_foreground": "#FFFFFF",
+      "border": "#2C2C2E",
+      "input": "#2C2C2E",
+      "ring": "#F5C542"
+    },
+    "semantic": {
+      "success": "#32D74B",
+      "warning": "#FF9F0A",
+      "info": "#64D2FF",
+      "warm_glow": "0 0 20px rgba(245, 197, 66, 0.15)"
+    }
+  },
+  "visual_enhancers": {
+    "radius": "1rem",
+    "shadows": {
+      "soft": "0 4px 20px -2px rgba(0, 0, 0, 0.3)",
+      "glow": "0 0 15px rgba(245, 197, 66, 0.2)"
+    },
+    "glassmorphism": {
+      "nav": "backdrop-blur-xl bg-black/40 border-b border-white/5",
+      "overlay": "backdrop-blur-md bg-black/60"
+    },
+    "gradients": {
+      "hero": "radial-gradient(circle at 50% 0%, rgba(245, 197, 66, 0.15) 0%, transparent 70%)",
+      "card_hover": "linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 100%)"
+    }
+  },
+  "layout": {
+    "spacing": {
+      "container_padding": "p-6 md:p-12",
+      "section_gap": "gap-12 md:gap-24",
+      "card_padding": "p-6"
+    },
+    "grid_strategy": "Use 'Bento' grids for dashboard summaries. Use single-column feeds for mobile readability.",
+    "mobile_first": "Bottom navigation bar for primary actions on mobile. Large touch targets (min 44px)."
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-primary text-primary-foreground hover:bg-primary/90 rounded-full font-bold shadow-[0_0_15px_rgba(245,197,66,0.3)] transition-all hover:scale-105",
+      "secondary": "bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-full font-medium",
+      "ghost": "hover:bg-white/5 text-muted-foreground hover:text-foreground rounded-full"
+    },
+    "cards": {
+      "default": "bg-card border border-border/50 rounded-2xl shadow-soft hover:border-primary/30 transition-colors",
+      "interactive": "cursor-pointer hover:-translate-y-1 transition-transform duration-300"
+    },
+    "inputs": {
+      "default": "bg-input/50 border-transparent focus:border-primary focus:ring-1 focus:ring-primary/50 rounded-xl h-12"
+    }
+  },
+  "image_urls": {
+    "hero": {
+      "url": "https://images.unsplash.com/photo-1715602109442-644d0f79d655",
+      "alt": "Silhouette of parent holding baby in soft light",
+      "usage": "Hero section background or main visual"
+    },
+    "atmosphere": {
+      "url": "https://images.unsplash.com/photo-1766393030567-2204662b0be2",
+      "alt": "Cozy candle and lamp light",
+      "usage": "Login/Auth background or mood setter"
+    },
+    "support": {
+      "url": "https://images.unsplash.com/photo-1761891954120-7dce2a8bd06c",
+      "alt": "Mother holding sleeping newborn",
+      "usage": "Community/Support section visual"
+    }
+  },
+  "instructions_to_main_agent": [
+    "1. INSTALL FONTS: Add '@fontsource/nunito' and '@fontsource/dm-sans' to package.json immediately.",
+    "2. CONFIGURE TAILWIND: Update tailwind.config.js to use the specific colors defined in 'colors.palette'. Do not rely on default shadcn zinc colors.",
+    "3. DARK MODE DEFAULT: Force dark mode by default. The app is designed for night use. Add 'dark' class to html/body.",
+    "4. ROUNDED CORNERS: Use 'rounded-2xl' or 'rounded-3xl' for modals and cards to feel softer and safer.",
+    "5. NO HARSH BORDERS: Use 'border-white/5' or 'border-white/10' for subtle separation. Avoid solid 1px gray borders.",
+    "6. WARM GLOWS: Use the 'warm_glow' shadow on primary actions to simulate a night light.",
+    "7. DATA-TESTID: Ensure every interactive element has a data-testid attribute."
+  ],
+  "universal_guidelines": [
+    "Avoid 'AI Slop': Do not use generic centered layouts. Use asymmetry and interesting grids.",
+    "Micro-interactions: Add hover states to everything. Buttons should scale slightly. Cards should lift.",
+    "Glassmorphism: Use backdrop-blur on sticky headers and floating action buttons.",
+    "Accessibility: Ensure text contrast is sufficient (4.5:1) even in dark mode. Use lighter grays for text, not dark gray."
+  ]
+}
