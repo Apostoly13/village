@@ -143,10 +143,10 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="font-heading text-3xl sm:text-4xl font-bold text-foreground mb-4">
-              Built for Real Parents
+              Everything You Need, In One Place
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Whether you're a first-time parent or a seasoned pro, we've created a space where you can be yourself.
+              From quick chats to deep discussions, we've built the tools parents actually need at every hour of the day.
             </p>
           </div>
 
