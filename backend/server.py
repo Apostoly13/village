@@ -744,6 +744,7 @@ async def seed_data():
         {"name": "Breastfeeding & Feeding", "description": "Support for nursing, pumping, and feeding challenges", "icon": "🍼", "category_type": "topic"},
         {"name": "Sleep & Routines", "description": "Tips and support for sleep training and schedules", "icon": "🌙", "category_type": "topic"},
         {"name": "Mental Health", "description": "A safe space to discuss postpartum emotions and self-care", "icon": "💚", "category_type": "topic"},
+        {"name": "Single Parenting", "description": "Support, tips, and connection for single mums and dads", "icon": "💪", "category_type": "topic"},
         {"name": "Relationships", "description": "Navigating partner, family, and friend dynamics", "icon": "💕", "category_type": "topic"},
         {"name": "Development & Milestones", "description": "Tracking growth and celebrating achievements", "icon": "⭐", "category_type": "topic"},
         {"name": "Health & Wellness", "description": "Baby and parent health questions and advice", "icon": "🏥", "category_type": "topic"},
