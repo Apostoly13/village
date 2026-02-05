@@ -40,6 +40,7 @@ function ProfilePage({ user }) {
     { id: "all", text: "All parents" },
     { id: "mums", text: "Mums only" },
     { id: "dads", text: "Dads only" },
+    { id: "single-parents", text: "Single parents" },
     { id: "same", text: "Same gender" },
   ];
 
