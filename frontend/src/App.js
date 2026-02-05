@@ -16,6 +16,7 @@ import Messages from "./pages/Messages";
 import Conversation from "./pages/Conversation";
 import Profile from "./pages/Profile";
 import CreatePost from "./pages/CreatePost";
+import Friends from "./pages/Friends";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -228,6 +229,11 @@ const AppRouter = () => {
       <Route path="/profile/:userId" element={
         <ProtectedRoute>
           {({ user }) => <Profile user={user} />}
+        </ProtectedRoute>
+      } />
+      <Route path="/friends" element={
+        <ProtectedRoute>
+          {({ user }) => <Friends user={user} />}
         </ProtectedRoute>
       } />
       <Route path="*" element={<Navigate to="/" replace />} />
