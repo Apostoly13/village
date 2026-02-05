@@ -267,6 +267,22 @@ function ProfilePage({ user }) {
                 </Select>
               </div>
 
+              <div className="flex items-center justify-between p-4 rounded-xl bg-pink-500/5 border border-pink-500/20">
+                <div className="flex items-center gap-3">
+                  <Heart className="h-5 w-5 text-pink-500" />
+                  <div>
+                    <Label htmlFor="single-parent" className="font-medium text-foreground cursor-pointer">I'm a single parent</Label>
+                    <p className="text-xs text-muted-foreground">Connect with other single parents in our community</p>
+                  </div>
+                </div>
+                <Switch 
+                  id="single-parent"
+                  checked={isSingleParent}
+                  onCheckedChange={setIsSingleParent}
+                  data-testid="single-parent-toggle"
+                />
+              </div>
+
               <div className="space-y-2">
                 <Label className="text-foreground">I want to connect with</Label>
                 <Select value={connectWith} onValueChange={setConnectWith}>
