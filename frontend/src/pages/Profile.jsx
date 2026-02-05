@@ -6,9 +6,11 @@ import { Textarea } from "../components/ui/textarea";
 import { Label } from "../components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import { Switch } from "../components/ui/switch";
+import { Badge } from "../components/ui/badge";
 import Navigation from "../components/Navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Edit2, MessageCircle, Save, X } from "lucide-react";
+import { ArrowLeft, Edit2, MessageCircle, Save, X, Heart } from "lucide-react";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -28,6 +30,7 @@ function ProfilePage({ user }) {
   const [userLocation, setUserLocation] = useState("");
   const [gender, setGender] = useState("");
   const [connectWith, setConnectWith] = useState("");
+  const [isSingleParent, setIsSingleParent] = useState(false);
 
   const genderOptions = [
     { id: "female", text: "Female" },
