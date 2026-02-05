@@ -91,12 +91,13 @@ export default function ChatRooms({ user }) {
         {/* Info Box */}
         <div className="mt-8 p-6 rounded-2xl bg-primary/5 border border-primary/20">
           <div className="flex items-start gap-4">
-            <span className="text-3xl">🦉</span>
+            <span className="text-3xl">🌙</span>
             <div>
               <h3 className="font-heading font-bold text-foreground mb-1">Night Owl Tip</h3>
               <p className="text-sm text-muted-foreground">
-                The "Night Owl Parents" room is most active between 10pm and 4am. 
-                Perfect for those late-night feeds when you need someone to talk to!
+                The "3am Club" room is most active between 10pm and 4am. 
+                Perfect for those late-night feeds when you need someone to talk to! 
+                Active night owls get a 🦉 badge on their profile.
               </p>
             </div>
           </div>
