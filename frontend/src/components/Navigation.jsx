@@ -56,11 +56,11 @@ export default function Navigation({ user }) {
   return (
     <>
       {/* Desktop Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-white/5 hidden lg:block">
+      <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/30 hidden lg:block">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link to="/dashboard" className="flex items-center gap-2" data-testid="nav-logo">
-            <span className="text-2xl">🦉</span>
-            <span className="font-heading font-bold text-xl text-foreground">NightOwl</span>
+            <span className="text-2xl">🏡</span>
+            <span className="font-heading font-bold text-xl text-foreground">The Village</span>
           </Link>
 
           <div className="flex items-center gap-1">
@@ -80,7 +80,18 @@ export default function Navigation({ user }) {
             })}
           </div>
 
-          <DropdownMenu>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={toggleTheme}
+              className="rounded-full"
+              data-testid="theme-toggle-nav"
+            >
+              {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </Button>
+            
+            <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="rounded-full p-0" data-testid="nav-profile-dropdown">
                 <Avatar className="h-9 w-9">
