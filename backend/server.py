@@ -769,8 +769,8 @@ async def seed_data():
     
     # Chat rooms
     chat_rooms = [
-        {"name": "Night Owl Parents", "description": "For those 2am feeds and sleepless nights. You're not alone!", "icon": "🦉"},
-        {"name": "Morning Coffee Chat", "description": "Start your day with fellow parents", "icon": "☕"},
+        {"name": "3am Club", "description": "For those late-night feeds and sleepless nights. You're not alone!", "icon": "🌙"},
+        {"name": "Morning Coffee", "description": "Start your day with fellow parents", "icon": "☕"},
         {"name": "New Parents Welcome", "description": "A friendly space for first-time parents", "icon": "👋"},
         {"name": "Vent Room", "description": "Sometimes you just need to let it out", "icon": "💨"},
         {"name": "Wins & Celebrations", "description": "Share your parenting victories, big or small!", "icon": "🎉"},
