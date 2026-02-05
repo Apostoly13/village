@@ -92,35 +92,36 @@ export default function Navigation({ user }) {
             </Button>
             
             <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="rounded-full p-0" data-testid="nav-profile-dropdown">
-                <Avatar className="h-9 w-9">
-                  <AvatarImage src={user?.picture} />
-                  <AvatarFallback className="bg-primary/20 text-primary">
-                    {user?.name?.[0]?.toUpperCase() || 'U'}
-                  </AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 bg-card border-border/50">
-              <div className="px-2 py-1.5">
-                <p className="font-medium text-foreground">{user?.name}</p>
-                <p className="text-sm text-muted-foreground truncate">{user?.email}</p>
-              </div>
-              <DropdownMenuSeparator className="bg-border/50" />
-              <DropdownMenuItem asChild>
-                <Link to="/profile" className="cursor-pointer" data-testid="dropdown-profile">
-                  <User className="h-4 w-4 mr-2" />
-                  Profile
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator className="bg-border/50" />
-              <DropdownMenuItem onClick={handleLogout} className="text-destructive cursor-pointer" data-testid="dropdown-logout">
-                <LogOut className="h-4 w-4 mr-2" />
-                Log out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="rounded-full p-0" data-testid="nav-profile-dropdown">
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage src={user?.picture} />
+                    <AvatarFallback className="bg-primary/20 text-primary">
+                      {user?.name?.[0]?.toUpperCase() || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 bg-card border-border/50">
+                <div className="px-2 py-1.5">
+                  <p className="font-medium text-foreground">{user?.name}</p>
+                  <p className="text-sm text-muted-foreground truncate">{user?.email}</p>
+                </div>
+                <DropdownMenuSeparator className="bg-border/50" />
+                <DropdownMenuItem asChild>
+                  <Link to="/profile" className="cursor-pointer" data-testid="dropdown-profile">
+                    <User className="h-4 w-4 mr-2" />
+                    Profile
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-border/50" />
+                <DropdownMenuItem onClick={handleLogout} className="text-destructive cursor-pointer" data-testid="dropdown-logout">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Log out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </nav>
 
@@ -200,7 +201,7 @@ export default function Navigation({ user }) {
                 className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground'}`}
                 data-testid={`mobile-${item.testId}`}
               >
-                <item.icon className={`h-5 w-5 ${isActive ? 'animate-pulse-glow' : ''}`} />
+                <item.icon className="h-5 w-5" />
                 <span className="text-xs">{item.label}</span>
               </Link>
             );
