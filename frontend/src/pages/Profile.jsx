@@ -5,6 +5,7 @@ import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
 import { Label } from "../components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import Navigation from "../components/Navigation";
 import { toast } from "sonner";
 import { ArrowLeft, Edit2, MessageCircle, Save, X } from "lucide-react";
@@ -25,6 +26,22 @@ function ProfilePage({ user }) {
   const [nickname, setNickname] = useState("");
   const [bio, setBio] = useState("");
   const [userLocation, setUserLocation] = useState("");
+  const [gender, setGender] = useState("");
+  const [connectWith, setConnectWith] = useState("");
+
+  const genderOptions = [
+    { id: "female", text: "Female" },
+    { id: "male", text: "Male" },
+    { id: "non-binary", text: "Non-binary" },
+    { id: "prefer-not-say", text: "Prefer not to say" },
+  ];
+
+  const connectWithOptions = [
+    { id: "all", text: "All parents" },
+    { id: "mums", text: "Mums only" },
+    { id: "dads", text: "Dads only" },
+    { id: "same", text: "Same gender" },
+  ];
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -41,6 +58,8 @@ function ProfilePage({ user }) {
           setNickname(data.nickname || "");
           setBio(data.bio || "");
           setUserLocation(data.location || "");
+          setGender(data.gender || "");
+          setConnectWith(data.connect_with || "all");
         }
       } catch (error) {
         console.error("Error:", error);
@@ -61,7 +80,9 @@ function ProfilePage({ user }) {
         body: JSON.stringify({
           nickname: nickname,
           bio: bio,
-          location: userLocation
+          location: userLocation,
+          gender: gender,
+          connect_with: connectWith
         })
       });
 
@@ -78,6 +99,12 @@ function ProfilePage({ user }) {
     } finally {
       setSaving(false);
     }
+  };
+
+  // Check if this user has night owl badge (active at night)
+  const hasNightOwlBadge = () => {
+    const hour = new Date().getHours();
+    return hour >= 22 || hour < 4;
   };
 
   if (loading) {
@@ -112,6 +139,7 @@ function ProfilePage({ user }) {
 
   const displayName = profile.nickname || profile.name;
   const avatarInitial = profile.name ? profile.name.charAt(0).toUpperCase() : '?';
+  const genderLabel = genderOptions.find(g => g.id === profile.gender)?.text;
 
   return (
     <div className="min-h-screen bg-background pb-20 lg:pb-0">
@@ -139,7 +167,17 @@ function ProfilePage({ user }) {
                 </AvatarFallback>
               </Avatar>
               <div>
-                <h1 className="font-heading text-2xl font-bold text-foreground">{displayName}</h1>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="font-heading text-2xl font-bold text-foreground">{displayName}</h1>
+                  {hasNightOwlBadge() && (
+                    <span className="night-owl-badge active" data-testid="night-owl-badge">
+                      🦉 Night Owl
+                    </span>
+                  )}
+                </div>
+                {genderLabel && (
+                  <p className="text-muted-foreground">{genderLabel}</p>
+                )}
                 {profile.location && (
                   <p className="text-sm text-muted-foreground">📍 {profile.location}</p>
                 )}
@@ -201,6 +239,41 @@ function ProfilePage({ user }) {
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label className="text-foreground">I am a</Label>
+                <Select value={gender} onValueChange={setGender}>
+                  <SelectTrigger className="h-12 rounded-xl bg-secondary/50 border-transparent" data-testid="gender-select">
+                    <SelectValue placeholder="Select gender" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border/50">
+                    {genderOptions.map((opt) => (
+                      <SelectItem key={opt.id} value={opt.id}>
+                        {opt.text}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-foreground">I want to connect with</Label>
+                <Select value={connectWith} onValueChange={setConnectWith}>
+                  <SelectTrigger className="h-12 rounded-xl bg-secondary/50 border-transparent" data-testid="connect-with-select">
+                    <SelectValue placeholder="Select preference" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border/50">
+                    {connectWithOptions.map((opt) => (
+                      <SelectItem key={opt.id} value={opt.id}>
+                        {opt.text}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  This helps filter who you see in chat rooms and can message you
+                </p>
+              </div>
+
               <div className="flex gap-4 pt-4">
                 <Button 
                   variant="outline" 
@@ -241,6 +314,13 @@ function ProfilePage({ user }) {
                   </Button>
                 </div>
               ) : null}
+
+              {profile.connect_with && profile.connect_with !== "all" && (
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-2">Connection Preference</h3>
+                  <p className="text-foreground">{connectWithOptions.find(o => o.id === profile.connect_with)?.text}</p>
+                </div>
+              )}
             </div>
           )}
         </div>
