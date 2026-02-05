@@ -64,6 +64,7 @@ function ProfilePage({ user }) {
           setUserLocation(data.location || "");
           setGender(data.gender || "");
           setConnectWith(data.connect_with || "all");
+          setIsSingleParent(data.is_single_parent || false);
         }
       } catch (error) {
         console.error("Error:", error);
@@ -86,7 +87,8 @@ function ProfilePage({ user }) {
           bio: bio,
           location: userLocation,
           gender: gender,
-          connect_with: connectWith
+          connect_with: connectWith,
+          is_single_parent: isSingleParent
         })
       });
 
