@@ -774,6 +774,7 @@ async def seed_data():
         {"name": "3am Club", "description": "For those late-night feeds and sleepless nights. You're not alone!", "icon": "🌙"},
         {"name": "Morning Coffee", "description": "Start your day with fellow parents", "icon": "☕"},
         {"name": "New Parents Welcome", "description": "A friendly space for first-time parents", "icon": "👋"},
+        {"name": "Single Parents Lounge", "description": "A supportive space for single mums and dads. You're doing amazing!", "icon": "💪"},
         {"name": "Vent Room", "description": "Sometimes you just need to let it out", "icon": "💨"},
         {"name": "Wins & Celebrations", "description": "Share your parenting victories, big or small!", "icon": "🎉"},
     ]
