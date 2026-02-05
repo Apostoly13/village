@@ -22,23 +22,23 @@ export default function Landing() {
   const features = [
     {
       icon: Moon,
-      title: "Night Owl Support",
-      description: "Connect with other parents during those 2am feeds. You're never alone."
+      title: "24/7 Live Chat Rooms",
+      description: "Real-time conversations with parents who are awake right now. Perfect for those 2am feeds."
     },
     {
       icon: MessageCircle,
-      title: "Real Conversations",
-      description: "Share experiences, ask questions, and get advice from parents who understand."
+      title: "Discussion Forums",
+      description: "Browse topics like sleep training, breastfeeding, and mental health. Post questions and share experiences."
     },
     {
       icon: Shield,
-      title: "Anonymous Option",
-      description: "Post anonymously when you need to discuss sensitive topics without judgment."
+      title: "Anonymous Posting",
+      description: "Share sensitive struggles without revealing your identity. A judgement-free space for hard conversations."
     },
     {
       icon: Users,
-      title: "Find Your Tribe",
-      description: "Connect by topic or your child's age. Find parents going through the same stage."
+      title: "Private Messaging",
+      description: "Found a parent going through the same thing? Connect one-on-one for deeper support."
     }
   ];
 
