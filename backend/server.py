@@ -714,6 +714,186 @@ async def send_direct_message(message_data: DirectMessageCreate, user: dict = De
     
     return message.model_dump()
 
+# ==================== FRIENDS ENDPOINTS ====================
+
+@api_router.post("/friends/request")
+async def send_friend_request(request_data: FriendRequestCreate, user: dict = Depends(get_current_user)):
+    """Send a friend request to another user"""
+    to_user_id = request_data.to_user_id
+    from_user_id = user["user_id"]
+    
+    # Can't friend yourself
+    if to_user_id == from_user_id:
+        raise HTTPException(status_code=400, detail="Cannot send friend request to yourself")
+    
+    # Check if target user exists
+    target = await db.users.find_one({"user_id": to_user_id}, {"_id": 0})
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check if already friends
+    existing_friendship = await db.friendships.find_one({
+        "$or": [
+            {"user1_id": from_user_id, "user2_id": to_user_id},
+            {"user1_id": to_user_id, "user2_id": from_user_id}
+        ]
+    })
+    if existing_friendship:
+        raise HTTPException(status_code=400, detail="Already friends with this user")
+    
+    # Check if request already exists
+    existing_request = await db.friend_requests.find_one({
+        "$or": [
+            {"from_user_id": from_user_id, "to_user_id": to_user_id, "status": "pending"},
+            {"from_user_id": to_user_id, "to_user_id": from_user_id, "status": "pending"}
+        ]
+    })
+    if existing_request:
+        raise HTTPException(status_code=400, detail="Friend request already pending")
+    
+    # Create friend request
+    request = FriendRequest(
+        from_user_id=from_user_id,
+        to_user_id=to_user_id
+    )
+    doc = request.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await db.friend_requests.insert_one(doc)
+    
+    return {"message": "Friend request sent", "request_id": request.request_id}
+
+@api_router.get("/friends/requests")
+async def get_friend_requests(user: dict = Depends(get_current_user)):
+    """Get pending friend requests for current user"""
+    requests = await db.friend_requests.find(
+        {"to_user_id": user["user_id"], "status": "pending"},
+        {"_id": 0}
+    ).to_list(50)
+    
+    # Add sender info
+    for req in requests:
+        sender = await db.users.find_one({"user_id": req["from_user_id"]}, {"_id": 0, "password_hash": 0, "email": 0})
+        req["from_user"] = sender
+    
+    return requests
+
+@api_router.get("/friends/sent")
+async def get_sent_requests(user: dict = Depends(get_current_user)):
+    """Get friend requests sent by current user"""
+    requests = await db.friend_requests.find(
+        {"from_user_id": user["user_id"], "status": "pending"},
+        {"_id": 0}
+    ).to_list(50)
+    
+    return requests
+
+@api_router.post("/friends/request/{request_id}/accept")
+async def accept_friend_request(request_id: str, user: dict = Depends(get_current_user)):
+    """Accept a friend request"""
+    request = await db.friend_requests.find_one(
+        {"request_id": request_id, "to_user_id": user["user_id"], "status": "pending"},
+        {"_id": 0}
+    )
+    if not request:
+        raise HTTPException(status_code=404, detail="Friend request not found")
+    
+    # Update request status
+    await db.friend_requests.update_one(
+        {"request_id": request_id},
+        {"$set": {"status": "accepted"}}
+    )
+    
+    # Create friendship
+    await db.friendships.insert_one({
+        "user1_id": request["from_user_id"],
+        "user2_id": request["to_user_id"],
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+    
+    return {"message": "Friend request accepted"}
+
+@api_router.post("/friends/request/{request_id}/decline")
+async def decline_friend_request(request_id: str, user: dict = Depends(get_current_user)):
+    """Decline a friend request"""
+    request = await db.friend_requests.find_one(
+        {"request_id": request_id, "to_user_id": user["user_id"], "status": "pending"},
+        {"_id": 0}
+    )
+    if not request:
+        raise HTTPException(status_code=404, detail="Friend request not found")
+    
+    await db.friend_requests.update_one(
+        {"request_id": request_id},
+        {"$set": {"status": "declined"}}
+    )
+    
+    return {"message": "Friend request declined"}
+
+@api_router.get("/friends")
+async def get_friends(user: dict = Depends(get_current_user)):
+    """Get list of friends for current user"""
+    friendships = await db.friendships.find({
+        "$or": [
+            {"user1_id": user["user_id"]},
+            {"user2_id": user["user_id"]}
+        ]
+    }, {"_id": 0}).to_list(100)
+    
+    friends = []
+    for friendship in friendships:
+        friend_id = friendship["user2_id"] if friendship["user1_id"] == user["user_id"] else friendship["user1_id"]
+        friend = await db.users.find_one({"user_id": friend_id}, {"_id": 0, "password_hash": 0, "email": 0})
+        if friend:
+            friend["friendship_date"] = friendship["created_at"]
+            friends.append(friend)
+    
+    return friends
+
+@api_router.get("/friends/status/{other_user_id}")
+async def get_friendship_status(other_user_id: str, user: dict = Depends(get_current_user)):
+    """Check friendship status with another user"""
+    user_id = user["user_id"]
+    
+    # Check if already friends
+    friendship = await db.friendships.find_one({
+        "$or": [
+            {"user1_id": user_id, "user2_id": other_user_id},
+            {"user1_id": other_user_id, "user2_id": user_id}
+        ]
+    })
+    if friendship:
+        return {"status": "friends"}
+    
+    # Check for pending request from current user
+    sent_request = await db.friend_requests.find_one({
+        "from_user_id": user_id, "to_user_id": other_user_id, "status": "pending"
+    })
+    if sent_request:
+        return {"status": "request_sent", "request_id": sent_request["request_id"]}
+    
+    # Check for pending request to current user
+    received_request = await db.friend_requests.find_one({
+        "from_user_id": other_user_id, "to_user_id": user_id, "status": "pending"
+    })
+    if received_request:
+        return {"status": "request_received", "request_id": received_request["request_id"]}
+    
+    return {"status": "none"}
+
+@api_router.delete("/friends/{friend_id}")
+async def remove_friend(friend_id: str, user: dict = Depends(get_current_user)):
+    """Remove a friend"""
+    result = await db.friendships.delete_one({
+        "$or": [
+            {"user1_id": user["user_id"], "user2_id": friend_id},
+            {"user1_id": friend_id, "user2_id": user["user_id"]}
+        ]
+    })
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Friendship not found")
+    
+    return {"message": "Friend removed"}
+
 # ==================== FEED/HOME ENDPOINTS ====================
 
 @api_router.get("/feed")
