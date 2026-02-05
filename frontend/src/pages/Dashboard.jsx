@@ -221,60 +221,79 @@ export default function Dashboard({ user }) {
           ) : (
             <ScrollArea className="h-[calc(100vh-400px)]">
               <div className="space-y-4 pr-4">
-                {posts.map((post, idx) => (
-                  <Link 
+                posts.map((post, idx) => (
+                  <article 
                     key={post.post_id} 
-                    to={`/forums/post/${post.post_id}`}
-                    className="block"
+                    className="bg-card rounded-2xl p-6 border border-border/50 hover:border-primary/30 transition-all card-hover"
                     data-testid={`post-card-${idx}`}
                   >
-                    <article className="bg-card rounded-2xl p-6 border border-border/50 hover:border-primary/30 transition-all card-hover">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center gap-3">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        {post.author_id !== "anonymous" ? (
+                          <Link to={`/profile/${post.author_id}`} onClick={(e) => e.stopPropagation()}>
+                            <Avatar className="h-10 w-10 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
+                              <AvatarImage src={post.author_picture} />
+                              <AvatarFallback className="bg-primary/20 text-primary">
+                                {post.author_name?.[0]?.toUpperCase() || '?'}
+                              </AvatarFallback>
+                            </Avatar>
+                          </Link>
+                        ) : (
                           <Avatar className="h-10 w-10">
-                            <AvatarImage src={post.author_picture} />
                             <AvatarFallback className="bg-primary/20 text-primary">
                               {post.author_name?.[0]?.toUpperCase() || '?'}
                             </AvatarFallback>
                           </Avatar>
-                          <div>
+                        )}
+                        <div>
+                          {post.author_id !== "anonymous" ? (
+                            <Link 
+                              to={`/profile/${post.author_id}`} 
+                              className="hover:underline"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <p className="font-medium text-foreground hover:text-primary transition-colors">{post.author_name}</p>
+                            </Link>
+                          ) : (
                             <p className="font-medium text-foreground">{post.author_name}</p>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <span>{post.category_icon}</span>
-                              <span>{post.category_name}</span>
-                              <span>•</span>
-                              <Clock className="h-3 w-3" />
-                              <span>{formatDate(post.created_at)}</span>
-                            </div>
+                          )}
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <span>{post.category_icon}</span>
+                            <span>{post.category_name}</span>
+                            <span>•</span>
+                            <Clock className="h-3 w-3" />
+                            <span>{formatDate(post.created_at)}</span>
                           </div>
                         </div>
-                        {post.is_anonymous && (
-                          <span className="text-xs px-2 py-1 rounded-full bg-secondary text-muted-foreground">
-                            Anonymous
-                          </span>
-                        )}
                       </div>
+                      {post.is_anonymous && (
+                        <span className="text-xs px-2 py-1 rounded-full bg-secondary text-muted-foreground">
+                          Anonymous
+                        </span>
+                      )}
+                    </div>
 
-                      <h3 className="font-heading font-bold text-lg text-foreground mb-2">{post.title}</h3>
+                    <Link to={`/forums/post/${post.post_id}`}>
+                      <h3 className="font-heading font-bold text-lg text-foreground mb-2 hover:text-primary transition-colors">{post.title}</h3>
                       <p className="text-muted-foreground line-clamp-2 mb-4">{post.content}</p>
+                    </Link>
 
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Heart className="h-4 w-4" />
-                          <span>{post.like_count || 0}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <MessageCircle className="h-4 w-4" />
-                          <span>{post.reply_count || 0}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Eye className="h-4 w-4" />
-                          <span>{post.views || 0}</span>
-                        </div>
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Heart className="h-4 w-4" />
+                        <span>{post.like_count || 0}</span>
                       </div>
-                    </article>
-                  </Link>
-                ))}
+                      <div className="flex items-center gap-1">
+                        <MessageCircle className="h-4 w-4" />
+                        <span>{post.reply_count || 0}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Eye className="h-4 w-4" />
+                        <span>{post.views || 0}</span>
+                      </div>
+                    </div>
+                  </article>
+                ))
               </div>
             </ScrollArea>
           )}
