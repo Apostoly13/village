@@ -10,6 +10,37 @@
 
 @layer base {
     :root {
+        /* Light Mode - Warm & Fresh */
+        --background: 30 40% 98%;
+        --foreground: 30 10% 15%;
+        --card: 0 0% 100%;
+        --card-foreground: 30 10% 15%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 30 10% 15%;
+        --primary: 158 35% 45%;
+        --primary-foreground: 0 0% 100%;
+        --secondary: 30 30% 94%;
+        --secondary-foreground: 30 10% 25%;
+        --muted: 30 20% 92%;
+        --muted-foreground: 30 10% 45%;
+        --accent: 24 70% 70%;
+        --accent-foreground: 30 10% 15%;
+        --destructive: 0 72% 51%;
+        --destructive-foreground: 0 0% 100%;
+        --border: 30 20% 88%;
+        --input: 30 20% 92%;
+        --ring: 158 35% 45%;
+        --radius: 1rem;
+        --success: 142 71% 45%;
+        --warning: 38 92% 50%;
+        --info: 199 89% 48%;
+        --sage: 158 35% 45%;
+        --peach: 24 70% 70%;
+        --cream: 30 40% 96%;
+    }
+
+    .dark {
+        /* Dark Mode - Night Light */
         --background: 240 6% 7%;
         --foreground: 240 6% 90%;
         --card: 240 4% 12%;
@@ -29,10 +60,9 @@
         --border: 240 4% 18%;
         --input: 240 4% 18%;
         --ring: 45 91% 60%;
-        --radius: 1rem;
-        --success: 142 71% 45%;
-        --warning: 38 92% 50%;
-        --info: 199 89% 70%;
+        --sage: 45 91% 60%;
+        --peach: 24 70% 70%;
+        --cream: 240 4% 15%;
     }
 }
 
@@ -53,6 +83,7 @@ body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
     min-height: 100vh;
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -70,18 +101,18 @@ code {
     }
 }
 
-/* Custom scrollbar for dark theme */
+/* Custom scrollbar */
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-    background: hsl(var(--background));
+    background: hsl(var(--muted));
 }
 
 ::-webkit-scrollbar-thumb {
-    background: hsl(var(--muted));
+    background: hsl(var(--border));
     border-radius: 4px;
 }
 
@@ -89,19 +120,19 @@ code {
     background: hsl(var(--muted-foreground));
 }
 
-/* Warm glow effect */
+/* Warm glow effect - adapts to theme */
 .warm-glow {
-    box-shadow: 0 0 20px rgba(245, 197, 66, 0.15);
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.15);
 }
 
 .warm-glow-hover:hover {
-    box-shadow: 0 0 25px rgba(245, 197, 66, 0.25);
+    box-shadow: 0 0 25px hsl(var(--primary) / 0.25);
 }
 
 /* Glass effect */
 .glass {
     backdrop-filter: blur(16px);
-    background: rgba(28, 28, 30, 0.8);
+    background: hsl(var(--card) / 0.8);
 }
 
 /* Fade in animation */
@@ -121,9 +152,13 @@ code {
 .stagger-4 { animation-delay: 0.2s; }
 .stagger-5 { animation-delay: 0.25s; }
 
-/* Hero gradient */
+/* Hero gradient - light mode */
 .hero-gradient {
-    background: radial-gradient(circle at 50% 0%, rgba(245, 197, 66, 0.15) 0%, transparent 70%);
+    background: radial-gradient(circle at 50% 0%, hsl(var(--primary) / 0.1) 0%, transparent 70%);
+}
+
+.dark .hero-gradient {
+    background: radial-gradient(circle at 50% 0%, hsl(var(--primary) / 0.15) 0%, transparent 70%);
 }
 
 /* Card hover effect */
@@ -133,7 +168,7 @@ code {
 
 .card-hover:hover {
     transform: translateY(-4px);
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 8px 30px hsl(var(--foreground) / 0.1);
 }
 
 /* Button shine effect */
@@ -152,7 +187,7 @@ code {
     background: linear-gradient(
         to right,
         transparent,
-        rgba(255, 255, 255, 0.1),
+        hsl(var(--foreground) / 0.05),
         transparent
     );
     transform: rotate(45deg);
@@ -178,3 +213,54 @@ code {
 .hide-scrollbar::-webkit-scrollbar {
     display: none;
 }
+
+/* Night Owl Badge */
+.night-owl-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.night-owl-badge.active {
+    background: linear-gradient(135deg, hsl(var(--primary) / 0.2), hsl(var(--accent) / 0.2));
+    color: hsl(var(--primary));
+}
+
+.dark .night-owl-badge.active {
+    background: linear-gradient(135deg, hsl(45 91% 60% / 0.2), hsl(24 70% 70% / 0.2));
+    color: hsl(45 91% 60%);
+}
+
+/* Theme toggle button */
+.theme-toggle {
+    transition: transform 0.3s ease;
+}
+
+.theme-toggle:hover {
+    transform: rotate(15deg);
+}
+
+/* Soft button styles for light mode */
+.btn-soft {
+    background: hsl(var(--primary) / 0.1);
+    color: hsl(var(--primary));
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.btn-soft:hover {
+    background: hsl(var(--primary) / 0.2);
+}
+
+/* Avatar colors for variety */
+.avatar-sage { background: hsl(158 35% 45%); }
+.avatar-peach { background: hsl(24 70% 70%); }
+.avatar-cream { background: hsl(30 40% 80%); }
+.avatar-rose { background: hsl(350 60% 70%); }

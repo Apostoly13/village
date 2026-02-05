@@ -1,12 +1,13 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
-import { Moon, MessageCircle, Users, Shield, Heart, ArrowRight } from "lucide-react";
+import { Moon, Sun, MessageCircle, Users, Shield, Heart, ArrowRight, Clock } from "lucide-react";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 export default function Landing() {
   const navigate = useNavigate();
+  const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
     // Seed data on first load
@@ -17,33 +18,51 @@ export default function Landing() {
     if (user) {
       navigate("/dashboard");
     }
+
+    // Check saved theme preference
+    const savedTheme = localStorage.getItem("theme");
+    if (savedTheme === "dark") {
+      setDarkMode(true);
+      document.documentElement.classList.add("dark");
+    }
   }, [navigate]);
+
+  const toggleTheme = () => {
+    setDarkMode(!darkMode);
+    if (!darkMode) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    }
+  };
 
   const features = [
     {
-      icon: Moon,
-      title: "24/7 Live Chat Rooms",
-      description: "Real-time conversations with parents who are awake right now. Perfect for those 2am feeds."
+      icon: Clock,
+      title: "24/7 Chat Rooms",
+      description: "Join the '3am Club' and other themed rooms. Real-time conversations with parents who are awake right now."
     },
     {
       icon: MessageCircle,
-      title: "Discussion Forums",
-      description: "Browse topics like sleep training, breastfeeding, and mental health. Post questions and share experiences."
+      title: "Community Forums",
+      description: "Share experiences, ask questions, and get advice. Browse by topic or your child's age group."
     },
     {
       icon: Shield,
       title: "Anonymous Posting",
-      description: "Share sensitive struggles without revealing your identity. A judgement-free space for hard conversations."
+      description: "Some things are hard to say. Share sensitive struggles without revealing your identity."
     },
     {
       icon: Users,
-      title: "Private Messaging",
-      description: "Found a parent going through the same thing? Connect one-on-one for deeper support."
+      title: "Direct Messages",
+      description: "Build meaningful connections and chat privately with other parents who get it."
     }
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background transition-colors duration-300">
       {/* Hero Section */}
       <div className="relative overflow-hidden">
         <div className="hero-gradient absolute inset-0"></div>
@@ -51,17 +70,26 @@ export default function Landing() {
         {/* Navigation */}
         <nav className="relative z-10 px-6 py-4 flex items-center justify-between max-w-7xl mx-auto">
           <div className="flex items-center gap-2">
-            <span className="text-2xl">🦉</span>
-            <span className="font-heading font-bold text-xl text-foreground">NightOwl Parents</span>
+            <span className="text-2xl">🏡</span>
+            <span className="font-heading font-bold text-xl text-foreground">The Village</span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={toggleTheme}
+              className="rounded-full theme-toggle"
+              data-testid="theme-toggle"
+            >
+              {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </Button>
             <Link to="/login">
               <Button variant="ghost" className="text-muted-foreground hover:text-foreground" data-testid="nav-login-btn">
                 Sign In
               </Button>
             </Link>
             <Link to="/register">
-              <Button className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-6 shadow-[0_0_15px_rgba(245,197,66,0.3)]" data-testid="nav-register-btn">
+              <Button className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-6 shadow-[0_0_15px_hsl(var(--primary)/0.3)]" data-testid="nav-register-btn">
                 Join Free
               </Button>
             </Link>
@@ -72,7 +100,7 @@ export default function Landing() {
         <div className="relative z-10 px-6 pt-16 pb-24 max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="space-y-8">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary/50 border border-border/50">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
@@ -81,21 +109,21 @@ export default function Landing() {
               </div>
               
               <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground leading-tight">
-                You're Not Alone at <span className="text-primary">2am</span>
+                You're not alone on this <span className="text-primary">journey</span>
               </h1>
               
               <p className="text-lg text-muted-foreground max-w-lg">
-                A warm, supportive community for mums and dads navigating the beautiful chaos of parenthood. Connect, share, and find your tribe.
+                Whether it's 3am and you're breastfeeding, or you just need someone who understands — The Village is here. Connect with other parents who get it, day or night.
               </p>
               
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link to="/register">
                   <Button 
                     size="lg" 
-                    className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-8 h-14 text-lg shadow-[0_0_20px_rgba(245,197,66,0.3)] btn-shine group"
+                    className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-8 h-14 text-lg shadow-[0_0_20px_hsl(var(--primary)/0.3)] btn-shine group"
                     data-testid="hero-join-btn"
                   >
-                    Join the Community
+                    Join The Village
                     <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 </Link>
@@ -103,13 +131,17 @@ export default function Landing() {
                   <Button 
                     variant="outline" 
                     size="lg" 
-                    className="rounded-full px-8 h-14 text-lg border-border/50 hover:bg-secondary"
+                    className="rounded-full px-8 h-14 text-lg border-border hover:bg-secondary"
                     data-testid="hero-signin-btn"
                   >
                     I Have an Account
                   </Button>
                 </Link>
               </div>
+
+              <p className="text-sm text-muted-foreground italic">
+                "It takes a village to raise a child" — African Proverb
+              </p>
             </div>
 
             {/* Hero Image */}
@@ -117,8 +149,8 @@ export default function Landing() {
               <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent z-10"></div>
               <div className="rounded-3xl overflow-hidden border border-border/30 shadow-2xl">
                 <img 
-                  src="https://images.unsplash.com/photo-1715602109442-644d0f79d655?w=600&h=500&fit=crop" 
-                  alt="Parent holding baby in soft light"
+                  src="https://images.unsplash.com/photo-1476703993599-0035a21b17a9?w=600&h=500&fit=crop" 
+                  alt="Family together"
                   className="w-full h-[500px] object-cover"
                 />
               </div>
@@ -128,7 +160,7 @@ export default function Landing() {
                     <Heart className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-foreground">Sarah just posted</p>
+                    <p className="text-sm font-medium text-foreground">Emily just posted</p>
                     <p className="text-xs text-muted-foreground">"Finally got 4 hours of sleep! 🎉"</p>
                   </div>
                 </div>
@@ -139,14 +171,14 @@ export default function Landing() {
       </div>
 
       {/* Features Section */}
-      <section className="px-6 py-24 bg-card/30">
+      <section className="px-6 py-24 bg-secondary/30">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="font-heading text-3xl sm:text-4xl font-bold text-foreground mb-4">
-              Everything You Need, In One Place
+              A Safe Space for Parents
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              From quick chats to deep discussions, we've built the tools parents actually need at every hour of the day.
+              Everything you need to connect, share, and find support during the beautiful chaos of parenting.
             </p>
           </div>
 
@@ -182,8 +214,8 @@ export default function Landing() {
               
               <div className="space-y-3">
                 {[
-                  { icon: "🦉", name: "Night Owl Parents", desc: "For those 2am moments" },
-                  { icon: "☕", name: "Morning Coffee Chat", desc: "Start your day with friends" },
+                  { icon: "🌙", name: "3am Club", desc: "For those late-night moments" },
+                  { icon: "☕", name: "Morning Coffee", desc: "Start your day with friends" },
                   { icon: "💨", name: "Vent Room", desc: "Let it all out" },
                   { icon: "🎉", name: "Wins & Celebrations", desc: "Share your victories" }
                 ].map((room, idx) => (
@@ -201,8 +233,8 @@ export default function Landing() {
             <div className="relative">
               <div className="rounded-3xl overflow-hidden border border-border/30">
                 <img 
-                  src="https://images.unsplash.com/photo-1766393030567-2204662b0be2?w=600&h=450&fit=crop" 
-                  alt="Cozy atmosphere"
+                  src="https://images.unsplash.com/photo-1491013516836-7db643ee125a?w=600&h=450&fit=crop" 
+                  alt="Parent with baby"
                   className="w-full h-[450px] object-cover"
                 />
               </div>
@@ -212,11 +244,11 @@ export default function Landing() {
       </section>
 
       {/* CTA Section */}
-      <section className="px-6 py-24 bg-gradient-to-b from-card/50 to-background">
+      <section className="px-6 py-24 bg-gradient-to-b from-secondary/50 to-background">
         <div className="max-w-3xl mx-auto text-center">
-          <span className="text-5xl mb-6 block">🦉</span>
+          <span className="text-5xl mb-6 block">🏡</span>
           <h2 className="font-heading text-3xl sm:text-4xl font-bold text-foreground mb-4">
-            Ready to Find Your Tribe?
+            Ready to Find Your Village?
           </h2>
           <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
             Join thousands of parents supporting each other through the ups and downs of parenthood.
@@ -224,10 +256,10 @@ export default function Landing() {
           <Link to="/register">
             <Button 
               size="lg" 
-              className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-12 h-14 text-lg shadow-[0_0_25px_rgba(245,197,66,0.4)] animate-pulse-glow"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-12 h-14 text-lg shadow-[0_0_25px_hsl(var(--primary)/0.4)]"
               data-testid="cta-join-btn"
             >
-              Join NightOwl Parents
+              Join The Village
             </Button>
           </Link>
         </div>
@@ -237,11 +269,11 @@ export default function Landing() {
       <footer className="px-6 py-8 border-t border-border/50">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <span className="text-xl">🦉</span>
-            <span className="font-heading font-bold text-foreground">NightOwl Parents</span>
+            <span className="text-xl">🏡</span>
+            <span className="font-heading font-bold text-foreground">The Village</span>
           </div>
           <p className="text-sm text-muted-foreground">
-            Made with 💛 for parents everywhere
+            Made with 💚 for parents everywhere
           </p>
         </div>
       </footer>
