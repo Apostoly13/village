@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -13,33 +13,11 @@ import { ArrowLeft, Edit2, MessageCircle, Save, X } from "lucide-react";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
-const PARENTING_STAGES = [
-  { value: "expecting", label: "Expecting" },
-  { value: "newborn", label: "Newborn (0-3 months)" },
-  { value: "infant", label: "Infant (3-12 months)" },
-  { value: "toddler", label: "Toddler (1-3 years)" },
-  { value: "preschool", label: "Preschool (3-5 years)" },
-  { value: "school-age", label: "School-age (5+ years)" },
-];
-
-const AGE_RANGES = [
-  { value: "newborn", label: "Newborn" },
-  { value: "infant", label: "Infant" },
-  { value: "toddler", label: "Toddler" },
-  { value: "preschool", label: "Preschool" },
-  { value: "school-age", label: "School-age" },
-];
-
-const INTERESTS = [
-  "Breastfeeding", "Sleep Training", "Baby-led Weaning", "Montessori",
-  "Gentle Parenting", "Working Parent", "Stay-at-home", "Single Parent",
-  "Twins/Multiples", "NICU Parent", "Special Needs", "Cloth Diapering",
-];
-
 function ProfilePage({ user }) {
-  const { userId } = useParams();
+  const params = useParams();
   const navigate = useNavigate();
-  const isOwnProfile = !userId || userId === user?.user_id;
+  const profileUserId = params.userId;
+  const isOwnProfile = !profileUserId || profileUserId === user?.user_id;
   
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -49,43 +27,65 @@ function ProfilePage({ user }) {
   const [nickname, setNickname] = useState("");
   const [bio, setBio] = useState("");
   const [parentingStage, setParentingStage] = useState("");
-  const [childAgeRanges, setChildAgeRanges] = useState([]);
-  const [interests, setInterests] = useState([]);
-  const [location, setLocation] = useState("");
+  const [childAges, setChildAges] = useState([]);
+  const [userInterests, setUserInterests] = useState([]);
+  const [userLocation, setUserLocation] = useState("");
 
-  const fetchProfile = useCallback(async () => {
-    const profileId = userId || user?.user_id;
-    if (!profileId) return;
+  const parentingStages = [
+    { id: "expecting", text: "Expecting" },
+    { id: "newborn", text: "Newborn (0-3 months)" },
+    { id: "infant", text: "Infant (3-12 months)" },
+    { id: "toddler", text: "Toddler (1-3 years)" },
+    { id: "preschool", text: "Preschool (3-5 years)" },
+    { id: "school-age", text: "School-age (5+ years)" },
+  ];
 
-    try {
-      const response = await fetch(`${API_URL}/api/users/${profileId}`, {
-        credentials: "include"
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setProfile(data);
-        setNickname(data.nickname || "");
-        setBio(data.bio || "");
-        setParentingStage(data.parenting_stage || "");
-        setChildAgeRanges(data.child_age_ranges || []);
-        setInterests(data.interests || []);
-        setLocation(data.location || "");
-      }
-    } catch (error) {
-      console.error("Error fetching profile:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [userId, user?.user_id]);
+  const ageOptions = [
+    { id: "newborn", text: "Newborn" },
+    { id: "infant", text: "Infant" },
+    { id: "toddler", text: "Toddler" },
+    { id: "preschool", text: "Preschool" },
+    { id: "school-age", text: "School-age" },
+  ];
+
+  const interestOptions = [
+    "Breastfeeding", "Sleep Training", "Baby-led Weaning", "Montessori",
+    "Gentle Parenting", "Working Parent", "Stay-at-home", "Single Parent",
+    "Twins/Multiples", "NICU Parent", "Special Needs", "Cloth Diapering",
+  ];
 
   useEffect(() => {
+    const fetchProfile = async () => {
+      const id = profileUserId || user?.user_id;
+      if (!id) return;
+
+      try {
+        const response = await fetch(API_URL + "/api/users/" + id, {
+          credentials: "include"
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setProfile(data);
+          setNickname(data.nickname || "");
+          setBio(data.bio || "");
+          setParentingStage(data.parenting_stage || "");
+          setChildAges(data.child_age_ranges || []);
+          setUserInterests(data.interests || []);
+          setUserLocation(data.location || "");
+        }
+      } catch (error) {
+        console.error("Error:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchProfile();
-  }, [fetchProfile]);
+  }, [profileUserId, user?.user_id]);
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      const response = await fetch(`${API_URL}/api/users/profile`, {
+      const response = await fetch(API_URL + "/api/users/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -93,9 +93,9 @@ function ProfilePage({ user }) {
           nickname: nickname,
           bio: bio,
           parenting_stage: parentingStage,
-          child_age_ranges: childAgeRanges,
-          interests: interests,
-          location: location
+          child_age_ranges: childAges,
+          interests: userInterests,
+          location: userLocation
         })
       });
 
@@ -114,28 +114,18 @@ function ProfilePage({ user }) {
     }
   };
 
-  const toggleAgeRange = (value) => {
-    if (childAgeRanges.includes(value)) {
-      setChildAgeRanges(childAgeRanges.filter(v => v !== value));
-    } else {
-      setChildAgeRanges([...childAgeRanges, value]);
-    }
+  const handleAgeToggle = (ageId) => {
+    const newAges = childAges.includes(ageId)
+      ? childAges.filter(a => a !== ageId)
+      : [...childAges, ageId];
+    setChildAges(newAges);
   };
 
-  const toggleInterest = (value) => {
-    if (interests.includes(value)) {
-      setInterests(interests.filter(v => v !== value));
-    } else {
-      setInterests([...interests, value]);
-    }
-  };
-
-  const goBack = () => {
-    navigate(-1);
-  };
-
-  const toggleEditing = () => {
-    setEditing(!editing);
+  const handleInterestToggle = (interest) => {
+    const newInterests = userInterests.includes(interest)
+      ? userInterests.filter(i => i !== interest)
+      : [...userInterests, interest];
+    setUserInterests(newInterests);
   };
 
   if (loading) {
@@ -168,7 +158,7 @@ function ProfilePage({ user }) {
     );
   }
 
-  const stageLabel = PARENTING_STAGES.find(s => s.value === profile.parenting_stage)?.label;
+  const currentStage = parentingStages.find(s => s.id === profile.parenting_stage);
 
   return (
     <div className="min-h-screen bg-background pb-20 lg:pb-0">
@@ -177,7 +167,7 @@ function ProfilePage({ user }) {
       <main className="max-w-2xl mx-auto px-4 pt-20 lg:pt-24">
         {!isOwnProfile && (
           <button 
-            onClick={goBack}
+            onClick={() => navigate(-1)}
             className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors"
             data-testid="back-btn"
           >
@@ -192,15 +182,15 @@ function ProfilePage({ user }) {
               <Avatar className="h-20 w-20">
                 <AvatarImage src={profile.picture} />
                 <AvatarFallback className="bg-primary/20 text-primary text-2xl">
-                  {profile.name?.[0]?.toUpperCase() || '?'}
+                  {profile.name ? profile.name[0].toUpperCase() : '?'}
                 </AvatarFallback>
               </Avatar>
               <div>
                 <h1 className="font-heading text-2xl font-bold text-foreground">
                   {profile.nickname || profile.name}
                 </h1>
-                {stageLabel && (
-                  <p className="text-muted-foreground">{stageLabel}</p>
+                {currentStage && (
+                  <p className="text-muted-foreground">{currentStage.text}</p>
                 )}
                 {profile.location && (
                   <p className="text-sm text-muted-foreground">📍 {profile.location}</p>
@@ -208,20 +198,18 @@ function ProfilePage({ user }) {
               </div>
             </div>
 
-            {isOwnProfile && (
+            {isOwnProfile ? (
               <Button 
                 variant={editing ? "ghost" : "outline"}
                 size="sm"
-                onClick={toggleEditing}
+                onClick={() => setEditing(!editing)}
                 className="rounded-full"
                 data-testid="edit-profile-btn"
               >
                 {editing ? <X className="h-4 w-4" /> : <Edit2 className="h-4 w-4" />}
               </Button>
-            )}
-
-            {!isOwnProfile && (
-              <Link to={`/messages/${profile.user_id}`}>
+            ) : (
+              <Link to={"/messages/" + profile.user_id}>
                 <Button className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90" data-testid="message-btn">
                   <MessageCircle className="h-4 w-4 mr-2" />
                   Message
@@ -257,8 +245,8 @@ function ProfilePage({ user }) {
               <div className="space-y-2">
                 <Label className="text-foreground">Location</Label>
                 <Input 
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
+                  value={userLocation}
+                  onChange={(e) => setUserLocation(e.target.value)}
                   placeholder="City, Country"
                   className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
                   data-testid="location-input"
@@ -272,9 +260,9 @@ function ProfilePage({ user }) {
                     <SelectValue placeholder="Select your stage" />
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border/50">
-                    {PARENTING_STAGES.map((stage) => (
-                      <SelectItem key={stage.value} value={stage.value}>
-                        {stage.label}
+                    {parentingStages.map((stageItem) => (
+                      <SelectItem key={stageItem.id} value={stageItem.id}>
+                        {stageItem.text}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -284,54 +272,48 @@ function ProfilePage({ user }) {
               <div className="space-y-2">
                 <Label className="text-foreground">Children's Age Ranges</Label>
                 <div className="flex flex-wrap gap-2">
-                  {AGE_RANGES.map((age) => {
-                    const isSelected = childAgeRanges.includes(age.value);
-                    return (
-                      <Badge 
-                        key={age.value}
-                        variant={isSelected ? "default" : "outline"}
-                        className={`cursor-pointer transition-colors ${
-                          isSelected
-                            ? 'bg-primary text-primary-foreground'
-                            : 'hover:bg-secondary'
-                        }`}
-                        onClick={() => toggleAgeRange(age.value)}
-                        data-testid={`age-${age.value}`}
-                      >
-                        {age.label}
-                      </Badge>
-                    );
-                  })}
+                  {ageOptions.map((ageItem) => (
+                    <Badge 
+                      key={ageItem.id}
+                      variant={childAges.includes(ageItem.id) ? "default" : "outline"}
+                      className={`cursor-pointer transition-colors ${
+                        childAges.includes(ageItem.id)
+                          ? 'bg-primary text-primary-foreground'
+                          : 'hover:bg-secondary'
+                      }`}
+                      onClick={() => handleAgeToggle(ageItem.id)}
+                      data-testid={"age-" + ageItem.id}
+                    >
+                      {ageItem.text}
+                    </Badge>
+                  ))}
                 </div>
               </div>
 
               <div className="space-y-2">
                 <Label className="text-foreground">Interests</Label>
                 <div className="flex flex-wrap gap-2">
-                  {INTERESTS.map((interest) => {
-                    const isSelected = interests.includes(interest);
-                    return (
-                      <Badge 
-                        key={interest}
-                        variant={isSelected ? "default" : "outline"}
-                        className={`cursor-pointer transition-colors ${
-                          isSelected
-                            ? 'bg-primary text-primary-foreground'
-                            : 'hover:bg-secondary'
-                        }`}
-                        onClick={() => toggleInterest(interest)}
-                      >
-                        {interest}
-                      </Badge>
-                    );
-                  })}
+                  {interestOptions.map((interestItem) => (
+                    <Badge 
+                      key={interestItem}
+                      variant={userInterests.includes(interestItem) ? "default" : "outline"}
+                      className={`cursor-pointer transition-colors ${
+                        userInterests.includes(interestItem)
+                          ? 'bg-primary text-primary-foreground'
+                          : 'hover:bg-secondary'
+                      }`}
+                      onClick={() => handleInterestToggle(interestItem)}
+                    >
+                      {interestItem}
+                    </Badge>
+                  ))}
                 </div>
               </div>
 
               <div className="flex gap-4 pt-4">
                 <Button 
                   variant="outline" 
-                  onClick={toggleEditing}
+                  onClick={() => setEditing(false)}
                   className="flex-1 h-12 rounded-xl"
                   data-testid="cancel-btn"
                 >
@@ -365,10 +347,12 @@ function ProfilePage({ user }) {
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground mb-2">Children's Ages</h3>
                   <div className="flex flex-wrap gap-2">
-                    {profile.child_age_ranges.map((age) => {
-                      const ageLabel = AGE_RANGES.find(a => a.value === age)?.label || age;
+                    {profile.child_age_ranges.map((ageId) => {
+                      const ageOption = ageOptions.find(a => a.id === ageId);
                       return (
-                        <Badge key={age} variant="secondary">{ageLabel}</Badge>
+                        <Badge key={ageId} variant="secondary">
+                          {ageOption ? ageOption.text : ageId}
+                        </Badge>
                       );
                     })}
                   </div>
@@ -379,8 +363,8 @@ function ProfilePage({ user }) {
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground mb-2">Interests</h3>
                   <div className="flex flex-wrap gap-2">
-                    {profile.interests.map((interest) => (
-                      <Badge key={interest} variant="outline">{interest}</Badge>
+                    {profile.interests.map((interestItem) => (
+                      <Badge key={interestItem} variant="outline">{interestItem}</Badge>
                     ))}
                   </div>
                 </div>
@@ -389,7 +373,7 @@ function ProfilePage({ user }) {
               {!profile.bio && (!profile.child_age_ranges || profile.child_age_ranges.length === 0) && isOwnProfile && (
                 <div className="text-center py-8">
                   <p className="text-muted-foreground mb-4">Complete your profile to help other parents connect with you!</p>
-                  <Button onClick={toggleEditing} className="rounded-full" data-testid="complete-profile-btn">
+                  <Button onClick={() => setEditing(true)} className="rounded-full" data-testid="complete-profile-btn">
                     <Edit2 className="h-4 w-4 mr-2" />
                     Complete Profile
                   </Button>
