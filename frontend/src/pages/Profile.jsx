@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -36,7 +36,7 @@ const INTERESTS = [
   "Twins/Multiples", "NICU Parent", "Special Needs", "Cloth Diapering",
 ];
 
-export default function Profile({ user }) {
+function ProfilePage({ user }) {
   const { userId } = useParams();
   const navigate = useNavigate();
   const isOwnProfile = !userId || userId === user?.user_id;
@@ -46,20 +46,14 @@ export default function Profile({ user }) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   
-  const [formData, setFormData] = useState({
-    nickname: "",
-    bio: "",
-    parenting_stage: "",
-    child_age_ranges: [],
-    interests: [],
-    location: ""
-  });
+  const [nickname, setNickname] = useState("");
+  const [bio, setBio] = useState("");
+  const [parentingStage, setParentingStage] = useState("");
+  const [childAgeRanges, setChildAgeRanges] = useState([]);
+  const [interests, setInterests] = useState([]);
+  const [location, setLocation] = useState("");
 
-  useEffect(() => {
-    fetchProfile();
-  }, [userId, user]);
-
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     const profileId = userId || user?.user_id;
     if (!profileId) return;
 
@@ -70,21 +64,23 @@ export default function Profile({ user }) {
       if (response.ok) {
         const data = await response.json();
         setProfile(data);
-        setFormData({
-          nickname: data.nickname || "",
-          bio: data.bio || "",
-          parenting_stage: data.parenting_stage || "",
-          child_age_ranges: data.child_age_ranges || [],
-          interests: data.interests || [],
-          location: data.location || ""
-        });
+        setNickname(data.nickname || "");
+        setBio(data.bio || "");
+        setParentingStage(data.parenting_stage || "");
+        setChildAgeRanges(data.child_age_ranges || []);
+        setInterests(data.interests || []);
+        setLocation(data.location || "");
       }
     } catch (error) {
       console.error("Error fetching profile:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId, user?.user_id]);
+
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -93,7 +89,14 @@ export default function Profile({ user }) {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          nickname: nickname,
+          bio: bio,
+          parenting_stage: parentingStage,
+          child_age_ranges: childAgeRanges,
+          interests: interests,
+          location: location
+        })
       });
 
       if (response.ok) {
@@ -112,21 +115,27 @@ export default function Profile({ user }) {
   };
 
   const toggleAgeRange = (value) => {
-    setFormData(prev => ({
-      ...prev,
-      child_age_ranges: prev.child_age_ranges.includes(value)
-        ? prev.child_age_ranges.filter(v => v !== value)
-        : [...prev.child_age_ranges, value]
-    }));
+    if (childAgeRanges.includes(value)) {
+      setChildAgeRanges(childAgeRanges.filter(v => v !== value));
+    } else {
+      setChildAgeRanges([...childAgeRanges, value]);
+    }
   };
 
   const toggleInterest = (value) => {
-    setFormData(prev => ({
-      ...prev,
-      interests: prev.interests.includes(value)
-        ? prev.interests.filter(v => v !== value)
-        : [...prev.interests, value]
-    }));
+    if (interests.includes(value)) {
+      setInterests(interests.filter(v => v !== value));
+    } else {
+      setInterests([...interests, value]);
+    }
+  };
+
+  const goBack = () => {
+    navigate(-1);
+  };
+
+  const toggleEditing = () => {
+    setEditing(!editing);
   };
 
   if (loading) {
@@ -159,6 +168,8 @@ export default function Profile({ user }) {
     );
   }
 
+  const stageLabel = PARENTING_STAGES.find(s => s.value === profile.parenting_stage)?.label;
+
   return (
     <div className="min-h-screen bg-background pb-20 lg:pb-0">
       <Navigation user={user} />
@@ -166,7 +177,7 @@ export default function Profile({ user }) {
       <main className="max-w-2xl mx-auto px-4 pt-20 lg:pt-24">
         {!isOwnProfile && (
           <button 
-            onClick={() => navigate(-1)}
+            onClick={goBack}
             className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors"
             data-testid="back-btn"
           >
@@ -176,7 +187,6 @@ export default function Profile({ user }) {
         )}
 
         <div className="bg-card rounded-2xl p-6 border border-border/50 mb-6">
-          {/* Header */}
           <div className="flex items-start justify-between mb-6">
             <div className="flex items-center gap-4">
               <Avatar className="h-20 w-20">
@@ -189,10 +199,8 @@ export default function Profile({ user }) {
                 <h1 className="font-heading text-2xl font-bold text-foreground">
                   {profile.nickname || profile.name}
                 </h1>
-                {profile.parenting_stage && (
-                  <p className="text-muted-foreground">
-                    {PARENTING_STAGES.find(s => s.value === profile.parenting_stage)?.label}
-                  </p>
+                {stageLabel && (
+                  <p className="text-muted-foreground">{stageLabel}</p>
                 )}
                 {profile.location && (
                   <p className="text-sm text-muted-foreground">📍 {profile.location}</p>
@@ -204,7 +212,7 @@ export default function Profile({ user }) {
               <Button 
                 variant={editing ? "ghost" : "outline"}
                 size="sm"
-                onClick={() => setEditing(!editing)}
+                onClick={toggleEditing}
                 className="rounded-full"
                 data-testid="edit-profile-btn"
               >
@@ -222,14 +230,13 @@ export default function Profile({ user }) {
             )}
           </div>
 
-          {/* Editing Mode */}
           {editing ? (
             <div className="space-y-6">
               <div className="space-y-2">
                 <Label className="text-foreground">Display Name</Label>
                 <Input 
-                  value={formData.nickname}
-                  onChange={(e) => setFormData({ ...formData, nickname: e.target.value })}
+                  value={nickname}
+                  onChange={(e) => setNickname(e.target.value)}
                   placeholder="How should we call you?"
                   className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
                   data-testid="nickname-input"
@@ -239,8 +246,8 @@ export default function Profile({ user }) {
               <div className="space-y-2">
                 <Label className="text-foreground">Bio</Label>
                 <Textarea 
-                  value={formData.bio}
-                  onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
                   placeholder="Tell other parents about yourself..."
                   className="min-h-[100px] rounded-xl bg-secondary/50 border-transparent focus:border-primary resize-none"
                   data-testid="bio-input"
@@ -250,8 +257,8 @@ export default function Profile({ user }) {
               <div className="space-y-2">
                 <Label className="text-foreground">Location</Label>
                 <Input 
-                  value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
                   placeholder="City, Country"
                   className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
                   data-testid="location-input"
@@ -260,10 +267,7 @@ export default function Profile({ user }) {
 
               <div className="space-y-2">
                 <Label className="text-foreground">Parenting Stage</Label>
-                <Select 
-                  value={formData.parenting_stage}
-                  onValueChange={(value) => setFormData({ ...formData, parenting_stage: value })}
-                >
+                <Select value={parentingStage} onValueChange={setParentingStage}>
                   <SelectTrigger className="h-12 rounded-xl bg-secondary/50 border-transparent" data-testid="stage-select">
                     <SelectValue placeholder="Select your stage" />
                   </SelectTrigger>
@@ -280,48 +284,54 @@ export default function Profile({ user }) {
               <div className="space-y-2">
                 <Label className="text-foreground">Children's Age Ranges</Label>
                 <div className="flex flex-wrap gap-2">
-                  {AGE_RANGES.map((age) => (
-                    <Badge 
-                      key={age.value}
-                      variant={formData.child_age_ranges.includes(age.value) ? "default" : "outline"}
-                      className={`cursor-pointer transition-colors ${
-                        formData.child_age_ranges.includes(age.value)
-                          ? 'bg-primary text-primary-foreground'
-                          : 'hover:bg-secondary'
-                      }`}
-                      onClick={() => toggleAgeRange(age.value)}
-                      data-testid={`age-${age.value}`}
-                    >
-                      {age.label}
-                    </Badge>
-                  ))}
+                  {AGE_RANGES.map((age) => {
+                    const isSelected = childAgeRanges.includes(age.value);
+                    return (
+                      <Badge 
+                        key={age.value}
+                        variant={isSelected ? "default" : "outline"}
+                        className={`cursor-pointer transition-colors ${
+                          isSelected
+                            ? 'bg-primary text-primary-foreground'
+                            : 'hover:bg-secondary'
+                        }`}
+                        onClick={() => toggleAgeRange(age.value)}
+                        data-testid={`age-${age.value}`}
+                      >
+                        {age.label}
+                      </Badge>
+                    );
+                  })}
                 </div>
               </div>
 
               <div className="space-y-2">
                 <Label className="text-foreground">Interests</Label>
                 <div className="flex flex-wrap gap-2">
-                  {INTERESTS.map((interest) => (
-                    <Badge 
-                      key={interest}
-                      variant={formData.interests.includes(interest) ? "default" : "outline"}
-                      className={`cursor-pointer transition-colors ${
-                        formData.interests.includes(interest)
-                          ? 'bg-primary text-primary-foreground'
-                          : 'hover:bg-secondary'
-                      }`}
-                      onClick={() => toggleInterest(interest)}
-                    >
-                      {interest}
-                    </Badge>
-                  ))}
+                  {INTERESTS.map((interest) => {
+                    const isSelected = interests.includes(interest);
+                    return (
+                      <Badge 
+                        key={interest}
+                        variant={isSelected ? "default" : "outline"}
+                        className={`cursor-pointer transition-colors ${
+                          isSelected
+                            ? 'bg-primary text-primary-foreground'
+                            : 'hover:bg-secondary'
+                        }`}
+                        onClick={() => toggleInterest(interest)}
+                      >
+                        {interest}
+                      </Badge>
+                    );
+                  })}
                 </div>
               </div>
 
               <div className="flex gap-4 pt-4">
                 <Button 
                   variant="outline" 
-                  onClick={() => setEditing(false)}
+                  onClick={toggleEditing}
                   className="flex-1 h-12 rounded-xl"
                   data-testid="cancel-btn"
                 >
@@ -343,7 +353,6 @@ export default function Profile({ user }) {
               </div>
             </div>
           ) : (
-            /* View Mode */
             <div className="space-y-6">
               {profile.bio && (
                 <div>
@@ -356,11 +365,12 @@ export default function Profile({ user }) {
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground mb-2">Children's Ages</h3>
                   <div className="flex flex-wrap gap-2">
-                    {profile.child_age_ranges.map((age) => (
-                      <Badge key={age} variant="secondary">
-                        {AGE_RANGES.find(a => a.value === age)?.label || age}
-                      </Badge>
-                    ))}
+                    {profile.child_age_ranges.map((age) => {
+                      const ageLabel = AGE_RANGES.find(a => a.value === age)?.label || age;
+                      return (
+                        <Badge key={age} variant="secondary">{ageLabel}</Badge>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -370,9 +380,7 @@ export default function Profile({ user }) {
                   <h3 className="text-sm font-medium text-muted-foreground mb-2">Interests</h3>
                   <div className="flex flex-wrap gap-2">
                     {profile.interests.map((interest) => (
-                      <Badge key={interest} variant="outline">
-                        {interest}
-                      </Badge>
+                      <Badge key={interest} variant="outline">{interest}</Badge>
                     ))}
                   </div>
                 </div>
@@ -381,7 +389,7 @@ export default function Profile({ user }) {
               {!profile.bio && (!profile.child_age_ranges || profile.child_age_ranges.length === 0) && isOwnProfile && (
                 <div className="text-center py-8">
                   <p className="text-muted-foreground mb-4">Complete your profile to help other parents connect with you!</p>
-                  <Button onClick={() => setEditing(true)} className="rounded-full" data-testid="complete-profile-btn">
+                  <Button onClick={toggleEditing} className="rounded-full" data-testid="complete-profile-btn">
                     <Edit2 className="h-4 w-4 mr-2" />
                     Complete Profile
                   </Button>
@@ -394,3 +402,5 @@ export default function Profile({ user }) {
     </div>
   );
 }
+
+export default ProfilePage;
