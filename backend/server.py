@@ -415,6 +415,15 @@ async def logout(request: Request, response: Response):
 
 # ==================== USER PROFILE ENDPOINTS ====================
 
+@api_router.get("/users/single-parents")
+async def get_single_parents(user: dict = Depends(get_current_user)):
+    """Get list of single parents for connection suggestions"""
+    single_parents = await db.users.find(
+        {"is_single_parent": True, "user_id": {"$ne": user["user_id"]}},
+        {"_id": 0, "password_hash": 0, "email": 0}
+    ).limit(20).to_list(20)
+    return single_parents
+
 @api_router.get("/users/{user_id}")
 async def get_user_profile(user_id: str):
     user = await db.users.find_one({"user_id": user_id}, {"_id": 0, "password_hash": 0})
