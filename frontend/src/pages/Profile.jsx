@@ -10,7 +10,7 @@ import { Switch } from "../components/ui/switch";
 import { Badge } from "../components/ui/badge";
 import Navigation from "../components/Navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Edit2, MessageCircle, Save, X, Heart } from "lucide-react";
+import { ArrowLeft, Edit2, MessageCircle, Save, X, Heart, UserPlus, UserCheck, Clock, Users } from "lucide-react";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -24,6 +24,8 @@ function ProfilePage({ user }) {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [friendStatus, setFriendStatus] = useState(null);
+  const [friendActionLoading, setFriendActionLoading] = useState(false);
   
   const [nickname, setNickname] = useState("");
   const [bio, setBio] = useState("");
@@ -72,7 +74,25 @@ function ProfilePage({ user }) {
         setLoading(false);
       }
     };
+    
+    const fetchFriendStatus = async () => {
+      if (!profileUserId || profileUserId === user?.user_id) return;
+      
+      try {
+        const response = await fetch(API_URL + "/api/friends/status/" + profileUserId, {
+          credentials: "include"
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setFriendStatus(data);
+        }
+      } catch (error) {
+        console.error("Error fetching friend status:", error);
+      }
+    };
+    
     fetchProfile();
+    fetchFriendStatus();
   }, [profileUserId, user?.user_id]);
 
   const handleSave = async () => {
@@ -104,6 +124,74 @@ function ProfilePage({ user }) {
       toast.error("Something went wrong");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSendFriendRequest = async () => {
+    setFriendActionLoading(true);
+    try {
+      const response = await fetch(API_URL + "/api/friends/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ to_user_id: profileUserId })
+      });
+      
+      if (response.ok) {
+        toast.success("Friend request sent!");
+        setFriendStatus({ status: "request_sent" });
+      } else {
+        const error = await response.json();
+        toast.error(error.detail || "Failed to send request");
+      }
+    } catch (error) {
+      toast.error("Something went wrong");
+    } finally {
+      setFriendActionLoading(false);
+    }
+  };
+
+  const handleAcceptRequest = async () => {
+    if (!friendStatus?.request_id) return;
+    setFriendActionLoading(true);
+    try {
+      const response = await fetch(API_URL + "/api/friends/request/" + friendStatus.request_id + "/accept", {
+        method: "POST",
+        credentials: "include"
+      });
+      
+      if (response.ok) {
+        toast.success("Friend request accepted!");
+        setFriendStatus({ status: "friends" });
+      } else {
+        toast.error("Failed to accept request");
+      }
+    } catch (error) {
+      toast.error("Something went wrong");
+    } finally {
+      setFriendActionLoading(false);
+    }
+  };
+
+  const handleDeclineRequest = async () => {
+    if (!friendStatus?.request_id) return;
+    setFriendActionLoading(true);
+    try {
+      const response = await fetch(API_URL + "/api/friends/request/" + friendStatus.request_id + "/decline", {
+        method: "POST",
+        credentials: "include"
+      });
+      
+      if (response.ok) {
+        toast.success("Friend request declined");
+        setFriendStatus({ status: "none" });
+      } else {
+        toast.error("Failed to decline request");
+      }
+    } catch (error) {
+      toast.error("Something went wrong");
+    } finally {
+      setFriendActionLoading(false);
     }
   };
 
@@ -147,6 +235,60 @@ function ProfilePage({ user }) {
   const avatarInitial = profile.name ? profile.name.charAt(0).toUpperCase() : '?';
   const genderLabel = genderOptions.find(g => g.id === profile.gender)?.text;
 
+  const renderFriendButton = () => {
+    if (!friendStatus) return null;
+    
+    switch (friendStatus.status) {
+      case "friends":
+        return (
+          <Button variant="outline" className="rounded-full border-green-500/30 text-green-600 dark:text-green-400" disabled>
+            <UserCheck className="h-4 w-4 mr-2" />
+            Friends
+          </Button>
+        );
+      case "request_sent":
+        return (
+          <Button variant="outline" className="rounded-full" disabled>
+            <Clock className="h-4 w-4 mr-2" />
+            Request Sent
+          </Button>
+        );
+      case "request_received":
+        return (
+          <div className="flex gap-2">
+            <Button 
+              onClick={handleAcceptRequest}
+              disabled={friendActionLoading}
+              className="rounded-full bg-green-600 hover:bg-green-700 text-white"
+            >
+              Accept
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={handleDeclineRequest}
+              disabled={friendActionLoading}
+              className="rounded-full"
+            >
+              Decline
+            </Button>
+          </div>
+        );
+      default:
+        return (
+          <Button 
+            variant="outline"
+            onClick={handleSendFriendRequest}
+            disabled={friendActionLoading}
+            className="rounded-full"
+            data-testid="add-friend-btn"
+          >
+            <UserPlus className="h-4 w-4 mr-2" />
+            Add Friend
+          </Button>
+        );
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background pb-20 lg:pb-0">
       <Navigation user={user} />
@@ -186,6 +328,12 @@ function ProfilePage({ user }) {
                       Single Parent
                     </Badge>
                   )}
+                  {friendStatus?.status === "friends" && (
+                    <Badge variant="secondary" className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20">
+                      <Users className="h-3 w-3 mr-1" />
+                      Friend
+                    </Badge>
+                  )}
                 </div>
                 {genderLabel && (
                   <p className="text-muted-foreground">{genderLabel}</p>
@@ -207,12 +355,15 @@ function ProfilePage({ user }) {
                 {editing ? <X className="h-4 w-4" /> : <Edit2 className="h-4 w-4" />}
               </Button>
             ) : (
-              <Link to={"/messages/" + profile.user_id}>
-                <Button className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90" data-testid="message-btn">
-                  <MessageCircle className="h-4 w-4 mr-2" />
-                  Message
-                </Button>
-              </Link>
+              <div className="flex flex-col gap-2 items-end">
+                {renderFriendButton()}
+                <Link to={"/messages/" + profile.user_id}>
+                  <Button className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90" data-testid="message-btn">
+                    <MessageCircle className="h-4 w-4 mr-2" />
+                    Message
+                  </Button>
+                </Link>
+              </div>
             )}
           </div>
 
