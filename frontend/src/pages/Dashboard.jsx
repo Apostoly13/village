@@ -4,8 +4,9 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { ScrollArea } from "../components/ui/scroll-area";
+import { Badge } from "../components/ui/badge";
 import Navigation from "../components/Navigation";
-import { Search, Plus, MessageCircle, Heart, Eye, Clock } from "lucide-react";
+import { Search, Plus, MessageCircle, Heart, Eye, Clock, Users } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -14,9 +15,11 @@ export default function Dashboard({ user }) {
   const [posts, setPosts] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [singleParents, setSingleParents] = useState([]);
 
   useEffect(() => {
     fetchFeed();
+    fetchSingleParents();
   }, []);
 
   const fetchFeed = async () => {
@@ -32,6 +35,20 @@ export default function Dashboard({ user }) {
       console.error("Error fetching feed:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSingleParents = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/users/single-parents`, {
+        credentials: "include"
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setSingleParents(data);
+      }
+    } catch (error) {
+      console.error("Error fetching single parents:", error);
     }
   };
 
