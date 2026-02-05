@@ -154,14 +154,30 @@ export default function ForumPost({ user }) {
         <article className="bg-card rounded-2xl p-6 border border-border/50 mb-6" data-testid="post-content">
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
-              <Avatar className="h-12 w-12">
-                <AvatarImage src={post.author_picture} />
-                <AvatarFallback className="bg-primary/20 text-primary text-lg">
-                  {post.author_name?.[0]?.toUpperCase() || '?'}
-                </AvatarFallback>
-              </Avatar>
+              {post.author_id !== "anonymous" ? (
+                <Link to={`/profile/${post.author_id}`}>
+                  <Avatar className="h-12 w-12 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
+                    <AvatarImage src={post.author_picture} />
+                    <AvatarFallback className="bg-primary/20 text-primary text-lg">
+                      {post.author_name?.[0]?.toUpperCase() || '?'}
+                    </AvatarFallback>
+                  </Avatar>
+                </Link>
+              ) : (
+                <Avatar className="h-12 w-12">
+                  <AvatarFallback className="bg-primary/20 text-primary text-lg">
+                    {post.author_name?.[0]?.toUpperCase() || '?'}
+                  </AvatarFallback>
+                </Avatar>
+              )}
               <div>
-                <p className="font-medium text-foreground">{post.author_name}</p>
+                {post.author_id !== "anonymous" ? (
+                  <Link to={`/profile/${post.author_id}`} className="hover:underline">
+                    <p className="font-medium text-foreground hover:text-primary transition-colors">{post.author_name}</p>
+                  </Link>
+                ) : (
+                  <p className="font-medium text-foreground">{post.author_name}</p>
+                )}
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Clock className="h-3 w-3" />
                   <span>{formatDate(post.created_at)}</span>
@@ -218,15 +234,31 @@ export default function ForumPost({ user }) {
                 data-testid={`reply-${idx}`}
               >
                 <div className="flex items-start gap-3">
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={reply.author_picture} />
-                    <AvatarFallback className="bg-primary/20 text-primary">
-                      {reply.author_name?.[0]?.toUpperCase() || '?'}
-                    </AvatarFallback>
-                  </Avatar>
+                  {reply.author_id !== "anonymous" ? (
+                    <Link to={`/profile/${reply.author_id}`}>
+                      <Avatar className="h-10 w-10 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
+                        <AvatarImage src={reply.author_picture} />
+                        <AvatarFallback className="bg-primary/20 text-primary">
+                          {reply.author_name?.[0]?.toUpperCase() || '?'}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Link>
+                  ) : (
+                    <Avatar className="h-10 w-10">
+                      <AvatarFallback className="bg-primary/20 text-primary">
+                        {reply.author_name?.[0]?.toUpperCase() || '?'}
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="font-medium text-foreground">{reply.author_name}</span>
+                      {reply.author_id !== "anonymous" ? (
+                        <Link to={`/profile/${reply.author_id}`} className="hover:underline">
+                          <span className="font-medium text-foreground hover:text-primary transition-colors">{reply.author_name}</span>
+                        </Link>
+                      ) : (
+                        <span className="font-medium text-foreground">{reply.author_name}</span>
+                      )}
                       {reply.is_anonymous && (
                         <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
                           Anonymous
