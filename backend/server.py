@@ -706,10 +706,18 @@ async def delete_post(post_id: str, user: dict = Depends(get_current_user)):
     return {"message": "Post deleted successfully"}
 
 @api_router.get("/forums/posts/{post_id}/replies")
-async def get_replies(post_id: str):
+async def get_replies(post_id: str, user: dict = Depends(get_current_user)):
     replies = await db.forum_replies.find({"post_id": post_id}, {"_id": 0}).sort("created_at", 1).to_list(100)
     
     for reply in replies:
+        # Check if user liked this reply
+        user_liked = await db.reply_likes.find_one({"reply_id": reply["reply_id"], "user_id": user["user_id"]})
+        reply["user_liked"] = bool(user_liked)
+        
+        # Store original author for edit check
+        original_author_id = reply["author_id"]
+        reply["is_own_reply"] = original_author_id == user["user_id"]
+        
         if reply.get("is_anonymous"):
             reply["author_name"] = "Anonymous Parent"
             reply["author_picture"] = None
@@ -724,8 +732,15 @@ async def create_reply(post_id: str, reply_data: ForumReplyCreate, user: dict = 
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
     
+    # If replying to another reply, verify it exists
+    if reply_data.parent_reply_id:
+        parent_reply = await db.forum_replies.find_one({"reply_id": reply_data.parent_reply_id})
+        if not parent_reply:
+            raise HTTPException(status_code=404, detail="Parent reply not found")
+    
     reply = ForumReply(
         post_id=post_id,
+        parent_reply_id=reply_data.parent_reply_id,
         author_id=user["user_id"],
         author_name=user.get("nickname") or user["name"],
         author_picture=user.get("picture"),
@@ -739,6 +754,20 @@ async def create_reply(post_id: str, reply_data: ForumReplyCreate, user: dict = 
     await db.forum_replies.insert_one(doc)
     await db.forum_posts.update_one({"post_id": post_id}, {"$inc": {"reply_count": 1}})
     
+    # Create notification for post author (if not replying to own post and not anonymous)
+    if post["author_id"] != user["user_id"] and not reply_data.is_anonymous:
+        notification = {
+            "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+            "user_id": post["author_id"],
+            "type": "reply",
+            "title": "New reply to your post",
+            "message": f"{user.get('nickname') or user['name']} replied to your post: \"{post['title'][:50]}...\"",
+            "link": f"/forums/post/{post_id}",
+            "is_read": False,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.notifications.insert_one(notification)
+    
     result = reply.model_dump()
     if reply.is_anonymous:
         result["author_name"] = "Anonymous Parent"
@@ -746,6 +775,49 @@ async def create_reply(post_id: str, reply_data: ForumReplyCreate, user: dict = 
         result["author_id"] = "anonymous"
     
     return result
+
+@api_router.put("/forums/replies/{reply_id}")
+async def update_reply(reply_id: str, reply_data: ForumReplyUpdate, user: dict = Depends(get_current_user)):
+    """Update a reply (only by author)"""
+    reply = await db.forum_replies.find_one({"reply_id": reply_id}, {"_id": 0})
+    if not reply:
+        raise HTTPException(status_code=404, detail="Reply not found")
+    
+    if reply["author_id"] != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Not authorized to edit this reply")
+    
+    await db.forum_replies.update_one(
+        {"reply_id": reply_id}, 
+        {"$set": {"content": reply_data.content, "is_edited": True}}
+    )
+    
+    updated = await db.forum_replies.find_one({"reply_id": reply_id}, {"_id": 0})
+    return updated
+
+@api_router.delete("/forums/replies/{reply_id}")
+async def delete_reply(reply_id: str, user: dict = Depends(get_current_user)):
+    """Delete a reply (only by author)"""
+    reply = await db.forum_replies.find_one({"reply_id": reply_id}, {"_id": 0})
+    if not reply:
+        raise HTTPException(status_code=404, detail="Reply not found")
+    
+    if reply["author_id"] != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this reply")
+    
+    # Delete reply and its likes
+    await db.forum_replies.delete_one({"reply_id": reply_id})
+    await db.reply_likes.delete_many({"reply_id": reply_id})
+    
+    # Also delete any nested replies
+    await db.forum_replies.delete_many({"parent_reply_id": reply_id})
+    
+    # Update post reply count
+    await db.forum_posts.update_one(
+        {"post_id": reply["post_id"]}, 
+        {"$inc": {"reply_count": -1}}
+    )
+    
+    return {"message": "Reply deleted successfully"}
 
 @api_router.post("/forums/posts/{post_id}/like")
 async def like_post(post_id: str, user: dict = Depends(get_current_user)):
