@@ -187,9 +187,20 @@ class ChatRoom(BaseModel):
     name: str
     description: str
     icon: str
+    room_type: str = "global"  # global, local, overflow
+    region: Optional[str] = None  # UK, US, Australia, Europe, Asia, Other
+    parent_room_id: Optional[str] = None  # For overflow rooms
     is_active: bool = True
+    active_users: int = 0
+    max_capacity: int = 50
     member_count: int = 0
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class EmailPreferences(BaseModel):
+    notify_replies: bool = True
+    notify_dms: bool = True
+    notify_friend_requests: bool = True
+    weekly_digest: bool = True
 
 class ChatMessage(BaseModel):
     model_config = ConfigDict(extra="ignore")
