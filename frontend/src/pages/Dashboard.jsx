@@ -221,7 +221,7 @@ export default function Dashboard({ user }) {
           ) : (
             <ScrollArea className="h-[calc(100vh-400px)]">
               <div className="space-y-4 pr-4">
-                posts.map((post, idx) => (
+                {posts.map((post, idx) => (
                   <article 
                     key={post.post_id} 
                     className="bg-card rounded-2xl p-6 border border-border/50 hover:border-primary/30 transition-all card-hover"
