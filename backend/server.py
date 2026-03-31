@@ -458,6 +458,78 @@ def get_email_template(template_type: str, data: dict) -> tuple:
     
     return subject, html
 
+# ==================== LOCATION HELPERS ====================
+
+def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Calculate distance between two points using Haversine formula (returns km)"""
+    R = 6371  # Earth's radius in km
+    
+    lat1_rad = math.radians(lat1)
+    lat2_rad = math.radians(lat2)
+    delta_lat = math.radians(lat2 - lat1)
+    delta_lon = math.radians(lon2 - lon1)
+    
+    a = math.sin(delta_lat/2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lon/2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+    
+    return R * c
+
+async def geocode_address(address: str, state: str = None) -> dict:
+    """Geocode an address using OpenStreetMap Nominatim (free)"""
+    try:
+        search_query = f"{address}, {state}, Australia" if state else f"{address}, Australia"
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                "https://nominatim.openstreetmap.org/search",
+                params={
+                    "q": search_query,
+                    "format": "json",
+                    "limit": 5,
+                    "countrycodes": "au",
+                    "addressdetails": 1
+                },
+                headers={"User-Agent": "TheVillage/1.0"}
+            )
+            if response.status_code == 200:
+                results = response.json()
+                if results:
+                    return {
+                        "results": [
+                            {
+                                "display_name": r.get("display_name"),
+                                "lat": float(r.get("lat", 0)),
+                                "lon": float(r.get("lon", 0)),
+                                "suburb": r.get("address", {}).get("suburb") or r.get("address", {}).get("city") or r.get("address", {}).get("town"),
+                                "state": r.get("address", {}).get("state"),
+                                "postcode": r.get("address", {}).get("postcode")
+                            }
+                            for r in results
+                        ]
+                    }
+        return {"results": []}
+    except Exception as e:
+        logger.error(f"Geocoding error: {e}")
+        return {"results": []}
+
+async def get_users_within_distance(user_lat: float, user_lon: float, distance_km: float, exclude_user_id: str = None) -> List[dict]:
+    """Get users within a certain distance"""
+    users = await db.users.find(
+        {"latitude": {"$exists": True}, "longitude": {"$exists": True}},
+        {"_id": 0, "password_hash": 0}
+    ).to_list(1000)
+    
+    nearby_users = []
+    for u in users:
+        if exclude_user_id and u.get("user_id") == exclude_user_id:
+            continue
+        if u.get("latitude") and u.get("longitude"):
+            dist = calculate_distance(user_lat, user_lon, u["latitude"], u["longitude"])
+            if dist <= distance_km:
+                u["distance_km"] = round(dist, 1)
+                nearby_users.append(u)
+    
+    return sorted(nearby_users, key=lambda x: x.get("distance_km", 9999))
+
 # ==================== AUTH ENDPOINTS ====================
 
 @api_router.post("/auth/register")
