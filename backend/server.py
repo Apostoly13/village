@@ -660,6 +660,51 @@ async def create_post(post_data: ForumPostCreate, user: dict = Depends(get_curre
     
     return result
 
+@api_router.put("/forums/posts/{post_id}")
+async def update_post(post_id: str, post_data: ForumPostUpdate, user: dict = Depends(get_current_user)):
+    """Update a post (only by author)"""
+    post = await db.forum_posts.find_one({"post_id": post_id}, {"_id": 0})
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
+    if post["author_id"] != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Not authorized to edit this post")
+    
+    update_fields = {"updated_at": datetime.now(timezone.utc).isoformat(), "is_edited": True}
+    if post_data.title:
+        update_fields["title"] = post_data.title
+    if post_data.content:
+        update_fields["content"] = post_data.content
+    
+    await db.forum_posts.update_one({"post_id": post_id}, {"$set": update_fields})
+    
+    updated = await db.forum_posts.find_one({"post_id": post_id}, {"_id": 0})
+    return updated
+
+@api_router.delete("/forums/posts/{post_id}")
+async def delete_post(post_id: str, user: dict = Depends(get_current_user)):
+    """Delete a post (only by author)"""
+    post = await db.forum_posts.find_one({"post_id": post_id}, {"_id": 0})
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
+    if post["author_id"] != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this post")
+    
+    # Delete post, its replies, likes, and bookmarks
+    await db.forum_posts.delete_one({"post_id": post_id})
+    await db.forum_replies.delete_many({"post_id": post_id})
+    await db.post_likes.delete_many({"post_id": post_id})
+    await db.bookmarks.delete_many({"post_id": post_id})
+    
+    # Update category post count
+    await db.forum_categories.update_one(
+        {"category_id": post["category_id"]}, 
+        {"$inc": {"post_count": -1}}
+    )
+    
+    return {"message": "Post deleted successfully"}
+
 @api_router.get("/forums/posts/{post_id}/replies")
 async def get_replies(post_id: str):
     replies = await db.forum_replies.find({"post_id": post_id}, {"_id": 0}).sort("created_at", 1).to_list(100)
