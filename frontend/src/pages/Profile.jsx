@@ -141,9 +141,12 @@ function ProfilePage({ user }) {
           nickname: nickname,
           bio: bio,
           location: userLocation,
+          region: region,
           gender: gender,
           connect_with: connectWith,
-          is_single_parent: isSingleParent
+          is_single_parent: isSingleParent,
+          picture: picture,
+          email_preferences: emailPrefs
         })
       });
 
@@ -159,6 +162,46 @@ function ProfilePage({ user }) {
       toast.error("Something went wrong");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePictureUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Please select a valid image");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be less than 5MB");
+      return;
+    }
+
+    setUploadingPicture(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch(`${API_URL}/api/upload/image`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setPicture(data.image_url);
+        toast.success("Picture uploaded! Don't forget to save.");
+      } else {
+        toast.error("Failed to upload picture");
+      }
+    } catch (error) {
+      toast.error("Failed to upload picture");
+    } finally {
+      setUploadingPicture(false);
     }
   };
 
