@@ -1276,41 +1276,93 @@ async def create_report(report_data: ReportCreate, user: dict = Depends(get_curr
 
 # ==================== CHAT ROOM ENDPOINTS ====================
 
-REGIONS = ["UK", "US", "Australia", "Europe", "Asia", "Other"]
 ROOM_MAX_CAPACITY = 50
 
 @api_router.get("/chat/rooms")
-async def get_chat_rooms(user: dict = Depends(get_current_user), region: Optional[str] = None):
-    """Get chat rooms - prioritizes user's local rooms, then global"""
-    user_region = user.get("region") or region
+async def get_chat_rooms(user: dict = Depends(get_current_user)):
+    """Get chat rooms organized by reach: Local (distance-based), State, All Australia"""
+    user_state = user.get("state")
+    user_lat = user.get("latitude")
+    user_lon = user.get("longitude")
+    preferred_reach = user.get("preferred_reach", "state")
     
     # Get all active rooms
-    all_rooms = await db.chat_rooms.find({"is_active": True}, {"_id": 0}).to_list(100)
+    all_rooms = await db.chat_rooms.find({"is_active": True}, {"_id": 0}).to_list(200)
     
     # Categorize rooms
-    local_rooms = []
-    global_rooms = []
+    local_rooms = []  # Within distance
+    state_rooms = []  # User's state
+    all_australia_rooms = []  # All of Australia
     
     for room in all_rooms:
-        room_type = room.get("room_type", "global")
-        room_region = room.get("region")
+        room_type = room.get("room_type", "state")
+        room_state = room.get("state")
         
-        if room_type == "local" and room_region == user_region:
-            local_rooms.append(room)
-        elif room_type == "global" or room_type == "overflow":
-            global_rooms.append(room)
+        if room_type == "all_australia":
+            all_australia_rooms.append(room)
+        elif room_type == "state" and room_state == user_state:
+            state_rooms.append(room)
+        elif room_type == "local":
+            # Local rooms - check if within user's preferred distance
+            room_lat = room.get("latitude")
+            room_lon = room.get("longitude")
+            if user_lat and user_lon and room_lat and room_lon:
+                dist = calculate_distance(user_lat, user_lon, room_lat, room_lon)
+                # Get distance from preferred_reach
+                reach_km = next((d["km"] for d in DISTANCE_OPTIONS if d["id"] == preferred_reach), 100)
+                if reach_km and dist <= reach_km:
+                    room["distance_km"] = round(dist, 1)
+                    local_rooms.append(room)
+    
+    # Sort local rooms by distance
+    local_rooms.sort(key=lambda x: x.get("distance_km", 9999))
     
     return {
         "local_rooms": local_rooms,
-        "global_rooms": global_rooms,
-        "user_region": user_region,
-        "available_regions": REGIONS
+        "state_rooms": state_rooms,
+        "all_australia_rooms": all_australia_rooms,
+        "user_state": user_state,
+        "preferred_reach": preferred_reach,
+        "available_states": AUSTRALIAN_STATES,
+        "distance_options": DISTANCE_OPTIONS,
+        "has_location": bool(user_lat and user_lon)
     }
+
+@api_router.get("/chat/rooms/nearby")
+async def get_nearby_chat_rooms(
+    user: dict = Depends(get_current_user),
+    distance_km: int = 25
+):
+    """Get chat rooms within a specific distance"""
+    user_lat = user.get("latitude")
+    user_lon = user.get("longitude")
+    
+    if not user_lat or not user_lon:
+        return {"rooms": [], "message": "Please set your location to see nearby rooms"}
+    
+    all_rooms = await db.chat_rooms.find(
+        {"is_active": True, "latitude": {"$exists": True}},
+        {"_id": 0}
+    ).to_list(200)
+    
+    nearby_rooms = []
+    for room in all_rooms:
+        if room.get("latitude") and room.get("longitude"):
+            dist = calculate_distance(user_lat, user_lon, room["latitude"], room["longitude"])
+            if dist <= distance_km:
+                room["distance_km"] = round(dist, 1)
+                nearby_rooms.append(room)
+    
+    nearby_rooms.sort(key=lambda x: x.get("distance_km", 9999))
+    return {"rooms": nearby_rooms, "search_radius_km": distance_km}
 
 @api_router.get("/chat/rooms/all")
 async def get_all_chat_rooms():
-    """Get all chat rooms without authentication (for display purposes)"""
-    rooms = await db.chat_rooms.find({"is_active": True, "room_type": "global"}, {"_id": 0}).to_list(50)
+    """Get main chat rooms without authentication (for landing page)"""
+    rooms = await db.chat_rooms.find(
+        {"is_active": True, "room_type": "all_australia"},
+        {"_id": 0}
+    ).to_list(50)
     return rooms
 
 @api_router.get("/chat/rooms/{room_id}")
@@ -1349,7 +1401,7 @@ async def join_chat_room(room_id: str, user: dict = Depends(get_current_user)):
                 "description": room["description"],
                 "icon": room["icon"],
                 "room_type": "overflow",
-                "region": room.get("region"),
+                "state": room.get("state"),
                 "parent_room_id": room_id,
                 "is_active": True,
                 "active_users": 0,
