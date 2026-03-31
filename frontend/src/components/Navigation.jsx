@@ -9,7 +9,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import { Home, MessageSquare, Users, Mail, User, LogOut, Menu, X, Moon, Sun, UserPlus } from "lucide-react";
+import { ScrollArea } from "./ui/scroll-area";
+import { Home, MessageSquare, Users, Mail, User, LogOut, Menu, X, Moon, Sun, UserPlus, Bell, Bookmark } from "lucide-react";
 import { toast } from "sonner";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -20,23 +21,76 @@ export default function Navigation({ user }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(document.documentElement.classList.contains('dark'));
   const [friendRequestCount, setFriendRequestCount] = useState(0);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   useEffect(() => {
-    const fetchFriendRequests = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/friends/requests`, { credentials: "include" });
-        if (response.ok) {
-          const data = await response.json();
+        const [friendsRes, notifCountRes] = await Promise.all([
+          fetch(`${API_URL}/api/friends/requests`, { credentials: "include" }),
+          fetch(`${API_URL}/api/notifications/unread-count`, { credentials: "include" })
+        ]);
+        
+        if (friendsRes.ok) {
+          const data = await friendsRes.json();
           setFriendRequestCount(data.length);
         }
+        if (notifCountRes.ok) {
+          const data = await notifCountRes.json();
+          setUnreadCount(data.count);
+        }
       } catch (error) {
-        console.error("Error fetching friend requests:", error);
+        console.error("Error fetching data:", error);
       }
     };
-    fetchFriendRequests();
-    const interval = setInterval(fetchFriendRequests, 30000);
+    fetchData();
+    const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  const fetchNotifications = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/notifications?limit=10`, { credentials: "include" });
+      if (response.ok) {
+        setNotifications(await response.json());
+      }
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+    }
+  };
+
+  const handleNotificationsOpen = (open) => {
+    setNotificationsOpen(open);
+    if (open) {
+      fetchNotifications();
+    }
+  };
+
+  const markAllRead = async () => {
+    try {
+      await fetch(`${API_URL}/api/notifications/mark-read`, { method: "POST", credentials: "include" });
+      setUnreadCount(0);
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    } catch (error) {
+      console.error("Error marking notifications read:", error);
+    }
+  };
+
+  const handleNotificationClick = async (notification) => {
+    if (!notification.is_read) {
+      await fetch(`${API_URL}/api/notifications/${notification.notification_id}/read`, { 
+        method: "POST", 
+        credentials: "include" 
+      });
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    }
+    if (notification.link) {
+      navigate(notification.link);
+    }
+    setNotificationsOpen(false);
+  };
 
   const navItems = [
     { icon: Home, label: "Home", href: "/dashboard", testId: "nav-home" },
