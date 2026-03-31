@@ -225,6 +225,52 @@ export default function Dashboard({ user }) {
           </div>
         )}
 
+        {/* Nearby Parents */}
+        {nearbyUsers.length > 0 && (
+          <div className="mb-8 p-5 rounded-2xl bg-green-500/5 border border-green-500/20">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
+                  <MapPin className="h-5 w-5 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <h3 className="font-heading font-bold text-foreground">Parents Near You</h3>
+                  <p className="text-sm text-muted-foreground">Connect with parents in your area</p>
+                </div>
+              </div>
+              <Link to="/chat">
+                <Button variant="outline" size="sm" className="rounded-full border-green-500/30 text-green-600 dark:text-green-400 hover:bg-green-500/10">
+                  <Users className="h-4 w-4 mr-2" />
+                  Local Chat
+                </Button>
+              </Link>
+            </div>
+            <div className="flex items-center gap-3 overflow-x-auto pb-2 hide-scrollbar">
+              {nearbyUsers.slice(0, 8).map((parent, idx) => (
+                <Link 
+                  key={parent.user_id} 
+                  to={`/profile/${parent.user_id}`}
+                  className="flex-shrink-0 flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-green-500/10 transition-colors"
+                  data-testid={`nearby-user-${idx}`}
+                >
+                  <Avatar className="h-14 w-14 ring-2 ring-green-500/30">
+                    <AvatarImage src={parent.picture} />
+                    <AvatarFallback className="bg-green-500/20 text-green-600">
+                      {parent.name?.[0]?.toUpperCase() || '?'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm font-medium text-foreground truncate max-w-[80px]">
+                    {parent.nickname || parent.name?.split(' ')[0]}
+                  </span>
+                  {parent.distance_km !== undefined && (
+                    <span className="text-xs text-muted-foreground">{parent.distance_km}km</span>
+                  )}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Feed */}
         <div className="space-y-4">
           <h2 className="font-heading text-xl font-bold text-foreground">Recent Posts</h2>
