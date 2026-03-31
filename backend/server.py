@@ -310,6 +310,132 @@ async def get_current_user(request: Request) -> dict:
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
+# ==================== EMAIL HELPERS ====================
+
+async def send_email_notification(to_email: str, subject: str, html_content: str):
+    """Send email notification using Resend (non-blocking)"""
+    if not RESEND_API_KEY:
+        logger.warning("RESEND_API_KEY not configured, skipping email")
+        return None
+    
+    try:
+        params = {
+            "from": SENDER_EMAIL,
+            "to": [to_email],
+            "subject": subject,
+            "html": html_content
+        }
+        result = await asyncio.to_thread(resend.Emails.send, params)
+        logger.info(f"Email sent to {to_email}: {result.get('id')}")
+        return result
+    except Exception as e:
+        logger.error(f"Failed to send email to {to_email}: {str(e)}")
+        return None
+
+def get_email_template(template_type: str, data: dict) -> tuple:
+    """Generate email subject and HTML content based on template type"""
+    base_style = """
+        <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, sans-serif; background-color: #FDF8F3; margin: 0; padding: 20px; }
+            .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+            .header { background: linear-gradient(135deg, #F5C542 0%, #E5A832 100%); padding: 30px; text-align: center; }
+            .header h1 { color: #1A1A2E; margin: 0; font-size: 24px; }
+            .content { padding: 30px; }
+            .content h2 { color: #1A1A2E; margin-top: 0; }
+            .content p { color: #4A4A4A; line-height: 1.6; }
+            .button { display: inline-block; background: #F5C542; color: #1A1A2E; padding: 12px 24px; border-radius: 25px; text-decoration: none; font-weight: bold; margin: 20px 0; }
+            .footer { background: #F5F5F5; padding: 20px; text-align: center; color: #888; font-size: 12px; }
+        </style>
+    """
+    
+    if template_type == "reply":
+        subject = f"💬 New reply to your post: {data.get('post_title', 'Your post')[:50]}"
+        html = f"""
+        <html><head>{base_style}</head><body>
+        <div class="container">
+            <div class="header"><h1>🏡 The Village</h1></div>
+            <div class="content">
+                <h2>Someone replied to your post!</h2>
+                <p><strong>{data.get('replier_name', 'A community member')}</strong> replied to your post "<em>{data.get('post_title', '')}</em>":</p>
+                <p style="background: #F5F5F5; padding: 15px; border-radius: 8px; border-left: 4px solid #F5C542;">
+                    {data.get('reply_preview', '')[:200]}...
+                </p>
+                <a href="{data.get('link', '#')}" class="button">View Reply</a>
+            </div>
+            <div class="footer">You're receiving this because you have email notifications enabled.<br/>The Village - You're not alone on this journey.</div>
+        </div>
+        </body></html>
+        """
+    elif template_type == "dm":
+        subject = f"📨 New message from {data.get('sender_name', 'Someone')}"
+        html = f"""
+        <html><head>{base_style}</head><body>
+        <div class="container">
+            <div class="header"><h1>🏡 The Village</h1></div>
+            <div class="content">
+                <h2>You have a new message!</h2>
+                <p><strong>{data.get('sender_name', 'A community member')}</strong> sent you a direct message:</p>
+                <p style="background: #F5F5F5; padding: 15px; border-radius: 8px; border-left: 4px solid #F5C542;">
+                    {data.get('message_preview', '')[:200]}...
+                </p>
+                <a href="{data.get('link', '#')}" class="button">Read Message</a>
+            </div>
+            <div class="footer">You're receiving this because you have email notifications enabled.<br/>The Village - You're not alone on this journey.</div>
+        </div>
+        </body></html>
+        """
+    elif template_type == "friend_request":
+        subject = f"👋 {data.get('sender_name', 'Someone')} wants to connect!"
+        html = f"""
+        <html><head>{base_style}</head><body>
+        <div class="container">
+            <div class="header"><h1>🏡 The Village</h1></div>
+            <div class="content">
+                <h2>New friend request!</h2>
+                <p><strong>{data.get('sender_name', 'A community member')}</strong> would like to connect with you on The Village.</p>
+                <a href="{data.get('link', '#')}" class="button">View Request</a>
+            </div>
+            <div class="footer">You're receiving this because you have email notifications enabled.<br/>The Village - You're not alone on this journey.</div>
+        </div>
+        </body></html>
+        """
+    elif template_type == "weekly_digest":
+        subject = "🏡 Your Weekly Village Digest"
+        html = f"""
+        <html><head>{base_style}</head><body>
+        <div class="container">
+            <div class="header"><h1>🏡 The Village</h1></div>
+            <div class="content">
+                <h2>Your Week in The Village</h2>
+                <p>Here's what's been happening in your community this week:</p>
+                <ul style="color: #4A4A4A; line-height: 2;">
+                    <li>📝 <strong>{data.get('new_posts', 0)}</strong> new posts in your favorite categories</li>
+                    <li>💬 <strong>{data.get('new_replies', 0)}</strong> replies to discussions</li>
+                    <li>🔥 <strong>{data.get('trending_topic', 'Community support')}</strong> is trending</li>
+                </ul>
+                <a href="{data.get('link', '#')}" class="button">Visit The Village</a>
+            </div>
+            <div class="footer">You're receiving this weekly digest because you're subscribed.<br/>The Village - You're not alone on this journey.</div>
+        </div>
+        </body></html>
+        """
+    else:
+        subject = "🏡 Notification from The Village"
+        html = f"""
+        <html><head>{base_style}</head><body>
+        <div class="container">
+            <div class="header"><h1>🏡 The Village</h1></div>
+            <div class="content">
+                <p>{data.get('message', 'You have a new notification.')}</p>
+                <a href="{data.get('link', '#')}" class="button">View Details</a>
+            </div>
+            <div class="footer">The Village - You're not alone on this journey.</div>
+        </div>
+        </body></html>
+        """
+    
+    return subject, html
+
 # ==================== AUTH ENDPOINTS ====================
 
 @api_router.post("/auth/register")
