@@ -1885,20 +1885,24 @@ async def seed_data():
             cat["created_at"] = datetime.now(timezone.utc).isoformat()
             await db.forum_categories.insert_one(cat)
     
-    # Chat rooms - Global
-    global_chat_rooms = [
-        {"name": "3am Club", "description": "For those late-night feeds and sleepless nights. You're not alone!", "icon": "🌙", "room_type": "global"},
-        {"name": "Morning Coffee", "description": "Start your day with fellow parents", "icon": "☕", "room_type": "global"},
-        {"name": "New Parents Welcome", "description": "A friendly space for first-time parents", "icon": "👋", "room_type": "global"},
-        {"name": "Single Parents Lounge", "description": "A supportive space for single mums and dads. You're doing amazing!", "icon": "💪", "room_type": "global"},
-        {"name": "Vent Room", "description": "Sometimes you just need to let it out", "icon": "💨", "room_type": "global"},
-        {"name": "Wins & Celebrations", "description": "Share your parenting victories, big or small!", "icon": "🎉", "room_type": "global"},
+    # Clear old global/region chat rooms and create Australia-focused ones
+    await db.chat_rooms.delete_many({"room_type": {"$in": ["global", "local"]}})
+    
+    # Chat rooms - All Australia (main themed rooms)
+    all_australia_rooms = [
+        {"name": "3am Club", "description": "For those late-night feeds and sleepless nights. You're not alone!", "icon": "🌙"},
+        {"name": "Morning Coffee", "description": "Start your day with fellow Aussie parents", "icon": "☕"},
+        {"name": "New Parents Welcome", "description": "A friendly space for first-time parents", "icon": "👋"},
+        {"name": "Single Parents Lounge", "description": "A supportive space for single mums and dads. You're doing amazing!", "icon": "💪"},
+        {"name": "Vent Room", "description": "Sometimes you just need to let it out", "icon": "💨"},
+        {"name": "Wins & Celebrations", "description": "Share your parenting victories, big or small!", "icon": "🎉"},
     ]
     
-    for room in global_chat_rooms:
-        existing = await db.chat_rooms.find_one({"name": room["name"], "room_type": "global"})
+    for room in all_australia_rooms:
+        existing = await db.chat_rooms.find_one({"name": room["name"], "room_type": "all_australia"})
         if not existing:
             room["room_id"] = f"room_{uuid.uuid4().hex[:12]}"
+            room["room_type"] = "all_australia"
             room["is_active"] = True
             room["active_users"] = 0
             room["max_capacity"] = 50
@@ -1906,25 +1910,24 @@ async def seed_data():
             room["created_at"] = datetime.now(timezone.utc).isoformat()
             await db.chat_rooms.insert_one(room)
     
-    # Chat rooms - Local (by region)
-    regions = ["UK", "US", "Australia", "Europe", "Asia"]
-    local_room_templates = [
-        {"name": "Local Parents", "description": "Connect with parents in your area", "icon": "📍"},
-        {"name": "Local Meetups", "description": "Organize and find local parent meetups", "icon": "🤝"},
+    # Chat rooms - By State
+    state_room_templates = [
+        {"name": "Parents Chat", "description": "Connect with parents in your state", "icon": "💬"},
+        {"name": "Local Meetups", "description": "Organize and find parent meetups near you", "icon": "🤝"},
     ]
     
-    for region in regions:
-        for template in local_room_templates:
-            room_name = f"{template['name']} - {region}"
-            existing = await db.chat_rooms.find_one({"name": room_name})
+    for state in AUSTRALIAN_STATES:
+        for template in state_room_templates:
+            room_name = f"{template['name']} - {state}"
+            existing = await db.chat_rooms.find_one({"name": room_name, "room_type": "state"})
             if not existing:
                 room = {
                     "room_id": f"room_{uuid.uuid4().hex[:12]}",
                     "name": room_name,
-                    "description": f"{template['description']} ({region})",
+                    "description": f"{template['description']} ({state})",
                     "icon": template["icon"],
-                    "room_type": "local",
-                    "region": region,
+                    "room_type": "state",
+                    "state": state,
                     "is_active": True,
                     "active_users": 0,
                     "max_capacity": 50,
@@ -1932,6 +1935,8 @@ async def seed_data():
                     "created_at": datetime.now(timezone.utc).isoformat()
                 }
                 await db.chat_rooms.insert_one(room)
+    
+    return {"message": "Data seeded successfully"}
     
     return {"message": "Data seeded successfully"}
 
