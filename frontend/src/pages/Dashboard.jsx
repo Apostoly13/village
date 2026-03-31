@@ -113,6 +113,15 @@ export default function Dashboard({ user }) {
     <div className="min-h-screen bg-background pb-20 lg:pb-0">
       <Navigation user={user} />
       
+      {/* Onboarding Modal */}
+      {showOnboarding && (
+        <OnboardingModal 
+          user={user}
+          onComplete={handleOnboardingComplete}
+          onSkip={() => setShowOnboarding(false)}
+        />
+      )}
+      
       <main className="max-w-4xl mx-auto px-4 pt-20 lg:pt-24">
         {/* Header */}
         <div className="mb-8">
