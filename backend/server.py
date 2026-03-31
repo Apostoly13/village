@@ -174,7 +174,7 @@ class Notification(BaseModel):
     model_config = ConfigDict(extra="ignore")
     notification_id: str = Field(default_factory=lambda: f"notif_{uuid.uuid4().hex[:12]}")
     user_id: str
-    type: str  # "reply", "like", "friend_request", "friend_accepted"
+    type: str  # "reply", "like", "friend_request", "friend_accepted", "dm"
     title: str
     message: str
     link: Optional[str] = None
