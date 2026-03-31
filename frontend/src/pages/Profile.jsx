@@ -38,7 +38,6 @@ function ProfilePage({ user }) {
   const genderOptions = [
     { id: "female", text: "Female" },
     { id: "male", text: "Male" },
-    { id: "non-binary", text: "Non-binary" },
     { id: "prefer-not-say", text: "Prefer not to say" },
   ];
 
