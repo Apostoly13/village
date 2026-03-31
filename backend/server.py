@@ -117,6 +117,7 @@ class ForumPost(BaseModel):
     is_edited: bool = False
     title: str
     content: str
+    image: Optional[str] = None  # Base64 encoded image or URL
     reply_count: int = 0
     like_count: int = 0
     views: int = 0
