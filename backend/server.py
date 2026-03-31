@@ -830,7 +830,166 @@ async def like_post(post_id: str, user: dict = Depends(get_current_user)):
     else:
         await db.post_likes.insert_one({"post_id": post_id, "user_id": user["user_id"]})
         await db.forum_posts.update_one({"post_id": post_id}, {"$inc": {"like_count": 1}})
+        
+        # Create notification for post author
+        post = await db.forum_posts.find_one({"post_id": post_id}, {"_id": 0})
+        if post and post["author_id"] != user["user_id"] and not post.get("is_anonymous"):
+            notification = {
+                "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+                "user_id": post["author_id"],
+                "type": "like",
+                "title": "Someone liked your post",
+                "message": f"{user.get('nickname') or user['name']} liked your post: \"{post['title'][:50]}\"",
+                "link": f"/forums/post/{post_id}",
+                "is_read": False,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+            await db.notifications.insert_one(notification)
+        
         return {"liked": True}
+
+@api_router.post("/forums/replies/{reply_id}/like")
+async def like_reply(reply_id: str, user: dict = Depends(get_current_user)):
+    """Toggle like on a reply"""
+    reply = await db.forum_replies.find_one({"reply_id": reply_id}, {"_id": 0})
+    if not reply:
+        raise HTTPException(status_code=404, detail="Reply not found")
+    
+    existing = await db.reply_likes.find_one({"reply_id": reply_id, "user_id": user["user_id"]})
+    if existing:
+        await db.reply_likes.delete_one({"reply_id": reply_id, "user_id": user["user_id"]})
+        await db.forum_replies.update_one({"reply_id": reply_id}, {"$inc": {"like_count": -1}})
+        return {"liked": False}
+    else:
+        await db.reply_likes.insert_one({"reply_id": reply_id, "user_id": user["user_id"]})
+        await db.forum_replies.update_one({"reply_id": reply_id}, {"$inc": {"like_count": 1}})
+        return {"liked": True}
+
+# ==================== BOOKMARKS ENDPOINTS ====================
+
+@api_router.post("/forums/posts/{post_id}/bookmark")
+async def toggle_bookmark(post_id: str, user: dict = Depends(get_current_user)):
+    """Toggle bookmark on a post"""
+    post = await db.forum_posts.find_one({"post_id": post_id}, {"_id": 0})
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
+    existing = await db.bookmarks.find_one({"post_id": post_id, "user_id": user["user_id"]})
+    if existing:
+        await db.bookmarks.delete_one({"post_id": post_id, "user_id": user["user_id"]})
+        return {"bookmarked": False}
+    else:
+        bookmark = {
+            "bookmark_id": f"bm_{uuid.uuid4().hex[:12]}",
+            "user_id": user["user_id"],
+            "post_id": post_id,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.bookmarks.insert_one(bookmark)
+        return {"bookmarked": True}
+
+@api_router.get("/bookmarks")
+async def get_bookmarks(user: dict = Depends(get_current_user), limit: int = 20, skip: int = 0):
+    """Get user's bookmarked posts"""
+    bookmarks = await db.bookmarks.find(
+        {"user_id": user["user_id"]},
+        {"_id": 0}
+    ).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    
+    # Fetch full post details
+    posts = []
+    for bm in bookmarks:
+        post = await db.forum_posts.find_one({"post_id": bm["post_id"]}, {"_id": 0})
+        if post:
+            # Add category info
+            category = await db.forum_categories.find_one({"category_id": post["category_id"]}, {"_id": 0})
+            post["category_name"] = category["name"] if category else "General"
+            post["category_icon"] = category["icon"] if category else "💬"
+            post["bookmarked_at"] = bm["created_at"]
+            
+            if post.get("is_anonymous"):
+                post["author_name"] = "Anonymous Parent"
+                post["author_picture"] = None
+                post["author_id"] = "anonymous"
+            
+            posts.append(post)
+    
+    return posts
+
+# ==================== NOTIFICATIONS ENDPOINTS ====================
+
+@api_router.get("/notifications")
+async def get_notifications(user: dict = Depends(get_current_user), limit: int = 20):
+    """Get user's notifications"""
+    notifications = await db.notifications.find(
+        {"user_id": user["user_id"]},
+        {"_id": 0}
+    ).sort("created_at", -1).limit(limit).to_list(limit)
+    
+    return notifications
+
+@api_router.get("/notifications/unread-count")
+async def get_unread_count(user: dict = Depends(get_current_user)):
+    """Get count of unread notifications"""
+    count = await db.notifications.count_documents({"user_id": user["user_id"], "is_read": False})
+    return {"count": count}
+
+@api_router.post("/notifications/mark-read")
+async def mark_notifications_read(user: dict = Depends(get_current_user)):
+    """Mark all notifications as read"""
+    await db.notifications.update_many(
+        {"user_id": user["user_id"], "is_read": False},
+        {"$set": {"is_read": True}}
+    )
+    return {"message": "All notifications marked as read"}
+
+@api_router.post("/notifications/{notification_id}/read")
+async def mark_notification_read(notification_id: str, user: dict = Depends(get_current_user)):
+    """Mark a single notification as read"""
+    await db.notifications.update_one(
+        {"notification_id": notification_id, "user_id": user["user_id"]},
+        {"$set": {"is_read": True}}
+    )
+    return {"message": "Notification marked as read"}
+
+# ==================== REPORT ENDPOINTS ====================
+
+@api_router.post("/reports")
+async def create_report(report_data: ReportCreate, user: dict = Depends(get_current_user)):
+    """Report a post or reply"""
+    # Verify content exists
+    if report_data.content_type == "post":
+        content = await db.forum_posts.find_one({"post_id": report_data.content_id})
+    elif report_data.content_type == "reply":
+        content = await db.forum_replies.find_one({"reply_id": report_data.content_id})
+    else:
+        raise HTTPException(status_code=400, detail="Invalid content type")
+    
+    if not content:
+        raise HTTPException(status_code=404, detail="Content not found")
+    
+    # Check if already reported by this user
+    existing = await db.reports.find_one({
+        "reporter_id": user["user_id"],
+        "content_type": report_data.content_type,
+        "content_id": report_data.content_id
+    })
+    if existing:
+        raise HTTPException(status_code=400, detail="You have already reported this content")
+    
+    report = {
+        "report_id": f"report_{uuid.uuid4().hex[:12]}",
+        "reporter_id": user["user_id"],
+        "content_type": report_data.content_type,
+        "content_id": report_data.content_id,
+        "reason": report_data.reason,
+        "details": report_data.details,
+        "status": "pending",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.reports.insert_one(report)
+    
+    return {"message": "Report submitted successfully", "report_id": report["report_id"]}
 
 # ==================== CHAT ROOM ENDPOINTS ====================
 
