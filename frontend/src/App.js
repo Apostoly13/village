@@ -17,6 +17,7 @@ import Conversation from "./pages/Conversation";
 import Profile from "./pages/Profile";
 import CreatePost from "./pages/CreatePost";
 import Friends from "./pages/Friends";
+import Bookmarks from "./pages/Bookmarks";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
