@@ -386,12 +386,38 @@ function ProfilePage({ user }) {
         <div className="bg-card rounded-2xl p-6 border border-border/50 mb-6">
           <div className="flex items-start justify-between mb-6">
             <div className="flex items-center gap-4">
-              <Avatar className="h-20 w-20">
-                <AvatarImage src={profile.picture} />
-                <AvatarFallback className="bg-primary/20 text-primary text-2xl">
-                  {avatarInitial}
-                </AvatarFallback>
-              </Avatar>
+              <div className="relative">
+                <Avatar className="h-20 w-20">
+                  <AvatarImage src={editing ? (picture || profile.picture) : profile.picture} />
+                  <AvatarFallback className="bg-primary/20 text-primary text-2xl">
+                    {avatarInitial}
+                  </AvatarFallback>
+                </Avatar>
+                {editing && isOwnProfile && (
+                  <>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      onChange={handlePictureUpload}
+                      className="hidden"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingPicture}
+                      className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full p-0 bg-primary text-primary-foreground"
+                    >
+                      {uploadingPicture ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      ) : (
+                        <Camera className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </>
+                )}
+              </div>
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="font-heading text-2xl font-bold text-foreground">{displayName}</h1>
@@ -417,7 +443,10 @@ function ProfilePage({ user }) {
                   <p className="text-muted-foreground">{genderLabel}</p>
                 )}
                 {profile.location && (
-                  <p className="text-sm text-muted-foreground">📍 {profile.location}</p>
+                  <p className="text-sm text-muted-foreground flex items-center gap-1">
+                    <MapPin className="h-3 w-3" /> {profile.location}
+                    {profile.region && <span className="text-xs">({profile.region})</span>}
+                  </p>
                 )}
               </div>
             </div>
