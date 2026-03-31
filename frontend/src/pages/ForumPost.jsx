@@ -304,12 +304,27 @@ export default function ForumPost({ user }) {
     const childReplies = getChildReplies(reply.reply_id);
     const isEditing = editingReplyId === reply.reply_id;
     
+    // Different background colors for nested depths
+    const depthColors = [
+      'bg-card',
+      'bg-primary/5 dark:bg-primary/10',
+      'bg-secondary/30 dark:bg-secondary/20',
+      'bg-primary/10 dark:bg-primary/15',
+    ];
+    const bgColor = depthColors[Math.min(depth, depthColors.length - 1)];
+    
     return (
-      <div className={`${depth > 0 ? 'ml-8 border-l-2 border-border/50 pl-4' : ''}`}>
+      <div className={`${depth > 0 ? 'ml-6 sm:ml-8 border-l-2 border-primary/30 pl-3 sm:pl-4' : ''}`}>
         <div 
-          className="bg-card rounded-2xl p-5 border border-border/50 mb-3"
+          className={`${bgColor} rounded-2xl p-5 border border-border/50 mb-3 ${depth > 0 ? 'shadow-sm' : ''}`}
           data-testid={`reply-${reply.reply_id}`}
         >
+          {depth > 0 && (
+            <div className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+              <CornerDownRight className="h-3 w-3" />
+              <span>Replying to thread</span>
+            </div>
+          )}
           <div className="flex items-start gap-3">
             {reply.author_id !== "anonymous" ? (
               <Link to={`/profile/${reply.author_id}`}>

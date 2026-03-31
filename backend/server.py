@@ -66,7 +66,7 @@ class UserProfile(BaseModel):
     child_age_ranges: List[str] = []  # newborn, infant, toddler, preschool, school-age
     interests: List[str] = []
     location: Optional[str] = None
-    gender: Optional[str] = None  # female, male, non-binary, prefer-not-say
+    gender: Optional[str] = None  # female, male, prefer-not-say
     connect_with: Optional[str] = "all"  # all, mums, dads, single-parents, same
     is_single_parent: bool = False
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
