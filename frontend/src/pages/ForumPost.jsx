@@ -575,7 +575,17 @@ export default function ForumPost({ user }) {
           ) : (
             <>
               <h1 className="font-heading text-2xl font-bold text-foreground mb-4">{post.title}</h1>
-              <p className="text-foreground whitespace-pre-wrap mb-6">{post.content}</p>
+              <p className="text-foreground whitespace-pre-wrap mb-4">{post.content}</p>
+              {post.image && (
+                <div className="mb-6 rounded-xl overflow-hidden border border-border/50">
+                  <img 
+                    src={post.image} 
+                    alt="Post attachment" 
+                    className="w-full max-h-96 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={() => window.open(post.image, '_blank')}
+                  />
+                </div>
+              )}
             </>
           )}
 
