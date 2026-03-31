@@ -1435,6 +1435,28 @@ async def send_friend_request(request_data: FriendRequestCreate, user: dict = De
     doc["created_at"] = doc["created_at"].isoformat()
     await db.friend_requests.insert_one(doc)
     
+    # Create notification for target user
+    notification = {
+        "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+        "user_id": to_user_id,
+        "type": "friend_request",
+        "title": "New friend request",
+        "message": f"{user.get('nickname') or user['name']} wants to connect with you",
+        "link": "/friends",
+        "is_read": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.notifications.insert_one(notification)
+    
+    # Send email notification if enabled
+    email_prefs = target.get("email_preferences", {})
+    if email_prefs.get("notify_friend_requests", True) and target.get("email"):
+        subject, html = get_email_template("friend_request", {
+            "sender_name": user.get("nickname") or user["name"],
+            "link": "https://family-support-17.preview.emergentagent.com/friends"
+        })
+        asyncio.create_task(send_email_notification(target["email"], subject, html))
+    
     return {"message": "Friend request sent", "request_id": request.request_id}
 
 @api_router.get("/friends/requests")
