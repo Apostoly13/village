@@ -1454,6 +1454,44 @@ async def send_room_message(room_id: str, message_data: ChatMessageCreate, user:
     
     return message.model_dump()
 
+# ==================== LOCATION ENDPOINTS ====================
+
+@api_router.get("/location/search")
+async def search_location(q: str, state: Optional[str] = None):
+    """Search for Australian locations using OpenStreetMap"""
+    if len(q) < 2:
+        return {"results": []}
+    
+    result = await geocode_address(q, state)
+    return result
+
+@api_router.get("/location/nearby-users")
+async def get_nearby_users(
+    user: dict = Depends(get_current_user),
+    distance_km: int = 25,
+    limit: int = 20
+):
+    """Get users within a certain distance"""
+    user_lat = user.get("latitude")
+    user_lon = user.get("longitude")
+    
+    if not user_lat or not user_lon:
+        return {"users": [], "message": "Please set your location first"}
+    
+    nearby = await get_users_within_distance(user_lat, user_lon, distance_km, user["user_id"])
+    
+    # Remove sensitive info
+    for u in nearby[:limit]:
+        u.pop("email", None)
+        u.pop("password_hash", None)
+    
+    return {"users": nearby[:limit], "search_radius_km": distance_km}
+
+@api_router.get("/location/distance-options")
+async def get_distance_options():
+    """Get available distance options for filtering"""
+    return {"options": DISTANCE_OPTIONS, "states": AUSTRALIAN_STATES}
+
 # ==================== DIRECT MESSAGE ENDPOINTS ====================
 
 @api_router.get("/messages/conversations")
