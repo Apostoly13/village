@@ -560,6 +560,81 @@ function ProfilePage({ user }) {
                 </p>
               </div>
 
+              <div className="space-y-2">
+                <Label className="text-foreground flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  Region (for local chat rooms)
+                </Label>
+                <Select value={region} onValueChange={setRegion}>
+                  <SelectTrigger className="h-12 rounded-xl bg-secondary/50 border-transparent" data-testid="region-select">
+                    <SelectValue placeholder="Select your region" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border/50">
+                    {REGIONS.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {r}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  This helps you connect with local parents and shows you local chat rooms
+                </p>
+              </div>
+
+              {/* Email Notification Preferences */}
+              <div className="p-4 rounded-xl bg-secondary/30 border border-border/30 space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Bell className="h-5 w-5 text-primary" />
+                  <Label className="font-medium text-foreground">Email Notifications</Label>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="notify-replies" className="text-sm text-foreground cursor-pointer">New replies to my posts</Label>
+                  </div>
+                  <Switch 
+                    id="notify-replies"
+                    checked={emailPrefs.notify_replies}
+                    onCheckedChange={(checked) => setEmailPrefs(prev => ({ ...prev, notify_replies: checked }))}
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="notify-dms" className="text-sm text-foreground cursor-pointer">New direct messages</Label>
+                  </div>
+                  <Switch 
+                    id="notify-dms"
+                    checked={emailPrefs.notify_dms}
+                    onCheckedChange={(checked) => setEmailPrefs(prev => ({ ...prev, notify_dms: checked }))}
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="notify-friends" className="text-sm text-foreground cursor-pointer">Friend requests</Label>
+                  </div>
+                  <Switch 
+                    id="notify-friends"
+                    checked={emailPrefs.notify_friend_requests}
+                    onCheckedChange={(checked) => setEmailPrefs(prev => ({ ...prev, notify_friend_requests: checked }))}
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="notify-digest" className="text-sm text-foreground cursor-pointer">Weekly digest</Label>
+                    <p className="text-xs text-muted-foreground">Summary of activity in your community</p>
+                  </div>
+                  <Switch 
+                    id="notify-digest"
+                    checked={emailPrefs.weekly_digest}
+                    onCheckedChange={(checked) => setEmailPrefs(prev => ({ ...prev, weekly_digest: checked }))}
+                  />
+                </div>
+              </div>
+
               <div className="flex gap-4 pt-4">
                 <Button 
                   variant="outline" 
