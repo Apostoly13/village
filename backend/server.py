@@ -128,6 +128,7 @@ class ForumPostCreate(BaseModel):
     title: str
     content: str
     is_anonymous: bool = False
+    image: Optional[str] = None  # Base64 encoded image
 
 class ForumReply(BaseModel):
     model_config = ConfigDict(extra="ignore")
