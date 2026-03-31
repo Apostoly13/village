@@ -100,6 +100,8 @@ class ForumPost(BaseModel):
     author_name: str
     author_picture: Optional[str] = None
     is_anonymous: bool = False
+    is_pinned: bool = False
+    is_edited: bool = False
     title: str
     content: str
     reply_count: int = 0
@@ -118,17 +120,51 @@ class ForumReply(BaseModel):
     model_config = ConfigDict(extra="ignore")
     reply_id: str = Field(default_factory=lambda: f"reply_{uuid.uuid4().hex[:12]}")
     post_id: str
+    parent_reply_id: Optional[str] = None  # For nested replies
     author_id: str
     author_name: str
     author_picture: Optional[str] = None
     is_anonymous: bool = False
     content: str
     like_count: int = 0
+    is_edited: bool = False
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class ForumReplyCreate(BaseModel):
     content: str
     is_anonymous: bool = False
+    parent_reply_id: Optional[str] = None  # For nested replies
+
+class ForumPostUpdate(BaseModel):
+    title: Optional[str] = None
+    content: Optional[str] = None
+
+class ForumReplyUpdate(BaseModel):
+    content: str
+
+class ReportCreate(BaseModel):
+    content_type: str  # "post" or "reply"
+    content_id: str
+    reason: str
+    details: Optional[str] = None
+
+class Bookmark(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    bookmark_id: str = Field(default_factory=lambda: f"bm_{uuid.uuid4().hex[:12]}")
+    user_id: str
+    post_id: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class Notification(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    notification_id: str = Field(default_factory=lambda: f"notif_{uuid.uuid4().hex[:12]}")
+    user_id: str
+    type: str  # "reply", "like", "friend_request", "friend_accepted"
+    title: str
+    message: str
+    link: Optional[str] = None
+    is_read: bool = False
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class ChatRoom(BaseModel):
     model_config = ConfigDict(extra="ignore")
