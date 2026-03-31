@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -10,15 +10,17 @@ import { Switch } from "../components/ui/switch";
 import { Badge } from "../components/ui/badge";
 import Navigation from "../components/Navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Edit2, MessageCircle, Save, X, Heart, UserPlus, UserCheck, Clock, Users, ChevronRight } from "lucide-react";
+import { ArrowLeft, Edit2, MessageCircle, Save, X, Heart, UserPlus, UserCheck, Clock, Users, ChevronRight, MapPin, Bell, Camera } from "lucide-react";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
+const REGIONS = ["UK", "US", "Australia", "Europe", "Asia", "Other"];
 
 function ProfilePage({ user }) {
   const params = useParams();
   const navigate = useNavigate();
   const profileUserId = params.userId;
   const isOwnProfile = !profileUserId || profileUserId === user?.user_id;
+  const fileInputRef = useRef(null);
   
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -27,13 +29,22 @@ function ProfilePage({ user }) {
   const [friendStatus, setFriendStatus] = useState(null);
   const [friendActionLoading, setFriendActionLoading] = useState(false);
   const [friends, setFriends] = useState([]);
+  const [uploadingPicture, setUploadingPicture] = useState(false);
   
   const [nickname, setNickname] = useState("");
   const [bio, setBio] = useState("");
   const [userLocation, setUserLocation] = useState("");
+  const [region, setRegion] = useState("");
   const [gender, setGender] = useState("");
   const [connectWith, setConnectWith] = useState("");
   const [isSingleParent, setIsSingleParent] = useState(false);
+  const [picture, setPicture] = useState("");
+  const [emailPrefs, setEmailPrefs] = useState({
+    notify_replies: true,
+    notify_dms: true,
+    notify_friend_requests: true,
+    weekly_digest: true
+  });
 
   const genderOptions = [
     { id: "female", text: "Female" },
