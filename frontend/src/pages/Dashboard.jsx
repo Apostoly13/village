@@ -6,7 +6,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { ScrollArea } from "../components/ui/scroll-area";
 import { Badge } from "../components/ui/badge";
 import Navigation from "../components/Navigation";
-import { Search, Plus, MessageCircle, Heart, Eye, Clock, Users } from "lucide-react";
+import OnboardingModal from "../components/OnboardingModal";
+import { Search, Plus, MessageCircle, Heart, Eye, Clock, Users, MapPin } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -16,11 +17,19 @@ export default function Dashboard({ user }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [singleParents, setSingleParents] = useState([]);
+  const [nearbyUsers, setNearbyUsers] = useState([]);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     fetchFeed();
     fetchSingleParents();
-  }, []);
+    fetchNearbyUsers();
+    
+    // Show onboarding if user hasn't completed it and doesn't have location set
+    if (user && !user.onboarding_complete && !user.state) {
+      setShowOnboarding(true);
+    }
+  }, [user]);
 
   const fetchFeed = async () => {
     try {
@@ -50,6 +59,26 @@ export default function Dashboard({ user }) {
     } catch (error) {
       console.error("Error fetching single parents:", error);
     }
+  };
+
+  const fetchNearbyUsers = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/location/nearby-users?distance_km=25&limit=10`, {
+        credentials: "include"
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setNearbyUsers(data.users || []);
+      }
+    } catch (error) {
+      console.error("Error fetching nearby users:", error);
+    }
+  };
+
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
+    // Refresh data
+    fetchNearbyUsers();
   };
 
   const handleSearch = async (e) => {
