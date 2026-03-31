@@ -75,9 +75,17 @@ function ProfilePage({ user }) {
           setNickname(data.nickname || "");
           setBio(data.bio || "");
           setUserLocation(data.location || "");
+          setRegion(data.region || "");
           setGender(data.gender || "");
           setConnectWith(data.connect_with || "all");
           setIsSingleParent(data.is_single_parent || false);
+          setPicture(data.picture || "");
+          setEmailPrefs(data.email_preferences || {
+            notify_replies: true,
+            notify_dms: true,
+            notify_friend_requests: true,
+            weekly_digest: true
+          });
         }
       } catch (error) {
         console.error("Error:", error);
