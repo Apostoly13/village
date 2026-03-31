@@ -10,10 +10,20 @@ import { Switch } from "../components/ui/switch";
 import { Badge } from "../components/ui/badge";
 import Navigation from "../components/Navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Edit2, MessageCircle, Save, X, Heart, UserPlus, UserCheck, Clock, Users, ChevronRight, MapPin, Bell, Camera } from "lucide-react";
+import { ArrowLeft, Edit2, MessageCircle, Save, X, Heart, UserPlus, UserCheck, Clock, Users, ChevronRight, MapPin, Bell, Camera, Compass, Search } from "lucide-react";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
-const REGIONS = ["UK", "US", "Australia", "Europe", "Asia", "Other"];
+const AUSTRALIAN_STATES = ["NSW", "VIC", "QLD", "WA", "SA", "TAS", "ACT", "NT"];
+const DISTANCE_OPTIONS = [
+  { id: "2km", label: "Super Local (2km)" },
+  { id: "5km", label: "Local (5km)" },
+  { id: "10km", label: "Nearby (10km)" },
+  { id: "25km", label: "25km" },
+  { id: "50km", label: "50km" },
+  { id: "100km", label: "100km" },
+  { id: "state", label: "My State" },
+  { id: "all", label: "All Australia" },
+];
 
 function ProfilePage({ user }) {
   const params = useParams();
@@ -34,7 +44,12 @@ function ProfilePage({ user }) {
   const [nickname, setNickname] = useState("");
   const [bio, setBio] = useState("");
   const [userLocation, setUserLocation] = useState("");
-  const [region, setRegion] = useState("");
+  const [state, setState] = useState("");
+  const [suburb, setSuburb] = useState("");
+  const [postcode, setPostcode] = useState("");
+  const [latitude, setLatitude] = useState(null);
+  const [longitude, setLongitude] = useState(null);
+  const [preferredReach, setPreferredReach] = useState("25km");
   const [gender, setGender] = useState("");
   const [connectWith, setConnectWith] = useState("");
   const [isSingleParent, setIsSingleParent] = useState(false);
@@ -45,6 +60,11 @@ function ProfilePage({ user }) {
     notify_friend_requests: true,
     weekly_digest: true
   });
+  
+  // Location search
+  const [locationSearch, setLocationSearch] = useState("");
+  const [locationResults, setLocationResults] = useState([]);
+  const [searchingLocation, setSearchingLocation] = useState(false);
 
   const genderOptions = [
     { id: "female", text: "Female" },
