@@ -258,6 +258,12 @@ export default function Navigation({ user }) {
                     )}
                   </Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/bookmarks" className="cursor-pointer" data-testid="dropdown-bookmarks">
+                    <Bookmark className="h-4 w-4 mr-2" />
+                    Saved Posts
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator className="bg-border/50" />
                 <DropdownMenuItem onClick={handleLogout} className="text-destructive cursor-pointer" data-testid="dropdown-logout">
                   <LogOut className="h-4 w-4 mr-2" />
