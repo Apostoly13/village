@@ -1148,9 +1148,41 @@ async def create_report(report_data: ReportCreate, user: dict = Depends(get_curr
 
 # ==================== CHAT ROOM ENDPOINTS ====================
 
+REGIONS = ["UK", "US", "Australia", "Europe", "Asia", "Other"]
+ROOM_MAX_CAPACITY = 50
+
 @api_router.get("/chat/rooms")
-async def get_chat_rooms():
-    rooms = await db.chat_rooms.find({"is_active": True}, {"_id": 0}).to_list(50)
+async def get_chat_rooms(user: dict = Depends(get_current_user), region: Optional[str] = None):
+    """Get chat rooms - prioritizes user's local rooms, then global"""
+    user_region = user.get("region") or region
+    
+    # Get all active rooms
+    all_rooms = await db.chat_rooms.find({"is_active": True}, {"_id": 0}).to_list(100)
+    
+    # Categorize rooms
+    local_rooms = []
+    global_rooms = []
+    
+    for room in all_rooms:
+        room_type = room.get("room_type", "global")
+        room_region = room.get("region")
+        
+        if room_type == "local" and room_region == user_region:
+            local_rooms.append(room)
+        elif room_type == "global" or room_type == "overflow":
+            global_rooms.append(room)
+    
+    return {
+        "local_rooms": local_rooms,
+        "global_rooms": global_rooms,
+        "user_region": user_region,
+        "available_regions": REGIONS
+    }
+
+@api_router.get("/chat/rooms/all")
+async def get_all_chat_rooms():
+    """Get all chat rooms without authentication (for display purposes)"""
+    rooms = await db.chat_rooms.find({"is_active": True, "room_type": "global"}, {"_id": 0}).to_list(50)
     return rooms
 
 @api_router.get("/chat/rooms/{room_id}")
@@ -1159,6 +1191,57 @@ async def get_chat_room(room_id: str):
     if not room:
         raise HTTPException(status_code=404, detail="Chat room not found")
     return room
+
+@api_router.post("/chat/rooms/{room_id}/join")
+async def join_chat_room(room_id: str, user: dict = Depends(get_current_user)):
+    """Join a chat room and track active users"""
+    room = await db.chat_rooms.find_one({"room_id": room_id}, {"_id": 0})
+    if not room:
+        raise HTTPException(status_code=404, detail="Chat room not found")
+    
+    # Update active users count
+    await db.chat_rooms.update_one(
+        {"room_id": room_id},
+        {"$inc": {"active_users": 1}}
+    )
+    
+    # Check if room needs overflow
+    updated_room = await db.chat_rooms.find_one({"room_id": room_id}, {"_id": 0})
+    if updated_room.get("active_users", 0) > ROOM_MAX_CAPACITY:
+        # Create overflow room if needed
+        overflow_count = await db.chat_rooms.count_documents({
+            "parent_room_id": room_id,
+            "room_type": "overflow"
+        })
+        
+        if overflow_count < 5:  # Max 5 overflow rooms
+            overflow_room = {
+                "room_id": f"room_{uuid.uuid4().hex[:12]}",
+                "name": f"{room['name']} (Room {overflow_count + 2})",
+                "description": room["description"],
+                "icon": room["icon"],
+                "room_type": "overflow",
+                "region": room.get("region"),
+                "parent_room_id": room_id,
+                "is_active": True,
+                "active_users": 0,
+                "max_capacity": ROOM_MAX_CAPACITY,
+                "member_count": 0,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+            await db.chat_rooms.insert_one(overflow_room)
+            return {"message": "Joined room", "overflow_created": True, "overflow_room": overflow_room}
+    
+    return {"message": "Joined room", "room": updated_room}
+
+@api_router.post("/chat/rooms/{room_id}/leave")
+async def leave_chat_room(room_id: str, user: dict = Depends(get_current_user)):
+    """Leave a chat room"""
+    await db.chat_rooms.update_one(
+        {"room_id": room_id, "active_users": {"$gt": 0}},
+        {"$inc": {"active_users": -1}}
+    )
+    return {"message": "Left room"}
 
 @api_router.get("/chat/rooms/{room_id}/messages")
 async def get_room_messages(room_id: str, limit: int = 50, before: Optional[str] = None):
