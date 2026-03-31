@@ -91,9 +91,12 @@ class UserProfileUpdate(BaseModel):
     child_age_ranges: Optional[List[str]] = None
     interests: Optional[List[str]] = None
     location: Optional[str] = None
+    region: Optional[str] = None  # UK, US, Australia, Europe, Asia, Other
     gender: Optional[str] = None
     connect_with: Optional[str] = None
     is_single_parent: Optional[bool] = None
+    picture: Optional[str] = None  # Base64 encoded image
+    email_preferences: Optional[dict] = None  # {notify_replies, notify_dms, notify_friend_requests, weekly_digest}
 
 class ForumCategory(BaseModel):
     model_config = ConfigDict(extra="ignore")
