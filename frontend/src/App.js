@@ -237,6 +237,11 @@ const AppRouter = () => {
           {({ user }) => <Friends user={user} />}
         </ProtectedRoute>
       } />
+      <Route path="/bookmarks" element={
+        <ProtectedRoute>
+          {({ user }) => <Bookmarks user={user} />}
+        </ProtectedRoute>
+      } />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
