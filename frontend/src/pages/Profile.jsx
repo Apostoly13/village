@@ -167,8 +167,13 @@ function ProfilePage({ user }) {
         body: JSON.stringify({
           nickname: nickname,
           bio: bio,
-          location: userLocation,
-          region: region,
+          location: suburb || userLocation,
+          state: state,
+          suburb: suburb,
+          postcode: postcode,
+          latitude: latitude,
+          longitude: longitude,
+          preferred_reach: preferredReach,
           gender: gender,
           connect_with: connectWith,
           is_single_parent: isSingleParent,
@@ -190,6 +195,65 @@ function ProfilePage({ user }) {
     } finally {
       setSaving(false);
     }
+  };
+
+  // Location search function
+  const searchLocation = async (query) => {
+    if (query.length < 2) {
+      setLocationResults([]);
+      return;
+    }
+    
+    setSearchingLocation(true);
+    try {
+      const stateParam = state ? `&state=${state}` : "";
+      const response = await fetch(
+        `${API_URL}/api/location/search?q=${encodeURIComponent(query)}${stateParam}`,
+        { credentials: "include" }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setLocationResults(data.results || []);
+      }
+    } catch (error) {
+      console.error("Location search error:", error);
+    } finally {
+      setSearchingLocation(false);
+    }
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (locationSearch.length >= 2 && editing) {
+        searchLocation(locationSearch);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [locationSearch, state, editing]);
+
+  const selectLocation = (location) => {
+    setSuburb(location.suburb || location.display_name.split(",")[0]);
+    setPostcode(location.postcode || "");
+    setLatitude(location.lat);
+    setLongitude(location.lon);
+    setLocationSearch(location.suburb || location.display_name.split(",")[0]);
+    setLocationResults([]);
+    
+    // Map full state name to abbreviation
+    if (location.state) {
+      const stateMap = {
+        "New South Wales": "NSW",
+        "Victoria": "VIC",
+        "Queensland": "QLD",
+        "Western Australia": "WA",
+        "South Australia": "SA",
+        "Tasmania": "TAS",
+        "Australian Capital Territory": "ACT",
+        "Northern Territory": "NT"
+      };
+      setState(stateMap[location.state] || state);
+    }
+    toast.success("Location selected!");
   };
 
   const handlePictureUpload = async (e) => {
