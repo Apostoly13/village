@@ -922,6 +922,19 @@ async def create_reply(post_id: str, reply_data: ForumReplyCreate, user: dict = 
             "created_at": datetime.now(timezone.utc).isoformat()
         }
         await db.notifications.insert_one(notification)
+        
+        # Send email notification if enabled
+        post_author = await db.users.find_one({"user_id": post["author_id"]}, {"_id": 0})
+        if post_author:
+            email_prefs = post_author.get("email_preferences", {})
+            if email_prefs.get("notify_replies", True) and post_author.get("email"):
+                subject, html = get_email_template("reply", {
+                    "replier_name": user.get("nickname") or user["name"],
+                    "post_title": post["title"],
+                    "reply_preview": reply_data.content,
+                    "link": f"https://family-support-17.preview.emergentagent.com/forums/post/{post_id}"
+                })
+                asyncio.create_task(send_email_notification(post_author["email"], subject, html))
     
     result = reply.model_dump()
     if reply.is_anonymous:
