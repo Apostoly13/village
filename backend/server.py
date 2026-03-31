@@ -104,13 +104,21 @@ class UserProfileUpdate(BaseModel):
     parenting_stage: Optional[str] = None
     child_age_ranges: Optional[List[str]] = None
     interests: Optional[List[str]] = None
-    location: Optional[str] = None
-    region: Optional[str] = None  # UK, US, Australia, Europe, Asia, Other
+    location: Optional[str] = None  # Suburb/area name
+    suburb: Optional[str] = None
+    postcode: Optional[str] = None
+    state: Optional[str] = None  # NSW, VIC, QLD, WA, SA, TAS, ACT, NT
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    preferred_reach: Optional[str] = None  # 2km, 5km, 10km, 25km, 50km, 100km, state, all
     gender: Optional[str] = None
     connect_with: Optional[str] = None
     is_single_parent: Optional[bool] = None
-    picture: Optional[str] = None  # Base64 encoded image
-    email_preferences: Optional[dict] = None  # {notify_replies, notify_dms, notify_friend_requests, weekly_digest}
+    picture: Optional[str] = None
+    email_preferences: Optional[dict] = None
+    onboarding_complete: Optional[bool] = None
+    number_of_kids: Optional[int] = None
+    kids_ages: Optional[List[str]] = None
 
 class ForumCategory(BaseModel):
     model_config = ConfigDict(extra="ignore")
