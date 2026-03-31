@@ -7,6 +7,7 @@ import os
 import logging
 import asyncio
 import base64
+import math
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
 from typing import List, Optional
@@ -39,6 +40,19 @@ if RESEND_API_KEY:
 # Image upload config
 MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
 ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+
+# Australia location config
+AUSTRALIAN_STATES = ["NSW", "VIC", "QLD", "WA", "SA", "TAS", "ACT", "NT"]
+DISTANCE_OPTIONS = [
+    {"id": "2km", "label": "Super Local", "km": 2},
+    {"id": "5km", "label": "Local", "km": 5},
+    {"id": "10km", "label": "Nearby", "km": 10},
+    {"id": "25km", "label": "25km", "km": 25},
+    {"id": "50km", "label": "50km", "km": 50},
+    {"id": "100km", "label": "100km", "km": 100},
+    {"id": "state", "label": "My State", "km": None},
+    {"id": "all", "label": "All Australia", "km": None},
+]
 
 # Create the main app
 app = FastAPI(title="NightOwl Parents API")
