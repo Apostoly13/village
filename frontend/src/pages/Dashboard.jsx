@@ -293,7 +293,7 @@ export default function Dashboard({ user }) {
                       </div>
                     </div>
                   </article>
-                ))
+                ))}
               </div>
             </ScrollArea>
           )}
