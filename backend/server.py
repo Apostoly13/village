@@ -797,7 +797,8 @@ async def create_post(post_data: ForumPostCreate, user: dict = Depends(get_curre
         author_picture=user.get("picture"),
         is_anonymous=post_data.is_anonymous,
         title=post_data.title,
-        content=post_data.content
+        content=post_data.content,
+        image=post_data.image  # Include image if provided
     )
     
     doc = post.model_dump()
@@ -814,6 +815,26 @@ async def create_post(post_data: ForumPostCreate, user: dict = Depends(get_curre
         result["author_id"] = "anonymous"
     
     return result
+
+@api_router.post("/upload/image")
+async def upload_image(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
+    """Upload an image and return base64 encoded string"""
+    # Validate file type
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(status_code=400, detail=f"Invalid file type. Allowed: {', '.join(ALLOWED_IMAGE_TYPES)}")
+    
+    # Read file content
+    content = await file.read()
+    
+    # Check file size
+    if len(content) > MAX_IMAGE_SIZE:
+        raise HTTPException(status_code=400, detail=f"File too large. Max size: {MAX_IMAGE_SIZE // (1024*1024)}MB")
+    
+    # Convert to base64
+    base64_image = base64.b64encode(content).decode('utf-8')
+    data_url = f"data:{file.content_type};base64,{base64_image}"
+    
+    return {"image_url": data_url, "filename": file.filename, "size": len(content)}
 
 @api_router.put("/forums/posts/{post_id}")
 async def update_post(post_id: str, post_data: ForumPostUpdate, user: dict = Depends(get_current_user)):
