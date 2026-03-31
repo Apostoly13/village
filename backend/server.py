@@ -492,6 +492,26 @@ async def update_profile(profile_data: UserProfileUpdate, user: dict = Depends(g
 @api_router.get("/forums/categories")
 async def get_categories():
     categories = await db.forum_categories.find({}, {"_id": 0}).to_list(100)
+    
+    # Enhance with additional stats
+    for cat in categories:
+        # Get recent activity
+        recent_post = await db.forum_posts.find_one(
+            {"category_id": cat["category_id"]},
+            {"_id": 0, "created_at": 1}
+        )
+        cat["last_activity"] = recent_post["created_at"] if recent_post else None
+        
+        # Count unique authors in last 7 days
+        seven_days_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+        pipeline = [
+            {"$match": {"category_id": cat["category_id"], "created_at": {"$gte": seven_days_ago}}},
+            {"$group": {"_id": "$author_id"}},
+            {"$count": "active_users"}
+        ]
+        result = await db.forum_posts.aggregate(pipeline).to_list(1)
+        cat["active_users"] = result[0]["active_users"] if result else 0
+    
     return categories
 
 @api_router.get("/forums/categories/{category_id}")
@@ -502,9 +522,43 @@ async def get_category(category_id: str):
     return category
 
 @api_router.get("/forums/posts")
-async def get_posts(category_id: Optional[str] = None, limit: int = 20, skip: int = 0):
-    query = {"category_id": category_id} if category_id else {}
-    posts = await db.forum_posts.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+async def get_posts(
+    category_id: Optional[str] = None, 
+    limit: int = 20, 
+    skip: int = 0,
+    sort: str = "newest",  # newest, oldest, popular, most_replies, unanswered
+    filter_type: Optional[str] = None  # unanswered, trending
+):
+    query = {}
+    if category_id:
+        query["category_id"] = category_id
+    
+    # Apply filters
+    if filter_type == "unanswered":
+        query["reply_count"] = 0
+    elif filter_type == "trending":
+        # Trending = posts from last 7 days with high engagement
+        seven_days_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+        query["created_at"] = {"$gte": seven_days_ago}
+    
+    # Determine sort order
+    sort_field = "created_at"
+    sort_order = -1  # descending
+    
+    if sort == "oldest":
+        sort_order = 1
+    elif sort == "popular":
+        sort_field = "like_count"
+    elif sort == "most_replies":
+        sort_field = "reply_count"
+    elif sort == "unanswered":
+        query["reply_count"] = 0
+        sort_field = "created_at"
+    
+    posts = await db.forum_posts.find(query, {"_id": 0}).sort(sort_field, sort_order).skip(skip).limit(limit).to_list(limit)
+    
+    # Get total count for pagination
+    total = await db.forum_posts.count_documents(query)
     
     # Mask anonymous posts
     for post in posts:
@@ -513,16 +567,64 @@ async def get_posts(category_id: Optional[str] = None, limit: int = 20, skip: in
             post["author_picture"] = None
             post["author_id"] = "anonymous"
     
+    return {"posts": posts, "total": total, "limit": limit, "skip": skip}
+
+@api_router.get("/forums/posts/trending")
+async def get_trending_posts(limit: int = 5):
+    """Get trending posts based on recent engagement"""
+    seven_days_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    
+    # Calculate trending score: likes + (replies * 2) + (views / 10)
+    pipeline = [
+        {"$match": {"created_at": {"$gte": seven_days_ago}}},
+        {"$addFields": {
+            "trending_score": {
+                "$add": [
+                    {"$ifNull": ["$like_count", 0]},
+                    {"$multiply": [{"$ifNull": ["$reply_count", 0]}, 2]},
+                    {"$divide": [{"$ifNull": ["$views", 0]}, 10]}
+                ]
+            }
+        }},
+        {"$sort": {"trending_score": -1}},
+        {"$limit": limit},
+        {"$project": {"_id": 0}}
+    ]
+    
+    posts = await db.forum_posts.aggregate(pipeline).to_list(limit)
+    
+    # Add category info and mask anonymous
+    for post in posts:
+        category = await db.forum_categories.find_one({"category_id": post["category_id"]}, {"_id": 0})
+        post["category_name"] = category["name"] if category else "General"
+        post["category_icon"] = category["icon"] if category else "💬"
+        
+        if post.get("is_anonymous"):
+            post["author_name"] = "Anonymous Parent"
+            post["author_picture"] = None
+            post["author_id"] = "anonymous"
+    
     return posts
 
 @api_router.get("/forums/posts/{post_id}")
-async def get_post(post_id: str):
+async def get_post(post_id: str, user: dict = Depends(get_current_user)):
     post = await db.forum_posts.find_one({"post_id": post_id}, {"_id": 0})
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
     
     # Increment views
     await db.forum_posts.update_one({"post_id": post_id}, {"$inc": {"views": 1}})
+    
+    # Check if user has liked/bookmarked
+    user_liked = await db.post_likes.find_one({"post_id": post_id, "user_id": user["user_id"]})
+    user_bookmarked = await db.bookmarks.find_one({"post_id": post_id, "user_id": user["user_id"]})
+    
+    post["user_liked"] = bool(user_liked)
+    post["user_bookmarked"] = bool(user_bookmarked)
+    
+    # Store original author_id for edit/delete check
+    original_author_id = post["author_id"]
+    post["is_own_post"] = original_author_id == user["user_id"]
     
     if post.get("is_anonymous"):
         post["author_name"] = "Anonymous Parent"
