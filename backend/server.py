@@ -1364,6 +1364,29 @@ async def send_direct_message(message_data: DirectMessageCreate, user: dict = De
     
     await db.direct_messages.insert_one(doc)
     
+    # Create notification for receiver
+    notification = {
+        "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+        "user_id": message_data.receiver_id,
+        "type": "dm",
+        "title": "New message",
+        "message": f"{user.get('nickname') or user['name']} sent you a message",
+        "link": f"/messages/{user['user_id']}",
+        "is_read": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.notifications.insert_one(notification)
+    
+    # Send email notification if enabled
+    email_prefs = receiver.get("email_preferences", {})
+    if email_prefs.get("notify_dms", True) and receiver.get("email"):
+        subject, html = get_email_template("dm", {
+            "sender_name": user.get("nickname") or user["name"],
+            "message_preview": message_data.content,
+            "link": f"https://family-support-17.preview.emergentagent.com/messages/{user['user_id']}"
+        })
+        asyncio.create_task(send_email_notification(receiver["email"], subject, html))
+    
     return message.model_dump()
 
 # ==================== FRIENDS ENDPOINTS ====================
