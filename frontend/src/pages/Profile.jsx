@@ -100,6 +100,13 @@ function ProfilePage({ user }) {
           setConnectWith(data.connect_with || "all");
           setIsSingleParent(data.is_single_parent || false);
           setPicture(data.picture || "");
+          setState(data.state || "");
+          setSuburb(data.suburb || "");
+          setPostcode(data.postcode || "");
+          setLatitude(data.latitude || null);
+          setLongitude(data.longitude || null);
+          setPreferredReach(data.preferred_reach || "25km");
+          setLocationSearch(data.suburb || data.location || "");
           setEmailPrefs(data.email_preferences || {
             notify_replies: true,
             notify_dms: true,
