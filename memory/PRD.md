@@ -31,7 +31,7 @@ Build a website called "The Village" that allows parents to connect during diffi
 ## What's Been Implemented
 
 ### Authentication & Users
-- Complete auth system (JWT + Google OAuth via Emergent)
+- Complete auth system (JWT + Google OAuth)
 - User profiles with bio, location, region, gender, connection preferences
 - Profile picture uploads (base64)
 - Single parent toggle and badge
@@ -104,7 +104,7 @@ Build a website called "The Village" that allows parents to connect during diffi
 ## Tech Stack
 - **Backend**: FastAPI, MongoDB, Motor, Resend (email)
 - **Frontend**: React 19, Tailwind CSS, Shadcn/UI
-- **Auth**: JWT + Emergent Google OAuth
+- **Auth**: JWT + Google OAuth
 - **Fonts**: @fontsource/nunito, @fontsource/dm-sans
 
 ---
