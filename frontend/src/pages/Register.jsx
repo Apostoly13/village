@@ -42,8 +42,7 @@ export default function Register() {
 
       if (response.ok) {
         localStorage.setItem("user", JSON.stringify(data));
-        toast.success("Welcome to NightOwl Parents! 🦉");
-        navigate("/dashboard");
+        navigate("/onboarding");
       } else {
         toast.error(data.detail || "Registration failed");
       }
@@ -55,9 +54,8 @@ export default function Register() {
   };
 
   const handleGoogleLogin = () => {
-    // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-    const redirectUrl = window.location.origin + '/dashboard';
-    window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
+    // TODO: Implement local Google OAuth
+    toast.error("Google login is not yet configured for local development");
   };
 
   return (
@@ -70,9 +68,9 @@ export default function Register() {
         </Link>
 
         <div className="max-w-md w-full mx-auto">
-          <div className="flex items-center gap-2 mb-8">
-            <span className="text-3xl">🏡</span>
-            <span className="font-heading font-bold text-2xl text-foreground">The Village</span>
+          <div className="flex items-center gap-3 mb-8">
+            <img src="/logo.png" alt="" className="h-12 w-auto" />
+            <img src="/the_village_wordmark_light.png" alt="The Village" className="h-8 w-auto" />
           </div>
 
           <h1 className="font-heading text-3xl font-bold text-foreground mb-2">Join the community</h1>

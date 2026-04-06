@@ -64,11 +64,8 @@ export default function Bookmarks({ user }) {
         </Link>
 
         <div className="mb-8">
-          <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-2 flex items-center gap-3">
-            <Bookmark className="h-8 w-8 text-primary" />
-            Saved Posts
-          </h1>
-          <p className="text-muted-foreground">Posts you've bookmarked for later</p>
+          <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-1">Saved posts</h1>
+          <p className="text-sm text-muted-foreground">Posts you've bookmarked for later</p>
         </div>
 
         {loading ? (
@@ -89,12 +86,12 @@ export default function Bookmarks({ user }) {
           </div>
         ) : bookmarks.length === 0 ? (
           <div className="text-center py-12 bg-card rounded-2xl border border-border/50">
-            <span className="text-5xl mb-4 block">📚</span>
-            <h3 className="font-heading text-xl font-bold text-foreground mb-2">No bookmarks yet</h3>
-            <p className="text-muted-foreground mb-4">Save posts to read them later!</p>
+            <span className="text-4xl mb-3 block">🔖</span>
+            <h3 className="font-heading font-semibold text-foreground mb-1">Nothing saved yet</h3>
+            <p className="text-sm text-muted-foreground mb-4">Tap the bookmark icon on any post to save it here.</p>
             <Link to="/forums">
               <Button className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90">
-                Browse Forums
+                Browse forums
               </Button>
             </Link>
           </div>
@@ -149,20 +146,20 @@ export default function Bookmarks({ user }) {
                   <p className="text-muted-foreground line-clamp-2 mb-4">{post.content}</p>
                 </Link>
 
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Heart className="h-4 w-4" />
-                    <span>{post.like_count || 0}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <MessageCircle className="h-4 w-4" />
-                    <span>{post.reply_count || 0}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Eye className="h-4 w-4" />
-                    <span>{post.views || 0}</span>
-                  </div>
-                  <span className="ml-auto text-xs">Saved {formatDate(post.bookmarked_at)}</span>
+                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Heart className="h-3.5 w-3.5" />
+                    {post.like_count || 0}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <MessageCircle className="h-3.5 w-3.5" />
+                    {post.reply_count || 0}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Eye className="h-3.5 w-3.5" />
+                    {post.views || 0}
+                  </span>
+                  <span className="ml-auto">Saved {formatDate(post.bookmarked_at)}</span>
                 </div>
               </article>
             ))}

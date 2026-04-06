@@ -24,7 +24,7 @@ import {
 } from "../components/ui/dropdown-menu";
 import Navigation from "../components/Navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Heart, MessageCircle, Eye, Clock, Send, Bookmark, BookmarkCheck, MoreVertical, Edit2, Trash2, Flag, Reply, CornerDownRight } from "lucide-react";
+import { ArrowLeft, Heart, MessageCircle, Eye, Clock, Send, Bookmark, BookmarkCheck, MoreVertical, Edit2, Trash2, Flag, Reply, CornerDownRight, MapPin, Crown } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -245,8 +245,11 @@ export default function ForumPost({ user }) {
       });
       
       if (response.ok) {
+        const removedCount = replies.filter(
+          r => r.reply_id === deleteReplyId || r.parent_reply_id === deleteReplyId
+        ).length;
         setReplies(prev => prev.filter(r => r.reply_id !== deleteReplyId && r.parent_reply_id !== deleteReplyId));
-        setPost(prev => ({ ...prev, reply_count: Math.max(0, (prev.reply_count || 1) - 1) }));
+        setPost(prev => ({ ...prev, reply_count: Math.max(0, (prev.reply_count || 0) - removedCount) }));
         toast.success("Reply deleted");
       } else {
         toast.error("Failed to delete reply");
@@ -344,8 +347,9 @@ export default function ForumPost({ user }) {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2 flex-wrap">
                   {reply.author_id !== "anonymous" ? (
-                    <Link to={`/profile/${reply.author_id}`} className="hover:underline">
+                    <Link to={`/profile/${reply.author_id}`} className="hover:underline flex items-center gap-1">
                       <span className="font-medium text-foreground hover:text-primary transition-colors">{reply.author_name}</span>
+                      {reply.author_subscription_tier === "premium" && !reply.is_anonymous && <Crown className="h-3 w-3 text-amber-500" />}
                     </Link>
                   ) : (
                     <span className="font-medium text-foreground">{reply.author_name}</span>
@@ -502,7 +506,10 @@ export default function ForumPost({ user }) {
               <div>
                 {post.author_id !== "anonymous" ? (
                   <Link to={`/profile/${post.author_id}`} className="hover:underline">
-                    <p className="font-medium text-foreground hover:text-primary transition-colors">{post.author_name}</p>
+                    <p className="font-medium text-foreground hover:text-primary transition-colors flex items-center gap-1">
+                      {post.author_name}
+                      {post.author_subscription_tier === "premium" && !post.is_anonymous && <Crown className="h-3 w-3 text-amber-500" />}
+                    </p>
                   </Link>
                 ) : (
                   <p className="font-medium text-foreground">{post.author_name}</p>
@@ -575,6 +582,13 @@ export default function ForumPost({ user }) {
           ) : (
             <>
               <h1 className="font-heading text-2xl font-bold text-foreground mb-4">{post.title}</h1>
+              {(post.suburb || post.postcode) && (
+                <div className="flex items-center gap-1 text-sm text-muted-foreground mb-3" data-testid="post-location-badge">
+                  <MapPin className="h-4 w-4 text-primary" />
+                  <span>{post.suburb}{post.postcode ? `, ${post.postcode}` : ''}</span>
+                  {post.state && <span className="text-xs">({post.state})</span>}
+                </div>
+              )}
               <p className="text-foreground whitespace-pre-wrap mb-4">{post.content}</p>
               {post.image && (
                 <div className="mb-6 rounded-xl overflow-hidden border border-border/50">

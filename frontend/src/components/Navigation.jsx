@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { ScrollArea } from "./ui/scroll-area";
-import { Home, MessageSquare, Users, Mail, User, LogOut, Menu, X, Moon, Sun, UserPlus, Bell, Bookmark } from "lucide-react";
+import { Home, MessageSquare, Users, Mail, User, LogOut, Menu, X, Moon, Sun, UserPlus, Bell, Bookmark, Shield, ScrollText, BookOpen, Calendar } from "lucide-react";
 import { toast } from "sonner";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -32,7 +32,7 @@ export default function Navigation({ user }) {
           fetch(`${API_URL}/api/friends/requests`, { credentials: "include" }),
           fetch(`${API_URL}/api/notifications/unread-count`, { credentials: "include" })
         ]);
-        
+
         if (friendsRes.ok) {
           const data = await friendsRes.json();
           setFriendRequestCount(data.length);
@@ -45,9 +45,19 @@ export default function Navigation({ user }) {
         console.error("Error fetching data:", error);
       }
     };
+
+    const sendHeartbeat = () => {
+      fetch(`${API_URL}/api/users/heartbeat`, { method: "POST", credentials: "include" }).catch(() => {});
+    };
+
     fetchData();
+    sendHeartbeat();
     const interval = setInterval(fetchData, 30000);
-    return () => clearInterval(interval);
+    const heartbeatInterval = setInterval(sendHeartbeat, 60000);
+    return () => {
+      clearInterval(interval);
+      clearInterval(heartbeatInterval);
+    };
   }, []);
 
   const fetchNotifications = async () => {
@@ -92,11 +102,15 @@ export default function Navigation({ user }) {
     setNotificationsOpen(false);
   };
 
+  const isAdmin = user?.role === "admin" || user?.role === "moderator";
   const navItems = [
     { icon: Home, label: "Home", href: "/dashboard", testId: "nav-home" },
-    { icon: MessageSquare, label: "Forums", href: "/forums", testId: "nav-forums" },
-    { icon: Users, label: "Chat", href: "/chat", testId: "nav-chat" },
+    { icon: MessageSquare, label: "Support Spaces", href: "/forums", testId: "nav-forums" },
+    { icon: Users, label: "Chat Circles", href: "/chat", testId: "nav-chat" },
+    { icon: Calendar, label: "Events", href: "/events", testId: "nav-events" },
     { icon: Mail, label: "Messages", href: "/messages", testId: "nav-messages" },
+    { icon: BookOpen, label: "Blog", href: "/blog", testId: "nav-blog" },
+    ...(isAdmin ? [{ icon: Shield, label: "Admin", href: "/admin", testId: "nav-admin" }] : []),
   ];
 
   const toggleTheme = () => {
@@ -131,8 +145,8 @@ export default function Navigation({ user }) {
       <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/30 hidden lg:block">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link to="/dashboard" className="flex items-center gap-2" data-testid="nav-logo">
-            <span className="text-2xl">🏡</span>
-            <span className="font-heading font-bold text-xl text-foreground">The Village</span>
+            <img src="/logo.png" alt="" className="h-8 w-auto" />
+            <img src="/the_village_wordmark_light.png" alt="The Village" className="h-6 w-auto" />
           </Link>
 
           <div className="flex items-center gap-1">
@@ -259,9 +273,15 @@ export default function Navigation({ user }) {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link to="/bookmarks" className="cursor-pointer" data-testid="dropdown-bookmarks">
+                  <Link to="/saved" className="cursor-pointer" data-testid="dropdown-bookmarks">
                     <Bookmark className="h-4 w-4 mr-2" />
-                    Saved Posts
+                    Saved
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/changelog" className="cursor-pointer" data-testid="dropdown-changelog">
+                    <ScrollText className="h-4 w-4 mr-2" />
+                    What's New
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="bg-border/50" />
@@ -279,8 +299,8 @@ export default function Navigation({ user }) {
       <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/30 lg:hidden">
         <div className="px-4 h-14 flex items-center justify-between">
           <Link to="/dashboard" className="flex items-center gap-2">
-            <span className="text-xl">🏡</span>
-            <span className="font-heading font-bold text-lg text-foreground">The Village</span>
+            <img src="/logo.png" alt="" className="h-7 w-auto" />
+            <img src="/the_village_wordmark_light.png" alt="The Village" className="h-5 w-auto" />
           </Link>
 
           <div className="flex items-center gap-2">
@@ -342,7 +362,16 @@ export default function Navigation({ user }) {
               )}
             </Link>
             
-            <button 
+            <Link
+              to="/changelog"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
+            >
+              <ScrollText className="h-5 w-5" />
+              What's New
+            </Link>
+
+            <button
               onClick={handleLogout}
               className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-destructive w-full"
             >

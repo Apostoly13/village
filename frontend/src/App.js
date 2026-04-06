@@ -17,7 +17,15 @@ import Conversation from "./pages/Conversation";
 import Profile from "./pages/Profile";
 import CreatePost from "./pages/CreatePost";
 import Friends from "./pages/Friends";
-import Bookmarks from "./pages/Bookmarks";
+import Events from "./pages/Events";
+import SavedResources from "./pages/SavedResources";
+import AdminDashboard from "./pages/AdminDashboard";
+import Changelog from "./pages/Changelog";
+import CreateCommunity from "./pages/CreateCommunity";
+import Blog from "./pages/Blog";
+import BlogPost from "./pages/BlogPost";
+import Onboarding from "./pages/Onboarding";
+import ChatPopout from "./components/ChatPopout";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -160,12 +168,31 @@ const ProtectedRoute = ({ children }) => {
     return null;
   }
 
+  // New users who haven't completed onboarding → redirect to /onboarding
+  // Exception: already on /onboarding itself
+  if (
+    user &&
+    !user.parenting_stage &&
+    !user.onboarding_complete &&
+    location.pathname !== "/onboarding"
+  ) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
   return typeof children === 'function' ? children({ user }) : children;
 };
 
 // Main App Router
 const AppRouter = () => {
   const location = useLocation();
+  const [popoutUser, setPopoutUser] = useState(null);
+
+  useEffect(() => {
+    const raw = localStorage.getItem("user");
+    if (raw) {
+      try { setPopoutUser(JSON.parse(raw)); } catch {}
+    }
+  }, [location.pathname]);
 
   // Check for session_id in URL hash (Google OAuth callback)
   if (location.hash?.includes('session_id=')) {
@@ -173,6 +200,7 @@ const AppRouter = () => {
   }
 
   return (
+    <>
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
@@ -237,13 +265,51 @@ const AppRouter = () => {
           {({ user }) => <Friends user={user} />}
         </ProtectedRoute>
       } />
-      <Route path="/bookmarks" element={
+      <Route path="/bookmarks" element={<Navigate to="/saved" replace />} />
+      <Route path="/saved" element={
         <ProtectedRoute>
-          {({ user }) => <Bookmarks user={user} />}
+          {({ user }) => <SavedResources user={user} />}
+        </ProtectedRoute>
+      } />
+      <Route path="/events" element={
+        <ProtectedRoute>
+          {({ user }) => <Events user={user} />}
+        </ProtectedRoute>
+      } />
+      <Route path="/admin" element={
+        <ProtectedRoute>
+          {({ user }) => <AdminDashboard user={user} />}
+        </ProtectedRoute>
+      } />
+      <Route path="/changelog" element={
+        <ProtectedRoute>
+          {({ user }) => <Changelog user={user} />}
+        </ProtectedRoute>
+      } />
+      <Route path="/create-community" element={
+        <ProtectedRoute>
+          {({ user }) => <CreateCommunity user={user} />}
+        </ProtectedRoute>
+      } />
+      <Route path="/onboarding" element={
+        <ProtectedRoute>
+          {({ user }) => <Onboarding user={user} />}
+        </ProtectedRoute>
+      } />
+      <Route path="/blog" element={
+        <ProtectedRoute>
+          {({ user }) => <Blog user={user} />}
+        </ProtectedRoute>
+      } />
+      <Route path="/blog/:slug" element={
+        <ProtectedRoute>
+          {({ user }) => <BlogPost user={user} />}
         </ProtectedRoute>
       } />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    {popoutUser && !location.pathname.startsWith("/chat/") && <ChatPopout user={popoutUser} />}
+    </>
   );
 };
 

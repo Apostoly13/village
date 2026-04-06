@@ -1,21 +1,23 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Badge } from "../components/ui/badge";
 import Navigation from "../components/Navigation";
 import { toast } from "sonner";
-import { Users, UserPlus, Clock, Check, X, MessageCircle, Heart } from "lucide-react";
+import { Users, UserPlus, Clock, Check, X, MessageCircle, Heart, MessagesSquare } from "lucide-react";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 export default function FriendsPage({ user }) {
+  const navigate = useNavigate();
   const [friends, setFriends] = useState([]);
   const [requests, setRequests] = useState([]);
   const [sentRequests, setSentRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState({});
+  const [chatLoading, setChatLoading] = useState({});
 
   useEffect(() => {
     fetchAllData();
@@ -82,6 +84,28 @@ export default function FriendsPage({ user }) {
     }
   };
 
+  const handleOpenFriendsChat = async (friendId) => {
+    setChatLoading(prev => ({ ...prev, [friendId]: true }));
+    try {
+      const res = await fetch(`${API_URL}/api/chat/rooms/friends`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ friend_id: friendId }),
+      });
+      if (res.ok) {
+        const room = await res.json();
+        navigate(`/chat/${room.room_id}`);
+      } else {
+        toast.error("Could not open chat");
+      }
+    } catch {
+      toast.error("Something went wrong");
+    } finally {
+      setChatLoading(prev => ({ ...prev, [friendId]: false }));
+    }
+  };
+
   const handleRemoveFriend = async (friendId) => {
     setActionLoading(prev => ({ ...prev, [friendId]: true }));
     try {
@@ -106,20 +130,26 @@ export default function FriendsPage({ user }) {
   const FriendCard = ({ friend, showRemove = false }) => (
     <div className="bg-card rounded-2xl p-4 border border-border/50 hover:border-primary/30 transition-colors" data-testid={`friend-card-${friend.user_id}`}>
       <div className="flex items-center gap-4">
-        <Link to={`/profile/${friend.user_id}`}>
+        <Link to={`/profile/${friend.user_id}`} className="relative shrink-0">
           <Avatar className="h-14 w-14 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
             <AvatarImage src={friend.picture} />
             <AvatarFallback className="bg-primary/20 text-primary text-lg">
               {friend.name?.[0]?.toUpperCase() || '?'}
             </AvatarFallback>
           </Avatar>
+          {/* Online indicator */}
+          <span className={`absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full border-2 border-card ${
+            friend.is_online ? "bg-green-500" : "bg-muted-foreground/40"
+          }`} title={friend.is_online ? "Online" : "Offline"} />
         </Link>
         <div className="flex-1 min-w-0">
           <Link to={`/profile/${friend.user_id}`} className="hover:underline">
             <h3 className="font-medium text-foreground truncate">{friend.nickname || friend.name}</h3>
           </Link>
-          {friend.bio && (
-            <p className="text-sm text-muted-foreground truncate">{friend.bio}</p>
+          {friend.is_online ? (
+            <p className="text-xs text-green-500 font-medium">Online</p>
+          ) : (
+            friend.bio && <p className="text-sm text-muted-foreground truncate">{friend.bio}</p>
           )}
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             {friend.is_single_parent && (
@@ -134,15 +164,26 @@ export default function FriendsPage({ user }) {
           </div>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-full"
+            onClick={() => handleOpenFriendsChat(friend.user_id)}
+            disabled={chatLoading[friend.user_id]}
+            title="Private chat"
+            data-testid={`chat-${friend.user_id}`}
+          >
+            <MessagesSquare className="h-4 w-4" />
+          </Button>
           <Link to={`/messages/${friend.user_id}`}>
-            <Button variant="outline" size="sm" className="rounded-full" data-testid={`message-${friend.user_id}`}>
+            <Button variant="outline" size="sm" className="rounded-full" data-testid={`message-${friend.user_id}`} title="Direct message">
               <MessageCircle className="h-4 w-4" />
             </Button>
           </Link>
           {showRemove && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               className="rounded-full text-muted-foreground hover:text-destructive"
               onClick={() => handleRemoveFriend(friend.user_id)}
               disabled={actionLoading[friend.user_id]}
@@ -211,30 +252,24 @@ export default function FriendsPage({ user }) {
       
       <main className="max-w-4xl mx-auto px-4 pt-20 lg:pt-24">
         <div className="mb-8">
-          <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-2 flex items-center gap-3">
-            <Users className="h-8 w-8 text-primary" />
-            Friends
-          </h1>
-          <p className="text-muted-foreground">Connect with your village community</p>
+          <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-1">Your friends</h1>
+          <p className="text-sm text-muted-foreground">Connect with parents in the village</p>
         </div>
 
         <Tabs defaultValue="friends" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-secondary/50 rounded-xl p-1 mb-6">
-            <TabsTrigger value="friends" className="rounded-lg data-[state=active]:bg-card" data-testid="tab-friends">
-              <Users className="h-4 w-4 mr-2" />
+          <TabsList className="w-full bg-card border border-border/50 rounded-xl p-1 mb-6">
+            <TabsTrigger value="friends" className="flex-1 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" data-testid="tab-friends">
               Friends ({friends.length})
             </TabsTrigger>
-            <TabsTrigger value="requests" className="rounded-lg data-[state=active]:bg-card relative" data-testid="tab-requests">
-              <UserPlus className="h-4 w-4 mr-2" />
+            <TabsTrigger value="requests" className="flex-1 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground relative" data-testid="tab-requests">
               Requests
               {requests.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
                   {requests.length}
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="sent" className="rounded-lg data-[state=active]:bg-card" data-testid="tab-sent">
-              <Clock className="h-4 w-4 mr-2" />
+            <TabsTrigger value="sent" className="flex-1 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" data-testid="tab-sent">
               Sent ({sentRequests.length})
             </TabsTrigger>
           </TabsList>
@@ -256,12 +291,12 @@ export default function FriendsPage({ user }) {
               </div>
             ) : friends.length === 0 ? (
               <div className="text-center py-12 bg-card rounded-2xl border border-border/50">
-                <span className="text-5xl mb-4 block">👋</span>
-                <h3 className="font-heading text-xl font-bold text-foreground mb-2">No friends yet</h3>
-                <p className="text-muted-foreground mb-4">Start connecting with other parents in the community!</p>
-                <Link to="/chat">
+                <span className="text-4xl mb-3 block">👋</span>
+                <h3 className="font-heading font-semibold text-foreground mb-1">Your village is waiting</h3>
+                <p className="text-sm text-muted-foreground mb-4">Add people you meet in the forums or chat rooms.</p>
+                <Link to="/forums">
                   <Button className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90">
-                    Join a Chat Room
+                    Browse forums
                   </Button>
                 </Link>
               </div>
@@ -291,9 +326,9 @@ export default function FriendsPage({ user }) {
               </div>
             ) : requests.length === 0 ? (
               <div className="text-center py-12 bg-card rounded-2xl border border-border/50">
-                <span className="text-5xl mb-4 block">📭</span>
-                <h3 className="font-heading text-xl font-bold text-foreground mb-2">No pending requests</h3>
-                <p className="text-muted-foreground">When someone wants to connect, you'll see it here.</p>
+                <span className="text-4xl mb-3 block">📭</span>
+                <h3 className="font-heading font-semibold text-foreground mb-1">No pending requests</h3>
+                <p className="text-sm text-muted-foreground">When someone wants to connect, you'll see it here.</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -321,9 +356,9 @@ export default function FriendsPage({ user }) {
               </div>
             ) : sentRequests.length === 0 ? (
               <div className="text-center py-12 bg-card rounded-2xl border border-border/50">
-                <span className="text-5xl mb-4 block">✉️</span>
-                <h3 className="font-heading text-xl font-bold text-foreground mb-2">No sent requests</h3>
-                <p className="text-muted-foreground">Friend requests you send will appear here.</p>
+                <span className="text-4xl mb-3 block">✉️</span>
+                <h3 className="font-heading font-semibold text-foreground mb-1">No sent requests</h3>
+                <p className="text-sm text-muted-foreground">Friend requests you send will appear here.</p>
               </div>
             ) : (
               <div className="space-y-4">

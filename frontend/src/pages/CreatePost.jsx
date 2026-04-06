@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
@@ -8,7 +8,7 @@ import { Checkbox } from "../components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import Navigation from "../components/Navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Image, X, Upload } from "lucide-react";
+import { ArrowLeft, Image, X, Upload, Crown, MapPin } from "lucide-react";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 const MAX_CONTENT_LENGTH = 5000;
@@ -28,10 +28,31 @@ export default function CreatePost({ user }) {
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [subscription, setSubscription] = useState(null);
+  const [postSuburb, setPostSuburb] = useState(user?.suburb || "");
+  const [postPostcode, setPostPostcode] = useState(user?.postcode || "");
+  const [postLatitude, setPostLatitude] = useState(user?.latitude || null);
+  const [postLongitude, setPostLongitude] = useState(user?.longitude || null);
+  const [postState, setPostState] = useState(user?.state || "");
+  const [visibility, setVisibility] = useState("public");
 
   useEffect(() => {
     fetchCategories();
+    fetchSubscription();
   }, []);
+
+  const fetchSubscription = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/subscription/status`, {
+        credentials: "include"
+      });
+      if (response.ok) {
+        setSubscription(await response.json());
+      }
+    } catch (error) {
+      console.error("Error fetching subscription:", error);
+    }
+  };
 
   const fetchCategories = async () => {
     try {
@@ -91,6 +112,9 @@ export default function CreatePost({ user }) {
     }
   };
 
+  const selectedCategory = categories.find(c => c.category_id === categoryId);
+  const isLocationAware = selectedCategory?.is_location_aware || false;
+
   const removeImage = () => {
     setImage(null);
     setImagePreview(null);
@@ -118,7 +142,15 @@ export default function CreatePost({ user }) {
           content,
           category_id: categoryId,
           is_anonymous: isAnonymous,
-          image: image
+          image: image,
+          visibility: visibility,
+          ...(isLocationAware ? {
+            latitude: postLatitude,
+            longitude: postLongitude,
+            suburb: postSuburb,
+            postcode: postPostcode,
+            state: postState,
+          } : {})
         })
       });
 
@@ -126,6 +158,10 @@ export default function CreatePost({ user }) {
         const post = await response.json();
         toast.success("Post created successfully!");
         navigate(`/forums/post/${post.post_id}`);
+      } else if (response.status === 429) {
+        const error = await response.json();
+        toast.error(error.detail || "Weekly post limit reached");
+        fetchSubscription();
       } else {
         const error = await response.json();
         toast.error(error.detail || "Failed to create post");
@@ -154,6 +190,40 @@ export default function CreatePost({ user }) {
         <div className="bg-card rounded-2xl p-6 border border-border/50">
           <h1 className="font-heading text-2xl font-bold text-foreground mb-6">Create a Post</h1>
 
+          {subscription && subscription.limits_apply && subscription.forum_posts && (() => {
+            const remaining = subscription.forum_posts.limit - subscription.forum_posts.used;
+            return (
+              <div className={`rounded-xl p-4 mb-6 flex items-center gap-3 ${
+                remaining === 0
+                  ? 'bg-red-500/10 border border-red-500/30'
+                  : remaining <= 2
+                    ? 'bg-amber-500/10 border border-amber-500/30'
+                    : 'bg-secondary/50 border border-border/30'
+              }`} data-testid="post-limit-banner">
+                {remaining === 0 ? (
+                  <>
+                    <Crown className="h-5 w-5 text-amber-500 flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="font-medium text-foreground text-sm">Weekly post limit reached</p>
+                      <p className="text-xs text-muted-foreground">Upgrade to Premium for unlimited posts</p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex-1">
+                      <p className="text-sm text-foreground">
+                        <span className="font-medium">{remaining}</span> of {subscription.forum_posts.limit} posts remaining this week
+                      </p>
+                    </div>
+                    {remaining <= 2 && (
+                      <Crown className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                    )}
+                  </>
+                )}
+              </div>
+            );
+          })()}
+
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="category" className="text-foreground">Category</Label>
@@ -172,6 +242,13 @@ export default function CreatePost({ user }) {
                   ))}
                 </SelectContent>
               </Select>
+              {selectedCategory && (selectedCategory.name?.includes("Meetup") || selectedCategory.name?.includes("Local")) && (
+                <p className="text-xs text-muted-foreground">
+                  📅 Have a date in mind? You can also{" "}
+                  <Link to="/events" className="text-primary hover:underline">create an event →</Link>
+                  {" "}to let people RSVP.
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -254,19 +331,95 @@ export default function CreatePost({ user }) {
               )}
             </div>
 
+            {/* Location Section - for location-aware categories */}
+            {isLocationAware && (
+              <div className="p-4 rounded-xl bg-secondary/30 border border-border/30 space-y-3">
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5 text-primary" />
+                  <Label className="font-medium text-foreground">Meetup Location</Label>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Suburb</Label>
+                    <Input
+                      value={postSuburb}
+                      onChange={(e) => setPostSuburb(e.target.value)}
+                      placeholder="e.g. Bondi"
+                      className="h-10 rounded-lg bg-secondary/50 border-transparent"
+                      data-testid="post-suburb-input"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Postcode</Label>
+                    <Input
+                      value={postPostcode}
+                      onChange={(e) => setPostPostcode(e.target.value)}
+                      placeholder="e.g. 2026"
+                      className="h-10 rounded-lg bg-secondary/50 border-transparent"
+                      data-testid="post-postcode-input"
+                    />
+                  </div>
+                </div>
+                {postSuburb && postPostcode && (
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <MapPin className="h-3 w-3" />
+                    This meetup will show as: {postSuburb}, {postPostcode}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Audience / Visibility */}
+            <div className="space-y-2">
+              <Label className="text-foreground font-medium">Who can see this?</Label>
+              <div className="grid grid-cols-1 gap-2">
+                {[
+                  { id: "public", icon: "🌐", label: "Everyone", desc: "Visible to all members" },
+                  { id: "friends", icon: "👥", label: "Friends only", desc: "Only your friends can see this" },
+                  { id: "circle", icon: "💬", label: "This circle only", desc: "Only members of the selected Support Space" },
+                ].map(opt => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setVisibility(opt.id)}
+                    className={`flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${
+                      visibility === opt.id ? "border-primary bg-primary/10" : "border-border/50 bg-card hover:border-primary/40"
+                    }`}
+                  >
+                    <span className="text-lg flex-shrink-0">{opt.icon}</span>
+                    <div>
+                      <p className={`text-sm font-medium ${visibility === opt.id ? "text-primary" : "text-foreground"}`}>{opt.label}</p>
+                      <p className="text-xs text-muted-foreground">{opt.desc}</p>
+                    </div>
+                    {visibility === opt.id && (
+                      <div className="ml-auto w-4 h-4 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                        <span className="text-primary-foreground text-xs">✓</span>
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="flex items-center gap-3 p-4 rounded-xl bg-secondary/30 border border-border/30">
-              <Checkbox 
-                id="anonymous" 
+              <Checkbox
+                id="anonymous"
                 checked={isAnonymous}
                 onCheckedChange={(checked) => setIsAnonymous(checked)}
                 data-testid="anonymous-checkbox"
               />
-              <div>
+              <div className="flex-1">
                 <Label htmlFor="anonymous" className="font-medium text-foreground cursor-pointer">
                   Post anonymously
                 </Label>
-                <p className="text-sm text-muted-foreground">Your name won't be shown to others</p>
+                <p className="text-xs text-muted-foreground">This post won't show your name or avatar</p>
               </div>
+              {subscription?.tier === "premium" && !isAnonymous && (
+                <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 shrink-0">
+                  <Crown className="h-3 w-3" />
+                  Premium badge will show
+                </span>
+              )}
             </div>
 
             <div className="flex gap-4">
@@ -279,9 +432,9 @@ export default function CreatePost({ user }) {
               >
                 Cancel
               </Button>
-              <Button 
+              <Button
                 type="submit"
-                disabled={loading || uploadingImage}
+                disabled={loading || uploadingImage || (subscription?.limits_apply && subscription?.forum_posts && !subscription.forum_posts.allowed)}
                 className="flex-1 h-12 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_15px_rgba(245,197,66,0.3)]"
                 data-testid="submit-btn"
               >

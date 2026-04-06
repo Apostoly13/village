@@ -44,8 +44,8 @@ export default function Messages({ user }) {
       
       <main className="max-w-4xl mx-auto px-4 pt-20 lg:pt-24">
         <div className="mb-8">
-          <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-2">Messages</h1>
-          <p className="text-muted-foreground">Your private conversations with other parents</p>
+          <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-1">Messages</h1>
+          <p className="text-sm text-muted-foreground">Your private conversations</p>
         </div>
 
         {loading ? (
@@ -64,12 +64,10 @@ export default function Messages({ user }) {
           </div>
         ) : conversations.length === 0 ? (
           <div className="text-center py-12 bg-card rounded-2xl border border-border/50">
-            <span className="text-5xl mb-4 block">✉️</span>
-            <h3 className="font-heading text-xl font-bold text-foreground mb-2">No messages yet</h3>
-            <p className="text-muted-foreground mb-4">Start a conversation by visiting someone's profile</p>
-            <Link to="/forums">
-              <button className="text-primary hover:underline">Browse Forums</button>
-            </Link>
+            <span className="text-4xl mb-3 block">✉️</span>
+            <h3 className="font-heading font-semibold text-foreground mb-1">No messages yet</h3>
+            <p className="text-sm text-muted-foreground mb-4">Start a conversation from someone's profile.</p>
+            <Link to="/forums" className="text-sm text-primary hover:underline">Browse forums</Link>
           </div>
         ) : (
           <div className="space-y-3">

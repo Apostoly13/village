@@ -70,8 +70,8 @@ export default function Landing() {
         {/* Navigation */}
         <nav className="relative z-10 px-6 py-4 flex items-center justify-between max-w-7xl mx-auto">
           <div className="flex items-center gap-2">
-            <span className="text-2xl">🏡</span>
-            <span className="font-heading font-bold text-xl text-foreground">The Village</span>
+            <img src="/logo.png" alt="" className="h-8 w-auto" />
+            <img src="/the_village_wordmark_light.png" alt="The Village" className="h-6 w-auto" />
           </div>
           <div className="flex items-center gap-3">
             <Button 
@@ -246,7 +246,7 @@ export default function Landing() {
       {/* CTA Section */}
       <section className="px-6 py-24 bg-gradient-to-b from-secondary/50 to-background">
         <div className="max-w-3xl mx-auto text-center">
-          <span className="text-5xl mb-6 block">🏡</span>
+          <img src="/logo.png" alt="The Village" className="h-20 w-auto mx-auto mb-6" />
           <h2 className="font-heading text-3xl sm:text-4xl font-bold text-foreground mb-4">
             Ready to Find Your Village?
           </h2>
@@ -269,8 +269,8 @@ export default function Landing() {
       <footer className="px-6 py-8 border-t border-border/50">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <span className="text-xl">🏡</span>
-            <span className="font-heading font-bold text-foreground">The Village</span>
+            <img src="/logo.png" alt="" className="h-7 w-auto" />
+            <img src="/the_village_wordmark_light.png" alt="The Village" className="h-5 w-auto" />
           </div>
           <p className="text-sm text-muted-foreground">
             Made with 💚 for parents everywhere

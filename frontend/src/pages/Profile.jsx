@@ -10,10 +10,15 @@ import { Switch } from "../components/ui/switch";
 import { Badge } from "../components/ui/badge";
 import Navigation from "../components/Navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Edit2, MessageCircle, Save, X, Heart, UserPlus, UserCheck, Clock, Users, ChevronRight, MapPin, Bell, Camera, Compass, Search } from "lucide-react";
+import { ArrowLeft, Edit2, MessageCircle, Save, X, Heart, UserPlus, UserCheck, Clock, Users, ChevronRight, MapPin, Bell, Camera, Search, AlertCircle, Crown, Shield, Handshake, Stethoscope } from "lucide-react";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 const AUSTRALIAN_STATES = ["NSW", "VIC", "QLD", "WA", "SA", "TAS", "ACT", "NT"];
+const INTEREST_OPTIONS = [
+  "Sleep & Settling", "Feeding", "Toddler Activities", "School Age",
+  "Mental Health", "Dad Talk", "Local Events", "Buy & Swap",
+  "Recipes & Nutrition", "Development Milestones"
+];
 const DISTANCE_OPTIONS = [
   { id: "2km", label: "Super Local (2km)" },
   { id: "5km", label: "Local (5km)" },
@@ -61,6 +66,13 @@ function ProfilePage({ user }) {
     weekly_digest: true
   });
   
+  // Parenting stage
+  const [parentingStage, setParentingStage] = useState("");
+  const [mixedAgeGroups, setMixedAgeGroups] = useState([]);
+
+  // Interests
+  const [interests, setInterests] = useState([]);
+
   // Location search
   const [locationSearch, setLocationSearch] = useState("");
   const [locationResults, setLocationResults] = useState([]);
@@ -95,7 +107,6 @@ function ProfilePage({ user }) {
           setNickname(data.nickname || "");
           setBio(data.bio || "");
           setUserLocation(data.location || "");
-          setRegion(data.region || "");
           setGender(data.gender || "");
           setConnectWith(data.connect_with || "all");
           setIsSingleParent(data.is_single_parent || false);
@@ -106,6 +117,9 @@ function ProfilePage({ user }) {
           setLatitude(data.latitude || null);
           setLongitude(data.longitude || null);
           setPreferredReach(data.preferred_reach || "25km");
+          setParentingStage(data.parenting_stage || "");
+          setMixedAgeGroups(data.mixed_age_groups || []);
+          setInterests(data.interests || []);
           setLocationSearch(data.suburb || data.location || "");
           setEmailPrefs(data.email_preferences || {
             notify_replies: true,
@@ -155,6 +169,10 @@ function ProfilePage({ user }) {
     fetchProfile();
     fetchFriendStatus();
     fetchFriends();
+    // Compute badges for own profile
+    if (!profileUserId || profileUserId === user?.user_id) {
+      fetch(`${API_URL}/api/users/compute-badges`, { method: "POST", credentials: "include" }).catch(() => {});
+    }
   }, [profileUserId, user?.user_id, isOwnProfile]);
 
   const handleSave = async () => {
@@ -178,7 +196,10 @@ function ProfilePage({ user }) {
           connect_with: connectWith,
           is_single_parent: isSingleParent,
           picture: picture,
-          email_preferences: emailPrefs
+          email_preferences: emailPrefs,
+          parenting_stage: parentingStage,
+          mixed_age_groups: parentingStage === "mixed" ? mixedAgeGroups : [],
+          interests: interests
         })
       });
 
@@ -474,6 +495,22 @@ function ProfilePage({ user }) {
           </button>
         )}
 
+        {/* Profile Incomplete Banner */}
+        {isOwnProfile && !editing && profile && !profile.onboarding_complete && (
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 mb-6 flex items-center gap-4">
+            <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+              <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div className="flex-1">
+              <p className="font-medium text-foreground text-sm">Your profile is incomplete</p>
+              <p className="text-xs text-muted-foreground">Add your location and preferences to connect with local parents</p>
+            </div>
+            <Button size="sm" onClick={() => setEditing(true)} className="rounded-full bg-amber-600 hover:bg-amber-700 text-white flex-shrink-0">
+              Complete
+            </Button>
+          </div>
+        )}
+
         <div className="bg-card rounded-2xl p-6 border border-border/50 mb-6">
           <div className="flex items-start justify-between mb-6">
             <div className="flex items-center gap-4">
@@ -512,6 +549,12 @@ function ProfilePage({ user }) {
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="font-heading text-2xl font-bold text-foreground">{displayName}</h1>
+                  {profile.subscription_tier === "premium" && (
+                    <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20" data-testid="premium-badge">
+                      <Crown className="h-3 w-3 mr-1" />
+                      Premium
+                    </Badge>
+                  )}
                   {hasNightOwlBadge() && (
                     <span className="night-owl-badge active" data-testid="night-owl-badge">
                       🦉 Night Owl
@@ -536,7 +579,7 @@ function ProfilePage({ user }) {
                 {profile.location && (
                   <p className="text-sm text-muted-foreground flex items-center gap-1">
                     <MapPin className="h-3 w-3" /> {profile.location}
-                    {profile.region && <span className="text-xs">({profile.region})</span>}
+                    {profile.state && <span className="text-xs">({profile.state})</span>}
                   </p>
                 )}
               </div>
@@ -589,9 +632,73 @@ function ProfilePage({ user }) {
                 />
               </div>
 
+              {/* Parenting Stage */}
+              <div className="space-y-2">
+                <Label className="text-foreground">Where are you at?</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { id: "expecting", label: "Expecting", emoji: "🤰" },
+                    { id: "newborn", label: "Newborn", emoji: "👶" },
+                    { id: "infant", label: "Infant", emoji: "🧒" },
+                    { id: "toddler", label: "Toddler", emoji: "🚶" },
+                    { id: "school_age", label: "School Age", emoji: "🎒" },
+                    { id: "teenager", label: "Teenager", emoji: "🧑" },
+                    { id: "mixed", label: "Mixed ages", emoji: "👨‍👩‍👧‍👦" },
+                  ].map(stage => (
+                    <button
+                      key={stage.id}
+                      type="button"
+                      onClick={() => setParentingStage(stage.id)}
+                      className={`rounded-xl py-2.5 px-2 text-center border-2 transition-all ${
+                        parentingStage === stage.id
+                          ? "border-primary bg-primary/10"
+                          : "border-border/50 bg-secondary/30 hover:border-primary/40"
+                      }`}
+                    >
+                      <span className="text-lg block">{stage.emoji}</span>
+                      <span className="text-xs font-medium text-foreground">{stage.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Mixed age group sub-selection */}
+              {parentingStage === "mixed" && (
+                <div className="space-y-2 pl-3 border-l-2 border-primary/30">
+                  <Label className="text-foreground text-sm">Which age groups do you have? <span className="text-muted-foreground font-normal">(select all that apply)</span></Label>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                    {[
+                      { id: "expecting", label: "Expecting", emoji: "🤰" },
+                      { id: "newborn", label: "Newborn", emoji: "👶" },
+                      { id: "infant", label: "Infant", emoji: "🧒" },
+                      { id: "toddler", label: "Toddler", emoji: "🚶" },
+                      { id: "school_age", label: "School Age", emoji: "🎒" },
+                      { id: "teenager", label: "Teenager", emoji: "🧑" },
+                    ].map(stage => {
+                      const active = mixedAgeGroups.includes(stage.id);
+                      return (
+                        <button
+                          key={stage.id}
+                          type="button"
+                          onClick={() => setMixedAgeGroups(prev =>
+                            prev.includes(stage.id) ? prev.filter(g => g !== stage.id) : [...prev, stage.id]
+                          )}
+                          className={`rounded-xl py-2.5 px-2 text-center border-2 transition-all ${
+                            active ? "border-primary bg-primary/10" : "border-border/50 bg-secondary/30 hover:border-primary/40"
+                          }`}
+                        >
+                          <span className="text-base block">{stage.emoji}</span>
+                          <span className="text-xs font-medium text-foreground">{stage.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label className="text-foreground">Location</Label>
-                <Input 
+                <Input
                   value={userLocation}
                   onChange={(e) => setUserLocation(e.target.value)}
                   placeholder="City, Country"
@@ -654,16 +761,16 @@ function ProfilePage({ user }) {
               <div className="space-y-2">
                 <Label className="text-foreground flex items-center gap-2">
                   <MapPin className="h-4 w-4" />
-                  Region (for local chat rooms)
+                  State (for local chat rooms)
                 </Label>
-                <Select value={region} onValueChange={setRegion}>
-                  <SelectTrigger className="h-12 rounded-xl bg-secondary/50 border-transparent" data-testid="region-select">
-                    <SelectValue placeholder="Select your region" />
+                <Select value={state} onValueChange={setState}>
+                  <SelectTrigger className="h-12 rounded-xl bg-secondary/50 border-transparent" data-testid="state-select">
+                    <SelectValue placeholder="Select your state" />
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border/50">
-                    {REGIONS.map((r) => (
-                      <SelectItem key={r} value={r}>
-                        {r}
+                    {AUSTRALIAN_STATES.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -671,6 +778,30 @@ function ProfilePage({ user }) {
                 <p className="text-xs text-muted-foreground">
                   This helps you connect with local parents and shows you local chat rooms
                 </p>
+              </div>
+
+              {/* Interests */}
+              <div id="identity" className="space-y-2">
+                <Label className="text-foreground">Your Interests</Label>
+                <p className="text-xs text-muted-foreground">Select topics you care about — we'll recommend relevant circles.</p>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {INTEREST_OPTIONS.map((interest) => (
+                    <button
+                      key={interest}
+                      type="button"
+                      onClick={() => setInterests(prev =>
+                        prev.includes(interest) ? prev.filter(i => i !== interest) : [...prev, interest]
+                      )}
+                      className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
+                        interests.includes(interest)
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "border-border/50 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                      }`}
+                    >
+                      {interest}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Email Notification Preferences */}
@@ -775,6 +906,65 @@ function ProfilePage({ user }) {
               )}
             </div>
           )}
+        </div>
+
+        {/* Trust Badges */}
+        <div className="bg-card rounded-2xl p-6 border border-border/50 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-heading font-bold text-lg text-foreground flex items-center gap-2">
+              <Shield className="h-5 w-5 text-primary" />
+              Badges &amp; Trust
+            </h2>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-3">
+            {[
+              {
+                key: "trusted_parent_badge",
+                icon: "🤝",
+                label: "Trusted Parent",
+                desc: "10+ helpful replies liked by others",
+              },
+              {
+                key: "night_owl_badge",
+                icon: "🦉",
+                label: "Night Owl",
+                desc: "Active in late-night support spaces",
+              },
+              {
+                key: "local_parent_badge",
+                icon: "📍",
+                label: "Local Parent",
+                desc: "Active community contributor in your suburb",
+              },
+              {
+                key: "verified_professional",
+                icon: "🩺",
+                label: "Verified Professional",
+                desc: "Healthcare or childcare professional",
+              },
+            ].map(({ key, icon, label, desc }) => {
+              const earned = !!profile[key];
+              return (
+                <div
+                  key={key}
+                  className={`flex items-start gap-3 p-3 rounded-xl border transition-all ${
+                    earned
+                      ? "bg-primary/5 border-primary/20"
+                      : "border-border/30 opacity-50"
+                  }`}
+                >
+                  <span className="text-xl shrink-0">{icon}</span>
+                  <div>
+                    <p className={`text-sm font-semibold ${earned ? "text-foreground" : "text-muted-foreground"}`}>{label}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
+                    {earned && (
+                      <span className="text-xs text-primary font-medium mt-0.5 inline-block">Earned ✓</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* Friends Section - Only show on own profile */}
