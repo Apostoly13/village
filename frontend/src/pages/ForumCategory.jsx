@@ -13,9 +13,12 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
 import Navigation from "../components/Navigation";
+import AppFooter from "../components/AppFooter";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, MessageCircle, Heart, Eye, Clock, Filter, ChevronLeft, ChevronRight, HelpCircle, MapPin, Compass, Crown, MoreVertical, Edit2, Trash2, Pin } from "lucide-react";
+import { ArrowLeft, Plus, MessageCircle, Heart, Eye, Clock, Filter, ChevronLeft, ChevronRight, HelpCircle, MapPin, Compass, Crown, MoreVertical, Edit2, Trash2, Pin, Lock, Users } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+
+import { getSpaceName } from "../config/spaces";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -44,6 +47,10 @@ export default function ForumCategory({ user }) {
   const [deleteDialog, setDeleteDialog] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  const [isMember, setIsMember] = useState(false);
+  const [memberCount, setMemberCount] = useState(0);
+  const [joinLoading, setJoinLoading] = useState(false);
+
   const DISTANCE_OPTIONS = [
     { id: "5", label: "5km" },
     { id: "10", label: "10km" },
@@ -67,6 +74,10 @@ export default function ForumCategory({ user }) {
       if (catRes.ok) {
         catData = await catRes.json();
         setCategory(catData);
+        if (catData?.is_user_created) {
+          setIsMember(catData.is_member || false);
+          setMemberCount(catData.member_count || 0);
+        }
       }
 
       // Build posts URL with location params for location-aware categories
@@ -167,6 +178,30 @@ export default function ForumCategory({ user }) {
     }
   };
 
+  const handleJoinLeave = async () => {
+    if (!user) { toast.error("Sign in to join communities"); return; }
+    setJoinLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/forums/communities/${categoryId}/${isMember ? "leave" : "join"}`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setIsMember(data.is_member);
+        setMemberCount(data.member_count);
+        toast.success(isMember ? "Left community" : "Joined community");
+      } else {
+        const err = await res.json();
+        toast.error(err.detail || "Something went wrong");
+      }
+    } catch {
+      toast.error("Something went wrong");
+    } finally {
+      setJoinLoading(false);
+    }
+  };
+
   const handlePinPost = async (postId, currentPinned) => {
     try {
       const res = await fetch(`${API_URL}/api/forums/posts/${postId}/pin`, {
@@ -193,7 +228,7 @@ export default function ForumCategory({ user }) {
 
   const PostCard = ({ post, index }) => (
     <article
-      className="bg-card rounded-xl px-4 py-3 border border-border/50 hover:border-primary/30 transition-all"
+      className="bg-card rounded-2xl px-4 py-3 border border-border/40 card-elevated border-l-2 border-l-primary/20 hover:border-primary/30 hover:shadow-md hover:border-l-primary/40 transition-all"
       data-testid={`post-card-${index}`}
     >
       {/* Top row: badges */}
@@ -277,22 +312,51 @@ export default function ForumCategory({ user }) {
           <>
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4">
               <div className="flex items-center gap-4">
-                <span className="text-4xl">{category.icon}</span>
+                {/* Icon — uploaded image or emoji */}
+                <div className="w-16 h-16 rounded-2xl overflow-hidden flex-shrink-0 flex items-center justify-center bg-secondary">
+                  {category.icon_url
+                    ? <img src={category.icon_url} alt={category.name} className="w-full h-full object-cover" />
+                    : <span className="text-4xl">{category.icon}</span>}
+                </div>
                 <div>
-                  <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground">{category.name}</h1>
-                  <p className="text-muted-foreground">{category.description}</p>
-                  {category.is_user_created && category.created_by_name && (
-                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                      <Crown className="h-3 w-3 text-amber-500" />
-                      Community by{" "}
-                      <Link to={`/profile/${category.created_by}`} className="hover:underline text-foreground">
-                        {category.created_by_name}
-                      </Link>
-                    </p>
-                  )}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground">{getSpaceName(category.name)}</h1>
+                    {category.is_private && <Lock className="h-5 w-5 text-muted-foreground" />}
+                    {category.community_subtype === "local" && (
+                      <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary font-medium">Local</span>
+                    )}
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-0.5">{category.description}</p>
+                  <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                    {category.is_user_created && category.created_by_name && (
+                      <span className="flex items-center gap-1">
+                        <Crown className="h-3 w-3 text-amber-500" />
+                        <Link to={`/profile/${category.created_by}`} className="hover:underline text-foreground">
+                          {category.created_by_name}
+                        </Link>
+                      </span>
+                    )}
+                    {category.is_user_created && (
+                      <span className="flex items-center gap-1">
+                        <Users className="h-3 w-3" />{memberCount} members
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {/* Join/Leave button for community pages */}
+                {category.is_user_created && user && !isCommunityCreator && (
+                  <Button
+                    variant={isMember ? "outline" : "default"}
+                    size="sm"
+                    onClick={handleJoinLeave}
+                    disabled={joinLoading}
+                    className={`rounded-xl ${isMember ? "border-border/50" : "bg-primary text-primary-foreground hover:bg-primary/90"}`}
+                  >
+                    {joinLoading ? "…" : isMember ? "Leave" : "Join Community"}
+                  </Button>
+                )}
                 {canManageCommunity && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -317,7 +381,7 @@ export default function ForumCategory({ user }) {
                   </DropdownMenu>
                 )}
                 <Link to={`/create-post?category=${categoryId}`}>
-                  <Button className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full shadow-[0_0_15px_rgba(245,197,66,0.3)]" data-testid="create-post-btn">
+                  <Button className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl shadow-[0_0_15px_rgba(245,197,66,0.3)]" data-testid="create-post-btn">
                     <Plus className="h-4 w-4 mr-2" />
                     New Post
                   </Button>
@@ -382,7 +446,7 @@ export default function ForumCategory({ user }) {
             {loading ? (
               <div className="space-y-2">
                 {[1, 2, 3, 4, 5].map(i => (
-                  <div key={i} className="bg-card rounded-xl px-4 py-3 border border-border/50 animate-pulse">
+                  <div key={i} className="bg-card rounded-2xl px-4 py-3 border border-border/40 animate-pulse">
                     <div className="w-3/4 h-4 bg-muted rounded mb-2"></div>
                     <div className="w-full h-3 bg-muted rounded mb-2"></div>
                     <div className="flex gap-3">
@@ -405,7 +469,7 @@ export default function ForumCategory({ user }) {
                 </p>
                 {filterType === "all" && (
                   <Link to={`/create-post?category=${categoryId}`}>
-                    <Button className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full" data-testid="empty-create-post-btn">
+                    <Button className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl" data-testid="empty-create-post-btn">
                       Create First Post
                     </Button>
                   </Link>
@@ -479,11 +543,12 @@ export default function ForumCategory({ user }) {
             <h3 className="font-heading font-semibold text-foreground">Category not found</h3>
             <p className="text-sm text-muted-foreground mt-1 mb-4">This space may have been removed.</p>
             <Link to="/forums">
-              <Button variant="outline" className="rounded-full">Back to Support Spaces</Button>
+              <Button variant="outline" className="rounded-xl">Back to Support Spaces</Button>
             </Link>
           </div>
         )}
       </main>
+      <AppFooter />
 
       {/* Edit Community Dialog */}
       <Dialog open={editDialog} onOpenChange={setEditDialog}>

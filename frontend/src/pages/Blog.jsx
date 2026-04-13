@@ -6,6 +6,7 @@ import { Textarea } from "../components/ui/textarea";
 import { Label } from "../components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 import Navigation from "../components/Navigation";
+import AppFooter from "../components/AppFooter";
 import { BookOpen, Sparkles, Eye, Clock, Tag, PenLine } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -247,16 +248,19 @@ export default function Blog({ user }) {
           <div className="space-y-4">
             {posts.map((post, idx) => (
               <Link key={post.blog_id || idx} to={`/blog/${post.slug}`} className="block">
-                <article className="bg-card rounded-2xl p-6 border border-border/50 hover:border-primary/30 transition-all card-hover">
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                      <BookOpen className="h-6 w-6 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h2 className="font-heading font-bold text-lg text-foreground mb-1 leading-snug">
+                {idx === 0 ? (
+                  /* Featured / hero card for the first post */
+                  <article className="bg-card rounded-2xl border border-border/40 card-elevated border-l-4 border-l-primary/60 hover:shadow-md hover:border-l-primary transition-all overflow-hidden">
+                    <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent px-6 py-5">
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-xs font-semibold uppercase tracking-widest text-primary/80">Featured</span>
+                        <span className="w-1 h-1 rounded-full bg-primary/30" />
+                        <span className="text-xs text-muted-foreground">{formatDate(post.created_at)}</span>
+                      </div>
+                      <h2 className="font-heading font-bold text-xl sm:text-2xl text-foreground mb-2 leading-snug">
                         {post.title}
                       </h2>
-                      <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{post.summary}</p>
+                      <p className="text-sm text-muted-foreground line-clamp-3 mb-4">{post.summary}</p>
                       <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
                         <span className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
@@ -266,21 +270,54 @@ export default function Blog({ user }) {
                           <Eye className="h-3 w-3" />
                           {post.view_count || 0} views
                         </span>
-                        <span>{formatDate(post.created_at)}</span>
                       </div>
                       {post.tags?.length > 0 && (
-                        <div className="flex items-center gap-2 mt-3 flex-wrap">
-                          <Tag className="h-3 w-3 text-muted-foreground" />
+                        <div className="flex items-center gap-1.5 mt-3 flex-wrap">
                           {post.tags.map(tag => (
-                            <span key={tag} className="text-xs px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
+                            <span key={tag} className="text-xs px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium">
                               {tag}
                             </span>
                           ))}
                         </div>
                       )}
                     </div>
-                  </div>
-                </article>
+                  </article>
+                ) : (
+                  /* Standard post card */
+                  <article className="bg-card rounded-2xl p-5 border border-border/40 card-elevated border-l-2 border-l-primary/20 hover:shadow-md hover:border-l-primary/40 transition-all">
+                    <div className="flex items-start gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                        <BookOpen className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h2 className="font-heading font-bold text-base text-foreground mb-1 leading-snug">
+                          {post.title}
+                        </h2>
+                        <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{post.summary}</p>
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {readTime(post.content)} min read
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Eye className="h-3 w-3" />
+                            {post.view_count || 0} views
+                          </span>
+                          <span>{formatDate(post.created_at)}</span>
+                        </div>
+                        {post.tags?.length > 0 && (
+                          <div className="flex items-center gap-1.5 mt-3 flex-wrap">
+                            {post.tags.map(tag => (
+                              <span key={tag} className="text-xs px-2.5 py-0.5 rounded-full bg-secondary text-muted-foreground border border-border/40">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </article>
+                )}
               </Link>
             ))}
           </div>
@@ -289,10 +326,10 @@ export default function Blog({ user }) {
         {/* My submissions section */}
         {ownDrafts.length > 0 && (
           <div className="mt-10">
-            <h2 className="font-heading text-lg font-bold text-foreground mb-4">My submissions</h2>
+            <p className="font-heading font-semibold text-xs uppercase tracking-widest text-muted-foreground mb-4">My submissions</p>
             <div className="space-y-3">
               {ownDrafts.map((post, idx) => (
-                <div key={post.blog_id || idx} className="bg-card rounded-2xl p-5 border border-border/50">
+                <div key={post.blog_id || idx} className="bg-card rounded-2xl p-5 border border-border/50 border-l-2 border-l-primary/20 shadow-sm">
                   <div className="flex items-start justify-between gap-3 mb-1">
                     <h3 className="font-heading font-semibold text-foreground leading-snug">{post.title}</h3>
                     {statusBadge(post.status)}
@@ -322,6 +359,7 @@ export default function Blog({ user }) {
           </div>
         )}
       </main>
+      <AppFooter />
     </div>
   );
 }

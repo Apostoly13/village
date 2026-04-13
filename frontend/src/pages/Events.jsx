@@ -5,8 +5,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import Navigation from "../components/Navigation";
-import { Calendar, MapPin, Clock, Users, Plus, Download, Check } from "lucide-react";
+import { Calendar, MapPin, Clock, Users, Plus, Download, Check, Pencil, UserPlus, X } from "lucide-react";
 import { toast } from "sonner";
+import AppFooter from "../components/AppFooter";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -53,11 +54,245 @@ function formatEventDate(dateStr) {
   }
 }
 
-function EventCard({ event, onRsvp, user }) {
+function EditEventDialog({ event, onUpdated, onClose }) {
+  const [form, setForm] = useState({
+    title: event.title || "",
+    description: event.description || "",
+    venue_name: event.venue_name || "",
+    suburb: event.suburb || "",
+    state: event.state || "",
+    date: event.date || "",
+    time_start: event.time_start || "",
+    time_end: event.time_end || "",
+    category: event.category || "general",
+    rsvp_limit: event.rsvp_limit || "",
+    is_private: event.is_private || false,
+  });
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!form.title.trim() || !form.date) {
+      toast.error("Title and date are required");
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload = { ...form, rsvp_limit: form.rsvp_limit ? Number(form.rsvp_limit) : null };
+      const res = await fetch(`${API_URL}/api/events/${event.event_id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        toast.success("Event updated");
+        onUpdated(updated);
+        onClose();
+      } else {
+        const err = await res.json();
+        toast.error(err.detail || "Failed to update event");
+      }
+    } catch {
+      toast.error("Something went wrong");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4 py-2">
+      <div>
+        <label className="text-sm font-medium text-foreground block mb-1">Title</label>
+        <input className={INPUT_CLASS} value={form.title} onChange={e => setForm(f => ({...f, title: e.target.value}))} />
+      </div>
+      <div>
+        <label className="text-sm font-medium text-foreground block mb-1">Description</label>
+        <textarea className={INPUT_CLASS} rows={3} value={form.description} onChange={e => setForm(f => ({...f, description: e.target.value}))} />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-sm font-medium text-foreground block mb-1">Date</label>
+          <input type="date" className={INPUT_CLASS} value={form.date} onChange={e => setForm(f => ({...f, date: e.target.value}))} />
+        </div>
+        <div>
+          <label className="text-sm font-medium text-foreground block mb-1">Category</label>
+          <select className={INPUT_CLASS} value={form.category} onChange={e => setForm(f => ({...f, category: e.target.value}))}>
+            {["general","playgroup","meetup","workshop","support"].map(c => (
+              <option key={c} value={c}>{c.charAt(0).toUpperCase()+c.slice(1)}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-sm font-medium text-foreground block mb-1">Start time</label>
+          <input type="time" className={INPUT_CLASS} value={form.time_start} onChange={e => setForm(f => ({...f, time_start: e.target.value}))} />
+        </div>
+        <div>
+          <label className="text-sm font-medium text-foreground block mb-1">End time</label>
+          <input type="time" className={INPUT_CLASS} value={form.time_end} onChange={e => setForm(f => ({...f, time_end: e.target.value}))} />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-sm font-medium text-foreground block mb-1">Venue / Location</label>
+          <input className={INPUT_CLASS} placeholder="Venue name" value={form.venue_name} onChange={e => setForm(f => ({...f, venue_name: e.target.value}))} />
+        </div>
+        <div>
+          <label className="text-sm font-medium text-foreground block mb-1">Suburb</label>
+          <input className={INPUT_CLASS} value={form.suburb} onChange={e => setForm(f => ({...f, suburb: e.target.value}))} />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-sm font-medium text-foreground block mb-1">State</label>
+          <select className={INPUT_CLASS} value={form.state} onChange={e => setForm(f => ({...f, state: e.target.value}))}>
+            <option value="">Select state</option>
+            {AU_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-sm font-medium text-foreground block mb-1">RSVP limit</label>
+          <input type="number" className={INPUT_CLASS} placeholder="No limit" value={form.rsvp_limit} onChange={e => setForm(f => ({...f, rsvp_limit: e.target.value}))} />
+        </div>
+      </div>
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" checked={form.is_private} onChange={e => setForm(f => ({...f, is_private: e.target.checked}))} className="rounded" />
+        <span className="text-sm text-foreground">Private event</span>
+      </label>
+      <div className="flex gap-2 pt-2">
+        <Button variant="outline" className="flex-1 rounded-xl" onClick={onClose}>Cancel</Button>
+        <Button className="flex-1 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90" onClick={handleSave} disabled={saving}>
+          {saving ? "Saving..." : "Save changes"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function ManageModeratorsDialog({ event, onClose }) {
+  const [moderators, setModerators] = useState([]);
+  const [searchEmail, setSearchEmail] = useState("");
+  const [searchResult, setSearchResult] = useState(null);
+  const [searching, setSearching] = useState(false);
+  const [adding, setAdding] = useState(false);
+
+  useEffect(() => {
+    const fetchMods = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/events/${event.event_id}/moderators`, { credentials: "include" });
+        if (res.ok) setModerators(await res.json());
+      } catch {}
+    };
+    fetchMods();
+  }, [event.event_id]);
+
+  const handleSearch = async () => {
+    if (!searchEmail.trim()) return;
+    setSearching(true);
+    setSearchResult(null);
+    try {
+      const res = await fetch(`${API_URL}/api/users/search?q=${encodeURIComponent(searchEmail)}`, { credentials: "include" });
+      if (res.ok) {
+        const users = await res.json();
+        setSearchResult(users[0] || null);
+        if (!users[0]) toast.error("No user found with that email");
+      }
+    } catch {
+      toast.error("Search failed");
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const handleAdd = async (userId) => {
+    setAdding(true);
+    try {
+      const res = await fetch(`${API_URL}/api/events/${event.event_id}/moderators`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action: "add", user_id: userId }),
+      });
+      if (res.ok) {
+        toast.success("Moderator added");
+        setModerators(prev => [...prev, searchResult]);
+        setSearchResult(null);
+        setSearchEmail("");
+      }
+    } catch {
+      toast.error("Failed to add moderator");
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const handleRemove = async (userId) => {
+    try {
+      await fetch(`${API_URL}/api/events/${event.event_id}/moderators`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action: "remove", user_id: userId }),
+      });
+      setModerators(prev => prev.filter(m => m.user_id !== userId));
+      toast.success("Moderator removed");
+    } catch {
+      toast.error("Failed to remove moderator");
+    }
+  };
+
+  return (
+    <div className="space-y-4 py-2">
+      <p className="text-sm text-muted-foreground">Moderators can edit and cancel this event.</p>
+      {moderators.length > 0 && (
+        <div className="space-y-2">
+          {moderators.map(mod => (
+            <div key={mod.user_id} className="flex items-center justify-between py-2 px-3 bg-secondary/50 rounded-xl">
+              <span className="text-sm text-foreground">{mod.nickname || mod.name}</span>
+              <button onClick={() => handleRemove(mod.user_id)} className="text-destructive hover:text-destructive/80 transition-colors">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="flex gap-2">
+        <input
+          className={INPUT_CLASS}
+          placeholder="Search by email or name"
+          value={searchEmail}
+          onChange={e => setSearchEmail(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && handleSearch()}
+        />
+        <Button variant="outline" className="rounded-xl flex-shrink-0" onClick={handleSearch} disabled={searching}>
+          {searching ? "..." : "Find"}
+        </Button>
+      </div>
+      {searchResult && (
+        <div className="flex items-center justify-between py-2 px-3 bg-card border border-border/50 rounded-xl">
+          <span className="text-sm text-foreground">{searchResult.nickname || searchResult.name}</span>
+          <Button size="sm" className="rounded-lg h-7 text-xs bg-primary text-primary-foreground" onClick={() => handleAdd(searchResult.user_id)} disabled={adding}>
+            Add
+          </Button>
+        </div>
+      )}
+      <Button variant="outline" className="w-full rounded-xl" onClick={onClose}>Done</Button>
+    </div>
+  );
+}
+
+function EventCard({ event, onRsvp, onUpdated, user }) {
   const [rsvping, setRsvping] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [modsOpen, setModsOpen] = useState(false);
   const dateInfo = formatEventDate(event.date);
   const catStyle = CATEGORY_STYLES[event.category] || CATEGORY_STYLES.general;
   const catLabel = CATEGORY_LABELS[event.category] || event.category;
+
+  const isOrganiser = user && event.organiser_user_id === user.user_id;
+  const isModerator = user && Array.isArray(event.moderator_ids) && event.moderator_ids.includes(user.user_id);
 
   const handleRsvp = async () => {
     if (!user) {
@@ -88,7 +323,7 @@ function EventCard({ event, onRsvp, user }) {
   const icalHref = `${API_URL}/api/events/${event.event_id}/ical`;
 
   return (
-    <article className="bg-card border border-border/50 rounded-2xl p-5 hover:border-primary/30 transition-all flex gap-4">
+    <article className="bg-card border border-border/40 card-elevated border-l-2 border-l-primary/20 rounded-2xl p-5 hover:border-primary/30 hover:shadow-md hover:border-l-primary/40 transition-all flex gap-4">
       {/* Date chip */}
       <div className="flex-shrink-0 w-14 h-14 rounded-xl bg-primary/15 text-primary flex flex-col items-center justify-center">
         <span className="text-xl font-bold leading-none">{dateInfo.day}</span>
@@ -169,8 +404,50 @@ function EventCard({ event, onRsvp, user }) {
             <Download className="h-3 w-3" />
             <span className="hidden sm:inline">Calendar</span>
           </a>
+
+          {(isOrganiser || isModerator) && (
+            <button
+              onClick={() => setEditOpen(true)}
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-lg px-2 py-1 hover:bg-secondary/50"
+              title="Edit event"
+            >
+              <Pencil className="h-3 w-3" />
+              <span className="hidden sm:inline">Edit</span>
+            </button>
+          )}
+
+          {isOrganiser && (
+            <button
+              onClick={() => setModsOpen(true)}
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-lg px-2 py-1 hover:bg-secondary/50"
+              title="Manage moderators"
+            >
+              <UserPlus className="h-3 w-3" />
+              <span className="hidden sm:inline">Mods</span>
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Edit dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="bg-card border-border/50 max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-heading font-bold">Edit Event</DialogTitle>
+          </DialogHeader>
+          <EditEventDialog event={event} onUpdated={onUpdated} onClose={() => setEditOpen(false)} />
+        </DialogContent>
+      </Dialog>
+
+      {/* Moderators dialog */}
+      <Dialog open={modsOpen} onOpenChange={setModsOpen}>
+        <DialogContent className="bg-card border-border/50 max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-heading font-bold">Event Moderators</DialogTitle>
+          </DialogHeader>
+          <ManageModeratorsDialog event={event} onClose={() => setModsOpen(false)} />
+        </DialogContent>
+      </Dialog>
     </article>
   );
 }
@@ -510,10 +787,22 @@ export default function Events({ user }) {
   const [stateFilter, setStateFilter] = useState("all");
   const [distanceFilter, setDistanceFilter] = useState("any");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [localMeetupsId, setLocalMeetupsId] = useState(null);
 
   useEffect(() => {
     fetchEvents();
   }, [activeCategory, stateFilter, distanceFilter]);
+
+  useEffect(() => {
+    // Fetch the Local Meetups forum category ID so "Open Support Space" links directly to it
+    fetch(`${API_URL}/api/forums/categories`, { credentials: "include" })
+      .then(r => r.ok ? r.json() : [])
+      .then(cats => {
+        const lm = cats.find(c => c.name === "Local Meetups");
+        if (lm) setLocalMeetupsId(lm.category_id);
+      })
+      .catch(() => {});
+  }, []);
 
   const fetchEvents = async () => {
     setLoading(true);
@@ -546,6 +835,10 @@ export default function Events({ user }) {
     newEvent.rsvp_count = 0;
     newEvent.user_has_rsvp = false;
     setEvents(prev => [newEvent, ...prev]);
+  };
+
+  const handleUpdated = (updatedEvent) => {
+    setEvents(prev => prev.map(e => e.event_id === updatedEvent.event_id ? { ...e, ...updatedEvent } : e));
   };
 
   return (
@@ -590,7 +883,12 @@ export default function Events({ user }) {
               <p className="text-xs text-muted-foreground">Share your experience or find others going to the same event</p>
             </div>
           </div>
-          <Link to="/forums" className="text-xs text-primary hover:underline whitespace-nowrap">Open forums →</Link>
+          <Link
+            to={localMeetupsId ? `/forums/${localMeetupsId}` : "/forums"}
+            className="text-xs text-primary hover:underline whitespace-nowrap"
+          >
+            Open Support Space →
+          </Link>
         </div>
 
         {/* Filters */}
@@ -601,7 +899,7 @@ export default function Events({ user }) {
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.id)}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                   activeCategory === cat.id
                     ? "bg-primary text-primary-foreground"
                     : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
@@ -677,11 +975,13 @@ export default function Events({ user }) {
                 key={event.event_id}
                 event={event}
                 onRsvp={handleRsvp}
+                onUpdated={handleUpdated}
                 user={user}
               />
             ))}
           </div>
         )}
+        <AppFooter />
       </main>
     </div>
   );

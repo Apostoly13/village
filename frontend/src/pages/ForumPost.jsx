@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
@@ -23,8 +23,9 @@ import {
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
 import Navigation from "../components/Navigation";
+import AppFooter from "../components/AppFooter";
 import { toast } from "sonner";
-import { ArrowLeft, Heart, MessageCircle, Eye, Clock, Send, Bookmark, BookmarkCheck, MoreVertical, Edit2, Trash2, Flag, Reply, CornerDownRight, MapPin, Crown } from "lucide-react";
+import { ArrowLeft, Heart, MessageCircle, Eye, Clock, Send, Bookmark, BookmarkCheck, MoreVertical, Edit2, Trash2, Flag, Reply, MapPin, Crown } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -38,6 +39,7 @@ export default function ForumPost({ user }) {
   const [replies, setReplies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [replyContent, setReplyContent] = useState("");
+  const replyTextareaRef = useRef(null);
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
@@ -49,6 +51,8 @@ export default function ForumPost({ user }) {
   const [editingReplyId, setEditingReplyId] = useState(null);
   const [editReplyContent, setEditReplyContent] = useState("");
   
+  const [subscription, setSubscription] = useState(null);
+
   // Modal states
   const [deletePostModal, setDeletePostModal] = useState(false);
   const [deleteReplyId, setDeleteReplyId] = useState(null);
@@ -59,7 +63,15 @@ export default function ForumPost({ user }) {
 
   useEffect(() => {
     fetchData();
+    fetchSubscription();
   }, [postId]);
+
+  const fetchSubscription = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/subscription/status`, { credentials: "include" });
+      if (res.ok) setSubscription(await res.json());
+    } catch {}
+  };
 
   const fetchData = async () => {
     try {
@@ -157,10 +169,16 @@ export default function ForumPost({ user }) {
         const newReply = await response.json();
         setReplies(prev => [...prev, newReply]);
         setReplyContent("");
+        if (replyTextareaRef.current) replyTextareaRef.current.style.height = '';
         setIsAnonymous(false);
         setReplyingTo(null);
         setPost(prev => ({ ...prev, reply_count: (prev.reply_count || 0) + 1 }));
         toast.success("Reply posted!");
+        fetchSubscription();
+      } else if (response.status === 429) {
+        const err = await response.json();
+        toast.error(err.detail?.message || "Daily reply limit reached");
+        fetchSubscription();
       } else {
         toast.error("Failed to post reply");
       }
@@ -303,31 +321,21 @@ export default function ForumPost({ user }) {
   const topLevelReplies = replies.filter(r => !r.parent_reply_id);
   const getChildReplies = (parentId) => replies.filter(r => r.parent_reply_id === parentId);
 
-  const ReplyComponent = ({ reply, depth = 0 }) => {
+  const renderReply = (reply, depth = 0) => {
     const childReplies = getChildReplies(reply.reply_id);
     const isEditing = editingReplyId === reply.reply_id;
-    
-    // Different background colors for nested depths
-    const depthColors = [
-      'bg-card',
-      'bg-primary/5 dark:bg-primary/10',
-      'bg-secondary/30 dark:bg-secondary/20',
-      'bg-primary/10 dark:bg-primary/15',
-    ];
-    const bgColor = depthColors[Math.min(depth, depthColors.length - 1)];
-    
+
+    // Use global position in the flat replies array so every reply alternates reliably
+    const globalIndex = replies.findIndex(r => r.reply_id === reply.reply_id);
+    const isEven = globalIndex % 2 === 0;
+    const bgClass = isEven ? 'bg-card' : 'bg-secondary dark:bg-secondary/80';
+
     return (
-      <div className={`${depth > 0 ? 'ml-6 sm:ml-8 border-l-2 border-primary/30 pl-3 sm:pl-4' : ''}`}>
-        <div 
-          className={`${bgColor} rounded-2xl p-5 border border-border/50 mb-3 ${depth > 0 ? 'shadow-sm' : ''}`}
+      <div key={reply.reply_id} className={depth > 0 ? 'ml-4 border-l-2 border-primary/40 pl-3' : 'border-l-2 border-l-primary/20 pl-3 rounded-l-sm'}>
+        <div
+          className={`${bgClass} rounded-2xl p-4 border mb-3 ${isEven ? 'border-border/40' : 'border-primary/20'}`}
           data-testid={`reply-${reply.reply_id}`}
         >
-          {depth > 0 && (
-            <div className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
-              <CornerDownRight className="h-3 w-3" />
-              <span>Replying to thread</span>
-            </div>
-          )}
           <div className="flex items-start gap-3">
             {reply.author_id !== "anonymous" ? (
               <Link to={`/profile/${reply.author_id}`}>
@@ -343,7 +351,7 @@ export default function ForumPost({ user }) {
                 <AvatarFallback className="bg-primary/20 text-primary">?</AvatarFallback>
               </Avatar>
             )}
-            <div className="flex-1">
+            <div className="flex-1 min-w-0 overflow-hidden">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2 flex-wrap">
                   {reply.author_id !== "anonymous" ? (
@@ -398,41 +406,97 @@ export default function ForumPost({ user }) {
                     className="min-h-[80px] bg-secondary/50 border-transparent focus:border-primary rounded-xl"
                   />
                   <div className="flex gap-2">
-                    <Button size="sm" onClick={() => handleEditReply(reply.reply_id)} className="rounded-full">Save</Button>
-                    <Button size="sm" variant="outline" onClick={() => setEditingReplyId(null)} className="rounded-full">Cancel</Button>
+                    <Button size="sm" onClick={() => handleEditReply(reply.reply_id)} className="rounded-xl">Save</Button>
+                    <Button size="sm" variant="outline" onClick={() => setEditingReplyId(null)} className="rounded-xl">Cancel</Button>
                   </div>
                 </div>
               ) : (
-                <p className="text-foreground whitespace-pre-wrap">{reply.content}</p>
+                <p className="text-foreground whitespace-pre-wrap break-words overflow-hidden">{reply.content}</p>
               )}
               
               <div className="flex items-center gap-3 mt-3">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => handleLikeReply(reply.reply_id)}
                   className={`rounded-full h-8 px-3 ${reply.user_liked ? 'text-red-500' : 'text-muted-foreground'}`}
                 >
                   <Heart className={`h-4 w-4 mr-1 ${reply.user_liked ? 'fill-current' : ''}`} />
                   {reply.like_count || 0}
                 </Button>
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   size="sm"
-                  onClick={() => setReplyingTo(reply)}
-                  className="rounded-full h-8 px-3 text-muted-foreground"
+                  onClick={() => {
+                    if (replyingTo?.reply_id === reply.reply_id) {
+                      setReplyingTo(null);
+                      setReplyContent("");
+                      if (replyTextareaRef.current) replyTextareaRef.current.style.height = '';
+                    } else {
+                      setReplyingTo(reply);
+                      setReplyContent("");
+                    }
+                  }}
+                  className={`rounded-full h-8 px-3 ${replyingTo?.reply_id === reply.reply_id ? 'text-primary' : 'text-muted-foreground'}`}
                 >
                   <Reply className="h-4 w-4 mr-1" />
-                  Reply
+                  {replyingTo?.reply_id === reply.reply_id ? 'Cancel' : 'Reply'}
                 </Button>
               </div>
             </div>
           </div>
         </div>
-        
-        {childReplies.map(child => (
-          <ReplyComponent key={child.reply_id} reply={child} depth={depth + 1} />
-        ))}
+
+        {/* Inline reply form — appears directly below this reply */}
+        {replyingTo?.reply_id === reply.reply_id && (
+          <div className="mt-1 mb-3 ml-4 pl-3 border-l-2 border-primary/40">
+            <form onSubmit={handleReply} className="bg-card rounded-2xl p-4 border border-border/40 space-y-3">
+              <div className="relative">
+                <Textarea
+                  ref={replyTextareaRef}
+                  value={replyContent}
+                  onChange={(e) => {
+                    setReplyContent(e.target.value.slice(0, MAX_CONTENT_LENGTH));
+                    const el = e.target;
+                    el.style.height = 'auto';
+                    el.style.height = el.scrollHeight + 'px';
+                  }}
+                  placeholder={`Reply to ${reply.author_name}...`}
+                  className="min-h-[44px] bg-secondary/50 border-transparent focus:border-primary rounded-xl text-sm"
+                  style={{ overflow: 'hidden', resize: 'none' }}
+                  autoFocus
+                />
+                <span className="absolute bottom-2 right-2 text-xs text-muted-foreground">{replyContent.length}/{MAX_CONTENT_LENGTH}</span>
+              </div>
+              {subscription?.limits_apply && subscription?.forum_replies && (
+                <Link to="/plus" className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors mb-1">
+                  <Crown className="h-3 w-3 text-amber-500" />
+                  {subscription.forum_replies.limit - subscription.forum_replies.used}/{subscription.forum_replies.limit} replies today
+                </Link>
+              )}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id={`anon-inline-${reply.reply_id}`}
+                    checked={isAnonymous}
+                    onCheckedChange={(checked) => setIsAnonymous(checked)}
+                  />
+                  <Label htmlFor={`anon-inline-${reply.reply_id}`} className="text-xs text-muted-foreground cursor-pointer">Anonymous</Label>
+                </div>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={submitting || !replyContent.trim() || (subscription?.limits_apply && subscription?.forum_replies && !subscription.forum_replies.allowed)}
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl h-8 text-xs"
+                >
+                  {submitting ? "Posting..." : <><Send className="h-3 w-3 mr-1" />Post Reply</>}
+                </Button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {childReplies.map(child => renderReply(child, depth + 1))}
       </div>
     );
   };
@@ -465,11 +529,15 @@ export default function ForumPost({ user }) {
     return (
       <div className="min-h-screen bg-background pb-20 lg:pb-0">
         <Navigation user={user} />
-        <main className="max-w-4xl mx-auto px-4 pt-20 lg:pt-24 text-center">
-          <h1 className="font-heading text-2xl font-bold text-foreground">Post not found</h1>
-          <Link to="/forums">
-            <Button className="mt-4">Back to Forums</Button>
-          </Link>
+        <main className="max-w-4xl mx-auto px-4 pt-20 lg:pt-24">
+          <div className="text-center py-16 bg-card rounded-2xl border border-border/40 card-elevated">
+            <span className="text-4xl mb-4 block">🔍</span>
+            <h1 className="font-heading text-xl font-bold text-foreground mb-2">Post not found</h1>
+            <p className="text-sm text-muted-foreground mb-6">This post may have been removed or the link is incorrect.</p>
+            <Link to="/forums">
+              <Button className="rounded-xl">Back to Support Spaces</Button>
+            </Link>
+          </div>
         </main>
       </div>
     );
@@ -480,13 +548,17 @@ export default function ForumPost({ user }) {
       <Navigation user={user} />
       
       <main className="max-w-4xl mx-auto px-4 pt-20 lg:pt-24">
-        <Link to="/forums" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors" data-testid="back-link">
+        <Link
+          to={post?.category_id ? `/forums/${post.category_id}` : "/forums"}
+          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors"
+          data-testid="back-link"
+        >
           <ArrowLeft className="h-4 w-4" />
-          Back to Forums
+          {post?.category_name || "Support Spaces"}
         </Link>
 
         {/* Main Post */}
-        <article className="bg-card rounded-2xl p-6 border border-border/50 mb-6" data-testid="post-content">
+        <article className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20 mb-6" data-testid="post-content">
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
               {post.author_id !== "anonymous" ? (
@@ -575,8 +647,8 @@ export default function ForumPost({ user }) {
                 </span>
               </div>
               <div className="flex gap-2">
-                <Button onClick={handleEditPost} className="rounded-full bg-primary text-primary-foreground">Save Changes</Button>
-                <Button variant="outline" onClick={() => setEditingPost(false)} className="rounded-full">Cancel</Button>
+                <Button onClick={handleEditPost} className="rounded-xl bg-primary text-primary-foreground">Save Changes</Button>
+                <Button variant="outline" onClick={() => setEditingPost(false)} className="rounded-xl">Cancel</Button>
               </div>
             </div>
           ) : (
@@ -589,7 +661,7 @@ export default function ForumPost({ user }) {
                   {post.state && <span className="text-xs">({post.state})</span>}
                 </div>
               )}
-              <p className="text-foreground whitespace-pre-wrap mb-4">{post.content}</p>
+              <p className="text-foreground whitespace-pre-wrap break-words overflow-hidden mb-4">{post.content}</p>
               {post.image && (
                 <div className="mb-6 rounded-xl overflow-hidden border border-border/50">
                   <img 
@@ -641,44 +713,50 @@ export default function ForumPost({ user }) {
           </h2>
           
           {replies.length === 0 ? (
-            <div className="text-center py-8 bg-card rounded-2xl border border-border/50">
-              <p className="text-muted-foreground">No replies yet. Be the first to respond!</p>
+            <div className="text-center py-10 bg-card rounded-2xl border border-border/40 card-elevated">
+              <span className="text-3xl mb-3 block">💬</span>
+              <h3 className="font-heading font-semibold text-foreground mb-1">No replies yet</h3>
+              <p className="text-sm text-muted-foreground">Be the first to share your thoughts or support.</p>
             </div>
           ) : (
-            topLevelReplies.map(reply => (
-              <ReplyComponent key={reply.reply_id} reply={reply} />
-            ))
+            topLevelReplies.map(reply => renderReply(reply))
           )}
         </div>
 
-        {/* Reply Form */}
-        <div className="bg-card rounded-2xl p-6 border border-border/50 mb-8" data-testid="reply-form">
-          <h3 className="font-heading font-bold text-lg text-foreground mb-4">
-            {replyingTo ? (
-              <span className="flex items-center gap-2">
-                <CornerDownRight className="h-4 w-4" />
-                Replying to {replyingTo.author_name}
-                <Button variant="ghost" size="sm" onClick={() => setReplyingTo(null)} className="h-6 px-2 text-xs">Cancel</Button>
-              </span>
-            ) : 'Add a Reply'}
-          </h3>
+        {/* Bottom reply form — only for top-level replies (not replying to a specific reply) */}
+        {!replyingTo && (
+        <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20 mb-8" data-testid="reply-form">
+          <h3 className="font-heading font-bold text-lg text-foreground mb-4">Add a Reply</h3>
           <form onSubmit={handleReply} className="space-y-4">
             <div className="relative">
-              <Textarea 
+              <Textarea
+                ref={replyTextareaRef}
                 value={replyContent}
-                onChange={(e) => setReplyContent(e.target.value.slice(0, MAX_CONTENT_LENGTH))}
+                onChange={(e) => {
+                  setReplyContent(e.target.value.slice(0, MAX_CONTENT_LENGTH));
+                  const el = e.target;
+                  el.style.height = 'auto';
+                  el.style.height = el.scrollHeight + 'px';
+                }}
                 placeholder="Share your thoughts or support..."
-                className="min-h-[100px] bg-secondary/50 border-transparent focus:border-primary rounded-xl resize-none"
+                className="min-h-[44px] bg-secondary/50 border-transparent focus:border-primary rounded-xl"
+                style={{ overflow: 'hidden', resize: 'none' }}
                 data-testid="reply-input"
               />
               <span className="absolute bottom-2 right-2 text-xs text-muted-foreground">
                 {replyContent.length}/{MAX_CONTENT_LENGTH}
               </span>
             </div>
+            {subscription?.limits_apply && subscription?.forum_replies && (
+              <Link to="/plus" className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors -mt-1">
+                <Crown className="h-3 w-3 text-amber-500" />
+                {subscription.forum_replies.limit - subscription.forum_replies.used}/{subscription.forum_replies.limit} replies today
+              </Link>
+            )}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Checkbox 
-                  id="anonymous" 
+                <Checkbox
+                  id="anonymous"
                   checked={isAnonymous}
                   onCheckedChange={(checked) => setIsAnonymous(checked)}
                   data-testid="anonymous-checkbox"
@@ -687,10 +765,10 @@ export default function ForumPost({ user }) {
                   Post anonymously
                 </Label>
               </div>
-              <Button 
-                type="submit" 
-                disabled={submitting || !replyContent.trim()}
-                className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full"
+              <Button
+                type="submit"
+                disabled={submitting || !replyContent.trim() || (subscription?.limits_apply && subscription?.forum_replies && !subscription.forum_replies.allowed)}
+                className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl"
                 data-testid="submit-reply-btn"
               >
                 {submitting ? "Posting..." : (
@@ -703,7 +781,9 @@ export default function ForumPost({ user }) {
             </div>
           </form>
         </div>
+        )}
       </main>
+      <AppFooter />
 
       {/* Delete Post Modal */}
       <Dialog open={deletePostModal} onOpenChange={setDeletePostModal}>

@@ -7,6 +7,7 @@ import { Badge } from "../components/ui/badge";
 import Navigation from "../components/Navigation";
 import { toast } from "sonner";
 import { Users, UserPlus, Clock, Check, X, MessageCircle, Heart, MessagesSquare } from "lucide-react";
+import AppFooter from "../components/AppFooter";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -128,7 +129,7 @@ export default function FriendsPage({ user }) {
   };
 
   const FriendCard = ({ friend, showRemove = false }) => (
-    <div className="bg-card rounded-2xl p-4 border border-border/50 hover:border-primary/30 transition-colors" data-testid={`friend-card-${friend.user_id}`}>
+    <div className="bg-card rounded-2xl p-4 border border-border/40 card-elevated border-l-2 border-l-primary/20 hover:border-primary/30 hover:shadow-md hover:border-l-primary/40 transition-all" data-testid={`friend-card-${friend.user_id}`}>
       <div className="flex items-center gap-4">
         <Link to={`/profile/${friend.user_id}`} className="relative shrink-0">
           <Avatar className="h-14 w-14 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
@@ -198,7 +199,7 @@ export default function FriendsPage({ user }) {
   );
 
   const RequestCard = ({ request }) => (
-    <div className="bg-card rounded-2xl p-4 border border-border/50" data-testid={`request-card-${request.request_id}`}>
+    <div className="bg-card rounded-2xl p-4 border border-border/40 card-elevated border-l-2 border-l-primary/20 hover:border-primary/30 hover:shadow-md hover:border-l-primary/40 transition-all" data-testid={`request-card-${request.request_id}`}>
       <div className="flex items-center gap-4">
         <Link to={`/profile/${request.from_user?.user_id}`}>
           <Avatar className="h-14 w-14 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
@@ -385,6 +386,7 @@ export default function FriendsPage({ user }) {
             )}
           </TabsContent>
         </Tabs>
+        <AppFooter />
       </main>
     </div>
   );

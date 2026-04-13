@@ -7,8 +7,9 @@ import { Label } from "../components/ui/label";
 import { Checkbox } from "../components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import Navigation from "../components/Navigation";
+import AppFooter from "../components/AppFooter";
 import { toast } from "sonner";
-import { ArrowLeft, Image, X, Upload, Crown, MapPin } from "lucide-react";
+import { ArrowLeft, Image, X, Upload, Crown, MapPin, ArrowRight } from "lucide-react";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 const MAX_CONTENT_LENGTH = 5000;
@@ -23,7 +24,7 @@ export default function CreatePost({ user }) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [categoryId, setCategoryId] = useState(preselectedCategory || "");
-  const [isAnonymous, setIsAnonymous] = useState(false);
+  const [isAnonymous, setIsAnonymous] = useState(user?.anonymous_by_default || false);
   const [loading, setLoading] = useState(false);
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -160,7 +161,7 @@ export default function CreatePost({ user }) {
         navigate(`/forums/post/${post.post_id}`);
       } else if (response.status === 429) {
         const error = await response.json();
-        toast.error(error.detail || "Weekly post limit reached");
+        toast.error(error.detail || "Monthly post limit reached");
         fetchSubscription();
       } else {
         const error = await response.json();
@@ -187,11 +188,11 @@ export default function CreatePost({ user }) {
           Back
         </button>
 
-        <div className="bg-card rounded-2xl p-6 border border-border/50">
+        <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated">
           <h1 className="font-heading text-2xl font-bold text-foreground mb-6">Create a Post</h1>
 
           {subscription && subscription.limits_apply && subscription.forum_posts && (() => {
-            const remaining = subscription.forum_posts.limit - subscription.forum_posts.used;
+            const remaining = Math.max(0, subscription.forum_posts.limit - subscription.forum_posts.used);
             return (
               <div className={`rounded-xl p-4 mb-6 flex items-center gap-3 ${
                 remaining === 0
@@ -201,18 +202,19 @@ export default function CreatePost({ user }) {
                     : 'bg-secondary/50 border border-border/30'
               }`} data-testid="post-limit-banner">
                 {remaining === 0 ? (
-                  <>
+                  <Link to="/plus" className="flex items-center gap-3 w-full group">
                     <Crown className="h-5 w-5 text-amber-500 flex-shrink-0" />
                     <div className="flex-1">
-                      <p className="font-medium text-foreground text-sm">Weekly post limit reached</p>
-                      <p className="text-xs text-muted-foreground">Upgrade to Premium for unlimited posts</p>
+                      <p className="font-medium text-foreground text-sm">Monthly post limit reached</p>
+                      <p className="text-xs text-muted-foreground">Upgrade to Village+ for unlimited posts</p>
                     </div>
-                  </>
+                    <ArrowRight className="h-4 w-4 text-amber-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </Link>
                 ) : (
                   <>
                     <div className="flex-1">
                       <p className="text-sm text-foreground">
-                        <span className="font-medium">{remaining}</span> of {subscription.forum_posts.limit} posts remaining this week
+                        <span className="font-medium">{remaining}</span> of {subscription.forum_posts.limit} posts remaining this month
                       </p>
                     </div>
                     {remaining <= 2 && (
@@ -376,7 +378,7 @@ export default function CreatePost({ user }) {
                 {[
                   { id: "public", icon: "🌐", label: "Everyone", desc: "Visible to all members" },
                   { id: "friends", icon: "👥", label: "Friends only", desc: "Only your friends can see this" },
-                  { id: "circle", icon: "💬", label: "This circle only", desc: "Only members of the selected Support Space" },
+                  { id: "only_me", icon: "🔒", label: "Only me", desc: "Save privately — edit later before sharing" },
                 ].map(opt => (
                   <button
                     key={opt.id}
@@ -414,12 +416,6 @@ export default function CreatePost({ user }) {
                 </Label>
                 <p className="text-xs text-muted-foreground">This post won't show your name or avatar</p>
               </div>
-              {subscription?.tier === "premium" && !isAnonymous && (
-                <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 shrink-0">
-                  <Crown className="h-3 w-3" />
-                  Premium badge will show
-                </span>
-              )}
             </div>
 
             <div className="flex gap-4">
@@ -444,6 +440,7 @@ export default function CreatePost({ user }) {
           </form>
         </div>
       </main>
+      <AppFooter />
     </div>
   );
 }

@@ -11,6 +11,17 @@
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600&display=swap" rel="stylesheet" />
         <title>The Village</title>
+        <script>
+          (function() {
+            var stored = localStorage.getItem('theme');
+            if (!stored) {
+              document.documentElement.classList.add('dark');
+              localStorage.setItem('theme', 'dark');
+            } else if (stored === 'dark') {
+              document.documentElement.classList.add('dark');
+            }
+          })();
+        </script>
     </head>
     <body>
         <noscript>You need to enable JavaScript to run this app.</noscript>

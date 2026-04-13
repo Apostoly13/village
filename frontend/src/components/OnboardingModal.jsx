@@ -28,6 +28,20 @@ const DISTANCE_OPTIONS = [
   { id: "all", label: "All Australia", sub: "no limit" },
 ];
 
+const INTEREST_OPTIONS = [
+  "Sleep & Settling",
+  "Feeding",
+  "Toddler Activities",
+  "School Age",
+  "Mental Health",
+  "Dad Talk",
+  "Mum Talk",
+  "Local Events",
+  "Recipes & Nutrition",
+  "Development Milestones",
+  "Raising Multiples",
+];
+
 export default function OnboardingModal({ user, onComplete, onSkip: onSkipProp }) {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -45,7 +59,18 @@ export default function OnboardingModal({ user, onComplete, onSkip: onSkipProp }
   // Step 3 — distance
   const [preferredReach, setPreferredReach] = useState("25km");
 
-  const TOTAL_STEPS = 3;
+  // Step 4 — interests
+  const [interests, setInterests] = useState([]);
+
+  const TOTAL_STEPS = 4;
+
+  const toggleInterest = (interest) => {
+    setInterests(prev =>
+      prev.includes(interest)
+        ? prev.filter(i => i !== interest)
+        : [...prev, interest]
+    );
+  };
 
   const onSkip = async () => {
     try {
@@ -120,6 +145,7 @@ export default function OnboardingModal({ user, onComplete, onSkip: onSkipProp }
       };
 
       if (parentingStage) updateData.parenting_stage = parentingStage;
+      if (interests.length > 0) updateData.interests = interests;
 
       if (selectedLocation) {
         updateData.suburb = selectedLocation.suburb || searchQuery;
@@ -152,7 +178,7 @@ export default function OnboardingModal({ user, onComplete, onSkip: onSkipProp }
     ? !!parentingStage
     : step === 2
       ? !!state
-      : true;
+      : true; // steps 3 & 4 are always skippable
 
   const firstName = user?.nickname || user?.name?.split(" ")[0] || "there";
 
@@ -168,11 +194,13 @@ export default function OnboardingModal({ user, onComplete, onSkip: onSkipProp }
                 {step === 1 && `Welcome, ${firstName} 🌿`}
                 {step === 2 && "Where are you?"}
                 {step === 3 && "How far do you reach?"}
+                {step === 4 && "What matters to you?"}
               </h2>
               <p className="text-sm text-muted-foreground mt-0.5">
                 {step === 1 && "Tell us about your parenting journey."}
                 {step === 2 && "We use this to find local chat rooms and meetups near you."}
                 {step === 3 && "Your default distance for finding parents and events."}
+                {step === 4 && "Pick topics you care about — we'll show you relevant support spaces."}
               </p>
             </div>
             <button onClick={onSkip} className="text-muted-foreground hover:text-foreground p-1 transition-colors shrink-0">
@@ -295,6 +323,33 @@ export default function OnboardingModal({ user, onComplete, onSkip: onSkipProp }
                   <p className="text-xs text-muted-foreground mt-0.5">{option.sub}</p>
                 </button>
               ))}
+            </div>
+          )}
+
+          {/* Step 4 — Interests */}
+          {step === 4 && (
+            <div className="py-2">
+              <div className="flex flex-wrap gap-2">
+                {INTEREST_OPTIONS.map((interest) => {
+                  const selected = interests.includes(interest);
+                  return (
+                    <button
+                      key={interest}
+                      onClick={() => toggleInterest(interest)}
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
+                        selected
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-secondary/50 text-foreground border-border/50 hover:border-primary/40 hover:bg-secondary"
+                      }`}
+                    >
+                      {interest}
+                    </button>
+                  );
+                })}
+              </div>
+              {interests.length === 0 && (
+                <p className="text-xs text-muted-foreground mt-4">Select any that apply — you can always update these later.</p>
+              )}
             </div>
           )}
         </div>
