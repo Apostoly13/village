@@ -1,11 +1,13 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import { Crown } from "lucide-react";
 import Navigation from "../components/Navigation";
-import { Calendar, MapPin, Clock, Users, Plus, Download, Check, Pencil, UserPlus, X } from "lucide-react";
+import { Calendar, MapPin, Clock, Users, Plus, Download, Check, Pencil, UserPlus, X, Send, MessageCircle, ExternalLink } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import AppFooter from "../components/AppFooter";
 
@@ -283,7 +285,7 @@ function ManageModeratorsDialog({ event, onClose }) {
   );
 }
 
-function EventCard({ event, onRsvp, onUpdated, user }) {
+function EventCard({ event, onRsvp, onUpdated, user, onOpenDetail }) {
   const [rsvping, setRsvping] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [modsOpen, setModsOpen] = useState(false);
@@ -323,7 +325,10 @@ function EventCard({ event, onRsvp, onUpdated, user }) {
   const icalHref = `${API_URL}/api/events/${event.event_id}/ical`;
 
   return (
-    <article className="bg-card border border-border/40 card-elevated border-l-2 border-l-primary/20 rounded-2xl p-5 hover:border-primary/30 hover:shadow-md hover:border-l-primary/40 transition-all flex gap-4">
+    <article
+      className="bg-card border border-border/40 card-elevated border-l-2 border-l-primary/20 rounded-2xl p-5 hover:border-primary/30 hover:shadow-md hover:border-l-primary/40 transition-all flex gap-4 cursor-pointer"
+      onClick={() => onOpenDetail && onOpenDetail(event)}
+    >
       {/* Date chip */}
       <div className="flex-shrink-0 w-14 h-14 rounded-xl bg-primary/15 text-primary flex flex-col items-center justify-center">
         <span className="text-xl font-bold leading-none">{dateInfo.day}</span>
@@ -383,7 +388,7 @@ function EventCard({ event, onRsvp, onUpdated, user }) {
           <Button
             variant={event.user_has_rsvp ? "default" : "outline"}
             size="sm"
-            onClick={handleRsvp}
+            onClick={(e) => { e.stopPropagation(); handleRsvp(); }}
             disabled={rsvping}
             className={`rounded-xl h-7 text-xs ml-auto ${event.user_has_rsvp ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""}`}
           >
@@ -398,6 +403,7 @@ function EventCard({ event, onRsvp, onUpdated, user }) {
             href={icalHref}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
             className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-lg px-2 py-1 hover:bg-secondary/50"
             title="Add to Calendar"
           >
@@ -407,7 +413,7 @@ function EventCard({ event, onRsvp, onUpdated, user }) {
 
           {(isOrganiser || isModerator) && (
             <button
-              onClick={() => setEditOpen(true)}
+              onClick={(e) => { e.stopPropagation(); setEditOpen(true); }}
               className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-lg px-2 py-1 hover:bg-secondary/50"
               title="Edit event"
             >
@@ -418,7 +424,7 @@ function EventCard({ event, onRsvp, onUpdated, user }) {
 
           {isOrganiser && (
             <button
-              onClick={() => setModsOpen(true)}
+              onClick={(e) => { e.stopPropagation(); setModsOpen(true); }}
               className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-lg px-2 py-1 hover:bg-secondary/50"
               title="Manage moderators"
             >
@@ -780,6 +786,294 @@ function CreateEventForm({ onCreated, onClose }) {
   );
 }
 
+// ── Event detail modal with integrated event chat ────────────────────────────
+function EventDetailModal({ event, user, onClose, onRsvp, onUpdated }) {
+  const [messages, setMessages] = useState([]);
+  const [newMsg, setNewMsg] = useState("");
+  const [sending, setSending] = useState(false);
+  const [rsvping, setRsvping] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [localEvent, setLocalEvent] = useState(event);
+  const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
+  const dateInfo = formatEventDate(localEvent.date);
+  const catStyle = CATEGORY_STYLES[localEvent.category] || CATEGORY_STYLES.general;
+  const catLabel = CATEGORY_LABELS[localEvent.category] || localEvent.category;
+  const isOrganiser = user && localEvent.organiser_user_id === user.user_id;
+  const isModerator = user && Array.isArray(localEvent.moderator_ids) && localEvent.moderator_ids.includes(user.user_id);
+
+  const formatMsgTime = (d) => {
+    try { return formatDistanceToNow(new Date(d), { addSuffix: true }); } catch { return ""; }
+  };
+
+  const fetchMessages = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/events/${localEvent.event_id}/chat`, { credentials: "include" });
+      if (res.ok) setMessages(await res.json());
+    } catch {}
+  }, [localEvent.event_id]);
+
+  useEffect(() => {
+    fetchMessages();
+    const interval = setInterval(fetchMessages, 3000);
+    return () => clearInterval(interval);
+  }, [fetchMessages]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const handleSend = async (e) => {
+    e.preventDefault();
+    const content = newMsg.trim();
+    if (!content || sending) return;
+    setSending(true);
+    const tempId = `temp_${Date.now()}`;
+    const optimistic = {
+      msg_id: tempId, event_id: localEvent.event_id,
+      author_id: user?.user_id, author_name: user?.nickname || user?.name,
+      author_picture: user?.picture,
+      author_subscription_tier: user?.subscription_tier || "free",
+      content, created_at: new Date().toISOString(),
+    };
+    setMessages(prev => [...prev, optimistic]);
+    setNewMsg("");
+    try {
+      const res = await fetch(`${API_URL}/api/events/${localEvent.event_id}/chat`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        credentials: "include", body: JSON.stringify({ content }),
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        setMessages(prev => prev.map(m => m.msg_id === tempId ? saved : m));
+      } else {
+        setMessages(prev => prev.filter(m => m.msg_id !== tempId));
+        setNewMsg(content);
+        toast.error("Failed to send message");
+      }
+    } catch {
+      setMessages(prev => prev.filter(m => m.msg_id !== tempId));
+      setNewMsg(content);
+    } finally { setSending(false); }
+  };
+
+  const handleRsvp = async () => {
+    if (!user) { toast.error("Sign in to RSVP"); return; }
+    setRsvping(true);
+    try {
+      const res = await fetch(`${API_URL}/api/events/${localEvent.event_id}/rsvp`, {
+        method: "POST", credentials: "include",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setLocalEvent(prev => ({ ...prev, user_has_rsvp: data.rsvped, rsvp_count: data.rsvp_count }));
+        onRsvp(localEvent.event_id, data.rsvped, data.rsvp_count);
+        toast.success(data.rsvped ? "You're going! 🎉" : "RSVP removed");
+      }
+    } catch { toast.error("Failed to RSVP"); }
+    finally { setRsvping(false); }
+  };
+
+  return (
+    <Dialog open onOpenChange={() => onClose()}>
+      <DialogContent className="bg-card border-border/50 max-w-4xl w-full max-h-[92vh] p-0 overflow-hidden flex flex-col">
+        {/* Header bar */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border/50 shrink-0">
+          <div className="flex items-center gap-3">
+            <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${catStyle}`}>{catLabel}</span>
+            {localEvent.is_private && (
+              <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-600">🔒 Private</span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {(isOrganiser || isModerator) && (
+              <button onClick={() => setEditOpen(true)} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-secondary/50 transition-colors">
+                <Pencil className="h-3.5 w-3.5" /> Edit
+              </button>
+            )}
+            <button onClick={onClose} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 flex overflow-hidden min-h-0">
+          {/* ── Left: Event details ──────────────────────────────── */}
+          <div className="w-full lg:w-[55%] overflow-y-auto p-6 shrink-0 border-r border-border/50">
+            {/* Date + Title */}
+            <div className="flex gap-4 mb-5">
+              <div className="w-16 h-16 rounded-2xl bg-primary/15 text-primary flex flex-col items-center justify-center shrink-0">
+                <span className="text-2xl font-bold leading-none">{dateInfo.day}</span>
+                <span className="text-xs font-semibold uppercase tracking-wide">{dateInfo.month}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h2 className="font-heading font-bold text-xl text-foreground leading-snug mb-1">{localEvent.title}</h2>
+                <p className="text-sm text-muted-foreground">{dateInfo.full}</p>
+              </div>
+            </div>
+
+            {/* Time */}
+            {(localEvent.time_start || localEvent.time_end) && (
+              <div className="flex items-center gap-2 mb-3 text-sm text-foreground">
+                <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span>{localEvent.time_start}{localEvent.time_end ? ` – ${localEvent.time_end}` : ""}</span>
+              </div>
+            )}
+
+            {/* Location */}
+            {(localEvent.venue_name || localEvent.suburb) && (
+              <div className="flex items-start gap-2 mb-3 text-sm text-foreground">
+                <MapPin className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                <div>
+                  {localEvent.venue_name && <p className="font-medium">{localEvent.venue_name}</p>}
+                  {localEvent.venue_address && <p className="text-muted-foreground text-xs mt-0.5">{localEvent.venue_address}</p>}
+                  {(localEvent.suburb || localEvent.state) && (
+                    <p className="text-muted-foreground text-xs">{[localEvent.suburb, localEvent.state].filter(Boolean).join(", ")}</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Organiser */}
+            <div className="flex items-center gap-2 mb-4 pb-4 border-b border-border/30">
+              <Avatar className="h-7 w-7">
+                <AvatarImage src={localEvent.organiser_picture} />
+                <AvatarFallback className="bg-primary/20 text-primary text-xs">{localEvent.organiser_name?.[0]?.toUpperCase() || "?"}</AvatarFallback>
+              </Avatar>
+              <span className="text-sm text-muted-foreground">Organised by <span className="text-foreground font-medium">{localEvent.organiser_name}</span></span>
+            </div>
+
+            {/* Description */}
+            {localEvent.description && (
+              <div className="mb-5">
+                <h3 className="font-heading font-semibold text-sm text-foreground mb-2">About this event</h3>
+                <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{localEvent.description}</p>
+              </div>
+            )}
+
+            {/* RSVP block */}
+            <div className="bg-secondary/40 rounded-2xl p-4 flex items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                  <Users className="h-4 w-4 text-primary" />
+                  <span>{localEvent.rsvp_count} going</span>
+                  {localEvent.rsvp_limit && <span className="text-muted-foreground font-normal">/ {localEvent.rsvp_limit} spots</span>}
+                </div>
+                {localEvent.rsvp_limit && localEvent.rsvp_count >= localEvent.rsvp_limit && !localEvent.user_has_rsvp && (
+                  <p className="text-xs text-amber-600 mt-0.5">Event is full</p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <a
+                  href={`${API_URL}/api/events/${localEvent.event_id}/ical`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors border border-border/50 rounded-xl px-3 py-2 hover:bg-secondary/50"
+                >
+                  <Download className="h-3.5 w-3.5" /> Calendar
+                </a>
+                <Button
+                  onClick={handleRsvp}
+                  disabled={rsvping || (localEvent.rsvp_limit && localEvent.rsvp_count >= localEvent.rsvp_limit && !localEvent.user_has_rsvp)}
+                  className={`rounded-xl h-9 text-sm px-5 ${localEvent.user_has_rsvp ? "bg-primary text-primary-foreground hover:bg-primary/90" : "bg-primary text-primary-foreground hover:bg-primary/90"}`}
+                >
+                  {localEvent.user_has_rsvp ? <><Check className="h-4 w-4 mr-1.5" /> Going</> : "RSVP"}
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Right: Event chat ────────────────────────────────── */}
+          <div className="hidden lg:flex flex-col flex-1 min-w-0 min-h-0">
+            <div className="px-4 py-3 border-b border-border/30 shrink-0">
+              <h3 className="font-heading font-semibold text-sm text-foreground flex items-center gap-2">
+                <MessageCircle className="h-4 w-4 text-primary" />
+                Event chat
+              </h3>
+              <p className="text-xs text-muted-foreground">Chat with others attending this event</p>
+            </div>
+
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
+              {messages.length === 0 && (
+                <div className="text-center py-8">
+                  <span className="text-3xl block mb-2">💬</span>
+                  <p className="text-sm text-muted-foreground">No messages yet. Be the first to say hi!</p>
+                </div>
+              )}
+              {messages.map((msg, idx) => {
+                const isOwn = msg.author_id === user?.user_id;
+                return (
+                  <div key={msg.msg_id || idx} className={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
+                    <div className="max-w-[80%] min-w-0">
+                      {!isOwn && (
+                        <p className="text-xs text-muted-foreground mb-1 ml-1 flex items-center gap-1">
+                          {msg.author_name}
+                          {msg.author_subscription_tier === "premium" && <Crown className="h-2.5 w-2.5 text-amber-500" />}
+                        </p>
+                      )}
+                      <div className={`px-3 py-2 text-sm rounded-2xl shadow-sm break-words ${isOwn ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-secondary/60 text-foreground rounded-bl-sm"}`}>
+                        {msg.content}
+                      </div>
+                      <p className={`text-xs text-muted-foreground mt-1 ${isOwn ? "text-right mr-1" : "ml-1"}`}>
+                        {formatMsgTime(msg.created_at)}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Composer */}
+            {user ? (
+              <form onSubmit={handleSend} className="flex items-center gap-2 px-4 py-3 border-t border-border/30 shrink-0">
+                <input
+                  ref={inputRef}
+                  value={newMsg}
+                  onChange={e => setNewMsg(e.target.value.slice(0, 500))}
+                  placeholder="Message the group..."
+                  className="flex-1 bg-secondary/50 rounded-full px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/30"
+                  maxLength={500}
+                  disabled={sending}
+                />
+                <button
+                  type="submit"
+                  disabled={!newMsg.trim() || sending}
+                  className="w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-50 shrink-0"
+                >
+                  <Send className="h-4 w-4" />
+                </button>
+              </form>
+            ) : (
+              <div className="px-4 py-3 border-t border-border/30 text-center text-xs text-muted-foreground">
+                <Link to="/login" className="text-primary hover:underline">Sign in</Link> to join the conversation
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Mobile chat toggle (shown below detail on small screens) */}
+        <div className="lg:hidden border-t border-border/50 p-4 shrink-0">
+          <p className="text-xs text-muted-foreground text-center">
+            <MessageCircle className="h-3.5 w-3.5 inline mr-1" />
+            Event chat is available on desktop
+          </p>
+        </div>
+      </DialogContent>
+
+      {/* Edit dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="bg-card border-border/50 max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-heading font-bold">Edit Event</DialogTitle>
+          </DialogHeader>
+          <EditEventDialog event={localEvent} onUpdated={(updated) => { setLocalEvent(prev => ({ ...prev, ...updated })); onUpdated(updated); }} onClose={() => setEditOpen(false)} />
+        </DialogContent>
+      </Dialog>
+    </Dialog>
+  );
+}
+
 export default function Events({ user }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -788,6 +1082,7 @@ export default function Events({ user }) {
   const [distanceFilter, setDistanceFilter] = useState("any");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [localMeetupsId, setLocalMeetupsId] = useState(null);
+  const [selectedEvent, setSelectedEvent] = useState(null);
 
   useEffect(() => {
     fetchEvents();
@@ -977,9 +1272,25 @@ export default function Events({ user }) {
                 onRsvp={handleRsvp}
                 onUpdated={handleUpdated}
                 user={user}
+                onOpenDetail={setSelectedEvent}
               />
             ))}
           </div>
+        )}
+        {selectedEvent && (
+          <EventDetailModal
+            event={selectedEvent}
+            user={user}
+            onClose={() => setSelectedEvent(null)}
+            onRsvp={(id, rsvped, count) => {
+              handleRsvp(id, rsvped, count);
+              setSelectedEvent(prev => prev ? { ...prev, user_has_rsvp: rsvped, rsvp_count: count } : prev);
+            }}
+            onUpdated={(updated) => {
+              handleUpdated(updated);
+              setSelectedEvent(prev => prev ? { ...prev, ...updated } : prev);
+            }}
+          />
         )}
         <AppFooter />
       </main>

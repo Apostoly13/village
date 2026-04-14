@@ -21,6 +21,7 @@ export default function ChatRoom({ user }) {
   const [savedMessageIds, setSavedMessageIds] = useState(new Set());
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [friendProfile, setFriendProfile] = useState(null);
   const messagesEndRef = useRef(null);
   const scrollAreaRef = useRef(null);
   const MESSAGE_LIMIT = 50;
@@ -33,6 +34,24 @@ export default function ChatRoom({ user }) {
     const interval = setInterval(fetchMessages, 3000);
     return () => clearInterval(interval);
   }, [roomId]);
+
+  // Once room loads, fetch the friend's profile for friends_only rooms
+  useEffect(() => {
+    if (room?.room_type === "friends_only" && user) {
+      const friendId = room.participant_ids?.find(id => id !== user.user_id);
+      // Use participants array from server if available
+      if (room.participants) {
+        const fp = room.participants.find(p => p.user_id !== user.user_id);
+        if (fp) { setFriendProfile(fp); return; }
+      }
+      if (friendId) {
+        fetch(`${API_URL}/api/users/${friendId}`, { credentials: "include" })
+          .then(r => r.ok ? r.json() : null)
+          .then(data => { if (data) setFriendProfile(data); })
+          .catch(() => {});
+      }
+    }
+  }, [room, user]);
 
   const fetchSubscription = async () => {
     try {
@@ -262,23 +281,24 @@ export default function ChatRoom({ user }) {
             <ArrowLeft className="h-5 w-5" />
           </Link>
           {room.room_type === "friends_only" ? (
-            (() => {
-              const friendId = room.participant_ids?.find(id => id !== user?.user_id);
-              return (
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-lg font-semibold text-primary">
-                    💬
-                  </div>
-                  <div>
-                    <h1 className="font-heading font-bold text-xl text-foreground">Private Chat</h1>
-                    <p className="text-sm text-muted-foreground flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-green-500 inline-block"></span>
-                      End-to-end private
-                    </p>
-                  </div>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-semibold text-primary overflow-hidden">
+                  {friendProfile?.picture
+                    ? <img src={friendProfile.picture} alt="" className="w-full h-full object-cover" />
+                    : (friendProfile?.nickname || friendProfile?.name || "💬")?.[0]?.toUpperCase()}
                 </div>
-              );
-            })()
+                <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-card ${friendProfile?.is_online ? "bg-green-500" : "bg-muted-foreground/40"}`} />
+              </div>
+              <div>
+                <h1 className="font-heading font-bold text-xl text-foreground">
+                  {friendProfile ? (friendProfile.nickname || friendProfile.name) : "Private Chat"}
+                </h1>
+                <p className={`text-sm flex items-center gap-1 ${friendProfile?.is_online ? "text-green-500" : "text-muted-foreground"}`}>
+                  {friendProfile?.is_online ? "Active now" : "Private chat"}
+                </p>
+              </div>
+            </div>
           ) : (
             <div className="flex items-center gap-3">
               <span className="text-2xl">{room.icon}</span>
@@ -289,6 +309,17 @@ export default function ChatRoom({ user }) {
             </div>
           )}
         </div>
+
+        {/* Gender restriction banner */}
+        {room.is_gender_restricted && !room.user_can_access && (
+          <div className="mb-4 p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center gap-3">
+            <span className="text-2xl">{room.icon}</span>
+            <div>
+              <p className="font-medium text-foreground text-sm">This space is for {room.gender_restriction === "female" ? "mums" : "dads"} only</p>
+              <p className="text-xs text-muted-foreground">You can read messages but cannot post in this circle.</p>
+            </div>
+          </div>
+        )}
 
         {/* Messages Area */}
         <div className="flex-1 min-h-0 bg-card rounded-2xl border border-border/50 flex flex-col">

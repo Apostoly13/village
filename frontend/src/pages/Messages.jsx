@@ -225,7 +225,7 @@ export default function Messages({ user }) {
   useEffect(() => {
     if (activeRoomId && chatMode === "friend") {
       fetchRoomMessages();
-      const interval = setInterval(fetchRoomMessages, 5000);
+      const interval = setInterval(fetchRoomMessages, 3000);
       return () => clearInterval(interval);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -234,7 +234,7 @@ export default function Messages({ user }) {
   useEffect(() => {
     if (activeDmUser && chatMode === "dm") {
       fetchDmMessages();
-      const interval = setInterval(fetchDmMessages, 5000);
+      const interval = setInterval(fetchDmMessages, 3000);
       return () => clearInterval(interval);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps

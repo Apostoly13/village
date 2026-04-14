@@ -3,7 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Button } from "../components/ui/button";
 import Navigation from "../components/Navigation";
-import { MessageCircle, Users, BookOpen, Crown, Plus, Clock, Lock, MapPin, UserCheck, UserPlus } from "lucide-react";
+import { MessageCircle, Users, BookOpen, Crown, Plus, Clock, Lock, MapPin, UserCheck, UserPlus, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import AppFooter from "../components/AppFooter";
@@ -17,6 +17,9 @@ export default function Forums({ user }) {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showGuidelines, setShowGuidelines] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -32,6 +35,23 @@ export default function Forums({ user }) {
       setLoading(false);
     }
   };
+
+  const searchPosts = async (q) => {
+    if (!q || q.trim().length < 2) { setSearchResults([]); return; }
+    setSearching(true);
+    try {
+      const res = await fetch(`${API_URL}/api/forums/posts?search=${encodeURIComponent(q.trim())}&limit=20`, { credentials: "include" });
+      if (res.ok) setSearchResults(await res.json());
+    } catch {}
+    finally { setSearching(false); }
+  };
+
+  // Debounced search
+  useEffect(() => {
+    const t = setTimeout(() => { if (searchQuery) searchPosts(searchQuery); else setSearchResults([]); }, 400);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
 
   const handleJoinLeave = async (e, community) => {
     e.preventDefault();
@@ -242,6 +262,49 @@ export default function Forums({ user }) {
             <BookOpen className="h-4 w-4 mr-2" />
             Guidelines
           </Button>
+        </div>
+
+        {/* Search bar */}
+        <div className="relative mb-6">
+          <div className="flex items-center gap-2 bg-card border border-border/50 rounded-2xl px-4 py-3">
+            <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+            <input
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search posts and topics..."
+              className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
+            />
+            {searchQuery && (
+              <button onClick={() => { setSearchQuery(""); setSearchResults([]); }} className="text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          {/* Search results dropdown */}
+          {searchQuery.length >= 2 && (
+            <div className="absolute top-full left-0 right-0 z-50 mt-2 bg-card border border-border/50 rounded-2xl shadow-lg overflow-hidden">
+              {searching && (
+                <div className="p-4 text-center text-sm text-muted-foreground">Searching...</div>
+              )}
+              {!searching && searchResults.length === 0 && searchQuery.length >= 2 && (
+                <div className="p-4 text-center text-sm text-muted-foreground">No posts found for "{searchQuery}"</div>
+              )}
+              {!searching && searchResults.map(post => (
+                <Link
+                  key={post.post_id}
+                  to={`/forums/post/${post.post_id}`}
+                  onClick={() => { setSearchQuery(""); setSearchResults([]); }}
+                  className="flex items-start gap-3 px-4 py-3 hover:bg-secondary/50 border-b border-border/30 last:border-0 transition-colors"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground line-clamp-1">{post.title}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{post.body?.substring(0, 80)}</p>
+                  </div>
+                  <span className="text-xs text-muted-foreground shrink-0 mt-0.5">{post.reply_count} replies</span>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
 
         <Tabs defaultValue={defaultTab} className="w-full">

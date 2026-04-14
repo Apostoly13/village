@@ -724,7 +724,16 @@ async def register(user_data: UserCreate, response: Response):
         "user_id": user_id,
         "email": user_data.email,
         "name": user_data.name,
-        "token": token
+        "picture": None,
+        "nickname": user_data.name,
+        "token": token,
+        "role": "user",
+        "subscription_tier": "trial",
+        "trial_ends_at": (now + timedelta(days=7)).isoformat(),
+        "onboarding_complete": False,
+        "is_banned": False,
+        "interests": [],
+        "child_age_ranges": [],
     }
 
 @api_router.post("/auth/login")
@@ -756,7 +765,23 @@ async def login(user_data: UserLogin, response: Response):
         "email": user["email"],
         "name": user["name"],
         "picture": user.get("picture"),
-        "token": token
+        "token": token,
+        "nickname": user.get("nickname"),
+        "bio": user.get("bio"),
+        "parenting_stage": user.get("parenting_stage"),
+        "child_age_ranges": user.get("child_age_ranges", []),
+        "interests": user.get("interests", []),
+        "location": user.get("location"),
+        "role": user.get("role", "user"),
+        "subscription_tier": user.get("subscription_tier", "free"),
+        "trial_ends_at": user.get("trial_ends_at"),
+        "is_banned": user.get("is_banned", False),
+        "state": user.get("state"),
+        "onboarding_complete": user.get("onboarding_complete", False),
+        "preferred_reach": user.get("preferred_reach"),
+        "is_single_parent": user.get("is_single_parent", False),
+        "gender": user.get("gender"),
+        "suburb": user.get("suburb"),
     }
 
 @api_router.post("/auth/session")
@@ -1133,6 +1158,7 @@ async def get_posts(
     lat: Optional[float] = None,
     lon: Optional[float] = None,
     distance_km: Optional[int] = None,
+    search: Optional[str] = None,
 ):
     # Get blocked user IDs for the current user (if authenticated)
     blocked_ids = []
@@ -1156,6 +1182,12 @@ async def get_posts(
         query["$and"].append({"author_id": {"$nin": blocked_ids}})
     if category_id:
         query["$and"].append({"category_id": category_id})
+    if search and len(search.strip()) >= 2:
+        sq = search.strip()
+        query["$and"].append({"$or": [
+            {"title": {"$regex": re.escape(sq), "$options": "i"}},
+            {"body": {"$regex": re.escape(sq), "$options": "i"}},
+        ]})
 
     # Apply filters
     if filter_type == "unanswered":
@@ -2048,6 +2080,42 @@ async def toggle_rsvp(event_id: str, user: dict = Depends(get_current_user)):
 
     return {"rsvped": rsvped, "rsvp_count": len(rsvp_list)}
 
+@api_router.get("/events/{event_id}/chat")
+async def get_event_chat(event_id: str, user: dict = Depends(get_current_user)):
+    """Get chat messages for an event"""
+    event = await db.events.find_one({"event_id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    messages = await db.event_chat.find(
+        {"event_id": event_id}, {"_id": 0}
+    ).sort("created_at", 1).to_list(100)
+    return messages
+
+@api_router.post("/events/{event_id}/chat")
+async def send_event_chat(event_id: str, message_data: ChatMessageCreate, user: dict = Depends(get_current_user)):
+    """Send a chat message in an event"""
+    event = await db.events.find_one({"event_id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    if event.get("is_cancelled"):
+        raise HTTPException(status_code=400, detail="Event has been cancelled")
+    content = message_data.content.strip()[:500]
+    if not content:
+        raise HTTPException(status_code=400, detail="Message cannot be empty")
+    msg = {
+        "msg_id": f"echat_{uuid.uuid4().hex[:12]}",
+        "event_id": event_id,
+        "author_id": user["user_id"],
+        "author_name": user.get("nickname") or user["name"],
+        "author_picture": user.get("picture"),
+        "author_subscription_tier": user.get("subscription_tier", "free"),
+        "content": content,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.event_chat.insert_one(msg)
+    msg.pop("_id", None)
+    return msg
+
 @api_router.get("/events/{event_id}/ical")
 async def get_event_ical(event_id: str):
     """Download event as ICS calendar file"""
@@ -2656,10 +2724,37 @@ async def search_suburb_rooms(
     return {"rooms": rooms, "can_create": can_create, "search_postcode": search_postcode}
 
 @api_router.get("/chat/rooms/{room_id}")
-async def get_chat_room(room_id: str):
+async def get_chat_room(room_id: str, request: Request):
     room = await db.chat_rooms.find_one({"room_id": room_id}, {"_id": 0})
     if not room:
         raise HTTPException(status_code=404, detail="Chat room not found")
+
+    # For friends_only rooms, enrich with participant profiles
+    if room.get("room_type") == "friends_only":
+        participant_ids = room.get("participant_ids", [])
+        if participant_ids:
+            participants = await db.users.find(
+                {"user_id": {"$in": participant_ids}},
+                {"_id": 0, "user_id": 1, "name": 1, "nickname": 1, "picture": 1, "is_online": 1}
+            ).to_list(10)
+            room["participants"] = participants
+
+    # Add gender restriction info so frontend can show appropriate messaging
+    gender_restriction = room.get("gender_restriction")
+    if gender_restriction:
+        try:
+            current_user = await get_current_user(request)
+            user_gender = current_user.get("gender", "")
+            room["is_gender_restricted"] = True
+            room["gender_restriction"] = gender_restriction
+            room["user_can_access"] = (user_gender == gender_restriction)
+        except HTTPException:
+            room["is_gender_restricted"] = True
+            room["user_can_access"] = False
+    else:
+        room["is_gender_restricted"] = False
+        room["user_can_access"] = True
+
     return room
 
 @api_router.post("/chat/rooms/{room_id}/join")
@@ -2744,6 +2839,13 @@ async def send_room_message(room_id: str, message_data: ChatMessageCreate, user:
         if user["user_id"] not in room.get("participant_ids", []):
             raise HTTPException(status_code=403, detail="Access denied")
     else:
+        # Gender restriction check (Mum Chat, Dad Chat)
+        gender_restriction = room.get("gender_restriction")
+        if gender_restriction:
+            user_gender = user.get("gender", "")
+            if user_gender != gender_restriction:
+                gender_label = "mums" if gender_restriction == "female" else "dads"
+                raise HTTPException(status_code=403, detail=f"This space is only for {gender_label}")
         # Check freemium limits for non-friends rooms
         sub = await get_user_subscription_status(user)
         if sub["limits_apply"]:
@@ -4018,35 +4120,50 @@ app.include_router(api_router)
 @app.on_event("startup")
 async def seed_required_rooms():
     """Ensure Mum Chat, Dad Chat, and Mum Circle exist on startup."""
-    # Mum Chat — all_australia chat room
+    # Mum Chat — all_australia chat room (gender_restriction: female)
     existing = await db.chat_rooms.find_one({"name": "Mum Chat", "room_type": "all_australia"})
     if not existing:
         await db.chat_rooms.insert_one({
-            "room_id": f"room_mum_chat",
+            "room_id": "room_mum_chat",
             "name": "Mum Chat",
             "description": "A space for mums — honest, warm, and judgment-free. Share the highs, the lows, and everything in between.",
             "icon": "👩",
             "room_type": "all_australia",
+            "gender_restriction": "female",
             "is_active": True,
             "active_users": 0,
             "participant_ids": [],
             "created_at": datetime.now(timezone.utc).isoformat(),
         })
+    else:
+        # Ensure existing room has gender_restriction set
+        if not existing.get("gender_restriction"):
+            await db.chat_rooms.update_one(
+                {"name": "Mum Chat", "room_type": "all_australia"},
+                {"$set": {"gender_restriction": "female"}}
+            )
 
-    # Dad Chat — all_australia chat room (seed if missing)
+    # Dad Chat — all_australia chat room (gender_restriction: male)
     existing_dad = await db.chat_rooms.find_one({"name": "Dad Chat", "room_type": "all_australia"})
     if not existing_dad:
         await db.chat_rooms.insert_one({
-            "room_id": f"room_dad_chat",
+            "room_id": "room_dad_chat",
             "name": "Dad Chat",
             "description": "A space for dads — no judgment, just real talk.",
             "icon": "👨",
             "room_type": "all_australia",
+            "gender_restriction": "male",
             "is_active": True,
             "active_users": 0,
             "participant_ids": [],
             "created_at": datetime.now(timezone.utc).isoformat(),
         })
+    else:
+        if not existing_dad.get("gender_restriction"):
+            await db.chat_rooms.update_one(
+                {"name": "Dad Chat", "room_type": "all_australia"},
+                {"$set": {"gender_restriction": "male"}}
+            )
 
     # Mum Circle — forum category
     existing_cat = await db.forum_categories.find_one({"name": "Mum Circle"})
