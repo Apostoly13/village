@@ -1,31 +1,320 @@
-import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect, useMemo } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import Navigation from "../components/Navigation";
 import OnboardingModal from "../components/OnboardingModal";
-import { Search, Plus, MessageCircle, Heart, Eye, Users, MapPin, Crown, TrendingUp, Calendar, Bookmark } from "lucide-react";
+import { Search, Plus, MessageCircle, Heart, Eye, MapPin, Crown, X } from "lucide-react";
 import RecommendedSpaces from "../components/RecommendedSpaces";
 import { formatDistanceToNow } from "date-fns";
+import AppFooter from "../components/AppFooter";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
-export default function Dashboard({ user }) {
-  const [posts, setPosts] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [nearbyEvents, setNearbyEvents] = useState([]);
-  const [nearbyCircles, setNearbyCircles] = useState([]);
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  const [todaysPosts, setTodaysPosts] = useState([]);
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
+function typeEmoji(type) {
+  const map = { reply: "💬", like: "❤️", friend_request: "👋", friend_accept: "✅", moderation: "🛡️" };
+  return map[type] || "🔔";
+}
+
+function fmtRelative(dateStr) {
+  try { return formatDistanceToNow(new Date(dateStr), { addSuffix: true }); }
+  catch { return ""; }
+}
+
+// ── QuickThreadView ───────────────────────────────────────────────────────────
+
+function QuickThreadView({ post, liked, likeCount, onLike, onClose, onReplied, apiUrl, user }) {
+  const [replies, setReplies] = useState([]);
+  const [loadingReplies, setLoadingReplies] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch(`${apiUrl}/api/forums/posts/${post.post_id}/replies`, { credentials: "include" });
+        if (res.ok) setReplies(await res.json());
+      } catch {}
+      setLoadingReplies(false);
+    };
+    load();
+  }, [post.post_id, apiUrl]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div
+        className="relative bg-card w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl border border-border/40 shadow-xl flex flex-col max-h-[90vh] sm:max-h-[80vh]"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border/30 shrink-0">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>{post.category_icon}</span>
+            <span>{post.category_name}</span>
+            <span>·</span>
+            <span>{post.reply_count || 0} replies</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link
+              to={`/forums/post/${post.post_id}`}
+              onClick={onClose}
+              className="text-xs text-primary font-medium hover:underline px-2 py-1 rounded-lg hover:bg-primary/10 transition-colors"
+            >
+              Open post →
+            </Link>
+            <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-secondary transition-colors">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="overflow-y-auto flex-1 px-4 py-4 space-y-4">
+          {/* Original post */}
+          <div className="pb-4 border-b border-border/30">
+            <div className="flex items-center gap-2 mb-2">
+              <Avatar className="h-7 w-7">
+                <AvatarImage src={post.author_picture} />
+                <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                  {post.is_anonymous ? "?" : post.author_name?.[0]?.toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="text-xs font-medium text-foreground">{post.is_anonymous ? "Anonymous" : post.author_name}</p>
+                <p className="text-xs text-muted-foreground">{post.category_name}</p>
+              </div>
+            </div>
+            <h2 className="font-heading font-bold text-sm text-foreground mb-2 leading-snug">{post.title}</h2>
+            <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{post.content}</p>
+            {post.image && <img src={post.image} alt="" className="w-full rounded-xl mt-3 max-h-48 object-cover" />}
+            <div className="mt-3">
+              <button
+                onClick={onLike}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs transition-all ${
+                  liked
+                    ? "border-rose-500/40 bg-rose-500/10 text-rose-500"
+                    : "border-border/50 text-muted-foreground hover:border-rose-500/40 hover:text-rose-500"
+                }`}
+              >
+                <Heart className={`h-3.5 w-3.5 ${liked ? "fill-rose-500" : ""}`} />
+                {likeCount} Likes
+              </button>
+            </div>
+          </div>
+
+          {/* Replies */}
+          {loadingReplies ? (
+            <div className="space-y-3">
+              {[1, 2].map(i => (
+                <div key={i} className="animate-pulse flex gap-2">
+                  <div className="w-7 h-7 rounded-full bg-muted shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="h-3 bg-muted rounded w-24" />
+                    <div className="h-3 bg-muted rounded w-full" />
+                    <div className="h-3 bg-muted rounded w-3/4" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : replies.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-4">No replies yet — be the first to respond.</p>
+          ) : (
+            <div className="space-y-3">
+              {replies.map((reply, idx) => (
+                <div key={reply.reply_id || idx} className={`flex gap-2.5 ${reply.depth > 0 ? "ml-6 pl-3 border-l-2 border-primary/30" : ""}`}>
+                  <Avatar className="h-6 w-6 shrink-0 mt-0.5">
+                    <AvatarImage src={reply.author_picture} />
+                    <AvatarFallback className="bg-secondary text-muted-foreground text-xs">
+                      {reply.is_anonymous ? "?" : reply.author_name?.[0]?.toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-foreground mb-0.5">{reply.is_anonymous ? "Anonymous" : reply.author_name}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{reply.content}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <QuickReplyBox
+          postId={post.post_id}
+          onDone={(sent) => {
+            if (sent) {
+              onReplied?.();
+              setReplies(prev => [...prev, {
+                content: sent,
+                author_name: user?.nickname || user?.name,
+                author_picture: user?.picture,
+                is_anonymous: false,
+                depth: 0,
+                reply_id: Date.now().toString(),
+              }]);
+            }
+          }}
+          apiUrl={apiUrl}
+        />
+      </div>
+    </div>
+  );
+}
+
+function QuickReplyBox({ postId, onDone, apiUrl }) {
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const handleSend = async () => {
+    if (!text.trim()) return;
+    setSending(true);
+    try {
+      const res = await fetch(`${apiUrl}/api/forums/posts/${postId}/replies`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ content: text.trim() }),
+      });
+      if (res.ok) { const sent = text.trim(); setText(""); onDone(sent); }
+    } catch {}
+    setSending(false);
+  };
+
+  return (
+    <div className="border-t border-border/30 px-4 py-3 shrink-0 flex gap-2">
+      <input
+        value={text}
+        onChange={e => setText(e.target.value)}
+        onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+        placeholder="Write a quick reply..."
+        className="flex-1 bg-secondary/50 rounded-xl px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/30 border border-transparent focus:border-primary/30"
+      />
+      <button
+        onClick={handleSend}
+        disabled={!text.trim() || sending}
+        className="px-3 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50 hover:bg-primary/90 transition-colors shrink-0"
+      >
+        {sending ? "..." : "Send"}
+      </button>
+    </div>
+  );
+}
+
+// ── Feed filters ──────────────────────────────────────────────────────────────
+
+const FEED_FILTERS = [
+  { id: "latest",   label: "Latest" },
+  { id: "nearby",   label: "Nearby" },
+  { id: "unread",   label: "Unread" },
+  { id: "trending", label: "Trending" },
+  { id: "support",  label: "Support needed" },
+];
+
+// ── Main component ────────────────────────────────────────────────────────────
+
+export default function Dashboard({ user }) {
+  const navigate = useNavigate();
+
+  const [posts, setPosts]               = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [feedFilter, setFeedFilter]     = useState("latest");
+  const [searchQuery, setSearchQuery]   = useState("");
+  const [nearbyEvents, setNearbyEvents] = useState([]);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [todaysPosts, setTodaysPosts]   = useState([]);
+  const [visibleCount, setVisibleCount] = useState(8);
+  const [subscription, setSubscription] = useState(null);
+  const [selectedPost, setSelectedPost] = useState(null);
+  const [postLikes, setPostLikes]       = useState({});
+  const [busyChatRooms, setBusyChatRooms] = useState([]);
+  const [namedRooms, setNamedRooms] = useState([]);
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [userCommunities, setUserCommunities] = useState([]);
+
+  // ── Derived: filtered feed ─────────────────────────────────────────────────
+  const filteredPosts = useMemo(() => {
+    switch (feedFilter) {
+      case "trending":
+        return [...posts].sort((a, b) =>
+          ((b.like_count || 0) * 2 + (b.reply_count || 0)) -
+          ((a.like_count || 0) * 2 + (a.reply_count || 0))
+        );
+      case "nearby":
+        return posts.filter(p =>
+          user?.suburb && (p.suburb === user.suburb || p.state === user.state)
+        );
+      case "support":
+        return posts.filter(p =>
+          p.needs_support ||
+          p.category_name?.toLowerCase().includes("support") ||
+          p.category_name?.toLowerCase().includes("wellbeing") ||
+          p.category_name?.toLowerCase().includes("mental health")
+        );
+      case "unread":
+        return posts.filter(p => !p.viewed);
+      default:
+        return posts;
+    }
+  }, [posts, feedFilter, user]);
+
+  // ── Derived: hero content (warm sentence + optional secondary chips) ────────
+  const heroContent = useMemo(() => {
+    const unread  = recentActivity.filter(n => !n.is_read);
+    const replies  = unread.filter(n => n.type === "reply");
+    const likes    = unread.filter(n => n.type === "like");
+    const friends  = unread.filter(n => n.type === "friend_request");
+    const suburb   = user?.suburb || "you";
+
+    let sentence = "";
+    const chips  = [];
+
+    if (replies.length && nearbyEvents.length) {
+      sentence = `${replies.length === 1 ? "Someone replied to your post" : `${replies.length} parents replied to your posts`} and there ${nearbyEvents.length === 1 ? "is" : "are"} ${nearbyEvents.length} ${nearbyEvents.length === 1 ? "event" : "events"} near ${suburb}.`;
+      if (busyChatRooms.length) chips.push({ emoji: "🌿", text: `${busyChatRooms.length} circles active now` });
+    } else if (replies.length) {
+      sentence = replies.length === 1 ? "Someone replied to your post — check in when you're ready." : `${replies.length} parents replied to your posts. Check in when you're ready.`;
+      if (nearbyEvents.length)  chips.push({ emoji: "📅", text: `${nearbyEvents.length} events near ${suburb}` });
+      if (busyChatRooms.length) chips.push({ emoji: "🌿", text: `${busyChatRooms.length} circles active now` });
+    } else if (likes.length) {
+      sentence = `${likes.length} ${likes.length === 1 ? "parent found" : "parents found"} your posts helpful recently.`;
+      if (nearbyEvents.length)  chips.push({ emoji: "📅", text: `${nearbyEvents.length} events near ${suburb}` });
+      if (busyChatRooms.length) chips.push({ emoji: "🌿", text: `${busyChatRooms.length} circles active now` });
+    } else if (friends.length) {
+      sentence = `You have ${friends.length} friend ${friends.length === 1 ? "request" : "requests"} from the village.`;
+      if (busyChatRooms.length) chips.push({ emoji: "🌿", text: `${busyChatRooms.length} circles active now` });
+    } else if (busyChatRooms.length && nearbyEvents.length) {
+      sentence = `${busyChatRooms.length} ${busyChatRooms.length === 1 ? "circle is" : "circles are"} active and ${nearbyEvents.length} ${nearbyEvents.length === 1 ? "event" : "events"} near ${suburb}.`;
+    } else if (busyChatRooms.length) {
+      sentence = `${busyChatRooms.length} ${busyChatRooms.length === 1 ? "circle is" : "circles are"} active right now — good time to join.`;
+    } else if (nearbyEvents.length) {
+      sentence = `There ${nearbyEvents.length === 1 ? "is" : "are"} ${nearbyEvents.length} ${nearbyEvents.length === 1 ? "event" : "events"} near ${suburb} coming up.`;
+    }
+
+    return { sentence, chips: chips.slice(0, 2) };
+  }, [recentActivity, nearbyEvents, busyChatRooms, user]);
+
+  // ── Post badges (max 1 per card) ───────────────────────────────────────────
+  const getTopBadge = (post) => {
+    const needsSupport =
+      post.needs_support ||
+      post.category_name?.toLowerCase().includes("support") ||
+      post.category_name?.toLowerCase().includes("wellbeing");
+    const isNearby  = user?.suburb && post.suburb === user.suburb;
+    const isActive  = (post.reply_count || 0) >= 8;
+
+    if (needsSupport) return { label: "Needs support",  cls: "bg-amber-500/15 text-amber-600 dark:text-amber-400" };
+    if (isNearby)     return { label: "Near you",        cls: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" };
+    if (isActive)     return { label: "Parents are responding", cls: "bg-sky-500/10 text-sky-500" };
+    return null;
+  };
+
+  // ── Data fetching ──────────────────────────────────────────────────────────
   useEffect(() => {
     fetchFeed();
     fetchNearbyEvents();
-    fetchNearbyCircles();
     fetchTodaysPosts();
-
+    fetchSubscription();
+    fetchBusyChatRooms();
+    fetchRecentActivity();
     if (user && !user.onboarding_complete && !sessionStorage.getItem("onboarding_dismissed")) {
       setShowOnboarding(true);
     }
@@ -33,36 +322,105 @@ export default function Dashboard({ user }) {
 
   const fetchFeed = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/feed`, { credentials: "include" });
-      if (response.ok) setPosts(await response.json());
-    } catch (error) {
-      console.error("Error fetching feed:", error);
-    } finally {
-      setLoading(false);
-    }
+      const res = await fetch(`${API_URL}/api/feed`, { credentials: "include" });
+      if (res.ok) setPosts(await res.json());
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
   };
 
   const fetchTodaysPosts = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/forums/posts/trending?limit=4`, { credentials: "include" });
-      if (response.ok) setTodaysPosts(await response.json());
+      const res = await fetch(`${API_URL}/api/forums/posts/trending?limit=3`, { credentials: "include" });
+      if (res.ok) setTodaysPosts(await res.json());
     } catch {}
   };
 
   const fetchNearbyEvents = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/events?distance_km=25&limit=3`, { credentials: "include" });
-      if (response.ok) setNearbyEvents(await response.json());
+      const res = await fetch(`${API_URL}/api/events?distance_km=25&limit=2`, { credentials: "include" });
+      if (res.ok) setNearbyEvents(await res.json());
     } catch {}
   };
 
-  const fetchNearbyCircles = async () => {
+  const fetchSubscription = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/chat/rooms/nearby?distance_km=25`, { credentials: "include" });
-      if (response.ok) {
-        const data = await response.json();
-        setNearbyCircles((data.rooms || []).slice(0, 3));
+      const res = await fetch(`${API_URL}/api/subscription/status`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setSubscription(data);
+        if (data?.tier === "premium") fetchUserCommunities();
       }
+    } catch {}
+  };
+
+  const fetchBusyChatRooms = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/chat/rooms`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        // The rooms endpoint returns structured data, not a flat array
+        const allRooms = [
+          ...(data.all_australia_rooms || []),
+          ...(data.nearby_rooms || []),
+          ...(data.my_suburb_room ? [data.my_suburb_room] : []),
+        ];
+        setBusyChatRooms(allRooms.slice(0, 4));
+        const club = allRooms.find(r => {
+          const n = r.name?.toLowerCase() || "";
+          return n.includes("3am") || n.includes("three am") || n.includes("3 am");
+        });
+        const mums = allRooms.find(r => {
+          const n = r.name?.toLowerCase() || "";
+          return (n.includes("mum") || n.includes("mums")) && !n.includes("single");
+        });
+        const dads = allRooms.find(r => {
+          const n = r.name?.toLowerCase() || "";
+          return (n.includes("dad") || n.includes("dads")) && !n.includes("single");
+        });
+        // Build named rooms from real room data — name, icon, and ID come from the DB
+        const found = [club, mums, dads].filter(Boolean).map(r => ({
+          name:  r.name,
+          icon:  r.icon || "💬",
+          href:  `/chat/${r.room_id}`,
+          count: r.active_users || r.member_count || null,
+        }));
+        setNamedRooms(found);
+      }
+    } catch {}
+  };
+
+  const fetchUserCommunities = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/forums/categories`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        const all = data.categories || data;
+        const mine = all.filter(c =>
+          c.category_type === "community" &&
+          (c.creator_id === user?.user_id || c.is_member)
+        );
+        setUserCommunities(mine);
+      }
+    } catch {}
+  };
+
+  const fetchRecentActivity = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/notifications?limit=6`, { credentials: "include" });
+      if (res.ok) setRecentActivity(await res.json());
+    } catch {}
+  };
+
+  const markNotificationRead = async (notificationId) => {
+    // Optimistically clear it from unread state
+    setRecentActivity(prev =>
+      prev.map(n => n.notification_id === notificationId ? { ...n, is_read: true } : n)
+    );
+    try {
+      await fetch(`${API_URL}/api/notifications/${notificationId}/read`, {
+        method: "POST",
+        credentials: "include",
+      });
     } catch {}
   };
 
@@ -71,33 +429,42 @@ export default function Dashboard({ user }) {
     sessionStorage.setItem("onboarding_dismissed", "true");
     const stored = localStorage.getItem("user");
     if (stored) {
-      const updated = { ...JSON.parse(stored), onboarding_complete: true };
-      localStorage.setItem("user", JSON.stringify(updated));
+      localStorage.setItem("user", JSON.stringify({ ...JSON.parse(stored), onboarding_complete: true }));
     }
-    fetchNearbyUsers();
   };
 
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!searchQuery.trim()) { fetchFeed(); return; }
     try {
-      const response = await fetch(`${API_URL}/api/search?q=${encodeURIComponent(searchQuery)}`, { credentials: "include" });
-      if (response.ok) setPosts(await response.json());
-    } catch (error) {
-      console.error("Error searching:", error);
-    }
+      const res = await fetch(`${API_URL}/api/search?q=${encodeURIComponent(searchQuery)}`, { credentials: "include" });
+      if (res.ok) setPosts(await res.json());
+    } catch (e) { console.error(e); }
   };
 
-  const formatDate = (dateString) => {
+  const handleLikePost = async (e, post) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const liked = postLikes[post.post_id]?.liked ?? post.user_liked;
+    setPostLikes(prev => ({
+      ...prev,
+      [post.post_id]: {
+        liked: !liked,
+        count: (prev[post.post_id]?.count ?? post.like_count ?? 0) + (liked ? -1 : 1),
+      },
+    }));
     try {
-      return formatDistanceToNow(new Date(dateString), { addSuffix: true });
-    } catch {
-      return "recently";
-    }
+      await fetch(`${API_URL}/api/forums/posts/${post.post_id}/like`, {
+        method: liked ? "DELETE" : "POST",
+        credentials: "include",
+      });
+    } catch {}
   };
 
   const firstName = user?.nickname || user?.name?.split(" ")[0] || "there";
+  const unreadActivity = recentActivity.filter(n => !n.is_read);
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-background pb-20 lg:pb-8">
       <Navigation user={user} />
@@ -110,460 +477,524 @@ export default function Dashboard({ user }) {
         />
       )}
 
-      <main className="max-w-6xl mx-auto px-4 pt-20 lg:pt-24">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-1">
+      <main className="max-w-5xl mx-auto px-4 pt-20 lg:pt-24">
+
+        {/* ── Hero ── */}
+        <div className="mb-6 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/15 px-6 py-5">
+          <h1 className="font-heading text-2xl sm:text-[26px] font-bold text-foreground mb-1.5 leading-tight">
             Welcome back, {firstName} 👋
           </h1>
-          <p className="text-muted-foreground text-sm">
-            See what's happening in your village
-          </p>
-        </div>
-
-        {/* Search & Create */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-6">
-          <form onSubmit={handleSearch} className="flex-1 relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search posts..."
-              className="pl-11 h-11 rounded-xl bg-card border-border/50 focus:border-primary"
-              data-testid="search-input"
-            />
-          </form>
-          <Link to="/create-post">
-            <Button
-              className="h-11 px-6 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 whitespace-nowrap"
-              data-testid="create-post-btn"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              New Post
-            </Button>
-          </Link>
-        </div>
-
-        {/* Three-column layout (desktop) */}
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* Left column — identity + quick links + recommended */}
-          <div className="lg:w-64 xl:w-72 shrink-0 space-y-4">
-            {/* Identity card */}
-            {user && (
-              <Link to="/profile" className="block group">
-                <div className="bg-card rounded-2xl p-4 border border-border/50 group-hover:border-primary/30 transition-all">
-                  {/* Avatar + name + badge */}
-                  <div className="flex items-start justify-between gap-2 mb-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold text-primary overflow-hidden shrink-0">
-                        {user.picture ? (
-                          <img src={user.picture} alt="" className="w-full h-full object-cover rounded-full" />
-                        ) : (
-                          (user.nickname || user.name)?.[0]?.toUpperCase()
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-bold text-foreground text-sm truncate">{user.nickname || user.name?.split(" ")[0]}</p>
-                        {user.parenting_stage && (
-                          <p className="text-xs text-muted-foreground capitalize">{user.parenting_stage.replace("_", " ")} parent</p>
-                        )}
-                      </div>
-                    </div>
-                    {(user.trusted_parent_badge || user.verified_professional || user.night_owl_badge || user.local_parent_badge) && (
-                      <div className="flex flex-wrap gap-1 justify-end flex-shrink-0">
-                        {user.trusted_parent_badge && <span className="text-xs px-1.5 py-0.5 rounded-full bg-green-500/15 text-green-600 dark:text-green-400 font-medium">Trusted</span>}
-                        {user.verified_professional && <span className="text-xs px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-600 font-medium">Pro</span>}
-                        {user.night_owl_badge && <span className="text-xs" title="Night Owl">🦉</span>}
-                        {user.local_parent_badge && <span className="text-xs" title="Local Parent">📍</span>}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Key info pills */}
-                  <div className="space-y-1.5 mb-3">
-                    {(user.suburb || user.state) && (
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <MapPin className="h-3 w-3 shrink-0 text-primary/60" />
-                        <span className="truncate">{[user.suburb, user.state].filter(Boolean).join(", ")}</span>
-                      </div>
-                    )}
-                    {user.number_of_kids > 0 && (
-                      <div className="text-xs text-muted-foreground flex items-center gap-1.5">
-                        <span className="text-sm leading-none">👶</span>
-                        <span>
-                          {user.number_of_kids} {user.number_of_kids === 1 ? "child" : "children"}
-                          {user.kids_ages?.length > 0 && ` · ${user.kids_ages.slice(0, 2).join(", ")}`}
-                        </span>
-                      </div>
-                    )}
-                    {user.is_single_parent && (
-                      <div className="text-xs text-muted-foreground flex items-center gap-1.5">
-                        <span className="text-sm leading-none">💪</span>
-                        <span>Single parent</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Interests */}
-                  {user.interests?.length > 0 ? (
-                    <div className="flex flex-wrap gap-1">
-                      {user.interests.slice(0, 3).map((interest) => (
-                        <span key={interest} className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
-                          {interest}
-                        </span>
-                      ))}
-                      {user.interests.length > 3 && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
-                          +{user.interests.length - 3}
-                        </span>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-primary hover:underline">Complete your profile →</p>
-                  )}
+          {heroContent.sentence ? (
+            <>
+              <p className="text-sm sm:text-[15px] text-foreground/70 leading-relaxed mb-3">
+                {heroContent.sentence}
+              </p>
+              {heroContent.chips.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {heroContent.chips.map(chip => (
+                    <span
+                      key={chip.text}
+                      className="inline-flex items-center gap-1.5 bg-background/60 border border-border/60 rounded-full px-3 py-1 text-xs text-muted-foreground"
+                    >
+                      <span>{chip.emoji}</span>
+                      {chip.text}
+                    </span>
+                  ))}
                 </div>
-              </Link>
-            )}
+              )}
+            </>
+          ) : (
+            <p className="text-sm text-foreground/70 leading-relaxed">
+              Your village is here whenever you need it — explore a support space or share what's on your mind 🌿
+            </p>
+          )}
+        </div>
 
-            {/* Quick Links */}
-            <div className="grid grid-cols-3 gap-2 lg:hidden">
-              {[
-                { icon: "🌙", label: "Circles", href: "/chat", testId: "quick-chat-link" },
-                { icon: "💬", label: "Spaces", href: "/forums", testId: "quick-forums-link" },
-                { icon: "✉️", label: "Messages", href: "/messages", testId: "quick-messages-link" },
-                { icon: "👤", label: "Profile", href: "/profile", testId: "quick-profile-link" },
-                { icon: "🔖", label: "Saved", href: "/saved", testId: "quick-saved-link" },
-                { icon: "📅", label: "Events", href: "/events", testId: "quick-events-link" },
-              ].map((item, idx) => (
-                <Link
-                  key={idx}
-                  to={item.href}
-                  className="flex items-center gap-2 p-2.5 rounded-xl bg-card border border-border/50 hover:border-primary/30 transition-colors"
-                  data-testid={item.testId}
-                >
-                  <span className="text-base">{item.icon}</span>
-                  <span className="font-medium text-xs text-foreground">{item.label}</span>
-                </Link>
-              ))}
-            </div>
-            <div className="hidden lg:flex flex-col gap-2">
-              {[
-                { icon: "🌙", label: "Circles", href: "/chat", testId: "quick-chat-link-desktop" },
-                { icon: "💬", label: "Support Spaces", href: "/forums", testId: "quick-forums-link-desktop" },
-                { icon: "✉️", label: "Messages", href: "/messages", testId: "quick-messages-link-desktop" },
-                { icon: "👤", label: "Profile", href: "/profile", testId: "quick-profile-link-desktop" },
-                { icon: "🔖", label: "Saved", href: "/saved", testId: "quick-saved-link-desktop" },
-                { icon: "📅", label: "Events", href: "/events", testId: "quick-events-link-desktop" },
-              ].map((item, idx) => (
-                <Link
-                  key={idx}
-                  to={item.href}
-                  className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border/50 hover:border-primary/30 transition-colors"
-                  data-testid={item.testId}
-                >
-                  <span className="text-lg">{item.icon}</span>
-                  <span className="font-medium text-sm text-foreground">{item.label}</span>
-                </Link>
-              ))}
-            </div>
-
-            {/* Recommended Circles */}
-            <div className="hidden lg:block">
-              <h3 className="font-heading font-semibold text-foreground text-sm mb-2 px-1">Recommended for you</h3>
-              <RecommendedSpaces user={user} />
-            </div>
+        {/* ── Search + action bar ── */}
+        <div className="mb-6 space-y-3">
+          <div className="flex gap-2.5">
+            <form onSubmit={handleSearch} className="flex-1 relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search posts, circles, support spaces..."
+                className="pl-11 h-11 rounded-xl bg-card border-border/50 focus:border-primary"
+                data-testid="search-input"
+              />
+            </form>
+            <Link to="/create-post">
+              <Button
+                className="h-11 px-5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 whitespace-nowrap"
+                data-testid="create-post-btn"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                New Post
+              </Button>
+            </Link>
           </div>
 
-          {/* Centre column — feed */}
+          {/* Feed filter pills */}
+          <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none">
+            {FEED_FILTERS.map(f => (
+              <button
+                key={f.id}
+                onClick={() => { setFeedFilter(f.id); setVisibleCount(8); }}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
+                  feedFilter === f.id
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "bg-card border border-border/50 text-muted-foreground hover:text-foreground hover:border-primary/30"
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Two-column layout ── */}
+        <div className="flex flex-col lg:flex-row gap-5">
+
+          {/* ── CENTER: feed ── */}
           <div className="flex-1 min-w-0">
-
-            {/* Feed */}
-        <div className="space-y-4 pb-4">
-          <h2 className="font-heading text-base font-semibold text-foreground">Latest in your village</h2>
-
-          {loading ? (
-            <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="bg-card rounded-2xl p-6 border border-border/50 animate-pulse">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-full bg-muted" />
-                    <div className="space-y-2">
-                      <div className="w-32 h-4 bg-muted rounded" />
-                      <div className="w-20 h-3 bg-muted rounded" />
-                    </div>
-                  </div>
-                  <div className="w-3/4 h-5 bg-muted rounded mb-3" />
-                  <div className="w-full h-4 bg-muted rounded" />
-                </div>
-              ))}
-            </div>
-          ) : posts.length === 0 ? (
-            <div className="text-center py-12 bg-card rounded-2xl border border-border/50">
-              <span className="text-4xl mb-3 block">📝</span>
-              <h3 className="font-heading font-semibold text-foreground mb-1">Nothing here yet</h3>
-              <p className="text-sm text-muted-foreground mb-4">Be the first to share something with the village.</p>
-              <Link to="/create-post">
-                <Button className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full" data-testid="empty-create-post-btn">
-                  Create a post
-                </Button>
-              </Link>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {posts.map((post, idx) => (
-                <article
-                  key={post.post_id}
-                  className="bg-card rounded-xl px-4 py-3 border border-border/50 hover:border-primary/30 transition-all"
-                  data-testid={`post-card-${idx}`}
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-heading font-semibold text-foreground text-base">
+                {feedFilter === "latest"   && "Latest conversations"}
+                {feedFilter === "trending" && "Trending discussions"}
+                {feedFilter === "nearby"   && "Near you"}
+                {feedFilter === "support"  && "Support needed"}
+                {feedFilter === "unread"   && "Unread"}
+              </h2>
+              {feedFilter !== "latest" && (
+                <button
+                  onClick={() => { setFeedFilter("latest"); setVisibleCount(8); }}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:underline"
                 >
-                  {/* Author row */}
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      {post.author_id !== "anonymous" ? (
-                        <Link to={`/profile/${post.author_id}`} onClick={(e) => e.stopPropagation()}>
-                          <Avatar className="h-7 w-7 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
-                            <AvatarImage src={post.author_picture} />
-                            <AvatarFallback className="bg-primary/20 text-primary text-xs">
-                              {post.author_name?.[0]?.toUpperCase() || "?"}
-                            </AvatarFallback>
-                          </Avatar>
-                        </Link>
-                      ) : (
-                        <Avatar className="h-7 w-7">
-                          <AvatarFallback className="bg-muted text-muted-foreground text-xs">?</AvatarFallback>
-                        </Avatar>
-                      )}
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          {post.author_id !== "anonymous" ? (
+                  Clear filter
+                </button>
+              )}
+            </div>
+
+            {loading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="bg-card rounded-2xl px-4 py-3.5 border border-border/40 card-elevated animate-pulse">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-7 h-7 rounded-full bg-muted shrink-0" />
+                      <div className="h-3 bg-muted rounded w-32" />
+                      <div className="h-3 bg-muted rounded w-16 ml-auto" />
+                    </div>
+                    <div className="h-4 bg-muted rounded w-3/4 mb-2" />
+                    <div className="h-3 bg-muted rounded w-full mb-1" />
+                    <div className="h-3 bg-muted rounded w-2/3" />
+                  </div>
+                ))}
+              </div>
+            ) : filteredPosts.length === 0 ? (
+              <div className="text-center py-12 bg-card rounded-2xl border border-border/40 card-elevated">
+                <span className="text-4xl mb-3 block">📝</span>
+                <h3 className="font-heading font-semibold text-foreground mb-1">
+                  {feedFilter !== "latest" ? "Nothing here right now" : "Nothing here yet"}
+                </h3>
+                <p className="text-xs text-muted-foreground mb-4">
+                  {feedFilter !== "latest"
+                    ? "Try a different filter or check back later."
+                    : "Be the first to share something with the village."}
+                </p>
+                {feedFilter === "latest" && (
+                  <Link to="/create-post">
+                    <Button className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl" data-testid="empty-create-post-btn">
+                      Create a post
+                    </Button>
+                  </Link>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {filteredPosts.slice(0, visibleCount).map((post, idx) => {
+                  const liked     = postLikes[post.post_id]?.liked ?? post.user_liked;
+                  const likeCount = postLikes[post.post_id]?.count ?? post.like_count ?? 0;
+                  const badge     = getTopBadge(post);
+                  const isAnon    = post.is_anonymous;
+
+                  return (
+                    <article
+                      key={post.post_id}
+                      onClick={() => navigate(`/forums/post/${post.post_id}`)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={e => e.key === "Enter" && navigate(`/forums/post/${post.post_id}`)}
+                      aria-label={`Open post: ${post.title}`}
+                      className="bg-card rounded-2xl px-4 py-3.5 border border-border/40 cursor-pointer hover:shadow-md hover:-translate-y-px transition-all duration-200 card-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                      data-testid={`post-card-${idx}`}
+                    >
+                      {/* Row 1: Author + meta */}
+                      <div className="flex items-center gap-2 mb-2.5">
+                        {isAnon ? (
+                          <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center shrink-0">
+                            <span className="text-xs text-muted-foreground">?</span>
+                          </div>
+                        ) : (
+                          <Link
+                            to={`/profile/${post.author_id}`}
+                            onClick={e => e.stopPropagation()}
+                          >
+                            <Avatar className="h-7 w-7 hover:ring-2 hover:ring-primary/40 transition-all">
+                              <AvatarImage src={post.author_picture} />
+                              <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                                {post.author_name?.[0]?.toUpperCase() || "?"}
+                              </AvatarFallback>
+                            </Avatar>
+                          </Link>
+                        )}
+                        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                          {isAnon ? (
+                            <span className="text-sm text-muted-foreground">Anonymous</span>
+                          ) : (
                             <Link
                               to={`/profile/${post.author_id}`}
-                              className="font-medium text-sm text-foreground hover:text-primary transition-colors"
-                              onClick={(e) => e.stopPropagation()}
+                              className="text-sm font-medium text-foreground hover:text-primary transition-colors truncate"
+                              onClick={e => e.stopPropagation()}
                             >
                               {post.author_name}
                             </Link>
-                          ) : (
-                            <span className="font-medium text-sm text-muted-foreground">Anonymous</span>
                           )}
-                          {post.author_subscription_tier === "premium" && !post.is_anonymous && (
+                          {post.author_subscription_tier === "premium" && !isAnon && (
                             <Crown className="h-3 w-3 text-amber-500 shrink-0" />
                           )}
+                          <span className="text-xs text-muted-foreground/60 shrink-0">·</span>
+                          <span className="text-xs text-muted-foreground truncate flex items-center gap-1 shrink-0">
+                            <span>{post.category_icon}</span>
+                            <span className="truncate">{post.category_name}</span>
+                          </span>
+                          <span className="text-xs text-muted-foreground/60 shrink-0 hidden sm:inline">·</span>
+                          <span className="text-xs text-muted-foreground/60 shrink-0 hidden sm:inline whitespace-nowrap">
+                            {fmtRelative(post.created_at)}
+                          </span>
                         </div>
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <span>{post.category_icon}</span>
-                          <span>{post.category_name}</span>
-                          <span>·</span>
-                          <span>{formatDate(post.created_at)}</span>
-                          {post.is_anonymous && <span className="ml-1 px-1.5 py-0 rounded-full bg-secondary text-muted-foreground">Anon</span>}
-                        </div>
+                        <span className="text-xs text-muted-foreground/60 shrink-0 ml-auto sm:hidden">
+                          {fmtRelative(post.created_at)}
+                        </span>
                       </div>
-                    </div>
-                  </div>
 
-                  {/* Post content */}
-                  <Link to={`/forums/post/${post.post_id}`} className="block">
-                    <h3 className="text-sm font-semibold text-foreground mb-1 hover:text-primary transition-colors leading-snug">
-                      {post.title}
-                    </h3>
-                    <p className="text-xs text-muted-foreground line-clamp-1 leading-relaxed">
-                      {post.content}
-                    </p>
-                  </Link>
-
-                  {/* Action row */}
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
-                    <span className="flex items-center gap-1">
-                      <Heart className="h-3 w-3" />
-                      {post.like_count || 0}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <MessageCircle className="h-3 w-3" />
-                      {post.reply_count || 0}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Eye className="h-3 w-3" />
-                      {post.views || 0}
-                    </span>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-          </div> {/* end feed */}
-          </div> {/* end centre column */}
-
-          {/* Right column — local events + circles (desktop only) */}
-          <div className="hidden lg:block lg:w-64 xl:w-72 shrink-0 space-y-4">
-            {/* Nearby Events */}
-            <div className="bg-card rounded-2xl p-4 border border-border/50">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
-                    <Calendar className="h-3.5 w-3.5 text-primary" />
-                  </div>
-                  <h3 className="font-heading font-semibold text-foreground text-sm">Near You</h3>
-                </div>
-                <Link to="/events" className="text-xs text-primary hover:underline">All →</Link>
-              </div>
-              {nearbyEvents.length === 0 ? (
-                <div className="text-center py-3">
-                  <p className="text-xs text-muted-foreground mb-2">No events nearby yet</p>
-                  <Link to="/events" className="text-xs text-primary hover:underline">Browse all events →</Link>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {nearbyEvents.map(ev => {
-                    const [,, day] = (ev.date || "").split("-");
-                    const dateObj = ev.date ? new Date(...ev.date.split("-").map((v,i) => i===1 ? +v-1 : +v)) : null;
-                    const mon = dateObj ? dateObj.toLocaleString("en-AU", { month: "short" }) : "";
-                    return (
-                      <Link key={ev.event_id} to="/events" className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-secondary/50 transition-colors group">
-                        <div className="w-9 h-9 rounded-lg bg-primary/15 text-primary flex flex-col items-center justify-center flex-shrink-0">
-                          <span className="text-xs font-bold leading-none">{day}</span>
-                          <span className="text-[9px] uppercase">{mon}</span>
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-medium text-foreground truncate group-hover:text-primary transition-colors">{ev.title}</p>
-                          <p className="text-xs text-muted-foreground truncate">{ev.suburb ? `${ev.suburb}${ev.state ? `, ${ev.state}` : ""}` : ev.state || ""}</p>
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Nearby Circles */}
-            {nearbyCircles.length > 0 && (
-              <div className="bg-card rounded-2xl p-4 border border-border/50">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-green-500/15 flex items-center justify-center shrink-0">
-                      <MapPin className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
-                    </div>
-                    <h3 className="font-heading font-semibold text-foreground text-sm">Local Circles</h3>
-                  </div>
-                  <Link to="/chat" className="text-xs text-primary hover:underline">All →</Link>
-                </div>
-                <div className="space-y-2">
-                  {nearbyCircles.map((room, idx) => (
-                    <Link key={room.room_id || idx} to={`/chat/${room.room_id}`} className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-secondary/50 transition-colors group">
-                      <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center flex-shrink-0 text-base">
-                        {room.icon || "🏘️"}
+                      {/* Row 2: Title + optional badge */}
+                      <div className="mb-2">
+                        <h3 className="font-heading font-bold text-base text-foreground leading-snug line-clamp-2">
+                          {post.title}
+                        </h3>
+                        {badge && (
+                          <span className={`inline-block mt-2 px-2 py-0.5 text-xs rounded-full font-medium ${badge.cls}`}>
+                            {badge.label}
+                          </span>
+                        )}
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-medium text-foreground truncate group-hover:text-primary transition-colors">{room.name}</p>
-                        <p className="text-xs text-muted-foreground">{room.distance_km ? `${room.distance_km}km away` : "Local"}</p>
+
+                      {/* Row 3: Preview — only when there's meaningful content */}
+                      {post.content?.trim() && (
+                        <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+                          {post.content}
+                        </p>
+                      )}
+
+                      {/* Row 4: Engagement */}
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2.5 pt-2.5 border-t border-border/20">
+                        <button
+                          onClick={e => handleLikePost(e, post)}
+                          aria-label={liked ? "Unlike post" : "Like post"}
+                          className={`flex items-center gap-1.5 hover:text-rose-500 transition-colors rounded focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-rose-400 ${liked ? "text-rose-500" : ""}`}
+                        >
+                          <Heart className={`h-3.5 w-3.5 ${liked ? "fill-rose-500 text-rose-500" : ""}`} />
+                          {likeCount}
+                        </button>
+                        <button
+                          onClick={e => { e.stopPropagation(); setSelectedPost(post); }}
+                          aria-label="View replies"
+                          className="flex items-center gap-1.5 hover:text-primary transition-colors rounded focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40"
+                        >
+                          <MessageCircle className="h-3.5 w-3.5" />
+                          {post.reply_count || 0}
+                        </button>
+                        <span className="flex items-center gap-1.5">
+                          <Eye className="h-3.5 w-3.5" />
+                          {post.views || 0}
+                        </span>
                       </div>
-                    </Link>
-                  ))}
-                </div>
+                    </article>
+                  );
+                })}
+
+                {filteredPosts.length > visibleCount && (
+                  <button
+                    onClick={() => setVisibleCount(c => c + 8)}
+                    className="w-full py-3 text-sm text-muted-foreground hover:text-foreground font-medium transition-colors"
+                  >
+                    Load more
+                  </button>
+                )}
+                {filteredPosts.length > 0 && visibleCount >= filteredPosts.length && (
+                  <p className="text-center text-xs text-muted-foreground py-3">You're all caught up 🌿</p>
+                )}
               </div>
             )}
+          </div>
 
-            {/* Today in your Village */}
-            <div className="bg-card rounded-2xl border border-border/50 p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-7 h-7 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
-                  <TrendingUp className="h-3.5 w-3.5 text-primary" />
-                </div>
-                <h3 className="font-heading font-semibold text-foreground text-sm">Today in your village</h3>
+          {/* ── RIGHT RAIL ── */}
+          <div className="lg:w-72 shrink-0 space-y-4">
+
+            {/* 1. Pick up where you left off */}
+            <div className="bg-card rounded-2xl border border-border/40 p-4 card-elevated">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-heading font-semibold text-sm text-foreground">Pick up where you left off</h3>
               </div>
-              {todaysPosts.length === 0 ? (
-                <p className="text-xs text-muted-foreground py-2">Nothing trending yet — be the first to post something today!</p>
-              ) : (
-                <div className="space-y-3">
-                  {todaysPosts.map((post) => (
+
+              {unreadActivity.length > 0 ? (
+                // State A: has unread notifications
+                <div className="space-y-1.5">
+                  {unreadActivity.slice(0, 3).map((n, i) => (
                     <Link
-                      key={post.post_id}
-                      to={`/forums/post/${post.post_id}`}
-                      className="block group"
+                      key={n.notification_id || i}
+                      to={n.link || "#"}
+                      onClick={() => n.notification_id && markNotificationRead(n.notification_id)}
+                      className="flex items-start gap-2.5 p-2.5 rounded-xl bg-primary/5 border border-primary/10 hover:bg-primary/10 transition-colors group"
                     >
-                      <div className="rounded-xl p-3 hover:bg-secondary/50 transition-colors -mx-1">
-                        <p className="text-xs font-medium text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-snug mb-1.5">
-                          {post.title}
-                        </p>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span>{post.category_icon}</span>
-                          <span className="truncate flex-1">{post.category_name}</span>
-                          <span className="flex items-center gap-0.5 shrink-0">
-                            <Heart className="h-3 w-3" />{post.like_count || 0}
-                          </span>
-                          <span className="flex items-center gap-0.5 shrink-0">
-                            <MessageCircle className="h-3 w-3" />{post.reply_count || 0}
-                          </span>
-                        </div>
-                      </div>
+                      <span className="text-sm shrink-0 mt-0.5">{typeEmoji(n.type)}</span>
+                      <p className="text-xs text-foreground line-clamp-2 flex-1 leading-relaxed group-hover:text-primary transition-colors">{n.message}</p>
+                      <span className="text-[10px] text-muted-foreground shrink-0 whitespace-nowrap mt-0.5">{fmtRelative(n.created_at)}</span>
                     </Link>
                   ))}
                 </div>
-              )}
-              <Link to="/forums" className="block text-center text-xs text-primary hover:underline mt-2 pt-2 border-t border-border/30">
-                Browse all Support Spaces →
-              </Link>
-            </div>
-          </div>
-        </div> {/* end three-column layout */}
-
-        {/* Mobile near you — events + circles (below feed) */}
-        {(nearbyEvents.length > 0 || nearbyCircles.length > 0) && (
-          <div className="mt-6 mb-4 lg:hidden">
-            {nearbyEvents.length > 0 && (
-              <div className="p-4 rounded-2xl bg-card border border-border/50 mb-3">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
-                      <Calendar className="h-4 w-4 text-primary" />
-                    </div>
-                    <h3 className="font-heading font-semibold text-foreground text-sm">Events Near You</h3>
+              ) : recentActivity.length > 0 ? (
+                // State B: all caught up, show recent (greyed)
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400 px-2 pb-2 border-b border-border/20">
+                    <span className="text-[10px]">✓</span><span className="font-medium">You're all caught up</span>
                   </div>
-                  <Link to="/events" className="text-xs text-primary hover:underline">See all →</Link>
+                  {recentActivity.slice(0, 2).map((n, i) => (
+                    <Link
+                      key={n.notification_id || i}
+                      to={n.link || "#"}
+                      className="flex items-start gap-2.5 px-2 py-2 rounded-xl hover:bg-secondary/50 transition-colors group"
+                    >
+                      <span className="text-sm shrink-0 mt-0.5 opacity-50">{typeEmoji(n.type)}</span>
+                      <p className="text-xs text-foreground/60 line-clamp-2 flex-1 leading-relaxed group-hover:text-foreground/80 transition-colors">{n.message}</p>
+                      <span className="text-[10px] text-muted-foreground/50 shrink-0 whitespace-nowrap mt-0.5">{fmtRelative(n.created_at)}</span>
+                    </Link>
+                  ))}
                 </div>
-                <div className="flex gap-3 overflow-x-auto pb-1 hide-scrollbar">
-                  {nearbyEvents.map(ev => {
-                    const dateObj = ev.date ? new Date(...ev.date.split("-").map((v,i) => i===1 ? +v-1 : +v)) : null;
+              ) : (
+                // State C: no activity yet
+                <div className="px-2 py-3 space-y-2">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    When someone replies to your post or reacts to something you've shared, it'll appear here.
+                  </p>
+                  <Link to="/create-post" className="text-xs text-primary font-medium hover:underline block">
+                    Post something to get started →
+                  </Link>
+                </div>
+              )}
+            </div>
+
+            {/* 2. Live now */}
+            <div className="bg-card rounded-2xl border border-border/40 p-4 card-elevated">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-heading font-semibold text-sm text-foreground flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse inline-block shrink-0" />
+                  Live now
+                </h3>
+                <Link to="/chat" className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">See all</Link>
+              </div>
+              <div className="space-y-1">
+                {(namedRooms.length > 0 ? namedRooms : [
+                  { icon: "🌙", name: "3am Club",  href: "/chat" },
+                  { icon: "👩", name: "Mum Chat",  href: "/chat" },
+                  { icon: "👨", name: "Dad Chat",  href: "/chat" },
+                ]).map(r => (
+                  <Link key={r.name} to={r.href} className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-secondary/50 transition-colors group">
+                    <span className="text-base w-7 text-center shrink-0">{r.icon}</span>
+                    <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors flex-1 truncate">{r.name}</p>
+                    {r.count > 0 ? (
+                      <span className="text-xs text-muted-foreground shrink-0">{r.count} online</span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-xs text-green-500 shrink-0">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                        Live
+                      </span>
+                    )}
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            {/* 3. Nearby */}
+            <div className="bg-card rounded-2xl border border-border/40 p-4 card-elevated">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h3 className="font-heading font-semibold text-sm text-foreground">Near you</h3>
+                  {user?.suburb && (
+                    <p className="text-[11px] text-muted-foreground flex items-center gap-0.5 mt-0.5">
+                      <MapPin className="h-2.5 w-2.5" />
+                      {user.suburb}{user.state ? `, ${user.state}` : ""}
+                    </p>
+                  )}
+                </div>
+                <Link to="/events" className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">See all</Link>
+              </div>
+              {nearbyEvents.length === 0 ? (
+                <Link to="/events" className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-secondary/50 transition-colors group">
+                  <span className="text-xl shrink-0">📅</span>
+                  <p className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">Find events near you</p>
+                </Link>
+              ) : (
+                <div className="space-y-1">
+                  {nearbyEvents.slice(0, 2).map((ev, i) => {
+                    const dateObj = ev.date ? new Date(...ev.date.split("-").map((v, j) => j === 1 ? +v - 1 : +v)) : null;
                     const day = dateObj ? dateObj.getDate() : "?";
                     const mon = dateObj ? dateObj.toLocaleString("en-AU", { month: "short" }) : "";
                     return (
-                      <Link key={ev.event_id} to="/events" className="flex-shrink-0 w-36 p-3 rounded-xl bg-secondary/50 hover:bg-secondary/80 transition-colors">
-                        <div className="w-8 h-8 rounded-lg bg-primary/15 text-primary flex flex-col items-center justify-center mb-2">
+                      <Link key={ev.event_id || i} to="/events" className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-secondary/50 transition-colors group">
+                        <div className="w-9 h-9 rounded-lg bg-primary/15 text-primary flex flex-col items-center justify-center shrink-0">
                           <span className="text-xs font-bold leading-none">{day}</span>
                           <span className="text-[9px] uppercase">{mon}</span>
                         </div>
-                        <p className="text-xs font-medium text-foreground line-clamp-2 mb-1">{ev.title}</p>
-                        <p className="text-xs text-muted-foreground truncate">{ev.suburb || ev.state || ""}</p>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">{ev.title}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {ev.suburb || ev.venue_name || ""}{ev.distance_km ? ` · ${Math.round(ev.distance_km)} km away` : ""}
+                          </p>
+                        </div>
                       </Link>
                     );
                   })}
                 </div>
+              )}
+            </div>
+
+            {/* 4. Suggested for you */}
+            <div className="bg-card rounded-2xl border border-border/40 p-4 card-elevated">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-heading font-semibold text-sm text-foreground">Suggested for you</h3>
+                <Link to="/forums" className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">See all</Link>
               </div>
-            )}
-            {nearbyCircles.length > 0 && (
-              <div className="p-4 rounded-2xl bg-card border border-border/50">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-green-500/15 flex items-center justify-center shrink-0">
-                      <MapPin className="h-4 w-4 text-green-600 dark:text-green-400" />
-                    </div>
-                    <h3 className="font-heading font-semibold text-foreground text-sm">Local Circles</h3>
+              <RecommendedSpaces user={user} />
+            </div>
+
+            {/* 5. Communities */}
+            {(() => {
+              const isPremium = subscription?.tier === "premium";
+              if (!isPremium) {
+                return (
+                  <div className="bg-card rounded-2xl border border-border/40 p-4 card-elevated">
+                    <h3 className="font-heading font-semibold text-sm text-foreground mb-2">Member communities</h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                      Village+ members lead their own topic groups — NICU parents, sleep-deprived dads, solo mums, and more.
+                    </p>
+                    <Link to="/plus" className="text-xs text-primary font-medium hover:underline">
+                      Explore Village+ →
+                    </Link>
                   </div>
-                  <Link to="/chat" className="text-xs text-primary hover:underline">See all →</Link>
+                );
+              }
+              return (
+                <div className="bg-card rounded-2xl border border-border/40 p-4 card-elevated">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-heading font-semibold text-sm text-foreground">Your communities</h3>
+                    {userCommunities.length < 3 && (
+                      <Link to="/forums/create-community" className="text-[11px] text-primary font-medium hover:underline">+ Create</Link>
+                    )}
+                  </div>
+                  {userCommunities.length === 0 ? (
+                    <div className="text-center py-3">
+                      <span className="text-2xl block mb-2">🏡</span>
+                      <p className="text-xs text-foreground font-medium mb-0.5">No communities yet</p>
+                      <p className="text-xs text-muted-foreground mb-3">Start one for parents like you — it only takes a minute.</p>
+                      <Link to="/forums/create-community" className="text-xs text-primary font-medium hover:underline">
+                        Start a community →
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      {userCommunities.slice(0, 3).map(c => (
+                        <Link key={c.category_id} to={`/forums/${c.category_id}`} className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-secondary/50 transition-colors group">
+                          <span className="text-base w-7 text-center shrink-0">{c.icon || "💬"}</span>
+                          <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors flex-1 truncate">{c.name}</p>
+                          {c.member_count > 0 && (
+                            <span className="text-xs text-muted-foreground shrink-0">{c.member_count} members</span>
+                          )}
+                        </Link>
+                      ))}
+                      {userCommunities.length > 3 && (
+                        <Link to="/forums?tab=communities" className="text-xs text-muted-foreground hover:text-foreground px-2 pt-1 block transition-colors">
+                          See all →
+                        </Link>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div className="flex gap-3 overflow-x-auto pb-1 hide-scrollbar">
-                  {nearbyCircles.map((room, idx) => (
-                    <Link key={room.room_id || idx} to={`/chat/${room.room_id}`} className="flex-shrink-0 flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-secondary/50 transition-colors">
-                      <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center text-xl">{room.icon || "🏘️"}</div>
-                      <span className="text-xs font-medium text-foreground truncate max-w-[72px] text-center">{room.name}</span>
-                      {room.distance_km && <span className="text-xs text-muted-foreground">{room.distance_km}km</span>}
+              );
+            })()}
+
+            {/* 6. Parents talking about */}
+            {todaysPosts.length > 0 && (
+              <div className="bg-card rounded-2xl border border-border/40 p-4 card-elevated">
+                <h3 className="font-heading font-semibold text-sm text-foreground mb-3">Parents talking about</h3>
+                <div className="space-y-0.5">
+                  {todaysPosts.slice(0, 2).map((post, i) => (
+                    <Link key={post.post_id} to={`/forums/post/${post.post_id}`} className="flex items-start gap-2.5 px-1 py-2 rounded-xl hover:bg-secondary/50 transition-colors group">
+                      <span className="text-xs font-semibold text-muted-foreground/40 shrink-0 mt-0.5 w-4">{i + 1}</span>
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-foreground/70 group-hover:text-foreground transition-colors line-clamp-2 leading-snug">
+                          {post.title}
+                        </p>
+                        <span className="text-[11px] text-muted-foreground/50">{post.reply_count || 0} replies</span>
+                      </div>
                     </Link>
                   ))}
                 </div>
               </div>
             )}
+
+            {/* 7. Village+ — ambient, not salesy */}
+            {subscription && subscription.tier !== "premium" && (
+              <div className="px-1">
+                <Link
+                  to="/plus"
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-border/40 hover:border-amber-500/30 hover:bg-amber-500/5 transition-all group"
+                >
+                  <Crown className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-foreground group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                      Unlock Village+
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">Support the village · From $7.99/mo</p>
+                  </div>
+                </Link>
+              </div>
+            )}
           </div>
-        )}
+        </div>
+
+        <AppFooter />
       </main>
+
+      {/* Quick-view thread modal */}
+      {selectedPost && (
+        <QuickThreadView
+          post={selectedPost}
+          liked={postLikes[selectedPost.post_id]?.liked ?? selectedPost.user_liked}
+          likeCount={postLikes[selectedPost.post_id]?.count ?? selectedPost.like_count ?? 0}
+          onLike={e => handleLikePost(e, selectedPost)}
+          onClose={() => setSelectedPost(null)}
+          onReplied={() => {
+            setPosts(prev => prev.map(p =>
+              p.post_id === selectedPost.post_id
+                ? { ...p, reply_count: (p.reply_count || 0) + 1 }
+                : p
+            ));
+          }}
+          apiUrl={API_URL}
+          user={user}
+        />
+      )}
     </div>
   );
 }

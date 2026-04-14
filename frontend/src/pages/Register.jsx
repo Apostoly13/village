@@ -68,9 +68,8 @@ export default function Register() {
         </Link>
 
         <div className="max-w-md w-full mx-auto">
-          <div className="flex items-center gap-3 mb-8">
-            <img src="/logo.png" alt="" className="h-12 w-auto" />
-            <img src="/the_village_wordmark_light.png" alt="The Village" className="h-8 w-auto" />
+          <div className="flex items-center justify-center mb-8">
+            <img src="/BG Removed- Main Logo.png" alt="The Village" className="h-64 w-auto" />
           </div>
 
           <h1 className="font-heading text-3xl font-bold text-foreground mb-2">Join the community</h1>

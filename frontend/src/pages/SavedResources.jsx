@@ -6,6 +6,7 @@ import Navigation from "../components/Navigation";
 import { Bookmark, Heart, MessageCircle, Eye, Clock, Trash2, MessageSquare, Calendar, BookOpen, MapPin, Users, Check } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import AppFooter from "../components/AppFooter";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -13,7 +14,6 @@ const TABS = [
   { id: "posts", label: "Posts" },
   { id: "messages", label: "Chat Messages" },
   { id: "events", label: "Events" },
-  { id: "blog", label: "Blog" },
 ];
 
 const CATEGORY_STYLES = {
@@ -124,7 +124,7 @@ function PostsTab() {
   return (
     <div className="space-y-4">
       {bookmarks.map((post, idx) => (
-        <article key={post.post_id} className="bg-card rounded-2xl p-6 border border-border/50 hover:border-primary/30 transition-all">
+        <article key={post.post_id} className="bg-card rounded-2xl p-6 border border-border/50 shadow-sm border-l-2 border-l-primary/20 hover:border-primary/30 hover:shadow hover:border-l-primary/40 transition-all">
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
               {post.author_id !== "anonymous" ? (
@@ -244,7 +244,7 @@ function ChatMessagesTab() {
   return (
     <div className="space-y-4">
       {messages.map((msg) => (
-        <div key={msg.id} className="bg-card rounded-2xl p-5 border border-border/50 hover:border-primary/30 transition-all">
+        <div key={msg.id} className="bg-card rounded-2xl p-5 border border-border/50 shadow-sm border-l-2 border-l-primary/20 hover:border-primary/30 hover:shadow hover:border-l-primary/40 transition-all">
           <div className="flex items-start gap-3">
             <MessageSquare className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
             <div className="flex-1 min-w-0">
@@ -346,7 +346,7 @@ function EventsTab({ user }) {
         const catStyle = CATEGORY_STYLES[event.category] || CATEGORY_STYLES.general;
         const catLabel = CATEGORY_LABELS[event.category] || event.category;
         return (
-          <article key={event.event_id} className="bg-card border border-border/50 rounded-2xl p-5 hover:border-primary/30 transition-all flex gap-4">
+          <article key={event.event_id} className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm border-l-2 border-l-primary/20 hover:border-primary/30 hover:shadow hover:border-l-primary/40 transition-all flex gap-4">
             <div className="flex-shrink-0 w-14 h-14 rounded-xl bg-primary/15 text-primary flex flex-col items-center justify-center">
               <span className="text-xl font-bold leading-none">{dateInfo.day}</span>
               <span className="text-xs font-medium uppercase">{dateInfo.month}</span>
@@ -451,6 +451,7 @@ export default function SavedResources({ user }) {
         {activeTab === "messages" && <ChatMessagesTab />}
         {activeTab === "events" && <EventsTab user={user} />}
         {activeTab === "blog" && <BlogTab />}
+        <AppFooter />
       </main>
     </div>
   );

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { FEATURES } from "./config/features";
 import { Toaster } from "./components/ui/sonner";
 
 // Pages
@@ -25,14 +26,18 @@ import CreateCommunity from "./pages/CreateCommunity";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
 import Onboarding from "./pages/Onboarding";
+import Settings from "./pages/Settings";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
+import Contact from "./pages/Contact";
+import ComingSoon from "./pages/ComingSoon";
+import Suggestions from "./pages/Suggestions";
+import CommunityGuidelines from "./pages/CommunityGuidelines";
+import NotFound from "./pages/NotFound";
+import VillagePlus from "./pages/VillagePlus";
 import ChatPopout from "./components/ChatPopout";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
-
-// Auth Context
-export const AuthContext = ({ children }) => {
-  return children;
-};
 
 // Auth Callback - handles Google OAuth redirect
 // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
@@ -172,7 +177,6 @@ const ProtectedRoute = ({ children }) => {
   // Exception: already on /onboarding itself
   if (
     user &&
-    !user.parenting_stage &&
     !user.onboarding_complete &&
     location.pathname !== "/onboarding"
   ) {
@@ -296,19 +300,42 @@ const AppRouter = () => {
           {({ user }) => <Onboarding user={user} />}
         </ProtectedRoute>
       } />
-      <Route path="/blog" element={
+      {FEATURES.BLOG && <Route path="/blog" element={
         <ProtectedRoute>
           {({ user }) => <Blog user={user} />}
         </ProtectedRoute>
-      } />
-      <Route path="/blog/:slug" element={
+      } />}
+      {FEATURES.BLOG && <Route path="/blog/:slug" element={
         <ProtectedRoute>
           {({ user }) => <BlogPost user={user} />}
         </ProtectedRoute>
+      } />}
+      <Route path="/settings" element={
+        <ProtectedRoute>
+          {({ user }) => <Settings user={user} />}
+        </ProtectedRoute>
       } />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="/terms" element={<Terms />} />
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/contact" element={<Contact />} />
+      <Route path="/coming-soon" element={<ComingSoon />} />
+      <Route path="/suggestions" element={
+        <ProtectedRoute>
+          {({ user }) => <Suggestions user={user} />}
+        </ProtectedRoute>
+      } />
+      <Route path="/community-guidelines" element={<CommunityGuidelines />} />
+      <Route path="/plus" element={<VillagePlus user={popoutUser} />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
-    {popoutUser && !location.pathname.startsWith("/chat/") && <ChatPopout user={popoutUser} />}
+    {popoutUser &&
+      location.pathname !== "/" &&
+      location.pathname !== "/login" &&
+      location.pathname !== "/register" &&
+      location.pathname !== "/onboarding" &&
+      !location.pathname.match(/^\/chat\/.+/) &&
+      (() => { try { return JSON.parse(localStorage.getItem("village_prefs") || "{}").chatBubble !== false; } catch { return true; } })() &&
+      <ChatPopout user={popoutUser} />}
     </>
   );
 };
