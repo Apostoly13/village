@@ -1006,6 +1006,20 @@ async def get_single_parents(user: dict = Depends(get_current_user)):
     ).limit(20).to_list(20)
     return single_parents
 
+@api_router.get("/users/search")
+async def search_users(q: str = "", user: dict = Depends(get_current_user)):
+    """Search users by name or nickname. Must be defined before /users/{user_id}."""
+    if not q or len(q) < 2:
+        return []
+    users = await db.users.find(
+        {"$or": [
+            {"name": {"$regex": q, "$options": "i"}},
+            {"nickname": {"$regex": q, "$options": "i"}},
+        ]},
+        {"_id": 0, "user_id": 1, "name": 1, "nickname": 1, "picture": 1, "is_online": 1}
+    ).limit(10).to_list(10)
+    return users
+
 @api_router.get("/users/{user_id}")
 async def get_user_profile(user_id: str, request: Request):
     user = await db.users.find_one({"user_id": user_id}, {"_id": 0, "password_hash": 0})
@@ -1064,33 +1078,40 @@ async def get_categories(request: Request):
 
     categories = await db.forum_categories.find({}, {"_id": 0}).to_list(500)
 
-    # Enhance with additional stats
-    for cat in categories:
-        # Get most recent post timestamp
-        recent_post = await db.forum_posts.find_one(
-            {"category_id": cat["category_id"]},
-            {"_id": 0, "created_at": 1},
-            sort=[("created_at", -1)]
-        )
-        cat["last_post_at"] = recent_post["created_at"] if recent_post else None
-
-        # Count unique authors in last 7 days
+    if categories:
+        cat_ids = [c["category_id"] for c in categories]
         seven_days_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
-        pipeline = [
-            {"$match": {"category_id": cat["category_id"], "created_at": {"$gte": seven_days_ago}}},
-            {"$group": {"_id": "$author_id"}},
-            {"$count": "active_users"}
-        ]
-        result = await db.forum_posts.aggregate(pipeline).to_list(1)
-        cat["active_users"] = result[0]["active_users"] if result else 0
 
-        # Membership flag for communities
-        if current_user and cat.get("is_user_created"):
-            cat["is_member"] = current_user["user_id"] in cat.get("member_ids", [])
-            cat["is_creator"] = cat.get("created_by") == current_user["user_id"]
-        else:
-            cat["is_member"] = False
-            cat["is_creator"] = False
+        # Batch: most recent post per category (2 queries instead of N)
+        last_post_pipeline = [
+            {"$match": {"category_id": {"$in": cat_ids}}},
+            {"$sort": {"created_at": -1}},
+            {"$group": {"_id": "$category_id", "last_post_at": {"$first": "$created_at"}}},
+        ]
+        last_post_results = await db.forum_posts.aggregate(last_post_pipeline).to_list(len(cat_ids))
+        last_post_map = {r["_id"]: r["last_post_at"] for r in last_post_results}
+
+        # Batch: distinct active authors in last 7 days per category
+        active_pipeline = [
+            {"$match": {"category_id": {"$in": cat_ids}, "created_at": {"$gte": seven_days_ago}}},
+            {"$group": {"_id": "$category_id", "author_ids": {"$addToSet": "$author_id"}}},
+            {"$project": {"active_users": {"$size": "$author_ids"}}},
+        ]
+        active_results = await db.forum_posts.aggregate(active_pipeline).to_list(len(cat_ids))
+        active_map = {r["_id"]: r["active_users"] for r in active_results}
+
+        # Merge stats into each category document
+        current_user_id = current_user["user_id"] if current_user else None
+        for cat in categories:
+            cid = cat["category_id"]
+            cat["last_post_at"] = last_post_map.get(cid)
+            cat["active_users"] = active_map.get(cid, 0)
+            if current_user_id and cat.get("is_user_created"):
+                cat["is_member"] = current_user_id in cat.get("member_ids", [])
+                cat["is_creator"] = cat.get("created_by") == current_user_id
+            else:
+                cat["is_member"] = False
+                cat["is_creator"] = False
 
     return categories
 
@@ -1809,24 +1830,42 @@ async def get_bookmarks(user: dict = Depends(get_current_user), limit: int = 20,
         {"_id": 0}
     ).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
     
-    # Fetch full post details
+    # Fetch all posts in one query, then all categories in one query
     posts = []
-    for bm in bookmarks:
-        post = await db.forum_posts.find_one({"post_id": bm["post_id"]}, {"_id": 0})
-        if post:
-            # Add category info
-            category = await db.forum_categories.find_one({"category_id": post["category_id"]}, {"_id": 0})
-            post["category_name"] = category["name"] if category else "General"
-            post["category_icon"] = category["icon"] if category else "💬"
-            post["bookmarked_at"] = bm["created_at"]
-            
-            if post.get("is_anonymous"):
-                post["author_name"] = "Anonymous Parent"
-                post["author_picture"] = None
-                post["author_id"] = "anonymous"
-            
-            posts.append(post)
-    
+    if bookmarks:
+        bm_map = {bm["post_id"]: bm["created_at"] for bm in bookmarks}
+        post_ids = list(bm_map.keys())
+
+        # Single batch fetch for posts
+        raw_posts = await db.forum_posts.find(
+            {"post_id": {"$in": post_ids}}, {"_id": 0}
+        ).to_list(len(post_ids))
+        post_lookup = {p["post_id"]: p for p in raw_posts}
+
+        # Single batch fetch for categories referenced by those posts
+        cat_ids = list({p["category_id"] for p in raw_posts if p.get("category_id")})
+        raw_cats = await db.forum_categories.find(
+            {"category_id": {"$in": cat_ids}}, {"_id": 0, "category_id": 1, "name": 1, "icon": 1}
+        ).to_list(len(cat_ids))
+        cat_lookup = {c["category_id"]: c for c in raw_cats}
+
+        # Preserve bookmark ordering (sorted by created_at desc)
+        for bm in bookmarks:
+            post = post_lookup.get(bm["post_id"])
+            if post:
+                post = dict(post)  # don't mutate shared dict
+                cat = cat_lookup.get(post.get("category_id"), {})
+                post["category_name"] = cat.get("name", "General")
+                post["category_icon"] = cat.get("icon", "💬")
+                post["bookmarked_at"] = bm["created_at"]
+
+                if post.get("is_anonymous"):
+                    post["author_name"] = "Anonymous Parent"
+                    post["author_picture"] = None
+                    post["author_id"] = "anonymous"
+
+                posts.append(post)
+
     return posts
 
 # ==================== EVENTS ENDPOINTS ====================
@@ -2302,20 +2341,6 @@ async def get_block_status(user_id: str, user: dict = Depends(get_current_user))
     """Check if the current user has blocked another user"""
     block = await db.user_blocks.find_one({"blocker_id": user["user_id"], "blocked_id": user_id})
     return {"is_blocked": block is not None}
-
-@api_router.get("/users/search")
-async def search_users(q: str = "", user: dict = Depends(get_current_user)):
-    """Search users by name, nickname, or email (for moderator/friend lookup)"""
-    if not q or len(q) < 2:
-        return []
-    users = await db.users.find(
-        {"$or": [
-            {"name": {"$regex": q, "$options": "i"}},
-            {"nickname": {"$regex": q, "$options": "i"}},
-        ]},
-        {"_id": 0, "user_id": 1, "name": 1, "nickname": 1, "picture": 1, "is_online": 1}
-    ).limit(10).to_list(10)
-    return users
 
 # ==================== REPORT ENDPOINTS ====================
 
