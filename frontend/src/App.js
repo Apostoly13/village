@@ -1,323 +1,75 @@
-import { useEffect, useRef, useState } from "react";
-import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
-import { Toaster } from "./components/ui/sonner";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-// Pages
-import Landing from "./pages/Landing";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import Dashboard from "./pages/Dashboard";
-import Forums from "./pages/Forums";
-import ForumCategory from "./pages/ForumCategory";
-import ForumPost from "./pages/ForumPost";
-import ChatRooms from "./pages/ChatRooms";
-import ChatRoom from "./pages/ChatRoom";
-import Messages from "./pages/Messages";
-import Conversation from "./pages/Conversation";
-import Profile from "./pages/Profile";
-import CreatePost from "./pages/CreatePost";
-import Friends from "./pages/Friends";
-import Events from "./pages/Events";
-import SavedResources from "./pages/SavedResources";
-import AdminDashboard from "./pages/AdminDashboard";
-import Changelog from "./pages/Changelog";
-import CreateCommunity from "./pages/CreateCommunity";
-import Blog from "./pages/Blog";
-import BlogPost from "./pages/BlogPost";
-import Onboarding from "./pages/Onboarding";
-import ChatPopout from "./components/ChatPopout";
-
-const API_URL = process.env.REACT_APP_BACKEND_URL;
-
-// Auth Context
-export const AuthContext = ({ children }) => {
-  return children;
-};
-
-// Auth Callback - handles Google OAuth redirect
-// REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-const AuthCallback = () => {
-  const navigate = useNavigate();
-  const hasProcessed = useRef(false);
-
-  useEffect(() => {
-    if (hasProcessed.current) return;
-    hasProcessed.current = true;
-
-    const processAuth = async () => {
-      const hash = window.location.hash;
-      const sessionIdMatch = hash.match(/session_id=([^&]+)/);
-      
-      if (sessionIdMatch) {
-        const sessionId = sessionIdMatch[1];
-        
-        try {
-          const response = await fetch(`${API_URL}/api/auth/session`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ session_id: sessionId })
-          });
-
-          if (response.ok) {
-            const userData = await response.json();
-            localStorage.setItem("user", JSON.stringify(userData));
-            navigate("/dashboard", { state: { user: userData }, replace: true });
-          } else {
-            navigate("/login", { replace: true });
-          }
-        } catch (error) {
-          console.error("Auth error:", error);
-          navigate("/login", { replace: true });
-        }
-      } else {
-        navigate("/login", { replace: true });
-      }
-    };
-
-    processAuth();
-  }, [navigate]);
-
+function ComingSoon() {
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-        <p className="text-muted-foreground">Signing you in...</p>
+    <div style={{
+      minHeight: "100vh",
+      background: "linear-gradient(135deg, #1a0f0a 0%, #2d1810 50%, #1a0f0a 100%)",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      fontFamily: "'Georgia', serif",
+      padding: "2rem",
+      textAlign: "center",
+    }}>
+      <img
+        src="/BG Removed- Main Logo - ps edit.png"
+        alt="Our Little Village"
+        style={{ height: "80px", width: "auto", marginBottom: "2rem", opacity: 0.95 }}
+      />
+
+      <h1 style={{
+        fontSize: "clamp(2rem, 5vw, 3.5rem)",
+        fontWeight: "bold",
+        color: "#f5e6d0",
+        marginBottom: "1rem",
+        letterSpacing: "-0.02em",
+        lineHeight: 1.2,
+      }}>
+        Something special<br />is coming
+      </h1>
+
+      <p style={{
+        fontSize: "clamp(1rem, 2vw, 1.2rem)",
+        color: "#c9a882",
+        maxWidth: "480px",
+        lineHeight: 1.7,
+        marginBottom: "3rem",
+      }}>
+        A warm, safe space for Australian parents to connect, share, and find their village.
+        We're putting the finishing touches on — stay tuned.
+      </p>
+
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "0.5rem",
+        padding: "0.75rem 1.5rem",
+        borderRadius: "999px",
+        border: "1px solid rgba(201, 168, 130, 0.3)",
+        background: "rgba(201, 168, 130, 0.08)",
+        color: "#c9a882",
+        fontSize: "0.9rem",
+        marginBottom: "3rem",
+      }}>
+        <span>🌿</span>
+        <span>ourlittlevillage.au</span>
       </div>
+
+      <p style={{ color: "rgba(201, 168, 130, 0.4)", fontSize: "0.8rem" }}>
+        © {new Date().getFullYear()} Our Little Village — built for Australian parents
+      </p>
     </div>
   );
-};
-
-// Protected Route wrapper
-const ProtectedRoute = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(null);
-  const [user, setUser] = useState(null);
-  const location = useLocation();
-  const navigate = useNavigate();
-  const checkedRef = useRef(false);
-
-  useEffect(() => {
-    // Skip if user passed from AuthCallback
-    if (location.state?.user) {
-      setUser(location.state.user);
-      setIsAuthenticated(true);
-      localStorage.setItem("user", JSON.stringify(location.state.user));
-      return;
-    }
-
-    // If we already have user data, don't re-check
-    if (user && isAuthenticated) {
-      return;
-    }
-
-    // Only check auth once per mount
-    if (checkedRef.current) {
-      return;
-    }
-
-    const checkAuth = async () => {
-      checkedRef.current = true;
-      
-      // First check localStorage
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        // Try to parse and use cached user first for faster UX
-        try {
-          const cachedUser = JSON.parse(storedUser);
-          setUser(cachedUser);
-          setIsAuthenticated(true);
-          
-          // Verify in background
-          const response = await fetch(`${API_URL}/api/auth/me`, {
-            credentials: "include"
-          });
-          
-          if (response.ok) {
-            const freshUser = await response.json();
-            setUser(freshUser);
-            localStorage.setItem("user", JSON.stringify(freshUser));
-          } else {
-            // Session expired, clear and redirect
-            localStorage.removeItem("user");
-            setIsAuthenticated(false);
-            navigate("/login", { replace: true });
-          }
-          return;
-        } catch (error) {
-          console.error("Auth check failed:", error);
-        }
-      }
-      
-      localStorage.removeItem("user");
-      setIsAuthenticated(false);
-      navigate("/login", { replace: true });
-    };
-
-    checkAuth();
-  }, [location.state, navigate, user, isAuthenticated]);
-
-  if (isAuthenticated === null) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return null;
-  }
-
-  // New users who haven't completed onboarding → redirect to /onboarding
-  // Exception: already on /onboarding itself
-  if (
-    user &&
-    !user.parenting_stage &&
-    !user.onboarding_complete &&
-    location.pathname !== "/onboarding"
-  ) {
-    return <Navigate to="/onboarding" replace />;
-  }
-
-  return typeof children === 'function' ? children({ user }) : children;
-};
-
-// Main App Router
-const AppRouter = () => {
-  const location = useLocation();
-  const [popoutUser, setPopoutUser] = useState(null);
-
-  useEffect(() => {
-    const raw = localStorage.getItem("user");
-    if (raw) {
-      try { setPopoutUser(JSON.parse(raw)); } catch {}
-    }
-  }, [location.pathname]);
-
-  // Check for session_id in URL hash (Google OAuth callback)
-  if (location.hash?.includes('session_id=')) {
-    return <AuthCallback />;
-  }
-
-  return (
-    <>
-    <Routes>
-      <Route path="/" element={<Landing />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/dashboard" element={
-        <ProtectedRoute>
-          {({ user }) => <Dashboard user={user} />}
-        </ProtectedRoute>
-      } />
-      <Route path="/forums" element={
-        <ProtectedRoute>
-          {({ user }) => <Forums user={user} />}
-        </ProtectedRoute>
-      } />
-      <Route path="/forums/:categoryId" element={
-        <ProtectedRoute>
-          {({ user }) => <ForumCategory user={user} />}
-        </ProtectedRoute>
-      } />
-      <Route path="/forums/post/:postId" element={
-        <ProtectedRoute>
-          {({ user }) => <ForumPost user={user} />}
-        </ProtectedRoute>
-      } />
-      <Route path="/create-post" element={
-        <ProtectedRoute>
-          {({ user }) => <CreatePost user={user} />}
-        </ProtectedRoute>
-      } />
-      <Route path="/chat" element={
-        <ProtectedRoute>
-          {({ user }) => <ChatRooms user={user} />}
-        </ProtectedRoute>
-      } />
-      <Route path="/chat/:roomId" element={
-        <ProtectedRoute>
-          {({ user }) => <ChatRoom user={user} />}
-        </ProtectedRoute>
-      } />
-      <Route path="/messages" element={
-        <ProtectedRoute>
-          {({ user }) => <Messages user={user} />}
-        </ProtectedRoute>
-      } />
-      <Route path="/messages/:userId" element={
-        <ProtectedRoute>
-          {({ user }) => <Conversation user={user} />}
-        </ProtectedRoute>
-      } />
-      <Route path="/profile" element={
-        <ProtectedRoute>
-          {({ user }) => <Profile user={user} />}
-        </ProtectedRoute>
-      } />
-      <Route path="/profile/:userId" element={
-        <ProtectedRoute>
-          {({ user }) => <Profile user={user} />}
-        </ProtectedRoute>
-      } />
-      <Route path="/friends" element={
-        <ProtectedRoute>
-          {({ user }) => <Friends user={user} />}
-        </ProtectedRoute>
-      } />
-      <Route path="/bookmarks" element={<Navigate to="/saved" replace />} />
-      <Route path="/saved" element={
-        <ProtectedRoute>
-          {({ user }) => <SavedResources user={user} />}
-        </ProtectedRoute>
-      } />
-      <Route path="/events" element={
-        <ProtectedRoute>
-          {({ user }) => <Events user={user} />}
-        </ProtectedRoute>
-      } />
-      <Route path="/admin" element={
-        <ProtectedRoute>
-          {({ user }) => <AdminDashboard user={user} />}
-        </ProtectedRoute>
-      } />
-      <Route path="/changelog" element={
-        <ProtectedRoute>
-          {({ user }) => <Changelog user={user} />}
-        </ProtectedRoute>
-      } />
-      <Route path="/create-community" element={
-        <ProtectedRoute>
-          {({ user }) => <CreateCommunity user={user} />}
-        </ProtectedRoute>
-      } />
-      <Route path="/onboarding" element={
-        <ProtectedRoute>
-          {({ user }) => <Onboarding user={user} />}
-        </ProtectedRoute>
-      } />
-      <Route path="/blog" element={
-        <ProtectedRoute>
-          {({ user }) => <Blog user={user} />}
-        </ProtectedRoute>
-      } />
-      <Route path="/blog/:slug" element={
-        <ProtectedRoute>
-          {({ user }) => <BlogPost user={user} />}
-        </ProtectedRoute>
-      } />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
-    {popoutUser && !location.pathname.startsWith("/chat/") && <ChatPopout user={popoutUser} />}
-    </>
-  );
-};
+}
 
 function App() {
   return (
     <BrowserRouter>
-      <AppRouter />
-      <Toaster position="top-center" />
+      <Routes>
+        <Route path="*" element={<ComingSoon />} />
+      </Routes>
     </BrowserRouter>
   );
 }
