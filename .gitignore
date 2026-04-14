@@ -60,6 +60,12 @@ chainlit.md
 .ipynb_checkpoints/
 .ac
 
+# Claude Code local files
+.claude/settings.local.json
+.agents/
+.claude/skills/
+skills-lock.json
+
 # Deployment
 .vercel
 
