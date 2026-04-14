@@ -18,7 +18,6 @@ function ComingSoon() {
         alt="Our Little Village"
         style={{ height: "80px", width: "auto", marginBottom: "2rem", opacity: 0.95 }}
       />
-
       <h1 style={{
         fontSize: "clamp(2rem, 5vw, 3.5rem)",
         fontWeight: "bold",
@@ -29,7 +28,6 @@ function ComingSoon() {
       }}>
         Something special<br />is coming
       </h1>
-
       <p style={{
         fontSize: "clamp(1rem, 2vw, 1.2rem)",
         color: "#c9a882",
@@ -38,9 +36,8 @@ function ComingSoon() {
         marginBottom: "3rem",
       }}>
         A warm, safe space for Australian parents to connect, share, and find their village.
-        We're putting the finishing touches on — stay tuned.
+        We are putting the finishing touches on - stay tuned.
       </p>
-
       <div style={{
         display: "flex",
         alignItems: "center",
@@ -53,12 +50,10 @@ function ComingSoon() {
         fontSize: "0.9rem",
         marginBottom: "3rem",
       }}>
-        <span>🌿</span>
         <span>ourlittlevillage.au</span>
       </div>
-
       <p style={{ color: "rgba(201, 168, 130, 0.4)", fontSize: "0.8rem" }}>
-        © {new Date().getFullYear()} Our Little Village — built for Australian parents
+        Copyright {new Date().getFullYear()} Our Little Village - built for Australian parents
       </p>
     </div>
   );

@@ -5,6 +5,7 @@ import { Input } from "../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import Navigation from "../components/Navigation";
+import AppFooter from "../components/AppFooter";
 import { toast } from "sonner";
 import { Users, MapPin, Compass, Search, Plus, MessagesSquare } from "lucide-react";
 
@@ -19,6 +20,18 @@ const DISTANCE_OPTIONS = [
   { id: "100km", label: "100km" },
 ];
 
+// Returns the AEST hour (UTC+10, no DST adjustment)
+function getAESTHour() {
+  const now = new Date();
+  const aestMs = now.getTime() + 10 * 60 * 60 * 1000;
+  return new Date(aestMs).getUTCHours();
+}
+
+function isNightOwlTime() {
+  const h = getAESTHour();
+  return h >= 22 || h < 4;
+}
+
 export default function ChatRooms({ user }) {
   const navigate = useNavigate();
   const [mySuburbRoom, setMySuburbRoom] = useState(null);
@@ -29,11 +42,12 @@ export default function ChatRooms({ user }) {
   const [preferredReach, setPreferredReach] = useState(user?.preferred_reach || "25km");
   const [hasLocation, setHasLocation] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("myarea");
+  // Default to "village" (All Australia) tab
+  const [activeTab, setActiveTab] = useState("village");
   const [creatingRoom, setCreatingRoom] = useState(false);
 
-  // Search state
-  const [searchQuery, setSearchQuery] = useState("");
+  // Local Circles search state (replaces the separate Search tab)
+  const [localSearch, setLocalSearch] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searchCanCreate, setSearchCanCreate] = useState(false);
   const [searchPostcode, setSearchPostcode] = useState(null);
@@ -43,6 +57,8 @@ export default function ChatRooms({ user }) {
   const [friends, setFriends] = useState([]);
   const [friendsLoading, setFriendsLoading] = useState(false);
   const [openingChat, setOpeningChat] = useState({});
+
+  const nightOwl = isNightOwlTime();
 
   useEffect(() => {
     fetchRooms();
@@ -98,15 +114,6 @@ export default function ChatRooms({ user }) {
         setUserPostcode(data.user_postcode || "");
         setPreferredReach(data.preferred_reach || "25km");
         setHasLocation(data.has_location || false);
-
-        // Set initial tab
-        if (!reachOverride) {
-          if (data.has_location && (data.my_suburb_room || data.nearby_rooms?.length > 0)) {
-            setActiveTab("myarea");
-          } else {
-            setActiveTab("australia");
-          }
-        }
       }
     } catch (error) {
       console.error("Error fetching rooms:", error);
@@ -146,9 +153,9 @@ export default function ChatRooms({ user }) {
     }
   };
 
-  // Debounced search
+  // Debounced search within Local Circles tab
   useEffect(() => {
-    if (activeTab !== "search" || searchQuery.length < 2) {
+    if (activeTab !== "local" || localSearch.length < 2) {
       setSearchResults([]);
       setSearchCanCreate(false);
       setSearchPostcode(null);
@@ -158,7 +165,7 @@ export default function ChatRooms({ user }) {
       setSearching(true);
       try {
         const response = await fetch(
-          `${API_URL}/api/chat/rooms/search?q=${encodeURIComponent(searchQuery)}`,
+          `${API_URL}/api/chat/rooms/search?q=${encodeURIComponent(localSearch)}`,
           { credentials: "include" }
         );
         if (response.ok) {
@@ -174,16 +181,11 @@ export default function ChatRooms({ user }) {
       }
     }, 400);
     return () => clearTimeout(timer);
-  }, [searchQuery, activeTab]);
+  }, [localSearch, activeTab]);
 
   const RoomCard = ({ room, idx, showDistance = false }) => (
-    <Link
-      key={room.room_id}
-      to={`/chat/${room.room_id}`}
-      className="block"
-      data-testid={`room-card-${idx}`}
-    >
-      <div className="bg-card rounded-2xl p-6 border border-border/50 transition-all h-full hover:border-primary/30 card-hover">
+    <Link key={room.room_id} to={`/chat/${room.room_id}`} className="block" data-testid={`room-card-${idx}`}>
+      <div className="bg-card rounded-2xl p-5 border border-border/40 card-elevated border-l-2 border-l-primary/20 transition-all h-full hover:border-primary/30 hover:shadow-md hover:border-l-primary/40">
         <div className="flex items-start gap-4">
           <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center text-3xl flex-shrink-0">
             {room.icon}
@@ -193,21 +195,17 @@ export default function ChatRooms({ user }) {
               <h3 className="font-heading font-bold text-lg text-foreground">{room.name}</h3>
               {showDistance && room.distance_km !== undefined && (
                 <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-600 dark:text-green-400 flex items-center gap-1">
-                  <MapPin className="h-3 w-3" />
-                  {room.distance_km}km
+                  <MapPin className="h-3 w-3" />{room.distance_km}km
                 </span>
               )}
               {room.postcode && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
-                  {room.postcode}
-                </span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">{room.postcode}</span>
               )}
             </div>
             <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{room.description}</p>
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
               <span className="flex items-center gap-1">
-                <Users className="h-4 w-4" />
-                {room.active_users || 0} online
+                <Users className="h-4 w-4" />{room.active_users || 0} online
               </span>
             </div>
           </div>
@@ -225,12 +223,10 @@ export default function ChatRooms({ user }) {
         <div className="flex-1">
           <h3 className="font-heading font-bold text-foreground mb-1">Set your location to connect locally</h3>
           <p className="text-sm text-muted-foreground mb-3">
-            Add your suburb or postcode in your profile to see local parents and nearby chat rooms.
+            Add your suburb or postcode in your profile to see local chat circles.
           </p>
           <Link to="/profile">
-            <Button size="sm" className="rounded-full bg-primary text-primary-foreground">
-              Update Profile
-            </Button>
+            <Button size="sm" className="rounded-full bg-primary text-primary-foreground">Update Profile</Button>
           </Link>
         </div>
       </div>
@@ -258,74 +254,197 @@ export default function ChatRooms({ user }) {
       <Navigation user={user} />
 
       <main className="max-w-4xl mx-auto px-4 pt-20 lg:pt-24">
-        <div className="mb-8">
+        <div className="mb-6">
           <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-1">Chat Circles</h1>
-          <p className="text-sm text-muted-foreground">Connect with parents in your area in real-time</p>
+          <p className="text-sm text-muted-foreground">Real-time chat rooms — national, local, and friends</p>
         </div>
+
+        {/* Night Owl banner */}
+        {nightOwl && (
+          <div className="mb-4 p-4 rounded-2xl bg-primary/10 border border-primary/20 flex items-center gap-3">
+            <span className="text-2xl">🌙</span>
+            <div>
+              <p className="text-sm font-medium text-foreground">Night Owl hours — you're not alone</p>
+              <p className="text-xs text-muted-foreground">The 3am Club is active right now. Join for late-night company.</p>
+            </div>
+          </div>
+        )}
 
         {!hasLocation && <LocationPrompt />}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="w-full bg-card border border-border/50 rounded-xl p-1 mb-6">
             <TabsTrigger
-              value="myarea"
+              value="village"
               className="flex-1 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              data-testid="tab-myarea"
+              data-testid="tab-village"
             >
-              <Compass className="h-4 w-4 mr-2" />
-              My Area
+              🇦🇺 Village Circles
+            </TabsTrigger>
+            <TabsTrigger
+              value="local"
+              className="flex-1 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              data-testid="tab-local"
+            >
+              Local Circles
             </TabsTrigger>
             <TabsTrigger
               value="friends"
               className="flex-1 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               data-testid="tab-friends"
             >
-              <MessagesSquare className="h-4 w-4 mr-2" />
               Friends
-            </TabsTrigger>
-            <TabsTrigger
-              value="search"
-              className="flex-1 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              data-testid="tab-search"
-            >
-              <Search className="h-4 w-4 mr-2" />
-              Search
-            </TabsTrigger>
-            <TabsTrigger
-              value="australia"
-              className="flex-1 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              data-testid="tab-australia"
-            >
-              All Australia
             </TabsTrigger>
           </TabsList>
 
-          {/* My Area Tab */}
-          <TabsContent value="myarea" className="mt-0">
-            {hasLocation && (
-              <div className="mb-4 p-3 rounded-xl bg-secondary/30 border border-border/30 flex items-center justify-between gap-3 flex-wrap">
-                <p className="text-sm text-muted-foreground flex items-center gap-2">
-                  <Compass className="h-4 w-4" />
-                  Showing rooms within
-                </p>
-                <Select value={preferredReach} onValueChange={handleReachChange}>
-                  <SelectTrigger className="w-[180px] h-9 rounded-lg bg-card border-border/50">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DISTANCE_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.id} value={opt.id}>{opt.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+          {/* ── Village Circles (All Australia) ── */}
+          <TabsContent value="village" className="mt-0">
+            {loading ? (
+              <LoadingSkeleton count={4} />
+            ) : allAustraliaRooms.length === 0 ? (
+              <div className="text-center py-12 bg-card rounded-2xl border border-border/50">
+                <span className="text-4xl mb-3 block">🇦🇺</span>
+                <h3 className="font-heading font-semibold text-foreground mb-1">No rooms available</h3>
+                <p className="text-muted-foreground">Check back soon!</p>
               </div>
-            )}
+            ) : (
+              <>
+                {/* Night Owl 3am Club feature */}
+                {nightOwl && (() => {
+                  const club = allAustraliaRooms.find(r => r.name?.toLowerCase().includes("3am"));
+                  return club ? (
+                    <Link to={`/chat/${club.room_id}`} className="block mb-4">
+                      <div className="rounded-2xl p-5 bg-primary/10 border border-primary/30 hover:border-primary/50 transition-all card-hover flex items-center gap-4">
+                        <div className="w-14 h-14 rounded-xl bg-primary/20 flex items-center justify-center text-3xl shrink-0">🌙</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="text-xs font-semibold uppercase tracking-wide text-primary">Active now · Night Owl hours</span>
+                          </div>
+                          <h3 className="font-heading font-bold text-foreground">{club.name}</h3>
+                          <p className="text-sm text-muted-foreground">{club.description}</p>
+                        </div>
+                      </div>
+                    </Link>
+                  ) : null;
+                })()}
 
-            {!hasLocation ? (
+                {/* Featured: Mum Chat + Dad Chat — 2-col grid matching Support Spaces layout */}
+                {(() => {
+                  const mumChat = allAustraliaRooms.find(r => r.name === "Mum Chat" || r.name === "Mum Circle");
+                  const dadChat = allAustraliaRooms.find(r => r.name === "Dad Chat" || r.name === "Dad Circle");
+                  if (!mumChat && !dadChat) return null;
+                  return (
+                    <div className="grid sm:grid-cols-2 gap-4 mb-4">
+                      {mumChat && (
+                        <Link to={`/chat/${mumChat.room_id}`} className="block">
+                          <div className="rounded-2xl p-5 bg-pink-500/8 dark:bg-pink-500/10 border border-pink-400/30 border-l-4 border-l-pink-400/60 hover:border-pink-400/50 hover:opacity-90 transition-all h-full card-hover">
+                            <div className="flex items-start gap-4">
+                              <div className="w-12 h-12 rounded-full bg-pink-500/20 flex items-center justify-center text-2xl flex-shrink-0">👩</div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                  <h3 className="font-heading font-bold text-base text-foreground">{mumChat.name}</h3>
+                                  <span className="text-xs font-semibold text-pink-500">Featured</span>
+                                </div>
+                                <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{mumChat.description}</p>
+                                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                  <span className="flex items-center gap-1">
+                                    <Users className="h-3.5 w-3.5" />{mumChat.active_users || 0} online
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </Link>
+                      )}
+                      {dadChat && (
+                        <Link to={`/chat/${dadChat.room_id}`} className="block">
+                          <div className="rounded-2xl p-5 bg-blue-500/8 dark:bg-blue-500/10 border border-blue-400/30 border-l-4 border-l-blue-400/60 hover:border-blue-400/50 hover:opacity-90 transition-all h-full card-hover">
+                            <div className="flex items-start gap-4">
+                              <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center text-2xl flex-shrink-0">👨</div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                  <h3 className="font-heading font-bold text-base text-foreground">{dadChat.name}</h3>
+                                  <span className="text-xs font-semibold text-blue-500">Featured</span>
+                                </div>
+                                <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{dadChat.description}</p>
+                                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                  <span className="flex items-center gap-1">
+                                    <Users className="h-3.5 w-3.5" />{dadChat.active_users || 0} online
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </Link>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {allAustraliaRooms
+                    .filter(r => !["Mum Chat", "Mum Circle", "Dad Chat", "Dad Circle"].includes(r.name))
+                    .map((room, idx) => (
+                      <RoomCard key={room.room_id} room={room} idx={idx} />
+                    ))}
+                </div>
+              </>
+            )}
+          </TabsContent>
+
+          {/* ── Local Circles (My Area + search) ── */}
+          <TabsContent value="local" className="mt-0">
+            {/* Search bar always visible in Local Circles */}
+            <div className="mb-5">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input
+                  value={localSearch}
+                  onChange={(e) => setLocalSearch(e.target.value)}
+                  placeholder="Search by postcode or suburb..."
+                  className="h-12 pl-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
+                  data-testid="local-search-input"
+                />
+              </div>
+            </div>
+
+            {localSearch.length >= 2 ? (
+              /* Search mode */
+              searching ? <LoadingSkeleton /> : (
+                <div className="space-y-4">
+                  {searchResults.length > 0 ? (
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      {searchResults.map((room, idx) => (
+                        <RoomCard key={room.room_id} room={room} idx={`search-${idx}`} showDistance />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 bg-card rounded-2xl border border-border/50">
+                      <span className="text-4xl mb-3 block">📭</span>
+                      <p className="text-muted-foreground">No active rooms found for "{localSearch}"</p>
+                    </div>
+                  )}
+                  {searchCanCreate && searchPostcode && (
+                    <div className="bg-primary/5 border border-primary/20 rounded-2xl p-6 text-center">
+                      <p className="text-foreground mb-3">No room exists for postcode <strong>{searchPostcode}</strong></p>
+                      <Button
+                        onClick={() => createSuburbRoom(searchPostcode)}
+                        disabled={creatingRoom}
+                        className="rounded-full bg-primary text-primary-foreground"
+                        data-testid="create-search-room"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        {creatingRoom ? "Creating..." : `Create Room for ${searchPostcode}`}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )
+            ) : !hasLocation ? (
               <div className="text-center py-12 bg-card rounded-2xl border border-border/50">
                 <span className="text-4xl mb-3 block">📍</span>
                 <h3 className="font-heading font-semibold text-foreground mb-1">Location not set</h3>
-                <p className="text-sm text-muted-foreground mb-4">Update your profile with your location to see nearby rooms</p>
+                <p className="text-sm text-muted-foreground mb-4">Update your profile with your suburb, or search above for any area.</p>
                 <Link to="/profile">
                   <Button className="rounded-full bg-primary text-primary-foreground">Set Location</Button>
                 </Link>
@@ -334,7 +453,25 @@ export default function ChatRooms({ user }) {
               <LoadingSkeleton />
             ) : (
               <div className="space-y-6">
-                {/* User's own suburb room */}
+                {hasLocation && (
+                  <div className="p-3 rounded-xl bg-secondary/30 border border-border/30 flex items-center justify-between gap-3 flex-wrap">
+                    <p className="text-sm text-muted-foreground flex items-center gap-2">
+                      <Compass className="h-4 w-4" />
+                      Showing rooms within
+                    </p>
+                    <Select value={preferredReach} onValueChange={handleReachChange}>
+                      <SelectTrigger className="w-[180px] h-9 rounded-lg bg-card border-border/50">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DISTANCE_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.id} value={opt.id}>{opt.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 {mySuburbRoom ? (
                   <div>
                     <h3 className="font-heading text-sm font-bold text-muted-foreground uppercase tracking-wide mb-3">Your Suburb</h3>
@@ -359,7 +496,6 @@ export default function ChatRooms({ user }) {
                   </div>
                 ) : null}
 
-                {/* Nearby suburb rooms */}
                 {nearbyRooms.length > 0 && (
                   <div>
                     <h3 className="font-heading text-sm font-bold text-muted-foreground uppercase tracking-wide mb-3">Nearby</h3>
@@ -375,19 +511,14 @@ export default function ChatRooms({ user }) {
                   <div className="text-center py-12 bg-card rounded-2xl border border-border/50">
                     <span className="text-4xl mb-3 block">🔍</span>
                     <h3 className="font-heading font-semibold text-foreground mb-1">No nearby rooms yet</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Try expanding your reach above, or search for a suburb to start a room.
-                    </p>
-                    <Button onClick={() => setActiveTab("search")} className="rounded-full">
-                      Search for Rooms
-                    </Button>
+                    <p className="text-sm text-muted-foreground mb-4">Try expanding your reach above, or search for a suburb.</p>
                   </div>
                 )}
               </div>
             )}
           </TabsContent>
 
-          {/* Friends Tab */}
+          {/* ── Friends ── */}
           <TabsContent value="friends" className="mt-0">
             {friendsLoading ? (
               <LoadingSkeleton />
@@ -396,24 +527,17 @@ export default function ChatRooms({ user }) {
                 <span className="text-4xl mb-3 block">💛</span>
                 <h3 className="font-heading font-semibold text-foreground mb-1">No friends yet</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Connect with parents in the forums first, then start a private chat.
+                  Connect with parents in Support Spaces first, then start a private chat here.
                 </p>
                 <Link to="/friends">
-                  <Button className="rounded-full bg-primary text-primary-foreground">
-                    Find friends
-                  </Button>
+                  <Button className="rounded-full bg-primary text-primary-foreground">Find friends</Button>
                 </Link>
               </div>
             ) : (
               <div className="space-y-3">
-                <p className="text-sm text-muted-foreground mb-4">
-                  Start a private real-time chat with any of your friends.
-                </p>
+                <p className="text-sm text-muted-foreground mb-4">Start a private real-time chat with any of your friends.</p>
                 {friends.map((friend) => (
-                  <div
-                    key={friend.user_id}
-                    className="bg-card rounded-2xl p-4 border border-border/50 flex items-center gap-4"
-                  >
+                  <div key={friend.user_id} className="bg-card rounded-2xl p-4 border border-border/50 flex items-center gap-4">
                     <div className="relative shrink-0">
                       <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-lg font-semibold text-primary overflow-hidden">
                         {friend.picture ? (
@@ -429,7 +553,7 @@ export default function ChatRooms({ user }) {
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-foreground truncate">{friend.nickname || friend.name}</p>
                       <p className={`text-xs ${friend.is_online ? "text-green-500" : "text-muted-foreground"}`}>
-                        {friend.is_online ? "Online now" : "Offline"}
+                        {friend.is_online ? "Active now" : "Offline"}
                       </p>
                     </div>
                     <Button
@@ -447,118 +571,26 @@ export default function ChatRooms({ user }) {
               </div>
             )}
           </TabsContent>
-
-          {/* Search Tab */}
-          <TabsContent value="search" className="mt-0">
-            <div className="mb-6">
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search by postcode (e.g. 2026) or suburb name..."
-                  className="h-12 pl-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
-                  data-testid="suburb-search-input"
-                />
-              </div>
-            </div>
-
-            {searchQuery.length < 2 ? (
-              <div className="text-center py-12 bg-card rounded-2xl border border-border/50">
-                <span className="text-4xl mb-3 block">🔍</span>
-                <h3 className="font-heading font-semibold text-foreground mb-1">Find a local room</h3>
-                <p className="text-muted-foreground">Enter a postcode or suburb name to find or create a chat room</p>
-              </div>
-            ) : searching ? (
-              <LoadingSkeleton />
-            ) : (
-              <div className="space-y-4">
-                {searchResults.length > 0 ? (
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    {searchResults.map((room, idx) => (
-                      <RoomCard key={room.room_id} room={room} idx={`search-${idx}`} showDistance />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 bg-card rounded-2xl border border-border/50">
-                    <span className="text-4xl mb-3 block">📭</span>
-                    <p className="text-muted-foreground">No active rooms found for "{searchQuery}"</p>
-                  </div>
-                )}
-
-                {searchCanCreate && searchPostcode && (
-                  <div className="bg-primary/5 border border-primary/20 rounded-2xl p-6 text-center">
-                    <p className="text-foreground mb-3">No room exists for postcode <strong>{searchPostcode}</strong></p>
-                    <Button
-                      onClick={() => createSuburbRoom(searchPostcode)}
-                      disabled={creatingRoom}
-                      className="rounded-full bg-primary text-primary-foreground"
-                      data-testid="create-search-room"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      {creatingRoom ? "Creating..." : `Create Room for ${searchPostcode}`}
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )}
-          </TabsContent>
-
-          {/* All Australia Tab */}
-          <TabsContent value="australia" className="mt-0">
-            {loading ? (
-              <LoadingSkeleton count={4} />
-            ) : allAustraliaRooms.length === 0 ? (
-              <div className="text-center py-12 bg-card rounded-2xl border border-border/50">
-                <span className="text-4xl mb-3 block">🇦🇺</span>
-                <h3 className="font-heading font-semibold text-foreground mb-1">No rooms available</h3>
-                <p className="text-muted-foreground">Check back soon!</p>
-              </div>
-            ) : (
-              <>
-                {/* Featured: Dad Chat */}
-                {(() => {
-                  const dadChat = allAustraliaRooms.find(r => r.name === "Dad Chat");
-                  return dadChat ? (
-                    <Link to={`/chat/${dadChat.room_id}`} className="block mb-4">
-                      <div className="rounded-2xl p-5 bg-blue-500/10 border border-blue-500/30 hover:border-blue-500/50 transition-all card-hover flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-xl bg-blue-500/20 flex items-center justify-center text-3xl shrink-0">👨</div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-0.5">
-                            <span className="text-xs font-semibold uppercase tracking-wide text-blue-500">Featured — Dads</span>
-                          </div>
-                          <h3 className="font-heading font-bold text-foreground">{dadChat.name}</h3>
-                          <p className="text-sm text-muted-foreground">{dadChat.description}</p>
-                        </div>
-                      </div>
-                    </Link>
-                  ) : null;
-                })()}
-                <div className="grid sm:grid-cols-2 gap-4">
-                  {allAustraliaRooms.map((room, idx) => (
-                    <RoomCard key={room.room_id} room={room} idx={idx} />
-                  ))}
-                </div>
-              </>
-            )}
-          </TabsContent>
         </Tabs>
 
-        {/* Info Box */}
-        <div className="mt-8 p-6 rounded-2xl bg-primary/5 border border-primary/20">
-          <div className="flex items-start gap-4">
-            <span className="text-3xl">🌙</span>
-            <div>
-              <h3 className="font-heading font-bold text-foreground mb-1">Night Owl Tip</h3>
-              <p className="text-sm text-muted-foreground">
-                The "3am Club" room is most active between 10pm and 4am AEST.
-                Perfect for those late-night feeds when you need someone to talk to!
-                Active night owls get a 🦉 badge on their profile.
-              </p>
+        {/* Night Owl info (non-active hours) */}
+        {!nightOwl && (
+          <div className="mt-8 p-6 rounded-2xl bg-primary/5 border border-primary/20">
+            <div className="flex items-start gap-4">
+              <span className="text-3xl">🌙</span>
+              <div>
+                <h3 className="font-heading font-bold text-foreground mb-1">The 3am Club</h3>
+                <p className="text-sm text-muted-foreground">
+                  The 3am Club chat circle is most active between 10pm and 4am AEST —
+                  perfect for those late-night feeds when you need someone to talk to.
+                  Active night owls earn the 🦉 Night Owl badge.
+                </p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </main>
+      <AppFooter />
     </div>
   );
 }

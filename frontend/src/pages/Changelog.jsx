@@ -1,8 +1,45 @@
 import { Link } from "react-router-dom";
 import Navigation from "../components/Navigation";
 import { ArrowLeft, ScrollText } from "lucide-react";
+import AppFooter from "../components/AppFooter";
 
 const CHANGELOG = [
+  {
+    version: "2.5.0",
+    date: "April 2026",
+    title: "Visual Redesign & UX Polish",
+    entries: [
+      { tag: "Design", text: "Chat bubbles fully rounded on all sides across Chat Circles, Messages, and the chat popout — cleaner and more modern" },
+      { tag: "Design", text: "Mobile bottom navigation simplified to icon-only with an active-tab pill indicator — less visual noise, more thumb space" },
+      { tag: "Design", text: "Threaded replies in Support Spaces now use a warm sage left border and subtle tint — easier to follow conversations at a glance" },
+      { tag: "Design", text: "Feature cards on the landing page have a subtle radial gradient accent for depth" },
+      { tag: "Design", text: "Support Spaces page narrowed to a focused reading width — long posts are easier to read" },
+      { tag: "Improved", text: "Reply box in Support Spaces now auto-expands as you type — no more text spilling outside the input" },
+      { tag: "Fixed", text: "Messages page bubble colours now consistent with Chat Circles" },
+    ],
+  },
+  {
+    version: "2.4.0",
+    date: "April 2026",
+    title: "Mum & Dad Circles, Chat Overhaul, Dark Mode & Private Posts",
+    entries: [
+      { tag: "Added", text: "Mum Circle — a dedicated Support Space for mums, featured prominently in both Chat Circles and Support Spaces" },
+      { tag: "Added", text: "Dad Circle — a dedicated space for dads alongside Mum Circle, both featured at the top of Village Circles" },
+      { tag: "Added", text: "Village Circles tab — browse all themed, national chat circles (Mum, Dad, 3am Club, mental health, and more) from one place" },
+      { tag: "Added", text: "Local Circles tab — search integrated directly into your local area; no separate search needed" },
+      { tag: "Added", text: "3am Club auto-featured — the 3am Club card moves to the top of Village Circles automatically between 10pm and 4am AEST" },
+      { tag: "Added", text: "Private posts — choose 'Only me' when posting to save a private draft. Edit and change visibility before sharing with the community" },
+      { tag: "Added", text: "Messages page — full-screen private chat with friends, unified with the chat popout system. Same rooms, same history" },
+      { tag: "Added", text: "Terms & Conditions, Privacy Policy, Community Guidelines, Contact, and Suggestions pages — accessible from the profile menu and app footer" },
+      { tag: "Added", text: "App footer — quick links to Terms, Privacy, Community Guidelines, Contact, and Suggestions on all informational pages" },
+      { tag: "Changed", text: "Dark mode is now the default for new users — The Village looks great at night, and most parents are up at night" },
+      { tag: "Changed", text: "'Buy & Swap' removed from interests — replaced with 'Mum Talk' in onboarding and profile settings" },
+      { tag: "Improved", text: "Onboarding no longer loses focus when typing your name or suburb — a persistent bug is now fixed" },
+      { tag: "Improved", text: "Suburb search in onboarding now uses a dropdown with real Australian locations — no more free-text guessing" },
+      { tag: "Improved", text: "Returning users resume onboarding from where they left off rather than starting from scratch" },
+      { tag: "Improved", text: "Homepage feed capped at 7 posts for a less overwhelming first view" },
+    ],
+  },
   {
     version: "2.3.0",
     date: "April 2026",
@@ -119,7 +156,7 @@ const CHANGELOG = [
 
 const ROADMAP = [
   {
-    version: "v2.3",
+    version: "v2.6",
     title: "Buy & Swap Marketplace",
     entries: [
       { tag: "Planned", text: "List baby gear, clothing, and equipment for sale or swap — browse-only for free members, listing for premium" },
@@ -128,11 +165,11 @@ const ROADMAP = [
     ],
   },
   {
-    version: "v2.4",
-    title: "Dark / Light Mode & Settings",
+    version: "Next",
+    title: "Notifications & Settings",
     entries: [
-      { tag: "Planned", text: "Dark/light mode toggle — the tokens are ready, the switch is coming" },
       { tag: "Planned", text: "Notification preferences — control exactly what you hear about and when" },
+      { tag: "Planned", text: "Email notifications for replies, friend requests, and event reminders (opt-in)" },
     ],
   },
   {
@@ -158,13 +195,21 @@ const TAG_STYLES = {
 
 function VersionCard({ version, date, title, entries, muted }) {
   return (
-    <div className={`bg-card rounded-2xl border p-6 ${muted ? "border-border/30 opacity-80" : "border-border/50"}`}>
-      <div className="flex flex-wrap items-center gap-3 mb-4">
-        <span className={`text-xs font-mono px-2.5 py-1 rounded-full font-semibold ${muted ? "bg-muted text-muted-foreground" : "bg-primary/15 text-primary"}`}>
+    <div className={`bg-card rounded-2xl border shadow-sm p-6 transition-all ${
+      muted
+        ? "border-border/30 border-l-4 border-l-muted opacity-75"
+        : "border-border/50 border-l-4 border-l-primary/40 hover:shadow hover:border-l-primary/70"
+    }`}>
+      <div className="flex flex-wrap items-center gap-2.5 mb-4">
+        <span className={`text-xs font-mono px-2.5 py-1 rounded-lg font-bold tracking-tight ${muted ? "bg-muted text-muted-foreground" : "bg-primary/15 text-primary"}`}>
           v{version}
         </span>
-        {date && <span className="text-xs text-muted-foreground">{date}</span>}
-        <h3 className="font-heading font-semibold text-foreground">{title}</h3>
+        {date && (
+          <span className="text-xs text-muted-foreground bg-secondary/60 px-2 py-0.5 rounded-md">
+            {date}
+          </span>
+        )}
+        <h3 className="font-heading font-semibold text-foreground leading-snug">{title}</h3>
       </div>
       <ul className="space-y-2.5">
         {entries.map((entry, i) => (
@@ -206,7 +251,7 @@ export default function Changelog({ user }) {
 
         {/* Release history */}
         <section className="space-y-4 mb-12">
-          <h2 className="font-heading text-lg font-semibold text-foreground">Release History</h2>
+          <p className="font-heading font-semibold text-xs uppercase tracking-widest text-muted-foreground">Release History</p>
           {CHANGELOG.map((v) => (
             <VersionCard key={v.version} {...v} />
           ))}
@@ -214,11 +259,12 @@ export default function Changelog({ user }) {
 
         {/* Roadmap */}
         <section className="space-y-4">
-          <h2 className="font-heading text-lg font-semibold text-foreground">Coming Up</h2>
+          <p className="font-heading font-semibold text-xs uppercase tracking-widest text-muted-foreground">Coming Up</p>
           {ROADMAP.map((v) => (
             <VersionCard key={v.version} {...v} muted />
           ))}
         </section>
+        <AppFooter />
       </main>
     </div>
   );

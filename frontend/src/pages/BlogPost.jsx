@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import Navigation from "../components/Navigation";
+import AppFooter from "../components/AppFooter";
 import { ArrowLeft, BookOpen, Eye, Clock, Tag, Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -32,19 +33,19 @@ function renderMarkdown(md = "") {
 
     if (line.startsWith("## ")) {
       elements.push(
-        <h2 key={i} className="font-heading font-bold text-xl text-foreground mt-6 mb-2">
+        <h2 key={i} className="font-heading font-bold text-xl text-foreground mt-8 mb-3 pb-1 border-b border-border/40">
           {inlineFormat(line.slice(3))}
         </h2>
       );
     } else if (line.startsWith("### ")) {
       elements.push(
-        <h3 key={i} className="font-heading font-semibold text-lg text-foreground mt-5 mb-2">
+        <h3 key={i} className="font-heading font-semibold text-base text-foreground mt-6 mb-2 uppercase tracking-wide text-xs text-muted-foreground">
           {inlineFormat(line.slice(4))}
         </h3>
       );
     } else if (line.startsWith("# ")) {
       elements.push(
-        <h1 key={i} className="font-heading font-bold text-2xl text-foreground mt-6 mb-3">
+        <h1 key={i} className="font-heading font-bold text-2xl text-foreground mt-8 mb-4">
           {inlineFormat(line.slice(2))}
         </h1>
       );
@@ -60,7 +61,7 @@ function renderMarkdown(md = "") {
         i++;
       }
       elements.push(
-        <ul key={`ul-${i}`} className="list-disc list-inside space-y-1 my-3 ml-2">
+        <ul key={`ul-${i}`} className="list-disc list-outside space-y-1.5 my-4 ml-5">
           {bullets}
         </ul>
       );
@@ -69,7 +70,7 @@ function renderMarkdown(md = "") {
       elements.push(<div key={i} className="h-2" />);
     } else {
       elements.push(
-        <p key={i} className="text-foreground/90 leading-relaxed">
+        <p key={i} className="text-foreground/85 leading-[1.75] text-[0.975rem]">
           {inlineFormat(line)}
         </p>
       );
@@ -173,11 +174,12 @@ export default function BlogPost({ user }) {
           <>
             {/* Post header */}
             <div className="mb-8">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <BookOpen className="h-5 w-5 text-primary" />
+              {/* Meta row */}
+              <div className="flex items-center gap-3 mb-5 flex-wrap">
+                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <BookOpen className="h-4 w-4 text-primary" />
                 </div>
-                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                   <span className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
                     {readTime(post.content)} min read
@@ -186,6 +188,7 @@ export default function BlogPost({ user }) {
                     <Eye className="h-3 w-3" />
                     {post.view_count || 0} views
                   </span>
+                  <span className="text-muted-foreground/60">·</span>
                   <span>{formatDate(post.created_at)}</span>
                 </div>
               </div>
@@ -193,13 +196,17 @@ export default function BlogPost({ user }) {
               <h1 className="font-heading font-bold text-2xl sm:text-3xl text-foreground leading-tight mb-3">
                 {post.title}
               </h1>
-              <p className="text-muted-foreground text-base leading-relaxed mb-4">{post.summary}</p>
+              {post.summary && (
+                <p className="text-muted-foreground text-base leading-relaxed mb-5 border-l-2 border-l-primary/30 pl-4 italic">
+                  {post.summary}
+                </p>
+              )}
 
               {post.tags?.length > 0 && (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Tag className="h-3.5 w-3.5 text-muted-foreground" />
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <Tag className="h-3.5 w-3.5 text-muted-foreground mr-0.5" />
                   {post.tags.map(tag => (
-                    <span key={tag} className="text-xs px-2.5 py-1 rounded-full bg-secondary text-muted-foreground">
+                    <span key={tag} className="text-xs px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium">
                       {tag}
                     </span>
                   ))}
@@ -208,14 +215,14 @@ export default function BlogPost({ user }) {
             </div>
 
             {/* Post content */}
-            <div className="bg-card rounded-2xl p-6 sm:p-8 border border-border/50 mb-6 space-y-1">
+            <div className="bg-card rounded-2xl p-6 sm:p-8 border border-border/40 card-elevated border-l-2 border-l-primary/20 mb-6 space-y-1 prose-custom">
               {renderMarkdown(post.content)}
             </div>
 
             {/* Source topics (admin only) */}
             {isAdmin && post.source_topics?.length > 0 && (
-              <div className="bg-secondary/30 rounded-xl p-4 mb-6 text-sm">
-                <p className="font-medium text-foreground mb-1">Source topics (community trending)</p>
+              <div className="bg-secondary/30 rounded-xl p-4 mb-6 text-sm border border-border/30">
+                <p className="font-heading font-semibold text-foreground mb-2 text-xs uppercase tracking-widest text-muted-foreground">Source topics (community trending)</p>
                 <ul className="list-disc list-inside text-muted-foreground space-y-0.5">
                   {post.source_topics.map((t, i) => <li key={i}>{t}</li>)}
                 </ul>
@@ -240,6 +247,7 @@ export default function BlogPost({ user }) {
           </>
         ) : null}
       </main>
+      <AppFooter />
     </div>
   );
 }

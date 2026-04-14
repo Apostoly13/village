@@ -10,8 +10,9 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { ScrollArea } from "./ui/scroll-area";
-import { Home, MessageSquare, Users, Mail, User, LogOut, Menu, X, Moon, Sun, UserPlus, Bell, Bookmark, Shield, ScrollText, BookOpen, Calendar } from "lucide-react";
+import { Home, MessageSquare, Users, Mail, User, LogOut, Menu, X, Moon, Sun, UserPlus, Bell, Bookmark, Shield, ScrollText, BookOpen, Calendar, Heart, Lock, FileText, Settings, Crown } from "lucide-react";
 import { toast } from "sonner";
+import { FEATURES } from "../config/features";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -26,13 +27,15 @@ export default function Navigation({ user }) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   useEffect(() => {
-    const fetchData = async () => {
+    // Single polling loop: badge counts every 45s + heartbeat piggybacked every 3rd tick (135s)
+    let tickCount = 0;
+    const poll = async () => {
+      tickCount++;
       try {
         const [friendsRes, notifCountRes] = await Promise.all([
           fetch(`${API_URL}/api/friends/requests`, { credentials: "include" }),
           fetch(`${API_URL}/api/notifications/unread-count`, { credentials: "include" })
         ]);
-
         if (friendsRes.ok) {
           const data = await friendsRes.json();
           setFriendRequestCount(data.length);
@@ -41,23 +44,16 @@ export default function Navigation({ user }) {
           const data = await notifCountRes.json();
           setUnreadCount(data.count);
         }
-      } catch (error) {
-        console.error("Error fetching data:", error);
+      } catch {}
+      // Heartbeat every 3rd tick (~135s) — fire-and-forget
+      if (tickCount % 3 === 0) {
+        fetch(`${API_URL}/api/users/heartbeat`, { method: "POST", credentials: "include" }).catch(() => {});
       }
     };
 
-    const sendHeartbeat = () => {
-      fetch(`${API_URL}/api/users/heartbeat`, { method: "POST", credentials: "include" }).catch(() => {});
-    };
-
-    fetchData();
-    sendHeartbeat();
-    const interval = setInterval(fetchData, 30000);
-    const heartbeatInterval = setInterval(sendHeartbeat, 60000);
-    return () => {
-      clearInterval(interval);
-      clearInterval(heartbeatInterval);
-    };
+    poll();
+    const interval = setInterval(poll, 45000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchNotifications = async () => {
@@ -109,7 +105,7 @@ export default function Navigation({ user }) {
     { icon: Users, label: "Chat Circles", href: "/chat", testId: "nav-chat" },
     { icon: Calendar, label: "Events", href: "/events", testId: "nav-events" },
     { icon: Mail, label: "Messages", href: "/messages", testId: "nav-messages" },
-    { icon: BookOpen, label: "Blog", href: "/blog", testId: "nav-blog" },
+    ...(FEATURES.BLOG ? [{ icon: BookOpen, label: "Blog", href: "/blog", testId: "nav-blog" }] : []),
     ...(isAdmin ? [{ icon: Shield, label: "Admin", href: "/admin", testId: "nav-admin" }] : []),
   ];
 
@@ -143,30 +139,35 @@ export default function Navigation({ user }) {
     <>
       {/* Desktop Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/30 hidden lg:block">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link to="/dashboard" className="flex items-center gap-2" data-testid="nav-logo">
-            <img src="/logo.png" alt="" className="h-8 w-auto" />
-            <img src="/the_village_wordmark_light.png" alt="The Village" className="h-6 w-auto" />
-          </Link>
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center">
+          {/* Left spacer to balance right icons */}
+          <div className="flex-1" />
 
-          <div className="flex items-center gap-1">
-            {navItems.map((item) => {
-              const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
-              return (
-                <Link key={item.href} to={item.href} data-testid={item.testId}>
-                  <Button 
-                    variant="ghost" 
-                    className={`rounded-full px-4 ${isActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-                  >
-                    <item.icon className="h-4 w-4 mr-2" />
-                    {item.label}
-                  </Button>
-                </Link>
-              );
-            })}
+          {/* Center: logo + nav items */}
+          <div className="flex items-center gap-3">
+            <Link to="/dashboard" className="flex items-center" data-testid="nav-logo">
+              <img src="/BG Removed- Main Logo - ps edit.png" alt="The Village" className="h-14 w-auto" />
+            </Link>
+            <div className="flex items-center gap-1 ml-6">
+              {navItems.map((item) => {
+                const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
+                return (
+                  <Link key={item.href} to={item.href} data-testid={item.testId}>
+                    <Button
+                      variant="ghost"
+                      className={`rounded-full px-4 ${isActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                    >
+                      <item.icon className="h-4 w-4 mr-2" />
+                      {item.label}
+                    </Button>
+                  </Link>
+                );
+              })}
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Right: actions */}
+          <div className="flex-1 flex justify-end items-center gap-2">
             {/* Notifications */}
             <DropdownMenu open={notificationsOpen} onOpenChange={handleNotificationsOpen}>
               <DropdownMenuTrigger asChild>
@@ -205,8 +206,15 @@ export default function Navigation({ user }) {
                         onClick={() => handleNotificationClick(notif)}
                         className={`p-3 cursor-pointer hover:bg-secondary/50 border-b border-border/30 ${!notif.is_read ? 'bg-primary/5' : ''}`}
                       >
-                        <p className="text-sm font-medium text-foreground">{notif.title}</p>
-                        <p className="text-xs text-muted-foreground line-clamp-2">{notif.message}</p>
+                        <div className="flex items-start gap-2">
+                          <span className="text-base mt-0.5 flex-shrink-0">
+                            {notif.type === "reply" ? "💬" : notif.type === "like" ? "❤️" : notif.type === "friend_request" || notif.type === "friend_accept" ? "👋" : notif.type === "moderation" ? "🛡️" : "🔔"}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-foreground">{notif.title}</p>
+                            <p className="text-xs text-muted-foreground line-clamp-2">{notif.message}</p>
+                          </div>
+                        </div>
                       </div>
                     ))
                   )}
@@ -262,6 +270,20 @@ export default function Navigation({ user }) {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
+                  <Link to="/settings" className="cursor-pointer">
+                    <Settings className="h-4 w-4 mr-2" />
+                    Settings
+                  </Link>
+                </DropdownMenuItem>
+                {user?.subscription_tier !== "premium" && (
+                  <DropdownMenuItem asChild>
+                    <Link to="/plus" className="cursor-pointer text-primary font-medium">
+                      <Crown className="h-4 w-4 mr-2 text-primary" />
+                      Village+
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem asChild>
                   <Link to="/friends" className="cursor-pointer" data-testid="dropdown-friends">
                     <UserPlus className="h-4 w-4 mr-2" />
                     Friends
@@ -284,6 +306,36 @@ export default function Navigation({ user }) {
                     What's New
                   </Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/suggestions" className="cursor-pointer">
+                    <Heart className="h-4 w-4 mr-2" />
+                    Suggestions
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/community-guidelines" className="cursor-pointer">
+                    <Shield className="h-4 w-4 mr-2" />
+                    Community Guidelines
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/terms" className="cursor-pointer">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Terms
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/privacy" className="cursor-pointer">
+                    <Lock className="h-4 w-4 mr-2" />
+                    Privacy
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/contact" className="cursor-pointer">
+                    <Mail className="h-4 w-4 mr-2" />
+                    Contact
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator className="bg-border/50" />
                 <DropdownMenuItem onClick={handleLogout} className="text-destructive cursor-pointer" data-testid="dropdown-logout">
                   <LogOut className="h-4 w-4 mr-2" />
@@ -298,9 +350,8 @@ export default function Navigation({ user }) {
       {/* Mobile Navigation - Top Bar */}
       <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/30 lg:hidden">
         <div className="px-4 h-14 flex items-center justify-between">
-          <Link to="/dashboard" className="flex items-center gap-2">
-            <img src="/logo.png" alt="" className="h-7 w-auto" />
-            <img src="/the_village_wordmark_light.png" alt="The Village" className="h-5 w-auto" />
+          <Link to="/dashboard" className="flex items-center">
+            <img src="/BG Removed- Main Logo.png" alt="The Village" className="h-14 w-auto" />
           </Link>
 
           <div className="flex items-center gap-2">
@@ -363,6 +414,35 @@ export default function Navigation({ user }) {
             </Link>
             
             <Link
+              to="/saved"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
+            >
+              <Bookmark className="h-5 w-5" />
+              Saved
+            </Link>
+
+            <Link
+              to="/settings"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
+            >
+              <Settings className="h-5 w-5" />
+              Settings
+            </Link>
+
+            {user?.subscription_tier !== "premium" && (
+              <Link
+                to="/plus"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 p-3 rounded-xl bg-primary/10 border border-primary/20 text-primary font-medium"
+              >
+                <Crown className="h-5 w-5" />
+                Village+
+              </Link>
+            )}
+
+            <Link
               to="/changelog"
               onClick={() => setMobileMenuOpen(false)}
               className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
@@ -370,6 +450,37 @@ export default function Navigation({ user }) {
               <ScrollText className="h-5 w-5" />
               What's New
             </Link>
+
+            <div className="border-t border-border/30 my-1" />
+
+            <Link
+              to="/community-guidelines"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
+            >
+              <Shield className="h-5 w-5" />
+              Community Guidelines
+            </Link>
+
+            <Link
+              to="/privacy"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-muted-foreground text-sm"
+            >
+              <FileText className="h-4 w-4" />
+              Privacy Policy
+            </Link>
+
+            <Link
+              to="/terms"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-muted-foreground text-sm"
+            >
+              <FileText className="h-4 w-4" />
+              Terms of Service
+            </Link>
+
+            <div className="border-t border-border/30 my-1" />
 
             <button
               onClick={handleLogout}
@@ -388,14 +499,16 @@ export default function Navigation({ user }) {
           {navItems.map((item) => {
             const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
             return (
-              <Link 
-                key={item.href} 
+              <Link
+                key={item.href}
                 to={item.href}
-                className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground'}`}
+                className={`flex items-center justify-center p-1.5 transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground'}`}
                 data-testid={`mobile-${item.testId}`}
+                aria-label={item.label}
               >
-                <item.icon className="h-5 w-5" />
-                <span className="text-xs">{item.label}</span>
+                <div className={isActive ? 'bg-primary/15 rounded-xl px-3 py-1.5' : 'px-3 py-1.5'}>
+                  <item.icon className="h-5 w-5" />
+                </div>
               </Link>
             );
           })}

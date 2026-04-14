@@ -3,10 +3,9 @@ import { Link, useParams } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
-import { ScrollArea } from "../components/ui/scroll-area";
 import Navigation from "../components/Navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Send, Users, Crown, Bookmark } from "lucide-react";
+import { ArrowLeft, Send, Users, Crown, Bookmark, ArrowRight } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -20,8 +19,11 @@ export default function ChatRoom({ user }) {
   const [sending, setSending] = useState(false);
   const [subscription, setSubscription] = useState(null);
   const [savedMessageIds, setSavedMessageIds] = useState(new Set());
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const messagesEndRef = useRef(null);
   const scrollAreaRef = useRef(null);
+  const MESSAGE_LIMIT = 50;
 
   useEffect(() => {
     fetchData();
@@ -51,11 +53,15 @@ export default function ChatRoom({ user }) {
     try {
       const [roomRes, messagesRes] = await Promise.all([
         fetch(`${API_URL}/api/chat/rooms/${roomId}`, { credentials: "include" }),
-        fetch(`${API_URL}/api/chat/rooms/${roomId}/messages`, { credentials: "include" })
+        fetch(`${API_URL}/api/chat/rooms/${roomId}/messages?limit=${MESSAGE_LIMIT}`, { credentials: "include" })
       ]);
 
       if (roomRes.ok) setRoom(await roomRes.json());
-      if (messagesRes.ok) setMessages(await messagesRes.json());
+      if (messagesRes.ok) {
+        const data = await messagesRes.json();
+        setMessages(data);
+        setHasMore(data.length === MESSAGE_LIMIT);
+      }
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -65,15 +71,45 @@ export default function ChatRoom({ user }) {
 
   const fetchMessages = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/chat/rooms/${roomId}/messages`, {
+      const response = await fetch(`${API_URL}/api/chat/rooms/${roomId}/messages?limit=${MESSAGE_LIMIT}`, {
         credentials: "include"
       });
       if (response.ok) {
         const data = await response.json();
-        setMessages(data);
+        // Merge: preserve any locally-added messages not yet returned by the server
+        // (race condition: GET response can arrive before the POST is committed)
+        setMessages(prev => {
+          const serverIds = new Set(data.map(m => m.message_id));
+          const localOnly = prev.filter(m => !serverIds.has(m.message_id));
+          const merged = [...data, ...localOnly];
+          merged.sort((a, b) => (a.created_at > b.created_at ? 1 : -1));
+          return merged;
+        });
+        setHasMore(data.length === MESSAGE_LIMIT);
       }
     } catch (error) {
       console.error("Error fetching messages:", error);
+    }
+  };
+
+  const loadOlderMessages = async () => {
+    if (!messages.length || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const oldest = messages[0].created_at;
+      const response = await fetch(
+        `${API_URL}/api/chat/rooms/${roomId}/messages?limit=${MESSAGE_LIMIT}&before=${encodeURIComponent(oldest)}`,
+        { credentials: "include" }
+      );
+      if (response.ok) {
+        const older = await response.json();
+        setMessages(prev => [...older, ...prev]);
+        setHasMore(older.length === MESSAGE_LIMIT);
+      }
+    } catch (error) {
+      console.error("Error loading older messages:", error);
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -83,31 +119,65 @@ export default function ChatRoom({ user }) {
 
   const handleSend = async (e) => {
     e.preventDefault();
-    if (!newMessage.trim() || sending) return;
+    const content = newMessage.trim();
+    if (!content || sending) return;
 
+    // Optimistic update: add message immediately with a temp ID so it
+    // appears at once and is never wiped by a concurrent polling response
+    const tempId = `temp_${Date.now()}`;
+    const optimisticMsg = {
+      message_id: tempId,
+      room_id: roomId,
+      author_id: user?.user_id,
+      author_name: user?.nickname || user?.name,
+      author_picture: user?.picture,
+      author_subscription_tier: user?.subscription_tier || "free",
+      content,
+      created_at: new Date().toISOString(),
+    };
+    setMessages(prev => [...prev, optimisticMsg]);
+    setNewMessage("");
     setSending(true);
+
     try {
       const response = await fetch(`${API_URL}/api/chat/rooms/${roomId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ content: newMessage })
+        body: JSON.stringify({ content })
       });
 
       if (response.ok) {
         const message = await response.json();
-        setMessages(prev => [...prev, message]);
-        setNewMessage("");
+        // Swap temp placeholder with the confirmed server message
+        setMessages(prev => prev.map(m => m.message_id === tempId ? message : m));
         fetchSubscription();
       } else if (response.status === 429) {
+        // Limit reached — remove optimistic message and restore input
+        setMessages(prev => prev.filter(m => m.message_id !== tempId));
+        setNewMessage(content);
         const error = await response.json();
         toast.error(error.detail?.message || "Daily message limit reached");
         fetchSubscription();
       } else {
-        toast.error("Failed to send message");
+        // Generic error — remove optimistic message and restore input
+        setMessages(prev => prev.filter(m => m.message_id !== tempId));
+        setNewMessage(content);
+        let errMsg = `Failed to send (${response.status})`;
+        try {
+          const errBody = await response.text();
+          console.error("Chat send error:", response.status, errBody);
+          const err = JSON.parse(errBody);
+          if (err.detail) errMsg = typeof err.detail === "string" ? err.detail : err.detail?.message || errMsg;
+        } catch {}
+        toast.error(errMsg);
       }
     } catch (error) {
-      toast.error("Something went wrong");
+      // Network error — remove optimistic message and restore input
+      setMessages(prev => prev.filter(m => m.message_id !== tempId));
+      setNewMessage(content);
+      console.error("Chat send exception:", error);
+      toast.error("Could not reach server — check your connection");
     } finally {
       setSending(false);
     }
@@ -182,10 +252,10 @@ export default function ChatRoom({ user }) {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
       <Navigation user={user} />
-      
-      <main className="flex-1 flex flex-col max-w-4xl mx-auto w-full px-4 pt-20 lg:pt-24 pb-20 lg:pb-4">
+
+      <main className="flex-1 flex flex-col max-w-4xl mx-auto w-full px-4 pt-20 lg:pt-24 pb-20 lg:pb-4 min-h-0">
         {/* Room Header */}
         <div className="flex items-center gap-4 mb-4">
           <Link to="/chat" className="text-muted-foreground hover:text-foreground" data-testid="back-link">
@@ -221,9 +291,20 @@ export default function ChatRoom({ user }) {
         </div>
 
         {/* Messages Area */}
-        <div className="flex-1 bg-card rounded-2xl border border-border/50 flex flex-col overflow-hidden">
-          <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
+        <div className="flex-1 min-h-0 bg-card rounded-2xl border border-border/50 flex flex-col">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4" ref={scrollAreaRef}>
             <div className="space-y-4">
+              {hasMore && (
+                <div className="text-center pb-2">
+                  <button
+                    onClick={loadOlderMessages}
+                    disabled={loadingMore}
+                    className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors disabled:opacity-50"
+                  >
+                    {loadingMore ? "Loading..." : "Load older messages"}
+                  </button>
+                </div>
+              )}
               {messages.length === 0 ? (
                 <div className="text-center py-12">
                   <span className="text-4xl mb-4 block">💬</span>
@@ -236,7 +317,7 @@ export default function ChatRoom({ user }) {
                     className={`flex group ${isOwnMessage(msg) ? 'justify-end' : 'justify-start'}`}
                     data-testid={`message-${idx}`}
                   >
-                    <div className={`flex items-end gap-2 max-w-[80%] ${isOwnMessage(msg) ? 'flex-row-reverse' : ''}`}>
+                    <div className={`flex items-end gap-2 max-w-[80%] min-w-0 ${isOwnMessage(msg) ? 'flex-row-reverse' : ''}`}>
                       {!isOwnMessage(msg) && (
                         <Link to={`/profile/${msg.author_id}`} className="flex-shrink-0">
                           <Avatar className="h-8 w-8 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
@@ -247,7 +328,7 @@ export default function ChatRoom({ user }) {
                           </Avatar>
                         </Link>
                       )}
-                      <div>
+                      <div className="min-w-0">
                         {!isOwnMessage(msg) && (
                           <Link to={`/profile/${msg.author_id}`} className="hover:underline">
                             <p className="text-xs text-muted-foreground mb-1 ml-1 cursor-pointer hover:text-primary transition-colors flex items-center gap-1">
@@ -256,13 +337,13 @@ export default function ChatRoom({ user }) {
                             </p>
                           </Link>
                         )}
-                        <div className={`flex items-center gap-1 ${isOwnMessage(msg) ? 'flex-row-reverse' : ''}`}>
-                          <div className={`rounded-2xl px-4 py-2 ${
+                        <div className={`flex items-start gap-1 ${isOwnMessage(msg) ? 'flex-row-reverse' : ''}`}>
+                          <div className={`rounded-2xl px-4 py-2 shadow-sm ${
                             isOwnMessage(msg)
-                              ? 'bg-primary text-primary-foreground rounded-br-md'
-                              : 'bg-secondary text-foreground rounded-bl-md'
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-secondary text-foreground'
                           }`}>
-                            <p className="text-sm">{msg.content}</p>
+                            <p className="text-sm break-all whitespace-pre-wrap">{msg.content}</p>
                           </div>
                           <button
                             onClick={() => handleSaveMessage(msg)}
@@ -284,18 +365,19 @@ export default function ChatRoom({ user }) {
               )}
               <div ref={messagesEndRef} />
             </div>
-          </ScrollArea>
+          </div>
 
           {/* Message Input */}
           {room.room_type !== "friends_only" && subscription?.limits_apply && subscription?.chat_messages && !subscription.chat_messages.allowed ? (
             <div className="p-4 border-t border-border/50">
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
+              <Link to="/plus" className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/15 transition-colors group">
                 <Crown className="h-5 w-5 text-amber-500 flex-shrink-0" />
                 <div className="flex-1">
                   <p className="font-medium text-foreground text-sm">Daily message limit reached</p>
-                  <p className="text-xs text-muted-foreground">Upgrade to Premium for unlimited chat</p>
+                  <p className="text-xs text-muted-foreground">Upgrade to Village+ for unlimited chat</p>
                 </div>
-              </div>
+                <ArrowRight className="h-4 w-4 text-amber-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </Link>
             </div>
           ) : (
             <form onSubmit={handleSend} className="p-4 border-t border-border/50" data-testid="message-form">
@@ -307,9 +389,10 @@ export default function ChatRoom({ user }) {
               <div className="flex gap-3">
                 <Input
                   value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
+                  onChange={(e) => setNewMessage(e.target.value.slice(0, 1000))}
                   placeholder="Type a message..."
-                  className="flex-1 h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
+                  className="flex-1 h-12 rounded-xl bg-secondary border-border/60 focus:border-primary"
+                  maxLength={1000}
                   data-testid="message-input"
                 />
                 <Button
@@ -321,6 +404,11 @@ export default function ChatRoom({ user }) {
                   <Send className="h-5 w-5" />
                 </Button>
               </div>
+              {newMessage.length > 800 && (
+                <p className={`text-xs mt-1.5 text-right ${newMessage.length >= 1000 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                  {newMessage.length}/1000
+                </p>
+              )}
             </form>
           )}
         </div>

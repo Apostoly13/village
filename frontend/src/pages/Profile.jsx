@@ -10,14 +10,15 @@ import { Switch } from "../components/ui/switch";
 import { Badge } from "../components/ui/badge";
 import Navigation from "../components/Navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Edit2, MessageCircle, Save, X, Heart, UserPlus, UserCheck, Clock, Users, ChevronRight, MapPin, Bell, Camera, Search, AlertCircle, Crown, Shield, Handshake, Stethoscope } from "lucide-react";
+import { ArrowLeft, Edit2, MessageCircle, Save, X, Heart, UserPlus, UserCheck, Clock, Users, ChevronRight, MapPin, Bell, Camera, Search, AlertCircle, Crown, Shield, Handshake, Stethoscope, Ban, Moon, Sun } from "lucide-react";
+import AppFooter from "../components/AppFooter";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 const AUSTRALIAN_STATES = ["NSW", "VIC", "QLD", "WA", "SA", "TAS", "ACT", "NT"];
 const INTEREST_OPTIONS = [
   "Sleep & Settling", "Feeding", "Toddler Activities", "School Age",
-  "Mental Health", "Dad Talk", "Local Events", "Buy & Swap",
-  "Recipes & Nutrition", "Development Milestones"
+  "Mental Health", "Dad Talk", "Mum Talk", "Local Events",
+  "Recipes & Nutrition", "Development Milestones", "Raising Multiples"
 ];
 const DISTANCE_OPTIONS = [
   { id: "2km", label: "Super Local (2km)" },
@@ -41,10 +42,16 @@ function ProfilePage({ user }) {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [darkMode, setDarkMode] = useState(document.documentElement.classList.contains('dark'));
   const [friendStatus, setFriendStatus] = useState(null);
   const [friendActionLoading, setFriendActionLoading] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [blockLoading, setBlockLoading] = useState(false);
   const [friends, setFriends] = useState([]);
   const [uploadingPicture, setUploadingPicture] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
   
   const [nickname, setNickname] = useState("");
   const [bio, setBio] = useState("");
@@ -58,6 +65,8 @@ function ProfilePage({ user }) {
   const [gender, setGender] = useState("");
   const [connectWith, setConnectWith] = useState("");
   const [isSingleParent, setIsSingleParent] = useState(false);
+  const [isMultipleBirth, setIsMultipleBirth] = useState(false);
+  const [anonymousByDefault, setAnonymousByDefault] = useState(false);
   const [picture, setPicture] = useState("");
   const [emailPrefs, setEmailPrefs] = useState({
     notify_replies: true,
@@ -110,6 +119,8 @@ function ProfilePage({ user }) {
           setGender(data.gender || "");
           setConnectWith(data.connect_with || "all");
           setIsSingleParent(data.is_single_parent || false);
+          setIsMultipleBirth(data.is_multiple_birth || false);
+          setAnonymousByDefault(data.anonymous_by_default || false);
           setPicture(data.picture || "");
           setState(data.state || "");
           setSuburb(data.suburb || "");
@@ -135,9 +146,20 @@ function ProfilePage({ user }) {
       }
     };
     
+    const fetchBlockStatus = async () => {
+      if (!profileUserId || profileUserId === user?.user_id) return;
+      try {
+        const res = await fetch(`${API_URL}/api/users/${profileUserId}/block-status`, { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          setIsBlocked(data.is_blocked);
+        }
+      } catch {}
+    };
+
     const fetchFriendStatus = async () => {
       if (!profileUserId || profileUserId === user?.user_id) return;
-      
+
       try {
         const response = await fetch(API_URL + "/api/friends/status/" + profileUserId, {
           credentials: "include"
@@ -168,6 +190,7 @@ function ProfilePage({ user }) {
     
     fetchProfile();
     fetchFriendStatus();
+    fetchBlockStatus();
     fetchFriends();
     // Compute badges for own profile
     if (!profileUserId || profileUserId === user?.user_id) {
@@ -195,6 +218,8 @@ function ProfilePage({ user }) {
           gender: gender,
           connect_with: connectWith,
           is_single_parent: isSingleParent,
+          is_multiple_birth: parentingStage === "multiples" || (parentingStage === "mixed" && isMultipleBirth),
+          anonymous_by_default: anonymousByDefault,
           picture: picture,
           email_preferences: emailPrefs,
           parenting_stage: parentingStage,
@@ -215,6 +240,28 @@ function ProfilePage({ user }) {
       toast.error("Something went wrong");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== "DELETE") return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`${API_URL}/api/users/me`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (res.ok) {
+        localStorage.removeItem("user");
+        localStorage.removeItem("village_prefs");
+        window.location.href = "/";
+      } else {
+        toast.error("Failed to delete account. Please try again.");
+      }
+    } catch {
+      toast.error("Something went wrong.");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -425,6 +472,24 @@ function ProfilePage({ user }) {
   const avatarInitial = profile.name ? profile.name.charAt(0).toUpperCase() : '?';
   const genderLabel = genderOptions.find(g => g.id === profile.gender)?.text;
 
+  const handleBlockToggle = async () => {
+    setBlockLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/users/${profileUserId}/block`, {
+        method: isBlocked ? "DELETE" : "POST",
+        credentials: "include",
+      });
+      if (res.ok) {
+        setIsBlocked(!isBlocked);
+        toast.success(isBlocked ? "User unblocked" : "User blocked — their posts will be hidden from your feed");
+      }
+    } catch {
+      toast.error("Something went wrong");
+    } finally {
+      setBlockLoading(false);
+    }
+  };
+
   const renderFriendButton = () => {
     if (!friendStatus) return null;
     
@@ -511,7 +576,7 @@ function ProfilePage({ user }) {
           </div>
         )}
 
-        <div className="bg-card rounded-2xl p-6 border border-border/50 mb-6">
+        <div className="bg-card rounded-2xl p-6 border border-border/50 shadow-sm border-l-2 border-l-primary/20 mb-6">
           <div className="flex items-start justify-between mb-6">
             <div className="flex items-center gap-4">
               <div className="relative">
@@ -604,6 +669,16 @@ function ProfilePage({ user }) {
                     Message
                   </Button>
                 </Link>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleBlockToggle}
+                  disabled={blockLoading}
+                  className={`rounded-full text-xs ${isBlocked ? "text-destructive hover:text-destructive/80" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  <Ban className="h-3 w-3 mr-1" />
+                  {isBlocked ? "Unblock user" : "Block user"}
+                </Button>
               </div>
             )}
           </div>
@@ -611,8 +686,9 @@ function ProfilePage({ user }) {
           {editing ? (
             <div className="space-y-6">
               <div className="space-y-2">
-                <Label className="text-foreground">Display Name</Label>
-                <Input 
+                <Label htmlFor="display-name" className="text-foreground">Display Name</Label>
+                <Input
+                  id="display-name"
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
                   placeholder="How should we call you?"
@@ -622,14 +698,17 @@ function ProfilePage({ user }) {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-foreground">Bio</Label>
-                <Textarea 
+                <Label htmlFor="bio" className="text-foreground">Bio</Label>
+                <Textarea
+                  id="bio"
                   value={bio}
-                  onChange={(e) => setBio(e.target.value)}
+                  onChange={(e) => setBio(e.target.value.slice(0, 300))}
                   placeholder="Tell other parents about yourself..."
                   className="min-h-[100px] rounded-xl bg-secondary/50 border-transparent focus:border-primary resize-none"
                   data-testid="bio-input"
+                  maxLength={300}
                 />
+                <p className="text-xs text-muted-foreground text-right">{bio.length}/300</p>
               </div>
 
               {/* Parenting Stage */}
@@ -643,6 +722,7 @@ function ProfilePage({ user }) {
                     { id: "toddler", label: "Toddler", emoji: "🚶" },
                     { id: "school_age", label: "School Age", emoji: "🎒" },
                     { id: "teenager", label: "Teenager", emoji: "🧑" },
+                    { id: "multiples", label: "Twins/Triplets", emoji: "👶👶" },
                     { id: "mixed", label: "Mixed ages", emoji: "👨‍👩‍👧‍👦" },
                   ].map(stage => (
                     <button
@@ -662,10 +742,13 @@ function ProfilePage({ user }) {
                 </div>
               </div>
 
-              {/* Mixed age group sub-selection */}
-              {parentingStage === "mixed" && (
+              {/* Mixed / Multiples age group sub-selection */}
+              {(parentingStage === "mixed" || parentingStage === "multiples") && (
                 <div className="space-y-2 pl-3 border-l-2 border-primary/30">
-                  <Label className="text-foreground text-sm">Which age groups do you have? <span className="text-muted-foreground font-normal">(select all that apply)</span></Label>
+                  <Label className="text-foreground text-sm">
+                    {parentingStage === "multiples" ? "How old are your multiples?" : "Which age groups do you have?"}{" "}
+                    <span className="text-muted-foreground font-normal">(select all that apply)</span>
+                  </Label>
                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                     {[
                       { id: "expecting", label: "Expecting", emoji: "🤰" },
@@ -693,18 +776,71 @@ function ProfilePage({ user }) {
                       );
                     })}
                   </div>
+
+                  {parentingStage === "mixed" && (
+                    <button
+                      type="button"
+                      onClick={() => setIsMultipleBirth(p => !p)}
+                      className={`w-full rounded-xl px-3 py-2.5 border-2 flex items-center gap-3 transition-all text-left ${
+                        isMultipleBirth ? "border-primary bg-primary/10" : "border-border/50 bg-secondary/30 hover:border-primary/40"
+                      }`}
+                    >
+                      <span className="text-base">👶👶</span>
+                      <span className="text-xs font-medium text-foreground flex-1">Some of these include twins or triplets</span>
+                      {isMultipleBirth && <span className="text-primary text-xs font-bold">✓</span>}
+                    </button>
+                  )}
                 </div>
               )}
 
               <div className="space-y-2">
-                <Label className="text-foreground">Location</Label>
-                <Input
-                  value={userLocation}
-                  onChange={(e) => setUserLocation(e.target.value)}
-                  placeholder="City, Country"
-                  className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
-                  data-testid="location-input"
-                />
+                <Label className="text-foreground flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  Suburb / Postcode
+                </Label>
+                <div className="relative">
+                  <Input
+                    value={locationSearch}
+                    onChange={(e) => {
+                      setLocationSearch(e.target.value);
+                      searchLocation(e.target.value);
+                    }}
+                    placeholder="e.g. Bondi, 2026, Fitzroy..."
+                    className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
+                    autoComplete="off"
+                    data-testid="location-input"
+                  />
+                  {locationResults.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 z-50 bg-card border border-border/50 rounded-xl shadow-lg mt-1 overflow-hidden">
+                      {locationResults.slice(0, 6).map((loc, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => {
+                            const name = loc.suburb || loc.name || "";
+                            setSuburb(name);
+                            setPostcode(loc.postcode || "");
+                            setState(loc.state || "");
+                            setLatitude(loc.lat || loc.latitude || null);
+                            setLongitude(loc.lon || loc.longitude || null);
+                            setUserLocation(name);
+                            setLocationSearch(`${name}${loc.postcode ? ", " + loc.postcode : ""}`);
+                            setLocationResults([]);
+                          }}
+                          className="w-full px-4 py-3 text-left hover:bg-secondary/50 border-b border-border/30 last:border-0 transition-colors"
+                        >
+                          <span className="font-medium text-foreground text-sm">{loc.suburb || loc.name}</span>
+                          <span className="text-muted-foreground text-xs ml-2">{loc.postcode} · {loc.state}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {suburb && !locationResults.length && (
+                    <p className="text-xs text-primary px-1 mt-1 flex items-center gap-1">
+                      <Search className="h-3 w-3" /> {suburb}{postcode ? `, ${postcode}` : ""}{state ? ` · ${state}` : ""}
+                    </p>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -731,11 +867,27 @@ function ProfilePage({ user }) {
                     <p className="text-xs text-muted-foreground">Connect with other single parents in our community</p>
                   </div>
                 </div>
-                <Switch 
+                <Switch
                   id="single-parent"
                   checked={isSingleParent}
                   onCheckedChange={setIsSingleParent}
                   data-testid="single-parent-toggle"
+                />
+              </div>
+
+
+              <div className="flex items-center justify-between p-4 rounded-xl bg-secondary/30 border border-border/30">
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">👤</span>
+                  <div>
+                    <Label htmlFor="anonymous-default" className="font-medium text-foreground cursor-pointer">Post anonymously by default</Label>
+                    <p className="text-xs text-muted-foreground">Your name and avatar won't show on new posts — you can still override per post</p>
+                  </div>
+                </div>
+                <Switch
+                  id="anonymous-default"
+                  checked={anonymousByDefault}
+                  onCheckedChange={setAnonymousByDefault}
                 />
               </div>
 
@@ -857,9 +1009,36 @@ function ProfilePage({ user }) {
                 </div>
               </div>
 
+              {/* Appearance */}
+              <div className="p-4 rounded-xl bg-secondary/30 border border-border/30 space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  {darkMode ? <Moon className="h-5 w-5 text-primary" /> : <Sun className="h-5 w-5 text-primary" />}
+                  <Label className="font-medium text-foreground">Appearance</Label>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-sm text-foreground">Dark mode</Label>
+                    <p className="text-xs text-muted-foreground">Easier on the eyes at night</p>
+                  </div>
+                  <Switch
+                    checked={darkMode}
+                    onCheckedChange={(checked) => {
+                      setDarkMode(checked);
+                      if (checked) {
+                        document.documentElement.classList.add('dark');
+                        localStorage.setItem('theme', 'dark');
+                      } else {
+                        document.documentElement.classList.remove('dark');
+                        localStorage.setItem('theme', 'light');
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+
               <div className="flex gap-4 pt-4">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => setEditing(false)}
                   className="flex-1 h-12 rounded-xl"
                   data-testid="cancel-btn"
@@ -909,7 +1088,7 @@ function ProfilePage({ user }) {
         </div>
 
         {/* Trust Badges */}
-        <div className="bg-card rounded-2xl p-6 border border-border/50 mb-6">
+        <div className="bg-card rounded-2xl p-6 border border-border/50 shadow-sm border-l-2 border-l-primary/20 mb-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-heading font-bold text-lg text-foreground flex items-center gap-2">
               <Shield className="h-5 w-5 text-primary" />
@@ -969,7 +1148,7 @@ function ProfilePage({ user }) {
 
         {/* Friends Section - Only show on own profile */}
         {isOwnProfile && (
-          <div className="bg-card rounded-2xl p-6 border border-border/50">
+          <div className="bg-card rounded-2xl p-6 border border-border/50 shadow-sm border-l-2 border-l-primary/20">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-heading font-bold text-lg text-foreground flex items-center gap-2">
                 <Users className="h-5 w-5 text-primary" />
@@ -1027,6 +1206,67 @@ function ProfilePage({ user }) {
             )}
           </div>
         )}
+        {/* Danger Zone — own profile only */}
+        {isOwnProfile && (
+          <div className="bg-card rounded-2xl border-2 border-red-500/40 border-l-4 border-l-red-500 mb-6 overflow-hidden shadow-sm shadow-red-500/5">
+            <div className="px-6 pt-5 pb-4">
+              <h2 className="font-heading font-bold text-base text-red-500 mb-1">Danger Zone</h2>
+              <p className="text-sm text-muted-foreground">These actions are permanent and cannot be undone.</p>
+            </div>
+            <div className="px-6 pb-5 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-foreground">Delete my account</p>
+                <p className="text-xs text-muted-foreground">Removes your profile, posts, and all data. No recovery.</p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setShowDeleteConfirm(true); setDeleteConfirmText(""); }}
+                className="rounded-xl border-red-500/40 text-red-500 hover:bg-red-500/10 hover:border-red-500 shrink-0"
+              >
+                Delete account
+              </Button>
+            </div>
+
+            {showDeleteConfirm && (
+              <div className="border-t border-red-500/20 px-6 py-5 bg-red-500/5 space-y-4">
+                <p className="text-sm text-foreground font-medium">
+                  This will permanently delete your account, all your posts, replies, and messages. This cannot be undone.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Type <span className="font-mono font-bold text-foreground">DELETE</span> to confirm.
+                </p>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={e => setDeleteConfirmText(e.target.value)}
+                  placeholder="Type DELETE to confirm"
+                  className="w-full bg-background border border-border rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50"
+                />
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="rounded-xl flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={deleteConfirmText !== "DELETE" || deleting}
+                    onClick={handleDeleteAccount}
+                    className="rounded-xl flex-1 bg-red-500 text-white hover:bg-red-600 disabled:opacity-40"
+                  >
+                    {deleting ? "Deleting..." : "Yes, delete my account"}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <AppFooter />
       </main>
     </div>
   );
