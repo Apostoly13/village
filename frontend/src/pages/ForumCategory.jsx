@@ -60,26 +60,38 @@ export default function ForumCategory({ user }) {
     { id: "100", label: "100km" },
   ];
 
+  // Fetch category metadata only when categoryId changes
   useEffect(() => {
-    fetchData();
+    setCategory(null); // reset on category change
+    fetchCategory();
+  }, [categoryId]);
+
+  // Fetch posts whenever filter/sort/page changes
+  useEffect(() => {
+    fetchPosts(category);
   }, [categoryId, sortBy, filterType, currentPage, distanceKm]);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchCategory = async () => {
     try {
-      const skip = (currentPage - 1) * postsPerPage;
-      const filterParam = filterType !== "all" ? `&filter_type=${filterType}` : "";
-
       const catRes = await fetch(`${API_URL}/api/forums/categories/${categoryId}`, { credentials: "include" });
-      let catData = null;
       if (catRes.ok) {
-        catData = await catRes.json();
+        const catData = await catRes.json();
         setCategory(catData);
         if (catData?.is_user_created) {
           setIsMember(catData.is_member || false);
           setMemberCount(catData.member_count || 0);
         }
       }
+    } catch (error) {
+      console.error("Error fetching category:", error);
+    }
+  };
+
+  const fetchPosts = async (catData) => {
+    setLoading(true);
+    try {
+      const skip = (currentPage - 1) * postsPerPage;
+      const filterParam = filterType !== "all" ? `&filter_type=${filterType}` : "";
 
       // Build posts URL with location params for location-aware categories
       let postsUrl = `${API_URL}/api/forums/posts?category_id=${categoryId}&sort=${catData?.is_location_aware ? "nearest" : sortBy}&limit=${postsPerPage}&skip=${skip}${filterParam}`;
@@ -95,11 +107,12 @@ export default function ForumCategory({ user }) {
         setTotal(data.total || (data.posts ? data.posts.length : data.length));
       }
     } catch (error) {
-      console.error("Error fetching data:", error);
+      console.error("Error fetching posts:", error);
     } finally {
       setLoading(false);
     }
   };
+
 
   const handleSortChange = (value) => {
     setSortBy(value);

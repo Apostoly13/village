@@ -1349,10 +1349,12 @@ async def get_posts(
         query["reply_count"] = 0
         sort_field = "created_at"
 
-    posts = await db.forum_posts.find(query, {"_id": 0}).sort(sort_field, sort_order).skip(skip).limit(limit).to_list(limit)
-
-    # Get total count for pagination
-    total = await db.forum_posts.count_documents(query)
+    # Run posts fetch and count in parallel
+    posts_cursor = db.forum_posts.find(query, {"_id": 0}).sort(sort_field, sort_order).skip(skip).limit(limit)
+    posts, total = await asyncio.gather(
+        posts_cursor.to_list(limit),
+        db.forum_posts.count_documents(query)
+    )
 
     # Mask anonymous posts
     for post in posts:
@@ -1415,9 +1417,11 @@ async def get_post(post_id: str, user: dict = Depends(get_current_user)):
     # Increment views
     await db.forum_posts.update_one({"post_id": post_id}, {"$inc": {"views": 1}})
     
-    # Check if user has liked/bookmarked
-    user_liked = await db.post_likes.find_one({"post_id": post_id, "user_id": user["user_id"]})
-    user_bookmarked = await db.bookmarks.find_one({"post_id": post_id, "user_id": user["user_id"]})
+    # Check if user has liked/bookmarked — run in parallel
+    user_liked, user_bookmarked = await asyncio.gather(
+        db.post_likes.find_one({"post_id": post_id, "user_id": user["user_id"]}),
+        db.bookmarks.find_one({"post_id": post_id, "user_id": user["user_id"]})
+    )
     
     post["user_liked"] = bool(user_liked)
     post["user_bookmarked"] = bool(user_bookmarked)
@@ -1742,22 +1746,28 @@ async def pin_post(post_id: str, user: dict = Depends(get_current_user)):
 
 @api_router.get("/forums/posts/{post_id}/replies")
 async def get_replies(post_id: str, user: dict = Depends(get_current_user)):
-    replies = await db.forum_replies.find({"post_id": post_id}, {"_id": 0}).sort("created_at", 1).to_list(100)
-    
-    for reply in replies:
-        # Check if user liked this reply
-        user_liked = await db.reply_likes.find_one({"reply_id": reply["reply_id"], "user_id": user["user_id"]})
-        reply["user_liked"] = bool(user_liked)
-        
-        # Store original author for edit check
-        original_author_id = reply["author_id"]
-        reply["is_own_reply"] = original_author_id == user["user_id"]
-        
-        if reply.get("is_anonymous"):
-            reply["author_name"] = "Anonymous Parent"
-            reply["author_picture"] = None
-            reply["author_id"] = "anonymous"
-    
+    replies = await db.forum_replies.find({"post_id": post_id}, {"_id": 0}).sort("created_at", 1).to_list(200)
+
+    if replies:
+        # Batch fetch all reply likes for this user in a single query (avoids N+1)
+        reply_ids = [r["reply_id"] for r in replies]
+        liked_set = set()
+        async for like in db.reply_likes.find(
+            {"reply_id": {"$in": reply_ids}, "user_id": user["user_id"]},
+            {"_id": 0, "reply_id": 1}
+        ):
+            liked_set.add(like["reply_id"])
+
+        for reply in replies:
+            reply["user_liked"] = reply["reply_id"] in liked_set
+            original_author_id = reply["author_id"]
+            reply["is_own_reply"] = original_author_id == user["user_id"]
+
+            if reply.get("is_anonymous"):
+                reply["author_name"] = "Anonymous Parent"
+                reply["author_picture"] = None
+                reply["author_id"] = "anonymous"
+
     return replies
 
 @api_router.post("/forums/posts/{post_id}/replies")
@@ -3100,6 +3110,15 @@ async def get_conversations(user: dict = Depends(get_current_user)):
     
     return sorted(conversations, key=lambda x: x["last_message_time"], reverse=True)
 
+@api_router.get("/messages/unread-count")
+async def get_unread_message_count(current_user: dict = Depends(get_current_user)):
+    """Count unread direct messages for the current user"""
+    count = await db.direct_messages.count_documents({
+        "receiver_id": current_user["user_id"],
+        "is_read": False
+    })
+    return {"count": count}
+
 @api_router.get("/messages/{other_user_id}")
 async def get_direct_messages(other_user_id: str, user: dict = Depends(get_current_user)):
     user_id = user["user_id"]
@@ -3293,7 +3312,25 @@ async def accept_friend_request(request_id: str, user: dict = Depends(get_curren
         "user2_id": request["to_user_id"],
         "created_at": datetime.now(timezone.utc).isoformat()
     })
-    
+
+    # Mark the friend_request notification as read for the acceptor
+    await db.notifications.update_one(
+        {"user_id": user["user_id"], "type": "friend_request", "is_read": False},
+        {"$set": {"is_read": True}}
+    )
+
+    # Notify the original requester that their request was accepted
+    await db.notifications.insert_one({
+        "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+        "user_id": request["from_user_id"],
+        "type": "friend_accept",
+        "title": "Friend request accepted",
+        "message": f"{user.get('nickname') or user['name']} accepted your friend request",
+        "link": f"/profile/{user['user_id']}",
+        "is_read": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+
     return {"message": "Friend request accepted"}
 
 @api_router.post("/friends/request/{request_id}/decline")
@@ -4145,6 +4182,26 @@ async def seed_data():
     await db.forum_categories.create_index("category_type")
     await db.chat_rooms.create_index([("room_type", 1), ("participant_ids", 1)])
     await db.users.create_index("last_seen_at")
+    # Forum performance indexes
+    await db.forum_posts.create_index("post_id", unique=True, sparse=True)
+    await db.forum_posts.create_index([("category_id", 1), ("created_at", -1)])
+    await db.forum_posts.create_index([("category_id", 1), ("like_count", -1)])
+    await db.forum_posts.create_index([("category_id", 1), ("reply_count", -1)])
+    await db.forum_posts.create_index("created_at")
+    await db.forum_replies.create_index([("post_id", 1), ("created_at", 1)])
+    await db.forum_replies.create_index("reply_id", sparse=True)
+    await db.forum_replies.create_index("parent_reply_id", sparse=True)
+    await db.post_likes.create_index([("post_id", 1), ("user_id", 1)], unique=True, sparse=True)
+    await db.reply_likes.create_index([("reply_id", 1), ("user_id", 1)], unique=True, sparse=True)
+    await db.bookmarks.create_index([("post_id", 1), ("user_id", 1)], sparse=True)
+    await db.bookmarks.create_index([("user_id", 1), ("created_at", -1)])
+    # Notifications indexes
+    await db.notifications.create_index([("user_id", 1), ("is_read", 1)])
+    await db.notifications.create_index([("user_id", 1), ("created_at", -1)])
+    # Direct messages indexes
+    await db.direct_messages.create_index([("receiver_id", 1), ("is_read", 1)])
+    await db.direct_messages.create_index([("sender_id", 1), ("receiver_id", 1), ("created_at", -1)])
+    await db.direct_messages.create_index([("receiver_id", 1), ("sender_id", 1), ("created_at", -1)])
 
     # Remove legacy category names that have been renamed to Circles
     LEGACY_CATEGORY_NAMES = [

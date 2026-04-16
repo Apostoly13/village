@@ -25,16 +25,18 @@ export default function Navigation({ user }) {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [unreadMessages, setUnreadMessages] = useState(0);
 
   useEffect(() => {
-    // Single polling loop: badge counts every 45s + heartbeat piggybacked every 3rd tick (135s)
+    // Single polling loop: badge counts every 20s + heartbeat piggybacked every 6th tick (120s)
     let tickCount = 0;
     const poll = async () => {
       tickCount++;
       try {
-        const [friendsRes, notifCountRes] = await Promise.all([
+        const [friendsRes, notifCountRes, msgRes] = await Promise.all([
           fetch(`${API_URL}/api/friends/requests`, { credentials: "include" }),
-          fetch(`${API_URL}/api/notifications/unread-count`, { credentials: "include" })
+          fetch(`${API_URL}/api/notifications/unread-count`, { credentials: "include" }),
+          fetch(`${API_URL}/api/messages/unread-count`, { credentials: "include" }),
         ]);
         if (friendsRes.ok) {
           const data = await friendsRes.json();
@@ -44,15 +46,19 @@ export default function Navigation({ user }) {
           const data = await notifCountRes.json();
           setUnreadCount(data.count);
         }
+        if (msgRes.ok) {
+          const data = await msgRes.json();
+          setUnreadMessages(data.count);
+        }
       } catch {}
-      // Heartbeat every 3rd tick (~135s) — fire-and-forget
-      if (tickCount % 3 === 0) {
+      // Heartbeat every 6th tick (~120s) — fire-and-forget
+      if (tickCount % 6 === 0) {
         fetch(`${API_URL}/api/users/heartbeat`, { method: "POST", credentials: "include" }).catch(() => {});
       }
     };
 
     poll();
-    const interval = setInterval(poll, 45000);
+    const interval = setInterval(poll, 20000);
     return () => clearInterval(interval);
   }, []);
 
@@ -105,7 +111,7 @@ export default function Navigation({ user }) {
     { icon: MessageSquare, label: "Support Spaces", href: "/forums", testId: "nav-forums" },
     { icon: Users, label: "Chat Circles", href: "/chat", testId: "nav-chat" },
     { icon: Calendar, label: "Events", href: isFree ? "/plus" : "/events", testId: "nav-events", locked: isFree },
-    { icon: Mail, label: "Messages", href: isFree ? "/plus" : "/messages", testId: "nav-messages", locked: isFree },
+    { icon: Mail, label: "Messages", href: isFree ? "/plus" : "/messages", testId: "nav-messages", locked: isFree, badge: isFree ? 0 : unreadMessages },
     ...(FEATURES.BLOG ? [{ icon: BookOpen, label: "Blog", href: "/blog", testId: "nav-blog" }] : []),
     ...(isAdmin ? [{ icon: Shield, label: "Admin", href: "/admin", testId: "nav-admin" }] : []),
   ];
@@ -161,6 +167,11 @@ export default function Navigation({ user }) {
                       <item.icon className="h-4 w-4 mr-2" />
                       {item.label}
                       {item.locked && <Lock className="h-3 w-3 ml-1.5 opacity-60" />}
+                      {item.badge > 0 && (
+                        <span className="ml-1.5 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center px-1 font-medium">
+                          {item.badge > 9 ? '9+' : item.badge}
+                        </span>
+                      )}
                     </Button>
                   </Link>
                 );
@@ -511,6 +522,11 @@ export default function Navigation({ user }) {
                 <div className={`relative ${isActive ? 'bg-primary/15 rounded-xl px-3 py-1.5' : 'px-3 py-1.5'}`}>
                   <item.icon className="h-5 w-5" />
                   {item.locked && <Lock className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 text-muted-foreground/70" />}
+                  {item.badge > 0 && (
+                    <span className="absolute -top-1 -right-0.5 min-w-[16px] h-4 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center px-1 font-medium">
+                      {item.badge > 9 ? '9+' : item.badge}
+                    </span>
+                  )}
                 </div>
               </Link>
             );

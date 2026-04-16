@@ -877,7 +877,7 @@ function EventDetailModal({ event, user, onClose, onRsvp, onUpdated }) {
 
   return (
     <Dialog open onOpenChange={() => onClose()}>
-      <DialogContent className="bg-card border-border/50 max-w-4xl w-full max-h-[92vh] p-0 overflow-hidden flex flex-col">
+      <DialogContent className="bg-card border-border/50 max-w-4xl w-full max-h-[92vh] p-0 overflow-hidden flex flex-col [&>button]:hidden">
         {/* Header bar */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border/50 shrink-0">
           <div className="flex items-center gap-3">

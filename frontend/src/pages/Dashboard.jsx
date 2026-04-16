@@ -323,12 +323,15 @@ export default function Dashboard({ user }) {
 
   // ── Data fetching ──────────────────────────────────────────────────────────
   useEffect(() => {
-    fetchFeed();
-    fetchNearbyEvents();
-    fetchTodaysPosts();
-    fetchSubscription();
-    fetchBusyChatRooms();
-    fetchRecentActivity();
+    // Fire all independent fetches in parallel — avoids sequential round-trips
+    Promise.all([
+      fetchFeed(),
+      fetchNearbyEvents(),
+      fetchTodaysPosts(),
+      fetchSubscription(),
+      fetchBusyChatRooms(),
+      fetchRecentActivity(),
+    ]);
     // Onboarding is now a standalone page (/onboarding) — ProtectedRoute handles the redirect
   }, [user]);
 

@@ -64,7 +64,6 @@ export default function ForumPost({ user }) {
 
   useEffect(() => {
     fetchData();
-    fetchSubscription();
   }, [postId]);
 
   const fetchSubscription = async () => {
@@ -76,9 +75,11 @@ export default function ForumPost({ user }) {
 
   const fetchData = async () => {
     try {
-      const [postRes, repliesRes] = await Promise.all([
+      // All three fetches run in parallel
+      const [postRes, repliesRes, subRes] = await Promise.all([
         fetch(`${API_URL}/api/forums/posts/${postId}`, { credentials: "include" }),
-        fetch(`${API_URL}/api/forums/posts/${postId}/replies`, { credentials: "include" })
+        fetch(`${API_URL}/api/forums/posts/${postId}/replies`, { credentials: "include" }),
+        fetch(`${API_URL}/api/subscription/status`, { credentials: "include" }),
       ]);
 
       if (postRes.ok) {
@@ -88,6 +89,7 @@ export default function ForumPost({ user }) {
         setEditContent(postData.content);
       }
       if (repliesRes.ok) setReplies(await repliesRes.json());
+      if (subRes.ok) setSubscription(await subRes.json());
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -174,12 +176,16 @@ export default function ForumPost({ user }) {
         setIsAnonymous(false);
         setReplyingTo(null);
         setPost(prev => ({ ...prev, reply_count: (prev.reply_count || 0) + 1 }));
+        // Optimistically update subscription reply count without a network call
+        setSubscription(prev => prev ? {
+          ...prev,
+          usage: { ...prev.usage, replies_this_week: (prev.usage?.replies_this_week || 0) + 1 }
+        } : prev);
         toast.success("Reply posted!");
-        fetchSubscription();
       } else if (response.status === 429) {
         const err = await response.json();
         toast.error(err.detail?.message || "Daily reply limit reached");
-        fetchSubscription();
+        fetchSubscription(); // Only re-fetch on limit hit to show accurate counts
       } else {
         toast.error("Failed to post reply");
       }

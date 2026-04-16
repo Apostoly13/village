@@ -11,6 +11,22 @@ import AppFooter from "../components/AppFooter";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
+function playDing() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 880;
+    osc.type = "sine";
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.4);
+  } catch {}
+}
+
 function formatTime(dateString) {
   try { return formatDistanceToNow(new Date(dateString), { addSuffix: true }); }
   catch { return ""; }
@@ -217,7 +233,12 @@ export default function Messages({ user }) {
   const [imageFile, setImageFile] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
 
+  const [loadingMessages, setLoadingMessages] = useState(false);
+
   const messagesEndRef = useRef(null);
+  const scrollContainerRef = useRef(null);
+  const isAtBottom = useRef(true);
+  const prevMsgCount = useRef(0);
   const inputRef = useRef(null);
   const imageInputRef = useRef(null);
 
@@ -226,7 +247,7 @@ export default function Messages({ user }) {
   useEffect(() => {
     if (activeRoomId && chatMode === "friend") {
       fetchRoomMessages();
-      const interval = setInterval(fetchRoomMessages, 3000);
+      const interval = setInterval(fetchRoomMessages, 1500);
       return () => clearInterval(interval);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -235,15 +256,26 @@ export default function Messages({ user }) {
   useEffect(() => {
     if (activeDmUser && chatMode === "dm") {
       fetchDmMessages();
-      const interval = setInterval(fetchDmMessages, 3000);
+      const interval = setInterval(fetchDmMessages, 1500);
       return () => clearInterval(interval);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeDmUser, chatMode]);
 
+  // Auto-scroll only when user is already at the bottom
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (isAtBottom.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages]);
+
+  // Force scroll to bottom when switching conversations
+  useEffect(() => {
+    isAtBottom.current = true;
+    prevMsgCount.current = 0;
+    messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeRoomId, activeDmUser]);
 
   const fetchFriends = async () => {
     setLoadingFriends(true);
@@ -267,16 +299,34 @@ export default function Messages({ user }) {
     if (!activeRoomId) return;
     try {
       const res = await fetch(`${API_URL}/api/chat/rooms/${activeRoomId}/messages?limit=50`, { credentials: "include" });
-      if (res.ok) setMessages(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        if (prevMsgCount.current > 0 && data.length > prevMsgCount.current) {
+          const lastMsg = data[data.length - 1];
+          if (lastMsg && (lastMsg.author_id || lastMsg.sender_id) !== user?.user_id) playDing();
+        }
+        prevMsgCount.current = data.length;
+        setMessages(data);
+      }
     } catch {}
+    finally { setLoadingMessages(false); }
   };
 
   const fetchDmMessages = async () => {
     if (!activeDmUser) return;
     try {
       const res = await fetch(`${API_URL}/api/messages/${activeDmUser.user_id}`, { credentials: "include" });
-      if (res.ok) setMessages(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        if (prevMsgCount.current > 0 && data.length > prevMsgCount.current) {
+          const lastMsg = data[data.length - 1];
+          if (lastMsg && lastMsg.sender_id !== user?.user_id) playDing();
+        }
+        prevMsgCount.current = data.length;
+        setMessages(data);
+      }
     } catch {}
+    finally { setLoadingMessages(false); }
   };
 
   const openFriendChat = async (friend) => {
@@ -290,6 +340,8 @@ export default function Messages({ user }) {
       });
       if (res.ok) {
         const room = await res.json();
+        setLoadingMessages(true);
+        prevMsgCount.current = 0;
         setActiveRoomId(room.room_id);
         setActiveFriend(friend);
         setActiveDmUser(null);
@@ -303,6 +355,8 @@ export default function Messages({ user }) {
   };
 
   const openDmChat = async (dmUser) => {
+    setLoadingMessages(true);
+    prevMsgCount.current = 0;
     setActiveDmUser(dmUser);
     setActiveRoomId(null);
     setActiveFriend(null);
@@ -642,25 +696,40 @@ export default function Messages({ user }) {
                   </div>
 
                   {/* Messages */}
-                  <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
-                    {messages.length === 0 && (
-                      <div className="text-center py-8">
-                        <MessagesSquare className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
-                        <p className="text-sm text-muted-foreground">No messages yet. Say hi!</p>
+                  <div
+                    ref={scrollContainerRef}
+                    onScroll={() => {
+                      const el = scrollContainerRef.current;
+                      if (el) isAtBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+                    }}
+                    className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0"
+                  >
+                    {loadingMessages ? (
+                      <div className="flex items-center justify-center py-12">
+                        <div className="w-5 h-5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
                       </div>
+                    ) : (
+                      <>
+                        {messages.length === 0 && (
+                          <div className="text-center py-8">
+                            <MessagesSquare className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+                            <p className="text-sm text-muted-foreground">No messages yet. Say hi!</p>
+                          </div>
+                        )}
+                        {messages.map((msg, idx) => {
+                          const isOwn = (msg.author_id || msg.sender_id) === user?.user_id;
+                          return (
+                            <MessageBubble
+                              key={msg.message_id || msg.dm_id || idx}
+                              msg={msg}
+                              isOwn={isOwn}
+                              activeUser={activeUser}
+                            />
+                          );
+                        })}
+                        <div ref={messagesEndRef} />
+                      </>
                     )}
-                    {messages.map((msg, idx) => {
-                      const isOwn = (msg.author_id || msg.sender_id) === user?.user_id;
-                      return (
-                        <MessageBubble
-                          key={msg.message_id || msg.dm_id || idx}
-                          msg={msg}
-                          isOwn={isOwn}
-                          activeUser={activeUser}
-                        />
-                      );
-                    })}
-                    <div ref={messagesEndRef} />
                   </div>
 
                   {/* Image preview */}
