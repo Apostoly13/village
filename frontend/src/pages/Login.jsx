@@ -5,6 +5,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { toast } from "sonner";
 import { ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { parseApiError } from "../utils/apiError";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -34,7 +35,7 @@ export default function Login() {
         toast.success("Welcome back! 🦉");
         navigate("/dashboard");
       } else {
-        toast.error(data.detail || "Invalid credentials");
+        toast.error(parseApiError(data.detail, "Invalid credentials"));
       }
     } catch (error) {
       toast.error("Something went wrong. Please try again.");

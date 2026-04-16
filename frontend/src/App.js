@@ -26,6 +26,7 @@ import CreateCommunity from "./pages/CreateCommunity";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
 import Onboarding from "./pages/Onboarding";
+import OnboardingPage from "./pages/OnboardingPage";
 import Settings from "./pages/Settings";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
@@ -173,13 +174,8 @@ const ProtectedRoute = ({ children }) => {
     return null;
   }
 
-  // New users who haven't completed onboarding → redirect to /onboarding
-  // Exception: already on /onboarding itself
-  if (
-    user &&
-    !user.onboarding_complete &&
-    location.pathname !== "/onboarding"
-  ) {
+  // Incomplete onboarding → redirect to the onboarding page
+  if (user && !user.onboarding_complete && location.pathname !== "/onboarding") {
     return <Navigate to="/onboarding" replace />;
   }
 
@@ -297,7 +293,7 @@ const AppRouter = () => {
       } />
       <Route path="/onboarding" element={
         <ProtectedRoute>
-          {({ user }) => <Onboarding user={user} />}
+          {({ user }) => <OnboardingPage user={user} />}
         </ProtectedRoute>
       } />
       {FEATURES.BLOG && <Route path="/blog" element={

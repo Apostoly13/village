@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import Navigation from "../components/Navigation";
-import OnboardingModal from "../components/OnboardingModal";
+// OnboardingModal removed — onboarding is now a standalone page at /onboarding
 import { Search, Plus, MessageCircle, Heart, Eye, MapPin, Crown, X } from "lucide-react";
 import RecommendedSpaces from "../components/RecommendedSpaces";
 import { formatDistanceToNow } from "date-fns";
@@ -211,15 +211,22 @@ const FEED_FILTERS = [
 
 // ── Main component ────────────────────────────────────────────────────────────
 
+function isNightOwlTime() {
+  const now = new Date();
+  const aestMs = now.getTime() + 10 * 60 * 60 * 1000;
+  const h = new Date(aestMs).getUTCHours();
+  return h >= 22 || h < 4;
+}
+
 export default function Dashboard({ user }) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [posts, setPosts]               = useState([]);
   const [loading, setLoading]           = useState(true);
   const [feedFilter, setFeedFilter]     = useState("latest");
   const [searchQuery, setSearchQuery]   = useState("");
   const [nearbyEvents, setNearbyEvents] = useState([]);
-  const [showOnboarding, setShowOnboarding] = useState(false);
   const [todaysPosts, setTodaysPosts]   = useState([]);
   const [visibleCount, setVisibleCount] = useState(8);
   const [subscription, setSubscription] = useState(null);
@@ -227,8 +234,15 @@ export default function Dashboard({ user }) {
   const [postLikes, setPostLikes]       = useState({});
   const [busyChatRooms, setBusyChatRooms] = useState([]);
   const [namedRooms, setNamedRooms] = useState([]);
+  const [nightOwl3amRoom, setNightOwl3amRoom] = useState(null);
   const [recentActivity, setRecentActivity] = useState([]);
   const [userCommunities, setUserCommunities] = useState([]);
+  const [showDowngradeNotice, setShowDowngradeNotice] = useState(false);
+
+  // ── One-time downgrade notice ─────────────────────────────────────────────
+  useEffect(() => {
+    if (user?.just_downgraded) setShowDowngradeNotice(true);
+  }, [user?.just_downgraded]);
 
   // ── Derived: filtered feed ─────────────────────────────────────────────────
   const filteredPosts = useMemo(() => {
@@ -315,30 +329,56 @@ export default function Dashboard({ user }) {
     fetchSubscription();
     fetchBusyChatRooms();
     fetchRecentActivity();
-    if (user && !user.onboarding_complete && !sessionStorage.getItem("onboarding_dismissed")) {
-      setShowOnboarding(true);
-    }
+    // Onboarding is now a standalone page (/onboarding) — ProtectedRoute handles the redirect
   }, [user]);
 
   const fetchFeed = async () => {
+    // Stale-while-revalidate: show cached data instantly, refresh in background
+    try {
+      const cached = sessionStorage.getItem("village_feed_cache");
+      if (cached) {
+        setPosts(JSON.parse(cached));
+        setLoading(false);
+      }
+    } catch {}
     try {
       const res = await fetch(`${API_URL}/api/feed`, { credentials: "include" });
-      if (res.ok) setPosts(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setPosts(data);
+        try { sessionStorage.setItem("village_feed_cache", JSON.stringify(data)); } catch {}
+      }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
 
   const fetchTodaysPosts = async () => {
     try {
+      const cached = sessionStorage.getItem("village_trending_cache");
+      if (cached) setTodaysPosts(JSON.parse(cached));
+    } catch {}
+    try {
       const res = await fetch(`${API_URL}/api/forums/posts/trending?limit=3`, { credentials: "include" });
-      if (res.ok) setTodaysPosts(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setTodaysPosts(data);
+        try { sessionStorage.setItem("village_trending_cache", JSON.stringify(data)); } catch {}
+      }
     } catch {}
   };
 
   const fetchNearbyEvents = async () => {
     try {
+      const cached = sessionStorage.getItem("village_events_cache");
+      if (cached) setNearbyEvents(JSON.parse(cached));
+    } catch {}
+    try {
       const res = await fetch(`${API_URL}/api/events?distance_km=25&limit=2`, { credentials: "include" });
-      if (res.ok) setNearbyEvents(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setNearbyEvents(data);
+        try { sessionStorage.setItem("village_events_cache", JSON.stringify(data)); } catch {}
+      }
     } catch {}
   };
 
@@ -358,33 +398,61 @@ export default function Dashboard({ user }) {
       const res = await fetch(`${API_URL}/api/chat/rooms`, { credentials: "include" });
       if (res.ok) {
         const data = await res.json();
-        // The rooms endpoint returns structured data, not a flat array
         const allRooms = [
           ...(data.all_australia_rooms || []),
           ...(data.nearby_rooms || []),
           ...(data.my_suburb_room ? [data.my_suburb_room] : []),
         ];
-        setBusyChatRooms(allRooms.slice(0, 4));
-        const club = allRooms.find(r => {
-          const n = r.name?.toLowerCase() || "";
-          return n.includes("3am") || n.includes("three am") || n.includes("3 am");
+
+        // Filter out gender-restricted rooms the user cannot access
+        const userGender = user?.gender || "";
+        const accessible = allRooms.filter(r => {
+          const restriction = r.gender_restriction;
+          if (!restriction) return true;
+          if (!userGender) return true; // gender not set — show all
+          return restriction === userGender;
         });
-        const mums = allRooms.find(r => {
-          const n = r.name?.toLowerCase() || "";
-          return (n.includes("mum") || n.includes("mums")) && !n.includes("single");
+
+        // Deduplicate by name — catches legacy duplicates with different room_ids
+        const seen = new Set();
+        const unique = accessible.filter(r => {
+          const key = (r.name || r.room_id).toLowerCase();
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
         });
-        const dads = allRooms.find(r => {
-          const n = r.name?.toLowerCase() || "";
-          return (n.includes("dad") || n.includes("dads")) && !n.includes("single");
+
+        // Sort: rooms with recent activity first, then by active_users
+        unique.sort((a, b) => {
+          const aTime = a.last_activity_at || a.created_at || "";
+          const bTime = b.last_activity_at || b.created_at || "";
+          if (bTime > aTime) return 1;
+          if (aTime > bTime) return -1;
+          return (b.active_users || 0) - (a.active_users || 0);
         });
-        // Build named rooms from real room data — name, icon, and ID come from the DB
-        const found = [club, mums, dads].filter(Boolean).map(r => ({
-          name:  r.name,
-          icon:  r.icon || "💬",
-          href:  `/chat/${r.room_id}`,
-          count: r.active_users || r.member_count || null,
-        }));
-        setNamedRooms(found);
+
+        setBusyChatRooms(unique.slice(0, 5));
+
+        // During night owl hours, surface the 3am Club as a hero banner
+        const nightOwlActive = isNightOwlTime();
+        const clubRoom = nightOwlActive ? unique.find(r => r.name?.toLowerCase().includes("3am")) : null;
+        setNightOwl3amRoom(clubRoom ? {
+          name: clubRoom.name,
+          href: `/chat/${clubRoom.room_id}`,
+          icon: clubRoom.icon || "🌙",
+        } : null);
+
+        // Build Live Now — exclude 3am during night owl (shown separately at top of page)
+        const liveRooms = unique
+          .filter(r => !(nightOwlActive && r.name?.toLowerCase().includes("3am")))
+          .slice(0, 5)
+          .map(r => ({
+            name:  r.name,
+            icon:  r.icon || "💬",
+            href:  `/chat/${r.room_id}`,
+            count: r.active_users || null,
+          }));
+        setNamedRooms(liveRooms);
       }
     } catch {}
   };
@@ -424,14 +492,6 @@ export default function Dashboard({ user }) {
     } catch {}
   };
 
-  const handleOnboardingComplete = () => {
-    setShowOnboarding(false);
-    sessionStorage.setItem("onboarding_dismissed", "true");
-    const stored = localStorage.getItem("user");
-    if (stored) {
-      localStorage.setItem("user", JSON.stringify({ ...JSON.parse(stored), onboarding_complete: true }));
-    }
-  };
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -469,15 +529,78 @@ export default function Dashboard({ user }) {
     <div className="min-h-screen bg-background pb-20 lg:pb-8">
       <Navigation user={user} />
 
-      {showOnboarding && (
-        <OnboardingModal
-          user={user}
-          onComplete={handleOnboardingComplete}
-          onSkip={handleOnboardingComplete}
-        />
-      )}
+<main className="max-w-5xl mx-auto px-4 pt-20 lg:pt-24">
 
-      <main className="max-w-5xl mx-auto px-4 pt-20 lg:pt-24">
+        {/* ── Downgrade notice (one-time, shown on first login after trial expires) ── */}
+        {showDowngradeNotice && (
+          <div className="mb-5 rounded-2xl p-5 bg-card border border-border/50 shadow-sm">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl shrink-0">👋</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground mb-1">Your free trial has ended — you're now on the free tier</p>
+                <p className="text-sm text-muted-foreground leading-relaxed mb-3">
+                  Some features from your trial are no longer available. Here's what's changed:
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                  <div className="rounded-xl bg-secondary/40 p-3">
+                    <p className="text-xs font-semibold text-foreground mb-1.5">Still with you ✓</p>
+                    <ul className="space-y-1 text-xs text-muted-foreground">
+                      <li>• 5 support space posts per week</li>
+                      <li>• 5 support space replies per week</li>
+                      <li>• 10 chat circle messages per day</li>
+                      <li>• Anonymous posting — always free</li>
+                      <li>• Reading all posts and comments</li>
+                    </ul>
+                  </div>
+                  <div className="rounded-xl bg-secondary/40 p-3">
+                    <p className="text-xs font-semibold text-foreground mb-1.5">Now locked 🔒</p>
+                    <ul className="space-y-1 text-xs text-muted-foreground">
+                      <li>• Events — view &amp; RSVP</li>
+                      <li>• Direct messages</li>
+                      <li>• Community spaces</li>
+                      <li>• Unlimited posts &amp; replies</li>
+                    </ul>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Link to="/plus" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors">
+                    Upgrade to Village+ — $9.99/month
+                  </Link>
+                  <button
+                    onClick={() => setShowDowngradeNotice(false)}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Free trial banner ── */}
+        {(() => {
+          if (user?.subscription_tier !== "trial" || !user?.trial_ends_at) return null;
+          const trialEnd = new Date(user.trial_ends_at);
+          if (trialEnd <= new Date()) return null;
+          const today = new Date(); today.setHours(0, 0, 0, 0);
+          const endDay = new Date(trialEnd); endDay.setHours(0, 0, 0, 0);
+          const daysLeft = Math.round((endDay - today) / (1000 * 60 * 60 * 24));
+          return (
+            <div className="mb-5 rounded-2xl p-4 bg-amber-500/10 border border-amber-500/25 flex items-start gap-3">
+              <span className="text-xl shrink-0 mt-0.5">⏳</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground">
+                  {daysLeft <= 1 ? "Your free trial ends tomorrow" : `${daysLeft} days left on your free trial`}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                  After your trial you'll move to the free tier — 5 posts/week, 5 replies/week, 10 chats/day, no Events, Communities or Direct Messages.{" "}
+                  <Link to="/plus" className="text-primary underline">Upgrade to Village+</Link> to keep full access and support the community.
+                </p>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── Hero ── */}
         <div className="mb-6 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/15 px-6 py-5">
@@ -509,6 +632,24 @@ export default function Dashboard({ user }) {
             </p>
           )}
         </div>
+
+        {/* ── Night Owl 3am Club banner ── */}
+        {nightOwl3amRoom && (
+          <Link to={nightOwl3amRoom.href} className="block mb-5">
+            <div className="rounded-2xl p-4 bg-primary/10 border border-primary/25 hover:border-primary/40 hover:bg-primary/15 transition-all flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center text-2xl shrink-0">🌙</div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shrink-0" />
+                  <span className="text-xs font-semibold text-primary uppercase tracking-wide">Night Owl hours · Active now</span>
+                </div>
+                <p className="font-heading font-bold text-foreground text-sm">The 3am Club is active</p>
+                <p className="text-xs text-muted-foreground">Late-night company for those who can't sleep. You're not alone.</p>
+              </div>
+              <span className="text-muted-foreground shrink-0">→</span>
+            </div>
+          </Link>
+        )}
 
         {/* ── Search + action bar ── */}
         <div className="mb-6 space-y-3">
@@ -804,12 +945,10 @@ export default function Dashboard({ user }) {
                 <Link to="/chat" className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">See all</Link>
               </div>
               <div className="space-y-1">
-                {(namedRooms.length > 0 ? namedRooms : [
-                  { icon: "🌙", name: "3am Club",  href: "/chat" },
-                  { icon: "👩", name: "Mum Chat",  href: "/chat" },
-                  { icon: "👨", name: "Dad Chat",  href: "/chat" },
-                ]).map(r => (
-                  <Link key={r.name} to={r.href} className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-secondary/50 transition-colors group">
+                {namedRooms.length === 0 ? (
+                  <p className="text-xs text-muted-foreground px-2 py-3">No active circles right now — check back soon 🌿</p>
+                ) : namedRooms.map(r => (
+                  <Link key={r.href} to={r.href} className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-secondary/50 transition-colors group">
                     <span className="text-base w-7 text-center shrink-0">{r.icon}</span>
                     <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors flex-1 truncate">{r.name}</p>
                     {r.count > 0 ? (
@@ -817,7 +956,7 @@ export default function Dashboard({ user }) {
                     ) : (
                       <span className="flex items-center gap-1 text-xs text-green-500 shrink-0">
                         <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                        Live
+                        Active
                       </span>
                     )}
                   </Link>
@@ -837,9 +976,19 @@ export default function Dashboard({ user }) {
                     </p>
                   )}
                 </div>
-                <Link to="/events" className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">See all</Link>
+                {user?.subscription_tier !== "free" && (
+                  <Link to="/events" className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">See all</Link>
+                )}
               </div>
-              {nearbyEvents.length === 0 ? (
+              {user?.subscription_tier === "free" ? (
+                <Link to="/plus" className="flex items-center gap-2.5 p-3 rounded-xl bg-primary/5 border border-primary/15 hover:bg-primary/10 transition-colors group">
+                  <Crown className="h-4 w-4 text-primary shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-foreground">Events — Village+ feature</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">Upgrade to view and RSVP to local events</p>
+                  </div>
+                </Link>
+              ) : nearbyEvents.length === 0 ? (
                 <Link to="/events" className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-secondary/50 transition-colors group">
                   <span className="text-xl shrink-0">📅</span>
                   <p className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">Find events near you</p>
@@ -881,15 +1030,18 @@ export default function Dashboard({ user }) {
             {/* 5. Communities */}
             {(() => {
               const isPremium = subscription?.tier === "premium";
-              if (!isPremium) {
+              const isTrial   = user?.subscription_tier === "trial";
+              const isAdminUser = user?.role === "admin" || user?.role === "moderator";
+              if (!isPremium && !isTrial && !isAdminUser) {
                 return (
                   <div className="bg-card rounded-2xl border border-border/40 p-4 card-elevated">
-                    <h3 className="font-heading font-semibold text-sm text-foreground mb-2">Member communities</h3>
-                    <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                      Village+ members lead their own topic groups — NICU parents, sleep-deprived dads, solo mums, and more.
-                    </p>
-                    <Link to="/plus" className="text-xs text-primary font-medium hover:underline">
-                      Explore Village+ →
+                    <h3 className="font-heading font-semibold text-sm text-foreground mb-3">Member communities</h3>
+                    <Link to="/plus" className="flex items-center gap-2.5 p-3 rounded-xl bg-primary/5 border border-primary/15 hover:bg-primary/10 transition-colors group">
+                      <Crown className="h-4 w-4 text-primary shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-foreground">Communities — Village+ feature</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">Upgrade to join and create member-led groups</p>
+                      </div>
                     </Link>
                   </div>
                 );
@@ -953,23 +1105,6 @@ export default function Dashboard({ user }) {
               </div>
             )}
 
-            {/* 7. Village+ — ambient, not salesy */}
-            {subscription && subscription.tier !== "premium" && (
-              <div className="px-1">
-                <Link
-                  to="/plus"
-                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-border/40 hover:border-amber-500/30 hover:bg-amber-500/5 transition-all group"
-                >
-                  <Crown className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium text-foreground group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
-                      Unlock Village+
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">Support the village · From $7.99/mo</p>
-                  </div>
-                </Link>
-              </div>
-            )}
           </div>
         </div>
 

@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { Crown, X, MessagesSquare, Send, Search, UserPlus } from "lucide-react";
+import { Crown, X, MessagesSquare, Send, Search, UserPlus, Lock } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import { parseApiError } from "../utils/apiError";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 const STORAGE_KEY = "chatPopout";
@@ -147,7 +148,7 @@ export default function ChatPopout({ user }) {
         body: JSON.stringify({ to_user_id: userId }),
       });
       if (r.ok) { setFriendRequests(p => ({ ...p, [userId]: true })); toast.success("Friend request sent!"); }
-      else { const e = await r.json(); toast.info(e.detail || "Already sent"); }
+      else { const e = await r.json(); toast.info(parseApiError(e.detail, "Already sent")); }
     } catch { toast.error("Something went wrong"); }
   };
 
@@ -285,13 +286,67 @@ export default function ChatPopout({ user }) {
   const handleOpen = () => { setOpen(true); setUnreadCount(0); };
   const handleClose = () => setOpen(false);
 
+  const isAdmin = user?.role === "admin" || user?.role === "moderator";
+  const isFree  = user?.subscription_tier === "free" && !isAdmin;
+
   const activeUser = chatMode === "friend" ? (room ? { name: room.name } : null) : activeDmUser;
   const friendIds = new Set(friends.map(f => f.user_id));
   const dmRequests = conversations.filter(c => !friendIds.has(c.other_user_id));
   const totalUnread = conversations.reduce((a, c) => a + (c.unread_count || 0), 0) + unreadCount;
 
+  if (isFree) {
+    return (
+      <div className="fixed bottom-20 right-0 lg:bottom-8 z-[100] hidden lg:flex flex-col items-end">
+        {open ? (
+          <div className="mb-2 bg-card border border-border/40 border-r-0 rounded-l-2xl shadow-xl flex flex-col overflow-hidden lg:border-r lg:rounded-2xl lg:mr-4" style={{width:"288px", height:"280px"}}>
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/30 bg-card/95 shrink-0">
+              <div className="flex items-center gap-1.5">
+                <MessagesSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                <p className="font-medium text-foreground text-sm">Messages</p>
+              </div>
+              <button onClick={handleClose} className="text-muted-foreground hover:text-foreground p-1 ml-2 shrink-0">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <div className="flex flex-col items-center justify-center flex-1 px-5 py-6 text-center gap-3">
+              <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center">
+                <Crown className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-heading font-semibold text-foreground text-sm mb-1">Messages — Village+ feature</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Direct messaging is available on Village+. Upgrade to connect privately with other parents.
+                </p>
+              </div>
+              <Link
+                to="/plus"
+                onClick={handleClose}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+              >
+                <Crown className="h-3.5 w-3.5" />
+                Upgrade to Village+
+              </Link>
+              <p className="text-[11px] text-muted-foreground">$9.99/month · cancel any time</p>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={handleOpen}
+            aria-label="Messages — Village+ feature"
+            className="flex items-center gap-2 pl-3 pr-4 py-2 bg-card border border-border/40 border-r-0 rounded-l-xl text-muted-foreground shadow-md hover:text-foreground hover:border-border/70 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            data-testid="chat-popout-bubble"
+          >
+            <MessagesSquare className="h-4 w-4 shrink-0" />
+            <span className="text-xs font-medium">Messages</span>
+            <Lock className="h-3 w-3 opacity-60" />
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div className="fixed bottom-20 right-0 lg:bottom-8 z-[100] flex flex-col items-end">
+    <div className="fixed bottom-20 right-0 lg:bottom-8 z-[100] hidden lg:flex flex-col items-end">
       {open ? (
         <div className="mb-2 max-h-[460px] bg-card border border-border/40 border-r-0 rounded-l-2xl shadow-xl flex flex-col overflow-hidden lg:border-r lg:rounded-2xl lg:mr-4" style={{width:"288px"}}>
 

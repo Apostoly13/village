@@ -10,6 +10,7 @@ import AppFooter from "../components/AppFooter";
 import { BookOpen, Sparkles, Eye, Clock, Tag, PenLine } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import { parseApiError } from "../utils/apiError";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -56,7 +57,7 @@ function WriteArticleDialog({ onSubmitted }) {
         if (onSubmitted) onSubmitted();
       } else {
         const err = await res.json();
-        toast.error(err.detail || "Submission failed");
+        toast.error(parseApiError(err.detail, "Submission failed"));
       }
     } catch {
       toast.error("Something went wrong");
@@ -175,7 +176,7 @@ export default function Blog({ user }) {
         toast.success("New blog post generated!");
       } else {
         const err = await res.json();
-        toast.error(err.detail || "Generation failed");
+        toast.error(parseApiError(err.detail, "Generation failed"));
       }
     } catch {
       toast.error("Something went wrong");

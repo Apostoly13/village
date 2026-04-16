@@ -6,6 +6,7 @@ import { Send, ArrowLeft, MessagesSquare, Search, UserPlus, X, ImageIcon, Users,
 import { Crown } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import { parseApiError } from "../utils/apiError";
 import AppFooter from "../components/AppFooter";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -50,7 +51,7 @@ function UserSearchPanel({ onClose, onStartChat }) {
         toast.success("Friend request sent!");
       } else {
         const err = await res.json();
-        toast.info(err.detail || "Request already sent");
+        toast.info(parseApiError(err.detail, "Request already sent"));
       }
     } catch { toast.error("Something went wrong"); }
   };
@@ -167,7 +168,7 @@ function MessageBubble({ msg, isOwn, activeUser }) {
           </p>
         )}
         {isImage ? (
-          <div className={`overflow-hidden shadow-sm ${isOwn ? "rounded-2xl rounded-br-sm" : "rounded-2xl rounded-bl-sm"}`}>
+          <div className={`overflow-hidden shadow-sm rounded-2xl`}>
             <img
               src={msg.content}
               alt="Shared photo"
@@ -176,7 +177,7 @@ function MessageBubble({ msg, isOwn, activeUser }) {
             />
           </div>
         ) : (
-          <div className={`px-4 py-2.5 text-sm shadow-sm break-words overflow-hidden ${isOwn ? "bg-primary text-primary-foreground rounded-2xl rounded-br-sm" : "bg-card border border-border/50 text-foreground rounded-2xl rounded-bl-sm"}`}>
+          <div className={`px-4 py-2.5 text-sm shadow-sm break-words overflow-hidden rounded-2xl ${isOwn ? "bg-primary text-primary-foreground" : "bg-card border border-border/50 text-foreground"}`}>
             {msg.content}
           </div>
         )}

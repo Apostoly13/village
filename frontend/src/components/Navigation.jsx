@@ -99,12 +99,13 @@ export default function Navigation({ user }) {
   };
 
   const isAdmin = user?.role === "admin" || user?.role === "moderator";
+  const isFree = user?.subscription_tier === "free" && !isAdmin;
   const navItems = [
     { icon: Home, label: "Home", href: "/dashboard", testId: "nav-home" },
     { icon: MessageSquare, label: "Support Spaces", href: "/forums", testId: "nav-forums" },
     { icon: Users, label: "Chat Circles", href: "/chat", testId: "nav-chat" },
-    { icon: Calendar, label: "Events", href: "/events", testId: "nav-events" },
-    { icon: Mail, label: "Messages", href: "/messages", testId: "nav-messages" },
+    { icon: Calendar, label: "Events", href: isFree ? "/plus" : "/events", testId: "nav-events", locked: isFree },
+    { icon: Mail, label: "Messages", href: isFree ? "/plus" : "/messages", testId: "nav-messages", locked: isFree },
     ...(FEATURES.BLOG ? [{ icon: BookOpen, label: "Blog", href: "/blog", testId: "nav-blog" }] : []),
     ...(isAdmin ? [{ icon: Shield, label: "Admin", href: "/admin", testId: "nav-admin" }] : []),
   ];
@@ -152,13 +153,14 @@ export default function Navigation({ user }) {
               {navItems.map((item) => {
                 const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
                 return (
-                  <Link key={item.href} to={item.href} data-testid={item.testId}>
+                  <Link key={item.testId} to={item.href} data-testid={item.testId}>
                     <Button
                       variant="ghost"
-                      className={`rounded-full px-4 ${isActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                      className={`rounded-full px-4 ${isActive ? 'bg-primary/10 text-primary' : item.locked ? 'text-muted-foreground/60 hover:text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                     >
                       <item.icon className="h-4 w-4 mr-2" />
                       {item.label}
+                      {item.locked && <Lock className="h-3 w-3 ml-1.5 opacity-60" />}
                     </Button>
                   </Link>
                 );
@@ -500,14 +502,15 @@ export default function Navigation({ user }) {
             const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
             return (
               <Link
-                key={item.href}
+                key={item.testId}
                 to={item.href}
-                className={`flex items-center justify-center p-1.5 transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground'}`}
+                className={`flex items-center justify-center p-1.5 transition-colors ${isActive ? 'text-primary' : item.locked ? 'text-muted-foreground/50' : 'text-muted-foreground'}`}
                 data-testid={`mobile-${item.testId}`}
                 aria-label={item.label}
               >
-                <div className={isActive ? 'bg-primary/15 rounded-xl px-3 py-1.5' : 'px-3 py-1.5'}>
+                <div className={`relative ${isActive ? 'bg-primary/15 rounded-xl px-3 py-1.5' : 'px-3 py-1.5'}`}>
                   <item.icon className="h-5 w-5" />
+                  {item.locked && <Lock className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 text-muted-foreground/70" />}
                 </div>
               </Link>
             );

@@ -5,6 +5,7 @@ import { Button } from "../components/ui/button";
 import Navigation from "../components/Navigation";
 import { MessageCircle, Users, BookOpen, Crown, Plus, Clock, Lock, MapPin, UserCheck, UserPlus, Search, X } from "lucide-react";
 import { toast } from "sonner";
+import { parseApiError } from "../utils/apiError";
 import { formatDistanceToNow } from "date-fns";
 import AppFooter from "../components/AppFooter";
 import { getSpaceName } from "../config/spaces";
@@ -25,10 +26,34 @@ export default function Forums({ user }) {
     fetchData();
   }, []);
 
+  // Gender filter: hide gender-specific spaces until gender is set; then filter by gender
+  const applyGenderFilter = (cats) => {
+    const g = user?.gender;
+    const isMumSpace = (c) => (c.name || "").toLowerCase().includes("mum") || c.category_id === "mum-circle";
+    const isDadSpace = (c) => (c.name || "").toLowerCase().includes("dad") || c.category_id === "dad-circle";
+
+    if (!g) {
+      // Gender not set — hide all gender-specific spaces until profile is complete
+      return cats.filter(c => !isMumSpace(c) && !isDadSpace(c));
+    }
+    if (g === "male")   return cats.filter(c => !isMumSpace(c));
+    if (g === "female") return cats.filter(c => !isDadSpace(c));
+    return cats; // "other" / "prefer-not-say" — show all
+  };
+
   const fetchData = async () => {
+    // Show cached categories immediately while fetching fresh data
+    try {
+      const cached = sessionStorage.getItem("village_categories_cache");
+      if (cached) { setCategories(applyGenderFilter(JSON.parse(cached))); setLoading(false); }
+    } catch {}
     try {
       const res = await fetch(`${API_URL}/api/forums/categories`, { credentials: "include" });
-      if (res.ok) setCategories(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setCategories(applyGenderFilter(data));
+        try { sessionStorage.setItem("village_categories_cache", JSON.stringify(data)); } catch {}
+      }
     } catch (error) {
       console.error("Error fetching categories:", error);
     } finally {
@@ -41,7 +66,10 @@ export default function Forums({ user }) {
     setSearching(true);
     try {
       const res = await fetch(`${API_URL}/api/forums/posts?search=${encodeURIComponent(q.trim())}&limit=20`, { credentials: "include" });
-      if (res.ok) setSearchResults(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setSearchResults(Array.isArray(data) ? data : (data.posts || []));
+      }
     } catch {}
     finally { setSearching(false); }
   };
@@ -73,7 +101,7 @@ export default function Forums({ user }) {
         toast.success(isJoined ? "Left community" : "Joined community");
       } else {
         const err = await res.json();
-        toast.error(err.detail || "Something went wrong");
+        toast.error(parseApiError(err.detail, "Something went wrong"));
       }
     } catch {
       toast.error("Something went wrong");
@@ -271,6 +299,7 @@ export default function Forums({ user }) {
             <input
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && e.preventDefault()}
               placeholder="Search posts and topics..."
               className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
             />
@@ -289,7 +318,7 @@ export default function Forums({ user }) {
               {!searching && searchResults.length === 0 && searchQuery.length >= 2 && (
                 <div className="p-4 text-center text-sm text-muted-foreground">No posts found for "{searchQuery}"</div>
               )}
-              {!searching && searchResults.map(post => (
+              {!searching && searchResults.filter(post => post?.post_id).map(post => (
                 <Link
                   key={post.post_id}
                   to={`/forums/post/${post.post_id}`}
@@ -344,13 +373,16 @@ export default function Forums({ user }) {
               </div>
             ) : (
               <>
-                {/* Featured: Mum & Dad in full-width 2-col row */}
+                {/* Featured: Mum Circle / Dad Circle — gender filtered, full-width when only one */}
                 {(() => {
-                  const mumSpace = topicCategories.find(isMum);
-                  const dadSpace = topicCategories.find(isDad);
+                  const g = user?.gender;
+                  // Males don't see Mum Circle; females don't see Dad Circle
+                  const mumSpace = g !== "male"   ? topicCategories.find(isMum) : null;
+                  const dadSpace = g !== "female" ? topicCategories.find(isDad) : null;
                   if (!mumSpace && !dadSpace) return null;
+                  const isSingle = !mumSpace || !dadSpace;
                   return (
-                    <div className="grid sm:grid-cols-2 gap-4 mb-4">
+                    <div className={`grid gap-4 mb-4 ${isSingle ? "" : "sm:grid-cols-2"}`}>
                       {mumSpace && (
                         <FeaturedCard
                           category={mumSpace}

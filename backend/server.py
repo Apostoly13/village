@@ -21,7 +21,7 @@ import jwt
 import resend
 
 ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / '.env')
+load_dotenv(ROOT_DIR / '.env', override=True)
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
@@ -46,8 +46,8 @@ ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'admin@thevillage.com')
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', '')
 
 # Freemium Limits
-MONTHLY_POST_LIMIT_FREE = 5
-DAILY_REPLY_LIMIT_FREE = 10
+WEEKLY_POST_LIMIT_FREE = 5
+WEEKLY_REPLY_LIMIT_FREE = 5
 DAILY_CHAT_LIMIT_FREE = 10
 
 # Image upload config
@@ -86,9 +86,10 @@ class UserBase(BaseModel):
     picture: Optional[str] = None
 
 class UserCreate(BaseModel):
-    email: EmailStr
-    password: str
-    name: str
+    email: Optional[EmailStr] = None
+    password: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -139,6 +140,9 @@ class UserProfileUpdate(BaseModel):
     # Never allow clients to self-assign badges.
     is_multiple_birth: Optional[bool] = None  # twins, triplets, etc.
     mixed_age_groups: Optional[List[str]] = None  # used when parenting_stage == "mixed"
+    show_full_name: Optional[bool] = None  # whether to show real name on profile
+    show_location_on_profile: Optional[bool] = None  # whether to show suburb on profile
+    anonymous_by_default: Optional[bool] = None  # post anonymously by default
 
 class ForumCategory(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -448,19 +452,22 @@ async def get_user_subscription_status(user: dict) -> dict:
     return {"tier": "free", "is_trial_active": False, "is_premium": False, "limits_apply": True}
 
 async def check_forum_post_limit(user_id: str) -> dict:
-    month_ago = (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%d")
+    week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d")
     count = await db.usage_tracking.aggregate([
-        {"$match": {"user_id": user_id, "date": {"$gte": month_ago}}},
+        {"$match": {"user_id": user_id, "date": {"$gte": week_ago}}},
         {"$group": {"_id": None, "total": {"$sum": "$forum_posts"}}}
     ]).to_list(1)
     used = count[0]["total"] if count else 0
-    return {"allowed": used < MONTHLY_POST_LIMIT_FREE, "used": used, "limit": MONTHLY_POST_LIMIT_FREE}
+    return {"allowed": used < WEEKLY_POST_LIMIT_FREE, "used": used, "limit": WEEKLY_POST_LIMIT_FREE}
 
 async def check_forum_reply_limit(user_id: str) -> dict:
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    doc = await db.usage_tracking.find_one({"user_id": user_id, "date": today})
-    used = doc.get("forum_replies", 0) if doc else 0
-    return {"allowed": used < DAILY_REPLY_LIMIT_FREE, "used": used, "limit": DAILY_REPLY_LIMIT_FREE}
+    week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d")
+    count = await db.usage_tracking.aggregate([
+        {"$match": {"user_id": user_id, "date": {"$gte": week_ago}}},
+        {"$group": {"_id": None, "total": {"$sum": "$forum_replies"}}}
+    ]).to_list(1)
+    used = count[0]["total"] if count else 0
+    return {"allowed": used < WEEKLY_REPLY_LIMIT_FREE, "used": used, "limit": WEEKLY_REPLY_LIMIT_FREE}
 
 async def check_chat_message_limit(user_id: str) -> dict:
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -678,20 +685,43 @@ async def get_users_within_distance(user_lat: float, user_lon: float, distance_k
 
 @api_router.post("/auth/register")
 async def register(user_data: UserCreate, response: Response):
-    # Check if user exists
+    # --- Validate all required fields explicitly (avoids Pydantic 422 noise) ---
+    if not user_data.email:
+        raise HTTPException(status_code=400, detail="Email is required")
+    if not user_data.password:
+        raise HTTPException(status_code=400, detail="Password is required")
+    if not (user_data.first_name or "").strip():
+        raise HTTPException(status_code=400, detail="First name is required")
+    if not (user_data.last_name or "").strip():
+        raise HTTPException(status_code=400, detail="Last name is required")
+
+    # Password strength
+    pwd = user_data.password
+    if len(pwd) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+    if not re.search(r"[A-Z]", pwd):
+        raise HTTPException(status_code=400, detail="Password must contain at least one uppercase letter")
+    if not re.search(r"[0-9]", pwd):
+        raise HTTPException(status_code=400, detail="Password must contain at least one number")
+
+    # Check if email already registered
     existing = await db.users.find_one({"email": user_data.email}, {"_id": 0})
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
-    
+
+    full_name = f"{user_data.first_name.strip()} {user_data.last_name.strip()}".strip()
     user_id = f"user_{uuid.uuid4().hex[:12]}"
     now = datetime.now(timezone.utc)
     user = {
         "user_id": user_id,
         "email": user_data.email,
-        "name": user_data.name,
+        "first_name": user_data.first_name.strip(),
+        "last_name": user_data.last_name.strip(),
+        "name": full_name,
         "password_hash": hash_password(user_data.password),
         "picture": None,
-        "nickname": user_data.name,
+        "nickname": None,          # Set during onboarding (display name step)
+        "show_full_name": False,   # Full name hidden by default
         "bio": None,
         "parenting_stage": None,
         "child_age_ranges": [],
@@ -703,29 +733,33 @@ async def register(user_data: UserCreate, response: Response):
         "premium_since": None,
         "is_banned": False,
         "ban_reason": None,
+        "onboarding_complete": False,
         "created_at": now.isoformat()
     }
     await db.users.insert_one(user)
-    
+
     # Create JWT token
     token = create_jwt_token(user_id)
-    
+
     response.set_cookie(
         key="session_token",
         value=token,
         httponly=True,
-        secure=True,
-        samesite="none",
+        secure=COOKIE_SECURE,
+        samesite=COOKIE_SAMESITE,
         path="/",
         max_age=JWT_EXPIRATION_DAYS * 24 * 60 * 60
     )
-    
+
     return {
         "user_id": user_id,
         "email": user_data.email,
-        "name": user_data.name,
+        "first_name": user_data.first_name.strip(),
+        "last_name": user_data.last_name.strip(),
+        "name": full_name,
         "picture": None,
-        "nickname": user_data.name,
+        "nickname": None,
+        "show_full_name": False,
         "token": token,
         "role": "user",
         "subscription_tier": "trial",
@@ -735,6 +769,18 @@ async def register(user_data: UserCreate, response: Response):
         "interests": [],
         "child_age_ranges": [],
     }
+
+@api_router.get("/users/check-nickname")
+async def check_nickname(name: str, user: dict = Depends(get_current_user)):
+    """Check if a display name is available (case-insensitive)."""
+    if not name or len(name.strip()) < 2:
+        return {"available": False, "reason": "Too short"}
+    existing = await db.users.find_one(
+        {"nickname": {"$regex": f"^{name.strip()}$", "$options": "i"},
+         "user_id": {"$ne": user["user_id"]}},
+        {"_id": 0, "user_id": 1}
+    )
+    return {"available": existing is None}
 
 @api_router.post("/auth/login")
 async def login(user_data: UserLogin, response: Response):
@@ -754,8 +800,8 @@ async def login(user_data: UserLogin, response: Response):
         key="session_token",
         value=token,
         httponly=True,
-        secure=True,
-        samesite="none",
+        secure=COOKIE_SECURE,
+        samesite=COOKIE_SAMESITE,
         path="/",
         max_age=JWT_EXPIRATION_DAYS * 24 * 60 * 60
     )
@@ -839,8 +885,8 @@ async def exchange_session(request: Request, response: Response):
         key="session_token",
         value=session_token,
         httponly=True,
-        secure=True,
-        samesite="none",
+        secure=COOKIE_SECURE,
+        samesite=COOKIE_SAMESITE,
         path="/",
         max_age=7 * 24 * 60 * 60
     )
@@ -855,10 +901,32 @@ async def exchange_session(request: Request, response: Response):
 
 @api_router.get("/auth/me")
 async def get_me(user: dict = Depends(get_current_user)):
+    just_downgraded = False
+    if user.get("subscription_tier") == "trial":
+        trial_ends_at = user.get("trial_ends_at")
+        if trial_ends_at:
+            try:
+                trial_end = datetime.fromisoformat(trial_ends_at) if isinstance(trial_ends_at, str) else trial_ends_at
+                if trial_end.tzinfo is None:
+                    trial_end = trial_end.replace(tzinfo=timezone.utc)
+                if datetime.now(timezone.utc) >= trial_end:
+                    already_notified = user.get("trial_expired_notified", False)
+                    await db.users.update_one(
+                        {"user_id": user["user_id"]},
+                        {"$set": {"subscription_tier": "free", "trial_expired_notified": True}}
+                    )
+                    user = dict(user)
+                    user["subscription_tier"] = "free"
+                    just_downgraded = not already_notified
+            except Exception:
+                pass
+
     return {
         "user_id": user["user_id"],
         "email": user["email"],
         "name": user["name"],
+        "first_name": user.get("first_name"),
+        "last_name": user.get("last_name"),
         "picture": user.get("picture"),
         "nickname": user.get("nickname"),
         "bio": user.get("bio"),
@@ -876,6 +944,7 @@ async def get_me(user: dict = Depends(get_current_user)):
         "is_single_parent": user.get("is_single_parent", False),
         "gender": user.get("gender"),
         "suburb": user.get("suburb"),
+        "just_downgraded": just_downgraded,
     }
 
 @api_router.post("/auth/logout")
@@ -891,12 +960,24 @@ async def logout(request: Request, response: Response):
 
 @api_router.post("/users/heartbeat")
 async def heartbeat(user: dict = Depends(get_current_user)):
-    """Update user's last_seen_at timestamp for online presence tracking"""
+    """Update user's last_seen_at and auto-convert expired trial → free"""
     now = datetime.now(timezone.utc).isoformat()
-    await db.users.update_one(
-        {"user_id": user["user_id"]},
-        {"$set": {"last_seen_at": now}}
-    )
+    update_fields: dict = {"last_seen_at": now}
+
+    # Auto-convert expired trial to free tier
+    if user.get("subscription_tier") == "trial":
+        trial_ends_at = user.get("trial_ends_at")
+        if trial_ends_at:
+            try:
+                trial_end = datetime.fromisoformat(trial_ends_at) if isinstance(trial_ends_at, str) else trial_ends_at
+                if trial_end.tzinfo is None:
+                    trial_end = trial_end.replace(tzinfo=timezone.utc)
+                if datetime.now(timezone.utc) >= trial_end:
+                    update_fields["subscription_tier"] = "free"
+            except Exception:
+                pass
+
+    await db.users.update_one({"user_id": user["user_id"]}, {"$set": update_fields})
     return {"ok": True}
 
 @api_router.post("/users/compute-badges")
@@ -1050,18 +1131,35 @@ async def get_user_profile(user_id: str, request: Request):
     user = await db.users.find_one({"user_id": user_id}, {"_id": 0, "password_hash": 0})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    # Only return email to the profile owner; strip it for all other callers
+    # For non-owners: strip email; strip real name unless show_full_name is true
     try:
         caller = await get_current_user(request)
         if caller.get("user_id") != user_id:
             user.pop("email", None)
+            if not user.get("show_full_name"):
+                user.pop("first_name", None)
+                user.pop("last_name", None)
     except HTTPException:
         user.pop("email", None)
+        if not user.get("show_full_name"):
+            user.pop("first_name", None)
+            user.pop("last_name", None)
     return user
 
 @api_router.put("/users/profile")
 async def update_profile(profile_data: UserProfileUpdate, user: dict = Depends(get_current_user)):
     update_fields = {k: v for k, v in profile_data.model_dump().items() if v is not None}
+
+    # Nickname uniqueness check (case-insensitive, excluding self)
+    if "nickname" in update_fields and update_fields["nickname"]:
+        taken = await db.users.find_one(
+            {"nickname": {"$regex": f"^{update_fields['nickname'].strip()}$", "$options": "i"},
+             "user_id": {"$ne": user["user_id"]}},
+            {"_id": 0, "user_id": 1}
+        )
+        if taken:
+            raise HTTPException(status_code=400, detail="That display name is already taken — please choose another.")
+
     if update_fields:
         await db.users.update_one({"user_id": user["user_id"]}, {"$set": update_fields})
     
@@ -1102,6 +1200,14 @@ async def get_categories(request: Request):
         current_user = None
 
     categories = await db.forum_categories.find({}, {"_id": 0}).to_list(500)
+
+    # Filter gender-restricted categories based on the authenticated user's gender
+    if current_user:
+        user_gender = current_user.get("gender")
+        if user_gender == "male":
+            categories = [c for c in categories if c.get("gender_restriction") != "female"]
+        elif user_gender == "female":
+            categories = [c for c in categories if c.get("gender_restriction") != "male"]
 
     if categories:
         cat_ids = [c["category_id"] for c in categories]
@@ -1335,10 +1441,10 @@ async def create_post(post_data: ForumPostCreate, user: dict = Depends(get_curre
         limit_check = await check_forum_post_limit(user["user_id"])
         if not limit_check["allowed"]:
             raise HTTPException(status_code=429, detail={
-                "error": "monthly_post_limit",
+                "error": "weekly_post_limit",
                 "used": limit_check["used"],
                 "limit": limit_check["limit"],
-                "message": f"You've used all {limit_check['limit']} posts this month. Upgrade to Village+ for unlimited posts."
+                "message": f"You've used all {limit_check['limit']} posts this week. Upgrade to Village+ for unlimited posts."
             })
 
     # Check if category is location-aware and populate location fields
@@ -1662,10 +1768,10 @@ async def create_reply(post_id: str, reply_data: ForumReplyCreate, user: dict = 
         reply_limit = await check_forum_reply_limit(user["user_id"])
         if not reply_limit["allowed"]:
             raise HTTPException(status_code=429, detail={
-                "error": "daily_reply_limit",
+                "error": "weekly_reply_limit",
                 "used": reply_limit["used"],
                 "limit": reply_limit["limit"],
-                "message": f"You've used all {reply_limit['limit']} replies today. Upgrade to Village+ for unlimited replies."
+                "message": f"You've used all {reply_limit['limit']} replies this week. Upgrade to Village+ for unlimited replies."
             })
 
     # Check post exists
@@ -1932,6 +2038,12 @@ class EventCreate(BaseModel):
 @api_router.post("/events")
 async def create_event(event_data: EventCreate, user: dict = Depends(get_current_user)):
     """Create a new event"""
+    sub = await get_user_subscription_status(user)
+    if sub["tier"] != "premium":
+        raise HTTPException(status_code=403, detail={
+            "error": "village_plus_required",
+            "message": "Creating events requires Village+. Upgrade to create and manage local events."
+        })
     event = {
         "event_id": str(uuid.uuid4()),
         "title": event_data.title,
@@ -2532,6 +2644,15 @@ async def get_chat_rooms(
     # Sort nearby rooms by distance
     nearby_rooms.sort(key=lambda x: x.get("distance_km", 9999))
 
+    # Dedup all_australia_rooms by name (keep first occurrence, canonical room_id wins because upsert used room_id)
+    seen_names = set()
+    deduped_australia = []
+    for r in all_australia_rooms:
+        if r["name"] not in seen_names:
+            seen_names.add(r["name"])
+            deduped_australia.append(r)
+    all_australia_rooms = deduped_australia
+
     return {
         "my_suburb_room": my_suburb_room,
         "nearby_rooms": nearby_rooms,
@@ -2817,6 +2938,13 @@ async def get_room_messages(room_id: str, limit: int = 50, before: Optional[str]
     if room.get("room_type") == "friends_only":
         if user["user_id"] not in room.get("participant_ids", []):
             raise HTTPException(status_code=403, detail="Access denied")
+    # Gender-restricted rooms: block reading entirely if gender doesn't match
+    gender_restriction = room.get("gender_restriction")
+    if gender_restriction:
+        user_gender = user.get("gender", "")
+        if user_gender != gender_restriction:
+            gender_label = "mums" if gender_restriction == "female" else "dads"
+            raise HTTPException(status_code=403, detail=f"This space is only for {gender_label}")
 
     query = {"room_id": room_id}
     if before:
@@ -3287,26 +3415,57 @@ async def get_feed(request: Request, limit: int = 20, skip: int = 0):
         current_user_id = cu["user_id"]
     except Exception:
         pass
+
     query = {"$or": [{"visibility": {"$ne": "only_me"}}, {"visibility": None}]}
     if current_user_id:
-        query = {"$or": [
-            {"visibility": {"$ne": "only_me"}},
-            {"visibility": None},
-            {"visibility": "only_me", "author_id": current_user_id}
+        # Exclude posts from users the current user has blocked (or who blocked them)
+        blocks_out = await db.user_blocks.find(
+            {"blocker_id": current_user_id}, {"_id": 0, "blocked_id": 1}
+        ).to_list(200)
+        blocks_in = await db.user_blocks.find(
+            {"blocked_id": current_user_id}, {"_id": 0, "blocker_id": 1}
+        ).to_list(200)
+        blocked_ids = [b["blocked_id"] for b in blocks_out] + [b["blocker_id"] for b in blocks_in]
+
+        query = {"$and": [
+            {"$or": [
+                {"visibility": {"$ne": "only_me"}},
+                {"visibility": None},
+                {"visibility": "only_me", "author_id": current_user_id},
+            ]},
+            *([{"author_id": {"$nin": blocked_ids}}] if blocked_ids else []),
         ]}
+
     posts = await db.forum_posts.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
 
-    # Batch fetch category info
-    category_ids = list(set(post["category_id"] for post in posts if "category_id" in post))
-    categories_list = await db.forum_categories.find(
+    # Batch fetch category info + user_liked in parallel
+    post_ids      = [p["post_id"] for p in posts if "post_id" in p]
+    category_ids  = list(set(p["category_id"] for p in posts if "category_id" in p))
+
+    categories_task = db.forum_categories.find(
         {"category_id": {"$in": category_ids}}, {"_id": 0}
     ).to_list(None)
+    likes_task = (
+        db.post_likes.find(
+            {"post_id": {"$in": post_ids}, "user_id": current_user_id}, {"_id": 0, "post_id": 1}
+        ).to_list(None)
+        if current_user_id else None
+    )
+
+    if likes_task is not None:
+        categories_list, liked_docs = await asyncio.gather(categories_task, likes_task)
+    else:
+        categories_list = await categories_task
+        liked_docs = []
+
     categories_map = {c["category_id"]: c for c in categories_list}
+    liked_set = {d["post_id"] for d in liked_docs}
 
     for post in posts:
         category = categories_map.get(post.get("category_id"))
         post["category_name"] = category["name"] if category else "General"
         post["category_icon"] = category["icon"] if category else "💬"
+        post["user_liked"] = post.get("post_id") in liked_set
 
         if post.get("is_anonymous"):
             post["author_name"] = "Anonymous Parent"
@@ -4106,6 +4265,10 @@ async def health_check():
 
 _cors_env = os.environ.get('CORS_ORIGINS', '')
 _cors_origins = [o.strip() for o in _cors_env.split(',') if o.strip()] if _cors_env else ["http://localhost:3000"]
+# Cookie flags differ between local (HTTP) and production (HTTPS cross-origin)
+IS_LOCAL_DEV = any("localhost" in o for o in _cors_origins)
+COOKIE_SECURE = not IS_LOCAL_DEV
+COOKIE_SAMESITE = "lax" if IS_LOCAL_DEV else "none"
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
@@ -4119,34 +4282,34 @@ app.include_router(api_router)
 
 @app.on_event("startup")
 async def seed_required_rooms():
-    """Ensure Mum Chat, Dad Chat, and Mum Circle exist on startup."""
-    # Mum Chat — all_australia chat room (gender_restriction: female)
-    existing = await db.chat_rooms.find_one({"name": "Mum Chat", "room_type": "all_australia"})
-    if not existing:
-        await db.chat_rooms.insert_one({
+    """Upsert required rooms and categories — safe to run on every startup, never creates duplicates."""
+    now = datetime.now(timezone.utc).isoformat()
+
+    # ── Chat rooms (upsert by room_id) ────────────────────────────────────────
+    rooms_to_seed = [
+        {
+            "room_id": "room_3am_club",
+            "name": "3am Club",
+            "description": "Can't sleep? You're not alone. The 3am Club is open for tired parents any time.",
+            "icon": "🌙",
+            "room_type": "all_australia",
+            "gender_restriction": None,
+            "is_active": True,
+            "active_users": 0,
+            "participant_ids": [],
+        },
+        {
             "room_id": "room_mum_chat",
             "name": "Mum Chat",
-            "description": "A space for mums — honest, warm, and judgment-free. Share the highs, the lows, and everything in between.",
+            "description": "A space for mums — honest, warm, and judgment-free.",
             "icon": "👩",
             "room_type": "all_australia",
             "gender_restriction": "female",
             "is_active": True,
             "active_users": 0,
             "participant_ids": [],
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        })
-    else:
-        # Ensure existing room has gender_restriction set
-        if not existing.get("gender_restriction"):
-            await db.chat_rooms.update_one(
-                {"name": "Mum Chat", "room_type": "all_australia"},
-                {"$set": {"gender_restriction": "female"}}
-            )
-
-    # Dad Chat — all_australia chat room (gender_restriction: male)
-    existing_dad = await db.chat_rooms.find_one({"name": "Dad Chat", "room_type": "all_australia"})
-    if not existing_dad:
-        await db.chat_rooms.insert_one({
+        },
+        {
             "room_id": "room_dad_chat",
             "name": "Dad Chat",
             "description": "A space for dads — no judgment, just real talk.",
@@ -4156,42 +4319,113 @@ async def seed_required_rooms():
             "is_active": True,
             "active_users": 0,
             "participant_ids": [],
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        })
-    else:
-        if not existing_dad.get("gender_restriction"):
-            await db.chat_rooms.update_one(
-                {"name": "Dad Chat", "room_type": "all_australia"},
-                {"$set": {"gender_restriction": "male"}}
-            )
+        },
+        {
+            "room_id": "room_morning_coffee",
+            "name": "Morning Coffee",
+            "description": "Start your day with fellow parents — chat over your morning brew.",
+            "icon": "☕",
+            "room_type": "all_australia",
+            "gender_restriction": None,
+            "is_active": True,
+            "active_users": 0,
+            "participant_ids": [],
+        },
+        {
+            "room_id": "room_new_parents_welcome",
+            "name": "New Parents Welcome",
+            "description": "A gentle space for parents in their first year. No question is too small.",
+            "icon": "👶",
+            "room_type": "all_australia",
+            "gender_restriction": None,
+            "is_active": True,
+            "active_users": 0,
+            "participant_ids": [],
+        },
+        {
+            "room_id": "room_single_parents_lounge",
+            "name": "Single Parents Lounge",
+            "description": "A supportive space for single parents — you're doing an incredible job.",
+            "icon": "💪",
+            "room_type": "all_australia",
+            "gender_restriction": None,
+            "is_active": True,
+            "active_users": 0,
+            "participant_ids": [],
+        },
+        {
+            "room_id": "room_vent_room",
+            "name": "Vent Room",
+            "description": "Need to let it out? This is a safe space. No judgment — we're all ears.",
+            "icon": "💨",
+            "room_type": "all_australia",
+            "gender_restriction": None,
+            "is_active": True,
+            "active_users": 0,
+            "participant_ids": [],
+        },
+        {
+            "room_id": "room_wins_celebrations",
+            "name": "Wins & Celebrations",
+            "description": "Share your wins — big and small. This village celebrates with you.",
+            "icon": "🎉",
+            "room_type": "all_australia",
+            "gender_restriction": None,
+            "is_active": True,
+            "active_users": 0,
+            "participant_ids": [],
+        },
+    ]
+    for room in rooms_to_seed:
+        await db.chat_rooms.update_one(
+            {"room_id": room["room_id"]},
+            {"$setOnInsert": {"created_at": now}, "$set": room},
+            upsert=True,
+        )
+    # Remove any accidental duplicates (keep only the canonical room_id for each name)
+    for room in rooms_to_seed:
+        dupes = await db.chat_rooms.find(
+            {"name": room["name"], "room_id": {"$ne": room["room_id"]}}
+        ).to_list(20)
+        for d in dupes:
+            await db.chat_rooms.delete_one({"_id": d["_id"]})
 
-    # Mum Circle — forum category
-    existing_cat = await db.forum_categories.find_one({"name": "Mum Circle"})
-    if not existing_cat:
-        await db.forum_categories.insert_one({
+    # ── Forum categories (upsert by category_id) ─────────────────────────────
+    cats_to_seed = [
+        {
             "category_id": "mum-circle",
             "name": "Mum Circle",
-            "description": "A dedicated space for mums. Share your experience, ask questions, and support each other through the journey of motherhood.",
+            "description": "A dedicated space for mums. Share your experience, ask questions, and support each other.",
             "icon": "👩",
             "category_type": "topic",
+            "gender_restriction": "female",
             "post_count": 0,
             "is_active": True,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        })
-
-    # Dad Circle — forum category (seed if missing)
-    existing_dad_cat = await db.forum_categories.find_one({"name": "Dad Circle"})
-    if not existing_dad_cat:
-        await db.forum_categories.insert_one({
+        },
+        {
             "category_id": "dad-circle",
             "name": "Dad Circle",
             "description": "A space for dads — no judgment, just real talk about fatherhood.",
             "icon": "👨",
             "category_type": "topic",
+            "gender_restriction": "male",
             "post_count": 0,
             "is_active": True,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        })
+        },
+    ]
+    for cat in cats_to_seed:
+        await db.forum_categories.update_one(
+            {"category_id": cat["category_id"]},
+            {"$setOnInsert": {"created_at": now}, "$set": cat},
+            upsert=True,
+        )
+    # Remove any accidental duplicates (keep only the canonical category_id)
+    for cat in cats_to_seed:
+        dupes = await db.forum_categories.find(
+            {"name": cat["name"], "category_id": {"$ne": cat["category_id"]}}
+        ).to_list(20)
+        for d in dupes:
+            await db.forum_categories.delete_one({"_id": d["_id"]})
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

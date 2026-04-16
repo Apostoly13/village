@@ -7,6 +7,7 @@ import { Label } from "../components/ui/label";
 import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
 import { toast } from "sonner";
+import { parseApiError } from "../utils/apiError";
 import { ArrowLeft, Crown, Users, Search, Upload, X, Lock, Globe, MapPin, Eye, EyeOff, ChevronDown, ChevronUp } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -492,7 +493,7 @@ export default function CreateCommunity({ user }) {
         toast.error("A community with that name already exists");
       } else {
         const err = await res.json();
-        toast.error(err.detail || "Failed to create community");
+        toast.error(parseApiError(err.detail, "Failed to create community"));
       }
     } catch (error) {
       toast.error("Something went wrong");

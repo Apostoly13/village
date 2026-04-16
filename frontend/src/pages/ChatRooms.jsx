@@ -109,7 +109,16 @@ export default function ChatRooms({ user }) {
         const data = await response.json();
         setMySuburbRoom(data.my_suburb_room);
         setNearbyRooms(data.nearby_rooms || []);
-        setAllAustraliaRooms(data.all_australia_rooms || []);
+        // Client-side dedup by name — catches duplicates with different room_ids (legacy DB entries)
+        const raw = data.all_australia_rooms || [];
+        const seenNames = new Set();
+        const deduped = raw.filter(r => {
+          const key = (r.name || r.room_id).toLowerCase();
+          if (seenNames.has(key)) return false;
+          seenNames.add(key);
+          return true;
+        });
+        setAllAustraliaRooms(deduped);
         setUserSuburb(data.user_suburb || "");
         setUserPostcode(data.user_postcode || "");
         setPreferredReach(data.preferred_reach || "25km");
@@ -259,17 +268,6 @@ export default function ChatRooms({ user }) {
           <p className="text-sm text-muted-foreground">Real-time chat rooms — national, local, and friends</p>
         </div>
 
-        {/* Night Owl banner */}
-        {nightOwl && (
-          <div className="mb-4 p-4 rounded-2xl bg-primary/10 border border-primary/20 flex items-center gap-3">
-            <span className="text-2xl">🌙</span>
-            <div>
-              <p className="text-sm font-medium text-foreground">Night Owl hours — you're not alone</p>
-              <p className="text-xs text-muted-foreground">The 3am Club is active right now. Join for late-night company.</p>
-            </div>
-          </div>
-        )}
-
         {!hasLocation && <LocationPrompt />}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -299,6 +297,16 @@ export default function ChatRooms({ user }) {
 
           {/* ── Village Circles (All Australia) ── */}
           <TabsContent value="village" className="mt-0">
+            {/* Night Owl banner — only on this tab */}
+            {nightOwl && (
+              <div className="mb-4 p-4 rounded-2xl bg-primary/10 border border-primary/20 flex items-center gap-3">
+                <span className="text-2xl">🌙</span>
+                <div>
+                  <p className="text-sm font-medium text-foreground">Night Owl hours — you're not alone</p>
+                  <p className="text-xs text-muted-foreground">The 3am Club is active right now. Join for late-night company.</p>
+                </div>
+              </div>
+            )}
             {loading ? (
               <LoadingSkeleton count={4} />
             ) : allAustraliaRooms.length === 0 ? (
@@ -328,18 +336,21 @@ export default function ChatRooms({ user }) {
                   ) : null;
                 })()}
 
-                {/* Featured: Mum Chat + Dad Chat — 2-col grid matching Support Spaces layout */}
+                {/* Featured: Mum Chat + Dad Chat — full-width when only one is visible */}
                 {(() => {
-                  const mumChat = allAustraliaRooms.find(r => r.name === "Mum Chat" || r.name === "Mum Circle");
-                  const dadChat = allAustraliaRooms.find(r => r.name === "Dad Chat" || r.name === "Dad Circle");
+                  const gender = user?.gender;
+                  // Only show gender-specific featured rooms if gender is explicitly set
+                  const mumChat = (gender === "female" || gender === "other" || gender === "prefer-not-say") ? allAustraliaRooms.find(r => r.name === "Mum Chat" || r.name === "Mum Circle") : null;
+                  const dadChat = (gender === "male" || gender === "other" || gender === "prefer-not-say") ? allAustraliaRooms.find(r => r.name === "Dad Chat" || r.name === "Dad Circle") : null;
                   if (!mumChat && !dadChat) return null;
+                  const isSingle = !mumChat || !dadChat; // only one card to show
                   return (
-                    <div className="grid sm:grid-cols-2 gap-4 mb-4">
+                    <div className={`grid gap-4 mb-4 ${isSingle ? "" : "sm:grid-cols-2"}`}>
                       {mumChat && (
                         <Link to={`/chat/${mumChat.room_id}`} className="block">
                           <div className="rounded-2xl p-5 bg-pink-500/8 dark:bg-pink-500/10 border border-pink-400/30 border-l-4 border-l-pink-400/60 hover:border-pink-400/50 hover:opacity-90 transition-all h-full card-hover">
                             <div className="flex items-start gap-4">
-                              <div className="w-12 h-12 rounded-full bg-pink-500/20 flex items-center justify-center text-2xl flex-shrink-0">👩</div>
+                              <div className="w-14 h-14 rounded-full bg-pink-500/20 flex items-center justify-center text-3xl flex-shrink-0">👩</div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                                   <h3 className="font-heading font-bold text-base text-foreground">{mumChat.name}</h3>
@@ -360,7 +371,7 @@ export default function ChatRooms({ user }) {
                         <Link to={`/chat/${dadChat.room_id}`} className="block">
                           <div className="rounded-2xl p-5 bg-blue-500/8 dark:bg-blue-500/10 border border-blue-400/30 border-l-4 border-l-blue-400/60 hover:border-blue-400/50 hover:opacity-90 transition-all h-full card-hover">
                             <div className="flex items-start gap-4">
-                              <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center text-2xl flex-shrink-0">👨</div>
+                              <div className="w-14 h-14 rounded-full bg-blue-500/20 flex items-center justify-center text-3xl flex-shrink-0">👨</div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                                   <h3 className="font-heading font-bold text-base text-foreground">{dadChat.name}</h3>
@@ -383,11 +394,45 @@ export default function ChatRooms({ user }) {
 
                 <div className="grid sm:grid-cols-2 gap-4">
                   {allAustraliaRooms
-                    .filter(r => !["Mum Chat", "Mum Circle", "Dad Chat", "Dad Circle"].includes(r.name))
+                    .filter(r => {
+                      const gender = user?.gender;
+                      // Always exclude gender-specific featured rooms from main grid
+                      if (["Mum Chat", "Mum Circle", "Dad Chat", "Dad Circle"].includes(r.name)) return false;
+                      // During night owl hours, exclude 3am Club from grid (shown in featured highlight above)
+                      if (nightOwl && r.name?.toLowerCase().includes("3am")) return false;
+                      // Filter gender-restricted rooms — hide all if gender not set
+                      if (r.gender_restriction) {
+                        if (!gender) return false; // hide gender-restricted rooms until profile complete
+                        if (gender === "male" && r.gender_restriction === "female") return false;
+                        if (gender === "female" && r.gender_restriction === "male") return false;
+                      }
+                      return true;
+                    })
                     .map((room, idx) => (
                       <RoomCard key={room.room_id} room={room} idx={idx} />
                     ))}
                 </div>
+
+                {/* 3am Club info — always visible in Village Circles, links to the room */}
+                {(() => {
+                  const club = allAustraliaRooms.find(r => r.name?.toLowerCase().includes("3am"));
+                  const href = club ? `/chat/${club.room_id}` : "/chat";
+                  return (
+                    <Link to={href} className="block mt-4">
+                      <div className="p-5 rounded-2xl bg-primary/5 border border-primary/20 hover:border-primary/40 hover:bg-primary/8 transition-colors flex items-start gap-4">
+                        <span className="text-3xl shrink-0">🌙</span>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-heading font-bold text-foreground mb-1">The 3am Club</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Most active 10pm–4am AEST — for those late-night feeds when you need company.
+                            Active night owls earn the 🦉 Night Owl badge.
+                          </p>
+                        </div>
+                        <span className="text-muted-foreground shrink-0 self-center text-lg">→</span>
+                      </div>
+                    </Link>
+                  );
+                })()}
               </>
             )}
           </TabsContent>
@@ -573,22 +618,6 @@ export default function ChatRooms({ user }) {
           </TabsContent>
         </Tabs>
 
-        {/* Night Owl info (non-active hours) */}
-        {!nightOwl && (
-          <div className="mt-8 p-6 rounded-2xl bg-primary/5 border border-primary/20">
-            <div className="flex items-start gap-4">
-              <span className="text-3xl">🌙</span>
-              <div>
-                <h3 className="font-heading font-bold text-foreground mb-1">The 3am Club</h3>
-                <p className="text-sm text-muted-foreground">
-                  The 3am Club chat circle is most active between 10pm and 4am AEST —
-                  perfect for those late-night feeds when you need someone to talk to.
-                  Active night owls earn the 🦉 Night Owl badge.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
       </main>
       <AppFooter />
     </div>

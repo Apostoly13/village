@@ -5,6 +5,25 @@ import AppFooter from "../components/AppFooter";
 
 const CHANGELOG = [
   {
+    version: "2.6.0",
+    date: "April 2026",
+    title: "Village+ Tiers, Feature Gates & Onboarding Polish",
+    entries: [
+      { tag: "Changed", text: "Free tier limits updated — 5 support space posts per week, 5 replies per week, 10 chat messages per day (previously mixed daily/monthly caps)" },
+      { tag: "Changed", text: "Events are now a Village+ feature — free users see a clear upgrade path from the dashboard and nav. Trial users retain full access during their 7 days" },
+      { tag: "Changed", text: "Direct messages are now Village+ only — free users see the upgrade prompt in the chat popout and Messages nav item" },
+      { tag: "Changed", text: "Community Spaces are now Village+ only — free users see a consistent upgrade tile on the dashboard" },
+      { tag: "Added", text: "Trial countdown on the dashboard now changes day-by-day at midnight rather than anchoring to the hour of sign-up" },
+      { tag: "Added", text: "One-time downgrade notice — on first login after your trial expires, a card explains exactly what you've retained and what's now locked, with an upgrade option" },
+      { tag: "Added", text: "Lock indicators on nav items (Events, Messages) for free users — small lock icon so it's clear before clicking" },
+      { tag: "Added", text: "\"Twins or more\" option added to both the main parenting stage selector and the mixed age sub-selection in onboarding" },
+      { tag: "Improved", text: "Support Spaces tour icon replaced with The Village logo; Chat Circles icon updated to a chat bubble — more accurate and on-brand" },
+      { tag: "Fixed", text: "\"Start exploring\" at the end of onboarding now correctly navigates to the dashboard instead of looping back to step 1" },
+      { tag: "Fixed", text: "Password requirements (8+ characters, uppercase, number) now enforced at registration with live visual feedback" },
+      { tag: "Improved", text: "Village+ page updated with accurate tier descriptions, weekly limits, and Coming Soon marker on Buy & Swap" },
+    ],
+  },
+  {
     version: "2.5.0",
     date: "April 2026",
     title: "Visual Redesign & UX Polish",

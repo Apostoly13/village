@@ -10,6 +10,7 @@ import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
 import { toast } from "sonner";
 import { ArrowLeft, Image, X, Upload, Crown, MapPin, ArrowRight } from "lucide-react";
+import { parseApiError } from "../utils/apiError";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 const MAX_CONTENT_LENGTH = 5000;
@@ -104,7 +105,7 @@ export default function CreatePost({ user }) {
         toast.success("Image uploaded!");
       } else {
         const error = await response.json();
-        toast.error(error.detail || "Failed to upload image");
+        toast.error(parseApiError(error.detail, "Failed to upload image"));
       }
     } catch (error) {
       toast.error("Failed to upload image");
@@ -161,11 +162,11 @@ export default function CreatePost({ user }) {
         navigate(`/forums/post/${post.post_id}`);
       } else if (response.status === 429) {
         const error = await response.json();
-        toast.error(error.detail || "Monthly post limit reached");
+        toast.error(parseApiError(error.detail, "Monthly post limit reached"));
         fetchSubscription();
       } else {
         const error = await response.json();
-        toast.error(error.detail || "Failed to create post");
+        toast.error(parseApiError(error.detail, "Failed to create post"));
       }
     } catch (error) {
       toast.error("Something went wrong");

@@ -15,6 +15,7 @@ import {
 import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
 import { toast } from "sonner";
+import { parseApiError } from "../utils/apiError";
 import { ArrowLeft, Plus, MessageCircle, Heart, Eye, Clock, Filter, ChevronLeft, ChevronRight, HelpCircle, MapPin, Compass, Crown, MoreVertical, Edit2, Trash2, Pin, Lock, Users } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -146,7 +147,7 @@ export default function ForumCategory({ user }) {
         toast.success("Community updated");
       } else {
         const err = await res.json();
-        toast.error(err.detail || "Failed to update community");
+        toast.error(parseApiError(err.detail, "Failed to update community"));
       }
     } catch {
       toast.error("Something went wrong");
@@ -167,7 +168,7 @@ export default function ForumCategory({ user }) {
         navigate("/forums");
       } else {
         const err = await res.json();
-        toast.error(err.detail || "Failed to delete community");
+        toast.error(parseApiError(err.detail, "Failed to delete community"));
         setDeleteDialog(false);
       }
     } catch {
@@ -193,7 +194,7 @@ export default function ForumCategory({ user }) {
         toast.success(isMember ? "Left community" : "Joined community");
       } else {
         const err = await res.json();
-        toast.error(err.detail || "Something went wrong");
+        toast.error(parseApiError(err.detail, "Something went wrong"));
       }
     } catch {
       toast.error("Something went wrong");

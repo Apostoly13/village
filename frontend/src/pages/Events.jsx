@@ -9,6 +9,7 @@ import Navigation from "../components/Navigation";
 import { Calendar, MapPin, Clock, Users, Plus, Download, Check, Pencil, UserPlus, X, Send, MessageCircle, ExternalLink } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import { parseApiError } from "../utils/apiError";
 import AppFooter from "../components/AppFooter";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -93,7 +94,7 @@ function EditEventDialog({ event, onUpdated, onClose }) {
         onClose();
       } else {
         const err = await res.json();
-        toast.error(err.detail || "Failed to update event");
+        toast.error(parseApiError(err.detail, "Failed to update event"));
       }
     } catch {
       toast.error("Something went wrong");
@@ -313,7 +314,7 @@ function EventCard({ event, onRsvp, onUpdated, user, onOpenDetail }) {
         toast.success(data.rsvped ? "You're going!" : "RSVP removed");
       } else {
         const err = await res.json();
-        toast.error(err.detail || "Failed to RSVP");
+        toast.error(parseApiError(err.detail, "Failed to RSVP"));
       }
     } catch {
       toast.error("Failed to RSVP");
@@ -564,7 +565,7 @@ function CreateEventForm({ onCreated, onClose }) {
         onClose();
       } else {
         const err = await res.json();
-        toast.error(err.detail || "Failed to create event");
+        toast.error(parseApiError(err.detail, "Failed to create event"));
       }
     } catch {
       toast.error("Failed to create event");
@@ -1011,7 +1012,7 @@ function EventDetailModal({ event, user, onClose, onRsvp, onUpdated }) {
                           {msg.author_subscription_tier === "premium" && <Crown className="h-2.5 w-2.5 text-amber-500" />}
                         </p>
                       )}
-                      <div className={`px-3 py-2 text-sm rounded-2xl shadow-sm break-words ${isOwn ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-secondary/60 text-foreground rounded-bl-sm"}`}>
+                      <div className={`px-3 py-2 text-sm rounded-2xl shadow-sm break-words ${isOwn ? "bg-primary text-primary-foreground" : "bg-secondary/60 text-foreground"}`}>
                         {msg.content}
                       </div>
                       <p className={`text-xs text-muted-foreground mt-1 ${isOwn ? "text-right mr-1" : "ml-1"}`}>

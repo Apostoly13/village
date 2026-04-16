@@ -27,6 +27,7 @@ import AppFooter from "../components/AppFooter";
 import { toast } from "sonner";
 import { ArrowLeft, Heart, MessageCircle, Eye, Clock, Send, Bookmark, BookmarkCheck, MoreVertical, Edit2, Trash2, Flag, Reply, MapPin, Crown } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { parseApiError } from "../utils/apiError";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 const MAX_CONTENT_LENGTH = 5000;
@@ -298,7 +299,7 @@ export default function ForumPost({ user }) {
         toast.success("Report submitted. Thank you for helping keep our community safe.");
       } else {
         const error = await response.json();
-        toast.error(error.detail || "Failed to submit report");
+        toast.error(parseApiError(error.detail, "Failed to submit report"));
       }
     } catch (error) {
       toast.error("Something went wrong");

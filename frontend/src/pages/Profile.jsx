@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
+import { parseApiError } from "../utils/apiError";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
@@ -67,6 +68,8 @@ function ProfilePage({ user }) {
   const [isSingleParent, setIsSingleParent] = useState(false);
   const [isMultipleBirth, setIsMultipleBirth] = useState(false);
   const [anonymousByDefault, setAnonymousByDefault] = useState(false);
+  const [showLocationOnProfile, setShowLocationOnProfile] = useState(true);
+  const [showFullName, setShowFullName] = useState(false);
   const [picture, setPicture] = useState("");
   const [emailPrefs, setEmailPrefs] = useState({
     notify_replies: true,
@@ -132,6 +135,8 @@ function ProfilePage({ user }) {
           setMixedAgeGroups(data.mixed_age_groups || []);
           setInterests(data.interests || []);
           setLocationSearch(data.suburb || data.location || "");
+          setShowLocationOnProfile(data.show_location_on_profile !== false);
+          setShowFullName(data.show_full_name || false);
           setEmailPrefs(data.email_preferences || {
             notify_replies: true,
             notify_dms: true,
@@ -220,6 +225,8 @@ function ProfilePage({ user }) {
           is_single_parent: isSingleParent,
           is_multiple_birth: parentingStage === "multiples" || (parentingStage === "mixed" && isMultipleBirth),
           anonymous_by_default: anonymousByDefault,
+          show_location_on_profile: showLocationOnProfile,
+          show_full_name: showFullName,
           picture: picture,
           email_preferences: emailPrefs,
           parenting_stage: parentingStage,
@@ -379,7 +386,7 @@ function ProfilePage({ user }) {
         setFriendStatus({ status: "request_sent" });
       } else {
         const error = await response.json();
-        toast.error(error.detail || "Failed to send request");
+        toast.error(parseApiError(error.detail, "Failed to send request"));
       }
     } catch (error) {
       toast.error("Something went wrong");
@@ -638,13 +645,23 @@ function ProfilePage({ user }) {
                     </Badge>
                   )}
                 </div>
+                {/* Show full real name if opted in */}
+                {profile.show_full_name && profile.first_name && (
+                  <p className="text-sm text-muted-foreground">
+                    {profile.first_name} {profile.last_name || ""}
+                  </p>
+                )}
                 {genderLabel && (
                   <p className="text-muted-foreground">{genderLabel}</p>
                 )}
-                {profile.location && (
+                {/* Show location: respect show_location_on_profile */}
+                {profile.location && (profile.show_location_on_profile !== false || isOwnProfile) && (
                   <p className="text-sm text-muted-foreground flex items-center gap-1">
-                    <MapPin className="h-3 w-3" /> {profile.location}
-                    {profile.state && <span className="text-xs">({profile.state})</span>}
+                    <MapPin className="h-3 w-3" />
+                    {profile.show_location_on_profile !== false
+                      ? <>{profile.location}{profile.state && <span className="text-xs ml-1">({profile.state})</span>}</>
+                      : <span className="italic text-xs">Location hidden · <button onClick={() => setEditing(true)} className="text-primary hover:underline">Update in settings</button></span>
+                    }
                   </p>
                 )}
               </div>
@@ -694,6 +711,29 @@ function ProfilePage({ user }) {
                   placeholder="How should we call you?"
                   className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
                   data-testid="nickname-input"
+                />
+                <p className="text-xs text-muted-foreground">This is how other members see you. Your real name stays private unless you choose to share it.</p>
+              </div>
+
+              {/* Show full name toggle */}
+              <div
+                className={`flex items-center justify-between p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                  showFullName ? "border-primary/30 bg-primary/5" : "border-border/40 bg-secondary/30"
+                }`}
+                onClick={() => setShowFullName(p => !p)}
+              >
+                <div>
+                  <p className="text-sm font-medium text-foreground">Show my full name on my profile</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {showFullName
+                      ? `Your real name (${profile?.first_name || ""} ${profile?.last_name || ""}) will be visible on your profile`
+                      : "Only your display name is visible — your real name stays private"}
+                  </p>
+                </div>
+                <Switch
+                  checked={showFullName}
+                  onCheckedChange={setShowFullName}
+                  onClick={e => e.stopPropagation()}
                 />
               </div>
 
@@ -793,11 +833,14 @@ function ProfilePage({ user }) {
                 </div>
               )}
 
+              {/* Location — suburb, state, visibility toggle grouped together */}
               <div className="space-y-2">
                 <Label className="text-foreground flex items-center gap-2">
                   <MapPin className="h-4 w-4" />
-                  Suburb / Postcode
+                  Location
                 </Label>
+
+                {/* Suburb / Postcode search */}
                 <div className="relative">
                   <Input
                     value={locationSearch}
@@ -805,7 +848,7 @@ function ProfilePage({ user }) {
                       setLocationSearch(e.target.value);
                       searchLocation(e.target.value);
                     }}
-                    placeholder="e.g. Bondi, 2026, Fitzroy..."
+                    placeholder="Suburb or postcode — e.g. Bondi, 2026"
                     className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
                     autoComplete="off"
                     data-testid="location-input"
@@ -841,6 +884,41 @@ function ProfilePage({ user }) {
                     </p>
                   )}
                 </div>
+
+                {/* State selector — grouped with location */}
+                <Select value={state} onValueChange={setState}>
+                  <SelectTrigger className="h-11 rounded-xl bg-secondary/50 border-transparent" data-testid="state-select">
+                    <SelectValue placeholder="State" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border/50">
+                    {AUSTRALIAN_STATES.map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Show location on profile toggle */}
+                <div
+                  className={`flex items-center justify-between p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                    showLocationOnProfile ? "border-primary/30 bg-primary/5" : "border-border/40 bg-secondary/30"
+                  }`}
+                  onClick={() => setShowLocationOnProfile(p => !p)}
+                >
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Show area on my profile</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {showLocationOnProfile ? "Your suburb/area is visible to other members" : "Your area is hidden from your profile"}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={showLocationOnProfile}
+                    onCheckedChange={setShowLocationOnProfile}
+                    onClick={e => e.stopPropagation()}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground px-1">
+                  🔒 Your location is never shared publicly — only used to connect you with nearby parents and local chat rooms.
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -910,27 +988,6 @@ function ProfilePage({ user }) {
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-foreground flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  State (for local chat rooms)
-                </Label>
-                <Select value={state} onValueChange={setState}>
-                  <SelectTrigger className="h-12 rounded-xl bg-secondary/50 border-transparent" data-testid="state-select">
-                    <SelectValue placeholder="Select your state" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border/50">
-                    {AUSTRALIAN_STATES.map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {s}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  This helps you connect with local parents and shows you local chat rooms
-                </p>
-              </div>
 
               {/* Interests */}
               <div id="identity" className="space-y-2">

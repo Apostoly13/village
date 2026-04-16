@@ -5,37 +5,58 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { toast } from "sonner";
 import { ArrowLeft, Eye, EyeOff, Check } from "lucide-react";
+import { parseApiError } from "../utils/apiError";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 export default function Register() {
   const navigate = useNavigate();
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const passwordRequirements = [
-    { label: "At least 6 characters", met: password.length >= 6 }
+    { label: "At least 8 characters",  met: password.length >= 8 },
+    { label: "One uppercase letter",    met: /[A-Z]/.test(password) },
+    { label: "One number",             met: /[0-9]/.test(password) },
   ];
+
+  const passwordValid = passwordRequirements.every((r) => r.met);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (password.length < 6) {
-      toast.error("Password must be at least 6 characters");
+
+    if (!firstName.trim()) {
+      toast.error("First name is required");
+      return;
+    }
+    if (!lastName.trim()) {
+      toast.error("Last name is required");
+      return;
+    }
+    if (!email.trim()) {
+      toast.error("Email is required");
+      return;
+    }
+    if (!passwordValid) {
+      toast.error("Password must be at least 8 characters with an uppercase letter and a number");
       return;
     }
 
     setLoading(true);
+
+    const payload = { first_name: firstName.trim(), last_name: lastName.trim(), email: email.trim(), password };
+    console.log("[Register] submitting:", { ...payload, password: "***" });
 
     try {
       const response = await fetch(`${API_URL}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ name, email, password })
+        body: JSON.stringify(payload)
       });
 
       const data = await response.json();
@@ -44,7 +65,8 @@ export default function Register() {
         localStorage.setItem("user", JSON.stringify(data));
         navigate("/onboarding");
       } else {
-        toast.error(data.detail || "Registration failed");
+        console.error("[Register] error response:", JSON.stringify(data));
+        toast.error(parseApiError(data.detail, "Registration failed"));
       }
     } catch (error) {
       toast.error("Something went wrong. Please try again.");
@@ -102,19 +124,37 @@ export default function Register() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="name" className="text-foreground">Your name</Label>
-              <Input 
-                id="name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="What should we call you?"
-                className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
-                required
-                data-testid="name-input"
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="first_name" className="text-foreground">First name</Label>
+                <Input
+                  id="first_name"
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="Jane"
+                  className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
+                  required
+                  data-testid="first-name-input"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="last_name" className="text-foreground">Last name</Label>
+                <Input
+                  id="last_name"
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Smith"
+                  className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
+                  required
+                  data-testid="last-name-input"
+                />
+              </div>
             </div>
+            <p className="text-xs text-muted-foreground -mt-1">
+              Your real name is kept private. You'll choose a display name in the next step.
+            </p>
 
             <div className="space-y-2">
               <Label htmlFor="email" className="text-foreground">Email</Label>
@@ -164,10 +204,10 @@ export default function Register() {
               </div>
             </div>
 
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="w-full h-12 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_15px_rgba(245,197,66,0.3)]"
-              disabled={loading}
+              disabled={loading || !passwordValid || !firstName.trim() || !lastName.trim()}
               data-testid="register-submit-btn"
             >
               {loading ? "Creating account..." : "Create Account"}
