@@ -2,8 +2,10 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import Navigation from "../components/Navigation";
-import { Send, ArrowLeft, MessagesSquare, Search, UserPlus, X, ImageIcon, Users, Lock } from "lucide-react";
+import { Send, ArrowLeft, MessagesSquare, Search, UserPlus, X, ImageIcon, Users, Lock, ShoppingBag } from "lucide-react";
 import { Crown } from "lucide-react";
+import { Link } from "react-router-dom";
+import { FEATURES } from "../config/features";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { parseApiError } from "../utils/apiError";
@@ -209,7 +211,7 @@ function MessageBubble({ msg, isOwn, activeUser }) {
 export default function Messages({ user }) {
   const navigate = useNavigate();
 
-  const [sidebarTab, setSidebarTab] = useState("friends"); // "friends" | "dms"
+  const [sidebarTab, setSidebarTab] = useState("friends"); // "friends" | "dms" | "stall"
   const [showSearch, setShowSearch] = useState(false);
 
   const [friends, setFriends] = useState([]);
@@ -218,7 +220,11 @@ export default function Messages({ user }) {
   const [conversations, setConversations] = useState([]);
   const [loadingConvs, setLoadingConvs] = useState(true);
 
-  const [chatMode, setChatMode] = useState(null); // "friend" | "dm"
+  const [stallConversations, setStallConversations] = useState([]);
+  const [loadingStallConvs, setLoadingStallConvs] = useState(false);
+  const [activeStallConv, setActiveStallConv] = useState(null); // { listing_id, listing_title, other_user_id, other_user_name, other_user_picture }
+
+  const [chatMode, setChatMode] = useState(null); // "friend" | "dm" | "stall"
   const [activeRoomId, setActiveRoomId] = useState(null);
   const [activeFriend, setActiveFriend] = useState(null);
   const [activeDmUser, setActiveDmUser] = useState(null);
@@ -242,7 +248,12 @@ export default function Messages({ user }) {
   const inputRef = useRef(null);
   const imageInputRef = useRef(null);
 
-  useEffect(() => { fetchFriends(); fetchConversations(); }, []);
+  useEffect(() => {
+    fetchFriends();
+    fetchConversations();
+    if (FEATURES.MARKETPLACE) fetchStallConversations();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (activeRoomId && chatMode === "friend") {
@@ -262,6 +273,15 @@ export default function Messages({ user }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeDmUser, chatMode]);
 
+  useEffect(() => {
+    if (activeStallConv && chatMode === "stall") {
+      fetchStallMessages();
+      const interval = setInterval(fetchStallMessages, 2000);
+      return () => clearInterval(interval);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeStallConv, chatMode]);
+
   // Auto-scroll only when user is already at the bottom
   useEffect(() => {
     if (isAtBottom.current) {
@@ -275,7 +295,7 @@ export default function Messages({ user }) {
     prevMsgCount.current = 0;
     messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeRoomId, activeDmUser]);
+  }, [activeRoomId, activeDmUser, activeStallConv]);
 
   const fetchFriends = async () => {
     setLoadingFriends(true);
@@ -293,6 +313,50 @@ export default function Messages({ user }) {
       if (res.ok) setConversations(await res.json());
     } catch {}
     finally { setLoadingConvs(false); }
+  };
+
+  const fetchStallConversations = async () => {
+    setLoadingStallConvs(true);
+    try {
+      const res = await fetch(`${API_URL}/api/stall/messages/conversations`, { credentials: "include" });
+      if (res.ok) setStallConversations(await res.json());
+    } catch {}
+    finally { setLoadingStallConvs(false); }
+  };
+
+  const fetchStallMessages = async () => {
+    if (!activeStallConv) return;
+    try {
+      const res = await fetch(
+        `${API_URL}/api/stall/messages/${activeStallConv.listing_id}/${activeStallConv.other_user_id}`,
+        { credentials: "include" }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (prevMsgCount.current > 0 && data.length > prevMsgCount.current) {
+          const lastMsg = data[data.length - 1];
+          if (lastMsg && lastMsg.sender_id !== user?.user_id) playDing();
+        }
+        prevMsgCount.current = data.length;
+        setMessages(data);
+      }
+    } catch {}
+    finally { setLoadingMessages(false); }
+  };
+
+  const openStallChat = (conv) => {
+    setLoadingMessages(true);
+    prevMsgCount.current = 0;
+    setActiveStallConv(conv);
+    setActiveRoomId(null);
+    setActiveFriend(null);
+    setActiveDmUser(null);
+    setChatMode("stall");
+    setMessages([]);
+    clearImageState();
+    setTimeout(() => inputRef.current?.focus(), 100);
+    // refresh conversation list so unread clears
+    fetchStallConversations();
   };
 
   const fetchRoomMessages = async () => {
@@ -486,6 +550,26 @@ export default function Messages({ user }) {
         setMessages(prev => prev.filter(m => m.message_id !== tempId));
         setNewMessage(textContent);
       }
+    } else if (chatMode === "stall" && activeStallConv) {
+      try {
+        const res = await fetch(`${API_URL}/api/stall/messages`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ listing_id: activeStallConv.listing_id, receiver_id: activeStallConv.other_user_id, content }),
+        });
+        if (res.ok) {
+          const msg = await res.json();
+          setMessages(prev => prev.map(m => m.message_id === tempId ? msg : m));
+          fetchStallConversations();
+        } else {
+          setMessages(prev => prev.filter(m => m.message_id !== tempId));
+          setNewMessage(textContent);
+        }
+      } catch {
+        setMessages(prev => prev.filter(m => m.message_id !== tempId));
+        setNewMessage(textContent);
+      }
     }
     setSending(false);
   };
@@ -494,13 +578,16 @@ export default function Messages({ user }) {
     setActiveRoomId(null);
     setActiveFriend(null);
     setActiveDmUser(null);
+    setActiveStallConv(null);
     setChatMode(null);
     setMessages([]);
     clearImageState();
   };
 
-  const activeUser = chatMode === "friend" ? activeFriend : activeDmUser;
-  const hasActiveChat = !!(chatMode && (activeRoomId || activeDmUser));
+  const activeUser = chatMode === "friend" ? activeFriend
+    : chatMode === "stall" ? (activeStallConv ? { user_id: activeStallConv.other_user_id, name: activeStallConv.other_user_name, picture: activeStallConv.other_user_picture } : null)
+    : activeDmUser;
+  const hasActiveChat = !!(chatMode && (activeRoomId || activeDmUser || activeStallConv));
 
   const friendIds = new Set(friends.map(f => f.user_id));
   const dmFromFriends = conversations.filter(c => friendIds.has(c.other_user_id));
@@ -544,19 +631,31 @@ export default function Messages({ user }) {
                     <div className="flex w-full bg-background border border-border/50 rounded-xl p-1 gap-1">
                       <button
                         onClick={() => setSidebarTab("friends")}
-                        className={`flex-1 flex items-center justify-center py-2 text-sm font-medium rounded-lg transition-colors ${sidebarTab === "friends" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                        className={`flex-1 flex items-center justify-center py-2 text-xs font-medium rounded-lg transition-colors ${sidebarTab === "friends" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
                       >
-                        Friend Chats
+                        Friends
                       </button>
                       <button
                         onClick={() => setSidebarTab("dms")}
-                        className={`flex-1 flex items-center justify-center py-2 text-sm font-medium rounded-lg transition-colors relative ${sidebarTab === "dms" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                        className={`flex-1 flex items-center justify-center py-2 text-xs font-medium rounded-lg transition-colors relative ${sidebarTab === "dms" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
                       >
-                        Private Messages
+                        Private
                         {dmRequests.some(c => c.unread_count > 0) && (
-                          <span className="absolute top-1.5 right-2 w-2 h-2 rounded-full bg-red-500" />
+                          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500" />
                         )}
                       </button>
+                      {FEATURES.MARKETPLACE && (
+                        <button
+                          onClick={() => setSidebarTab("stall")}
+                          className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium rounded-lg transition-colors relative ${sidebarTab === "stall" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                        >
+                          <ShoppingBag className="h-3 w-3" />
+                          Stall
+                          {stallConversations.some(c => c.unread_count > 0) && (
+                            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500" />
+                          )}
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -595,6 +694,55 @@ export default function Messages({ user }) {
                                 </p>
                               </div>
                               {openingChat === friend.user_id && <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Stall Messages tab */}
+                  {sidebarTab === "stall" && FEATURES.MARKETPLACE && (
+                    <div className="flex-1 overflow-y-auto">
+                      <div className="px-4 py-2 bg-secondary/30 border-b border-border/30 flex items-center justify-between">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Stall Conversations</p>
+                        <Link to="/stall" className="text-xs text-primary hover:underline">Browse listings →</Link>
+                      </div>
+                      {loadingStallConvs ? (
+                        <div className="p-4 space-y-3">
+                          {[1,2,3].map(i => <div key={i} className="flex items-center gap-3 animate-pulse"><div className="w-10 h-10 rounded-lg bg-muted shrink-0" /><div className="flex-1 h-4 bg-muted rounded" /></div>)}
+                        </div>
+                      ) : stallConversations.length === 0 ? (
+                        <div className="p-6 text-center">
+                          <ShoppingBag className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                          <p className="text-sm text-muted-foreground mb-2">No stall messages yet.</p>
+                          <Link to="/stall" className="text-xs text-primary hover:underline">Browse The Stall →</Link>
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-border/30">
+                          {stallConversations.map(conv => (
+                            <button
+                              key={`${conv.listing_id}-${conv.other_user_id}`}
+                              onClick={() => openStallChat(conv)}
+                              className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${activeStallConv?.listing_id === conv.listing_id && activeStallConv?.other_user_id === conv.other_user_id ? "bg-primary/10" : ""}`}
+                            >
+                              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden border border-border/30">
+                                {conv.listing_image
+                                  ? <img src={conv.listing_image} alt="" className="w-full h-full object-cover" />
+                                  : <ShoppingBag className="h-5 w-5 text-primary/60" />}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-1">
+                                  <p className="text-sm font-medium text-foreground truncate">{conv.other_user_name}</p>
+                                  {conv.unread_count > 0 && (
+                                    <span className="shrink-0 min-w-[18px] h-[18px] rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold px-1">
+                                      {conv.unread_count}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-primary/70 truncate font-medium">{conv.listing_title}</p>
+                                <p className="text-xs text-muted-foreground truncate">{conv.last_message}</p>
+                              </div>
                             </button>
                           ))}
                         </div>
@@ -687,6 +835,11 @@ export default function Messages({ user }) {
                       <span className="flex items-center gap-1 text-xs bg-primary/10 text-primary border border-primary/20 rounded-full px-2.5 py-1 font-medium shrink-0">
                         <Users className="h-3 w-3" /> Friend Chat
                       </span>
+                    ) : chatMode === "stall" ? (
+                      <Link to={`/stall/listing/${activeStallConv?.listing_id}`} className="flex items-center gap-1 text-xs bg-amber-500/10 text-amber-600 border border-amber-500/20 rounded-full px-2.5 py-1 font-medium shrink-0 hover:bg-amber-500/20 transition-colors max-w-[140px]">
+                        <ShoppingBag className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{activeStallConv?.listing_title}</span>
+                      </Link>
                     ) : (
                       <span className={`flex items-center gap-1 text-xs rounded-full px-2.5 py-1 font-medium shrink-0 border ${friendIds.has(activeUser.user_id) ? "bg-primary/10 text-primary border-primary/20" : "bg-amber-500/10 text-amber-600 border-amber-500/20"}`}>
                         <Lock className="h-3 w-3" />
@@ -792,9 +945,9 @@ export default function Messages({ user }) {
                   <MessagesSquare className="h-12 w-12 text-muted-foreground/30 mb-4" />
                   <h3 className="font-heading font-semibold text-foreground mb-1">Start a conversation</h3>
                   <p className="text-sm text-muted-foreground max-w-xs mb-6">
-                    Pick a friend from <strong>Friend Chats</strong>, or view your <strong>Private Messages</strong> from other parents.
+                    Pick a friend from <strong>Friend Chats</strong>, view your <strong>Private Messages</strong>, or check your <strong>Stall</strong> conversations.
                   </p>
-                  <div className="flex gap-3">
+                  <div className="flex flex-wrap gap-3 justify-center">
                     <Button size="sm" variant="outline" className="rounded-full gap-2" onClick={() => setSidebarTab("friends")}>
                       <Users className="h-4 w-4" />
                       Friend Chats
@@ -803,6 +956,12 @@ export default function Messages({ user }) {
                       <Lock className="h-4 w-4" />
                       Private Messages
                     </Button>
+                    {FEATURES.MARKETPLACE && (
+                      <Button size="sm" variant="outline" className="rounded-full gap-2" onClick={() => setSidebarTab("stall")}>
+                        <ShoppingBag className="h-4 w-4" />
+                        Stall
+                      </Button>
+                    )}
                   </div>
                 </div>
               )}

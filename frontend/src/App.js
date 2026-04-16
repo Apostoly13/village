@@ -37,6 +37,11 @@ import CommunityGuidelines from "./pages/CommunityGuidelines";
 import NotFound from "./pages/NotFound";
 import VillagePlus from "./pages/VillagePlus";
 import ChatPopout from "./components/ChatPopout";
+import Stall from "./pages/Stall";
+import StallListingDetail from "./pages/StallListingDetail";
+import CreateStallListing from "./pages/CreateStallListing";
+import DonationGroupDetail from "./pages/DonationGroupDetail";
+import CreateDonationGroup from "./pages/CreateDonationGroup";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -322,6 +327,31 @@ const AppRouter = () => {
       } />
       <Route path="/community-guidelines" element={<CommunityGuidelines />} />
       <Route path="/plus" element={<VillagePlus user={popoutUser} />} />
+      {FEATURES.MARKETPLACE && <Route path="/stall" element={
+        <ProtectedRoute>
+          {({ user }) => <Stall user={user} />}
+        </ProtectedRoute>
+      } />}
+      {FEATURES.MARKETPLACE && <Route path="/stall/listing/:listingId" element={
+        <ProtectedRoute>
+          {({ user }) => <StallListingDetail user={user} />}
+        </ProtectedRoute>
+      } />}
+      {FEATURES.MARKETPLACE && <Route path="/stall/new" element={
+        <ProtectedRoute>
+          {({ user }) => <CreateStallListing user={user} />}
+        </ProtectedRoute>
+      } />}
+      {FEATURES.MARKETPLACE && <Route path="/stall/groups/:groupId" element={
+        <ProtectedRoute>
+          {({ user }) => <DonationGroupDetail user={user} />}
+        </ProtectedRoute>
+      } />}
+      {FEATURES.MARKETPLACE && <Route path="/stall/groups/new" element={
+        <ProtectedRoute>
+          {({ user }) => <CreateDonationGroup user={user} />}
+        </ProtectedRoute>
+      } />}
       <Route path="*" element={<NotFound />} />
     </Routes>
     {popoutUser &&

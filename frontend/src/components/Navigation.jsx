@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { ScrollArea } from "./ui/scroll-area";
-import { Home, MessageSquare, Users, Mail, User, LogOut, Menu, X, Moon, Sun, UserPlus, Bell, Bookmark, Shield, ScrollText, BookOpen, Calendar, Heart, Lock, FileText, Settings, Crown } from "lucide-react";
+import { Home, MessageSquare, Users, Mail, User, LogOut, Menu, X, Moon, Sun, UserPlus, Bell, Bookmark, Shield, ScrollText, BookOpen, Calendar, Heart, Lock, FileText, Settings, Crown, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
 import { FEATURES } from "../config/features";
 
@@ -111,6 +111,7 @@ export default function Navigation({ user }) {
     { icon: MessageSquare, label: "Support Spaces", href: "/forums", testId: "nav-forums" },
     { icon: Users, label: "Chat Circles", href: "/chat", testId: "nav-chat" },
     { icon: Calendar, label: "Events", href: isFree ? "/plus" : "/events", testId: "nav-events", locked: isFree },
+    ...(FEATURES.MARKETPLACE ? [{ icon: ShoppingBag, label: "The Stall", href: isFree ? "/plus" : "/stall", testId: "nav-stall", locked: isFree }] : []),
     { icon: Mail, label: "Messages", href: isFree ? "/plus" : "/messages", testId: "nav-messages", locked: isFree, badge: isFree ? 0 : unreadMessages },
     ...(FEATURES.BLOG ? [{ icon: BookOpen, label: "Blog", href: "/blog", testId: "nav-blog" }] : []),
     ...(isAdmin ? [{ icon: Shield, label: "Admin", href: "/admin", testId: "nav-admin" }] : []),
