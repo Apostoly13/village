@@ -465,7 +465,7 @@ export default function Dashboard({ user }) {
         const all = data.categories || data;
         const mine = all.filter(c =>
           c.category_type === "community" &&
-          (c.creator_id === user?.user_id || c.is_member)
+          (c.is_member || c.is_creator || c.created_by === user?.user_id)
         );
         setUserCommunities(mine);
       }
@@ -1051,7 +1051,7 @@ export default function Dashboard({ user }) {
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-heading font-semibold text-sm text-foreground">Your communities</h3>
                     {userCommunities.length < 3 && (
-                      <Link to="/forums/create-community" className="text-[11px] text-primary font-medium hover:underline">+ Create</Link>
+                      <Link to="/create-community" className="text-[11px] text-primary font-medium hover:underline">+ Create</Link>
                     )}
                   </div>
                   {userCommunities.length === 0 ? (
@@ -1059,7 +1059,7 @@ export default function Dashboard({ user }) {
                       <span className="text-2xl block mb-2">🏡</span>
                       <p className="text-xs text-foreground font-medium mb-0.5">No communities yet</p>
                       <p className="text-xs text-muted-foreground mb-3">Start one for parents like you — it only takes a minute.</p>
-                      <Link to="/forums/create-community" className="text-xs text-primary font-medium hover:underline">
+                      <Link to="/create-community" className="text-xs text-primary font-medium hover:underline">
                         Start a community →
                       </Link>
                     </div>
