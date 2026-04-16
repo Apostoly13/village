@@ -4458,9 +4458,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include the router in the main app (after middleware so CORS applies correctly)
-app.include_router(api_router)
-
 # ==================== VILLAGE STALL ENDPOINTS ====================
 
 def _check_premium(user: dict):
@@ -4897,6 +4894,10 @@ async def update_donation_group(group_id: str, data: dict, user: dict = Depends(
     updates = {k: v for k, v in data.items() if k in allowed}
     await db.donation_groups.update_one({"group_id": group_id}, {"$set": updates})
     return {"message": "Group updated"}
+
+
+# Include the router after ALL routes are registered (stall routes defined above)
+app.include_router(api_router)
 
 
 @app.on_event("startup")
