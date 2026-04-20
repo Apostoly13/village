@@ -232,7 +232,7 @@ export default function ChatRooms({ user }) {
         <div className="flex-1">
           <h3 className="font-heading font-bold text-foreground mb-1">Set your location to connect locally</h3>
           <p className="text-sm text-muted-foreground mb-3">
-            Add your suburb or postcode in your profile to see local chat circles.
+            Add your suburb or postcode in your profile to see local group chats.
           </p>
           <Link to="/profile">
             <Button size="sm" className="rounded-full bg-primary text-primary-foreground">Update Profile</Button>
@@ -264,8 +264,8 @@ export default function ChatRooms({ user }) {
 
       <main className="max-w-4xl mx-auto px-4 pt-20 lg:pt-24">
         <div className="mb-6">
-          <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-1">Chat Circles</h1>
-          <p className="text-sm text-muted-foreground">Real-time chat rooms — national, local, and friends</p>
+          <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-1">Group Chats</h1>
+          <p className="text-sm text-muted-foreground">Real-time chat — national, local, and friends</p>
         </div>
 
         {!hasLocation && <LocationPrompt />}
@@ -277,14 +277,14 @@ export default function ChatRooms({ user }) {
               className="flex-1 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               data-testid="tab-village"
             >
-              🇦🇺 Village Circles
+              🇦🇺 All Australia
             </TabsTrigger>
             <TabsTrigger
               value="local"
               className="flex-1 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               data-testid="tab-local"
             >
-              Local Circles
+              Local
             </TabsTrigger>
             <TabsTrigger
               value="friends"
@@ -572,7 +572,7 @@ export default function ChatRooms({ user }) {
                 <span className="text-4xl mb-3 block">💛</span>
                 <h3 className="font-heading font-semibold text-foreground mb-1">No friends yet</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Connect with parents in Support Spaces first, then start a private chat here.
+                  Connect with parents in Spaces first, then start a private chat here.
                 </p>
                 <Link to="/friends">
                   <Button className="rounded-full bg-primary text-primary-foreground">Find friends</Button>

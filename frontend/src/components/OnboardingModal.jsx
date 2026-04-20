@@ -600,13 +600,13 @@ export default function OnboardingModal({ user, onComplete, onSkip: onSkipProp }
                 },
                 {
                   emoji: "💬",
-                  label: "Support Spaces",
-                  desc: "Topic-based forums — Baby Sleep, Feeding, Mental Health, Dad Circle, and more",
+                  label: "Spaces",
+                  desc: "Topic-based discussions — Baby Sleep, Feeding, Mental Health, and more",
                 },
                 {
                   emoji: "🌿",
-                  label: "Chat Circles",
-                  desc: "Live chat rooms — national circles, your suburb room, Mum Chat, Dad Chat",
+                  label: "Group Chats",
+                  desc: "Live chat rooms — national groups, your suburb room, Mum Chat, Dad Chat",
                 },
                 {
                   emoji: "📅",

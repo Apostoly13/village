@@ -16,7 +16,8 @@ import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
 import { toast } from "sonner";
 import { parseApiError } from "../utils/apiError";
-import { ArrowLeft, Plus, MessageCircle, Heart, Eye, Clock, Filter, ChevronLeft, ChevronRight, HelpCircle, MapPin, Compass, Crown, MoreVertical, Edit2, Trash2, Pin, Lock, Users } from "lucide-react";
+import { ArrowLeft, Plus, MessageCircle, Heart, Eye, Clock, Filter, ChevronLeft, ChevronRight, HelpCircle, MapPin, Compass, Crown, MoreVertical, Edit2, Trash2, Pin, Lock, Users, X } from "lucide-react";
+import VerifiedBadge from "../components/VerifiedBadge";
 import { formatDistanceToNow } from "date-fns";
 
 import { getSpaceName } from "../config/spaces";
@@ -51,6 +52,7 @@ export default function ForumCategory({ user }) {
   const [isMember, setIsMember] = useState(false);
   const [memberCount, setMemberCount] = useState(0);
   const [joinLoading, setJoinLoading] = useState(false);
+  const [crisisDismissed, setCrisisDismissed] = useState(false);
 
   const DISTANCE_OPTIONS = [
     { id: "5", label: "5km" },
@@ -275,6 +277,7 @@ export default function ForumCategory({ user }) {
                 {post.author_name}
                 {post.author_subscription_tier === "premium" && !post.is_anonymous && <Crown className="h-2.5 w-2.5 text-amber-500 inline ml-0.5" />}
               </span>
+              {post.author_is_verified_partner && !post.is_anonymous && <VerifiedBadge />}
             </Link>
           ) : (
             <span className="text-xs text-muted-foreground">Anonymous</span>
@@ -314,7 +317,7 @@ export default function ForumCategory({ user }) {
       <main className="max-w-4xl mx-auto px-4 pt-20 lg:pt-24">
         <Link to="/forums" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors" data-testid="back-link">
           <ArrowLeft className="h-4 w-4" />
-          Back to Support Spaces
+          Back to Spaces
         </Link>
 
         {loading && !category ? (
@@ -457,7 +460,38 @@ export default function ForumCategory({ user }) {
               </span>
             </div>
 
-            {loading ? (
+            {/* ── Crisis support banner (mental-health spaces only) ── */}
+            {!crisisDismissed && (() => {
+              const name = (category.name || "").toLowerCase();
+              const id   = (category.category_id || "").toLowerCase();
+              const keywords = ["mental health", "wellbeing", "anxiety", "depression", "postnatal", "perinatal", "emotional", "mum", "parent well"];
+              if (!keywords.some(kw => name.includes(kw) || id.includes(kw))) return null;
+              return (
+                <div className="mb-5 rounded-2xl bg-sky-500/5 border border-sky-500/20 p-4 flex items-start gap-3">
+                  <span className="text-xl shrink-0">💙</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-foreground mb-1">Support is available — you're not alone</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                      If you're in crisis or need to talk to someone right now, these free services are available 24/7:
+                    </p>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs">
+                      <a href="tel:1300726306" className="font-semibold text-sky-600 dark:text-sky-400 hover:underline">PANDA — 1300 726 306</a>
+                      <a href="tel:131114"     className="font-semibold text-sky-600 dark:text-sky-400 hover:underline">Lifeline — 13 11 14</a>
+                      <a href="tel:1300224636" className="font-semibold text-sky-600 dark:text-sky-400 hover:underline">Beyond Blue — 1300 22 4636</a>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setCrisisDismissed(true)}
+                    className="text-muted-foreground hover:text-foreground shrink-0 p-0.5 transition-colors"
+                    aria-label="Dismiss"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              );
+            })()}
+
+          {loading ? (
               <div className="space-y-2">
                 {[1, 2, 3, 4, 5].map(i => (
                   <div key={i} className="bg-card rounded-2xl px-4 py-3 border border-border/40 animate-pulse">
@@ -557,7 +591,7 @@ export default function ForumCategory({ user }) {
             <h3 className="font-heading font-semibold text-foreground">Category not found</h3>
             <p className="text-sm text-muted-foreground mt-1 mb-4">This space may have been removed.</p>
             <Link to="/forums">
-              <Button variant="outline" className="rounded-xl">Back to Support Spaces</Button>
+              <Button variant="outline" className="rounded-xl">Back to Spaces</Button>
             </Link>
           </div>
         )}

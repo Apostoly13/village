@@ -25,7 +25,8 @@ import {
 import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
 import { toast } from "sonner";
-import { ArrowLeft, Heart, MessageCircle, Eye, Clock, Send, Bookmark, BookmarkCheck, MoreVertical, Edit2, Trash2, Flag, Reply, MapPin, Crown } from "lucide-react";
+import { ArrowLeft, Heart, MessageCircle, Eye, Clock, Send, Bookmark, BookmarkCheck, MoreVertical, Edit2, Trash2, Flag, Reply, MapPin, Crown, X } from "lucide-react";
+import VerifiedBadge from "../components/VerifiedBadge";
 import { formatDistanceToNow } from "date-fns";
 import { parseApiError } from "../utils/apiError";
 
@@ -53,6 +54,7 @@ export default function ForumPost({ user }) {
   const [editReplyContent, setEditReplyContent] = useState("");
   
   const [subscription, setSubscription] = useState(null);
+  const [crisisDismissed, setCrisisDismissed] = useState(false);
 
   // Modal states
   const [deletePostModal, setDeletePostModal] = useState(false);
@@ -362,9 +364,10 @@ export default function ForumPost({ user }) {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2 flex-wrap">
                   {reply.author_id !== "anonymous" ? (
-                    <Link to={`/profile/${reply.author_id}`} className="hover:underline flex items-center gap-1">
+                    <Link to={`/profile/${reply.author_id}`} className="hover:underline flex items-center gap-1 flex-wrap">
                       <span className="font-medium text-foreground hover:text-primary transition-colors">{reply.author_name}</span>
                       {reply.author_subscription_tier === "premium" && !reply.is_anonymous && <Crown className="h-3 w-3 text-amber-500" />}
+                      {reply.author_is_verified_partner && !reply.is_anonymous && <VerifiedBadge />}
                     </Link>
                   ) : (
                     <span className="font-medium text-foreground">{reply.author_name}</span>
@@ -542,7 +545,7 @@ export default function ForumPost({ user }) {
             <h1 className="font-heading text-xl font-bold text-foreground mb-2">Post not found</h1>
             <p className="text-sm text-muted-foreground mb-6">This post may have been removed or the link is incorrect.</p>
             <Link to="/forums">
-              <Button className="rounded-xl">Back to Support Spaces</Button>
+              <Button className="rounded-xl">Back to Spaces</Button>
             </Link>
           </div>
         </main>
@@ -561,8 +564,39 @@ export default function ForumPost({ user }) {
           data-testid="back-link"
         >
           <ArrowLeft className="h-4 w-4" />
-          {post?.category_name || "Support Spaces"}
+          {post?.category_name || "Spaces"}
         </Link>
+
+        {/* ── Crisis support banner (mental-health categories only) ── */}
+        {!crisisDismissed && (() => {
+          const name = (post.category_name || "").toLowerCase();
+          const id   = (post.category_id   || "").toLowerCase();
+          const keywords = ["mental health", "wellbeing", "anxiety", "depression", "postnatal", "perinatal", "emotional", "mum", "parent well"];
+          if (!keywords.some(kw => name.includes(kw) || id.includes(kw))) return null;
+          return (
+            <div className="mb-5 rounded-2xl bg-sky-500/5 border border-sky-500/20 p-4 flex items-start gap-3">
+              <span className="text-xl shrink-0">💙</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground mb-1">Support is available — you're not alone</p>
+                <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                  If you're in crisis or need to talk to someone right now, these free services are available 24/7:
+                </p>
+                <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs">
+                  <a href="tel:1300726306" className="font-semibold text-sky-600 dark:text-sky-400 hover:underline">PANDA — 1300 726 306</a>
+                  <a href="tel:131114"     className="font-semibold text-sky-600 dark:text-sky-400 hover:underline">Lifeline — 13 11 14</a>
+                  <a href="tel:1300224636" className="font-semibold text-sky-600 dark:text-sky-400 hover:underline">Beyond Blue — 1300 22 4636</a>
+                </div>
+              </div>
+              <button
+                onClick={() => setCrisisDismissed(true)}
+                className="text-muted-foreground hover:text-foreground shrink-0 p-0.5 transition-colors"
+                aria-label="Dismiss"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          );
+        })()}
 
         {/* Main Post */}
         <article className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20 mb-6" data-testid="post-content">
@@ -585,9 +619,10 @@ export default function ForumPost({ user }) {
               <div>
                 {post.author_id !== "anonymous" ? (
                   <Link to={`/profile/${post.author_id}`} className="hover:underline">
-                    <p className="font-medium text-foreground hover:text-primary transition-colors flex items-center gap-1">
+                    <p className="font-medium text-foreground hover:text-primary transition-colors flex items-center gap-1 flex-wrap">
                       {post.author_name}
                       {post.author_subscription_tier === "premium" && !post.is_anonymous && <Crown className="h-3 w-3 text-amber-500" />}
+                      {post.author_is_verified_partner && !post.is_anonymous && <VerifiedBadge />}
                     </p>
                   </Link>
                 ) : (

@@ -2,47 +2,44 @@ import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { Textarea } from "../components/ui/textarea";
 import { Label } from "../components/ui/label";
 import { toast } from "sonner";
-import { ArrowRight, ArrowLeft, MapPin, Check, MessageCircle, Users, Heart, EyeOff, Calendar } from "lucide-react";
+import { ArrowRight, ArrowLeft, MapPin, Check, EyeOff } from "lucide-react";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
-const INTEREST_OPTIONS = [
-  { label: "Sleep & Settling", emoji: "🌙" },
-  { label: "Feeding", emoji: "🍼" },
-  { label: "Toddler Activities", emoji: "🧸" },
-  { label: "School Age", emoji: "🎒" },
-  { label: "Mental Health", emoji: "💚" },
-  { label: "Dad Talk", emoji: "👨" },
-  { label: "Mum Talk", emoji: "👩" },
-  { label: "Local Events", emoji: "📍" },
-  { label: "Recipes & Nutrition", emoji: "🥦" },
-  { label: "Development Milestones", emoji: "⭐" },
-  { label: "Raising Multiples", emoji: "👶👶" },
-];
-
 const PARENTING_STAGES = [
-  { id: "expecting", label: "Expecting", emoji: "🤰", desc: "Baby on the way" },
-  { id: "newborn", label: "Newborn", emoji: "👶", desc: "0 – 3 months" },
-  { id: "infant", label: "Infant", emoji: "🧒", desc: "3 – 12 months" },
-  { id: "toddler", label: "Toddler", emoji: "🚶", desc: "1 – 3 years" },
-  { id: "school_age", label: "School Age", emoji: "🎒", desc: "5 – 12 years" },
-  { id: "teenager", label: "Teenager", emoji: "🧑", desc: "13+ years" },
-  { id: "multiples", label: "Twins/Triplets", emoji: "👶👶", desc: "Two or more!" },
-  { id: "mixed", label: "Mixed ages", emoji: "👨‍👩‍👧‍👦", desc: "Multiple kids" },
+  { id: "expecting",  label: "Expecting",     emoji: "🤰",        desc: "Baby on the way" },
+  { id: "newborn",    label: "Newborn",        emoji: "👶",        desc: "0 – 3 months" },
+  { id: "infant",     label: "Infant",         emoji: "🧒",        desc: "3 – 12 months" },
+  { id: "toddler",    label: "Toddler",        emoji: "🚶",        desc: "1 – 3 years" },
+  { id: "school_age", label: "School Age",     emoji: "🎒",        desc: "5 – 12 years" },
+  { id: "teenager",   label: "Teenager",       emoji: "🧑",        desc: "13+ years" },
+  { id: "multiples",  label: "Twins/Triplets", emoji: "👶👶",     desc: "Two or more!" },
+  { id: "mixed",      label: "Mixed ages",     emoji: "👨‍👩‍👧‍👦", desc: "Multiple kids" },
 ];
 
 const AUSTRALIAN_STATES = ["NSW", "VIC", "QLD", "WA", "SA", "TAS", "ACT", "NT"];
 
-const TOTAL_STEPS = 6;
-
 const GENDER_OPTIONS = [
-  { id: "female", label: "Female", emoji: "👩" },
-  { id: "male", label: "Male", emoji: "👨" },
+  { id: "female",         label: "Mum",              emoji: "👩" },
+  { id: "male",           label: "Dad",              emoji: "👨" },
   { id: "prefer_not_say", label: "Prefer not to say", emoji: "🤐" },
 ];
+
+// Auto-assign interests from parenting stage — drives personalisation without an extra step
+const AUTO_INTERESTS = {
+  expecting:  ["Feeding", "Mental Health"],
+  newborn:    ["Sleep & Settling", "Feeding", "Mental Health"],
+  infant:     ["Sleep & Settling", "Feeding", "Development Milestones"],
+  toddler:    ["Toddler Activities", "Development Milestones"],
+  school_age: ["School Age", "Development Milestones"],
+  teenager:   ["School Age", "Mental Health"],
+  multiples:  ["Raising Multiples", "Sleep & Settling", "Feeding"],
+  mixed:      ["Toddler Activities", "School Age"],
+};
+
+const TOTAL_STEPS = 5;
 
 function ProgressBar({ step }) {
   return (
@@ -56,34 +53,25 @@ function ProgressBar({ step }) {
 }
 
 export default function Onboarding({ user }) {
-  const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
 
-  // Always start at step 1 so users can review/edit their profile in full.
-  // Jump to the final "all set" step only if onboarding is already marked complete.
   const [step, setStep] = useState(() => {
-    if (user?.onboarding_complete) return 6;
+    if (user?.onboarding_complete) return 5;
     return 1;
   });
 
-  // Step 2b — Gender
-  const [gender, setGender] = useState(user?.gender || "");
-
-  // Step 2 — About You
+  // ── Step 2 — About You ────────────────────────────────────────────────────────
   const [nickname, setNickname] = useState(user?.nickname || user?.name || "");
-  const [bio, setBio] = useState(user?.bio || "");
   const [parentingStage, setParentingStage] = useState(user?.parenting_stage || "");
   const [mixedAgeGroups, setMixedAgeGroups] = useState(user?.mixed_age_groups || []);
   const [isSingleParent, setIsSingleParent] = useState(user?.is_single_parent || false);
   const [isMultipleBirth, setIsMultipleBirth] = useState(user?.is_multiple_birth || false);
+  const [gender, setGender] = useState(user?.gender || "");
 
-  const toggleMixedAgeGroup = (id) => {
-    setMixedAgeGroups(prev =>
-      prev.includes(id) ? prev.filter(g => g !== id) : [...prev, id]
-    );
-  };
+  const toggleMixedAgeGroup = (id) =>
+    setMixedAgeGroups(prev => prev.includes(id) ? prev.filter(g => g !== id) : [...prev, id]);
 
-  // Step 3 — Location
+  // ── Step 3 — Location ─────────────────────────────────────────────────────────
   const [locationSearch, setLocationSearch] = useState(
     user?.suburb ? `${user.suburb}${user.postcode ? ", " + user.postcode : ""}` : ""
   );
@@ -95,27 +83,16 @@ export default function Onboarding({ user }) {
   const [latitude, setLatitude] = useState(user?.latitude || null);
   const [longitude, setLongitude] = useState(user?.longitude || null);
 
-  // Step 4 — Interests
-  const [interests, setInterests] = useState(user?.interests || []);
+  // ── Step 4 — Immediate need ───────────────────────────────────────────────────
+  const [immediateNeed, setImmediateNeed] = useState(null); // "vent" | "question" | "browse"
 
-  const toggleInterest = (label) => {
-    setInterests(prev =>
-      prev.includes(label) ? prev.filter(i => i !== label) : [...prev, label]
-    );
-  };
-
-  // useCallback prevents a new function reference on every render,
-  // which was causing the location input to lose focus
   const searchLocation = useCallback(async (q) => {
     setLocationSearch(q);
     if (q.length < 2) { setLocationResults([]); return; }
     setSearchingLocation(true);
     try {
       const res = await fetch(`${API_URL}/api/location/search?q=${encodeURIComponent(q)}`, { credentials: "include" });
-      if (res.ok) {
-        const data = await res.json();
-        setLocationResults(data.results || []);
-      }
+      if (res.ok) setLocationResults((await res.json()).results || []);
     } catch {}
     finally { setSearchingLocation(false); }
   }, []);
@@ -125,7 +102,6 @@ export default function Onboarding({ user }) {
     setSuburb(suburbName);
     setPostcode(loc.postcode || "");
     setSelectedState(loc.state || "");
-    // Backend returns lat/lon (OpenStreetMap field names)
     setLatitude(loc.lat || loc.latitude || null);
     setLongitude(loc.lon || loc.longitude || null);
     setLocationSearch(`${suburbName}${loc.postcode ? ", " + loc.postcode : ""}`);
@@ -136,22 +112,20 @@ export default function Onboarding({ user }) {
     setSaving(true);
     const profileData = {
       nickname: nickname.trim() || user?.name,
-      bio: bio.trim(),
       parenting_stage: parentingStage,
       gender: gender || undefined,
       is_single_parent: isSingleParent,
       is_multiple_birth: parentingStage === "multiples" || (parentingStage === "mixed" && isMultipleBirth),
-      suburb: suburb,
-      postcode: postcode,
+      suburb,
+      postcode,
       state: selectedState,
       location: suburb,
-      latitude: latitude,
-      longitude: longitude,
-      interests: interests,
+      latitude,
+      longitude,
+      interests: AUTO_INTERESTS[parentingStage] || [],
       mixed_age_groups: parentingStage === "mixed" ? mixedAgeGroups : [],
       onboarding_complete: true,
     };
-    // Optimistically update localStorage so redirect check sees correct data
     const current = JSON.parse(localStorage.getItem("user") || "{}");
     localStorage.setItem("user", JSON.stringify({ ...current, ...profileData }));
     try {
@@ -171,42 +145,56 @@ export default function Onboarding({ user }) {
   };
 
   const handleNext = async () => {
-    if (step === 5) {
+    if (step === 4) {
       await saveAndFinish();
-      setStep(6);
+      setStep(5);
     } else {
       setStep(s => s + 1);
     }
   };
 
   const handleBack = () => setStep(s => s - 1);
-  const handleDone = () => { window.location.href = "/dashboard"; };
 
   const canProceed = () => {
     if (step === 2) return nickname.trim().length > 0 && parentingStage !== "";
+    if (step === 4) return immediateNeed !== null;
     return true;
   };
 
+  // Where to send her at the end based on her stated need
+  const getDestination = () => {
+    if (immediateNeed === "vent")     return "/chat";
+    if (immediateNeed === "question") return "/forums";
+    return "/dashboard";
+  };
+
+  const getDestinationLabel = () => {
+    if (immediateNeed === "vent")     return "Take me to Group Chats";
+    if (immediateNeed === "question") return "Take me to Spaces";
+    return "Take me to my village";
+  };
+
+  const isTrial   = user?.subscription_tier === "trial";
+  const isFree    = user?.subscription_tier === "free";
+  const isPremium = user?.subscription_tier === "premium";
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
+
+      {/* ── Header / progress ─────────────────────────────────────────────────── */}
       <div className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-sm border-b border-border/30 px-4 py-3">
         <div className="max-w-2xl mx-auto flex items-center gap-4">
-          <div className="flex items-center shrink-0">
-            <img src="/BG Removed- Main Logo.png" alt="The Village" className="h-16 w-auto" />
-          </div>
-          <div className="flex-1">
-            <ProgressBar step={step} />
-          </div>
+          <img src="/BG Removed- Main Logo.png" alt="The Village" className="h-16 w-auto shrink-0" />
+          <div className="flex-1"><ProgressBar step={step} /></div>
           <span className="text-xs text-muted-foreground shrink-0">{step}/{TOTAL_STEPS}</span>
         </div>
       </div>
 
-      {/* Content */}
+      {/* ── Content ───────────────────────────────────────────────────────────── */}
       <div className="pt-20 pb-28 px-4">
         <div className="max-w-2xl mx-auto">
 
-          {/* ── Step 1: Welcome ─────────────────────────────── */}
+          {/* ── Step 1: Welcome ───────────────────────────────────────────────── */}
           {step === 1 && (
             <div className="text-center animate-fade-in">
               <img src="/BG Removed- Main Logo.png" alt="The Village" className="h-72 w-auto mx-auto mb-6" />
@@ -219,20 +207,19 @@ export default function Onboarding({ user }) {
                 up at 3am, or just need someone who gets it.
               </p>
 
-              {/* Anonymous callout */}
               <div className="flex items-center gap-3 bg-primary/10 border border-primary/20 rounded-2xl p-4 mb-8 max-w-md mx-auto text-left">
                 <EyeOff className="h-5 w-5 text-primary shrink-0" />
                 <div>
                   <p className="text-sm font-medium text-foreground">You control your privacy</p>
-                  <p className="text-xs text-muted-foreground">Post or chat anonymously any time — no name, no avatar, just honest conversation.</p>
+                  <p className="text-xs text-muted-foreground">Post or chat anonymously any time — no name, no avatar shown.</p>
                 </div>
               </div>
 
               <div className="grid sm:grid-cols-3 gap-4 mb-10 text-left max-w-xl mx-auto">
                 {[
-                  { icon: MessageCircle, emoji: "💬", title: "Support Spaces", desc: "Topic-based forums for real conversations — feeding, sleep, mental health, and more." },
-                  { icon: Users, emoji: "🗣️", title: "Chat Circles", desc: "Real-time chat rooms for your suburb, your stage, and Australia-wide." },
-                  { icon: Calendar, emoji: "📅", title: "Events", desc: "Find and RSVP to local meetups and playgroups near you." },
+                  { emoji: "💬", title: "Spaces",      desc: "Topic-based discussions — sleep, feeding, mental health, and more." },
+                  { emoji: "🗣️", title: "Group Chats", desc: "Real-time chat for your suburb, your stage, and Australia-wide." },
+                  { emoji: "📅", title: "Events",       desc: "Find local meetups, playgroups, and parent events near you." },
                 ].map(({ emoji, title, desc }) => (
                   <div key={title} className="bg-card rounded-2xl p-4 border border-border/50">
                     <span className="text-2xl mb-2 block">{emoji}</span>
@@ -253,13 +240,15 @@ export default function Onboarding({ user }) {
             </div>
           )}
 
-          {/* ── Step 2: About You ───────────────────────────── */}
+          {/* ── Step 2: About You ─────────────────────────────────────────────── */}
           {step === 2 && (
             <div className="animate-fade-in max-w-lg mx-auto w-full">
               <h2 className="font-heading text-2xl font-bold text-foreground mb-1">About you</h2>
-              <p className="text-muted-foreground mb-6">This is what other parents see. You can always use a nickname — no pressure to use your real name.</p>
+              <p className="text-muted-foreground mb-6">A nickname is fine — many parents prefer it for privacy.</p>
 
               <div className="space-y-5">
+
+                {/* Display name */}
                 <div className="space-y-1.5">
                   <Label className="text-foreground font-medium">Display name</Label>
                   <Input
@@ -268,21 +257,9 @@ export default function Onboarding({ user }) {
                     placeholder="What should we call you?"
                     className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
                   />
-                  <p className="text-xs text-muted-foreground">A nickname works great — many parents prefer it for privacy.</p>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-foreground font-medium">A little about you <span className="text-muted-foreground font-normal">(optional)</span></Label>
-                  <Textarea
-                    value={bio}
-                    onChange={e => setBio(e.target.value)}
-                    placeholder="e.g. Mum to a 4-month-old, surviving on coffee and love ☕"
-                    className="rounded-xl bg-secondary/50 border-transparent focus:border-primary resize-none"
-                    rows={3}
-                  />
-                  <p className="text-xs text-muted-foreground">You can keep this blank and post anonymously whenever you want.</p>
-                </div>
-
+                {/* Parenting stage */}
                 <div className="space-y-2">
                   <Label className="text-foreground font-medium">Where are you at?</Label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -304,11 +281,12 @@ export default function Onboarding({ user }) {
                   </div>
                 </div>
 
+                {/* Mixed / multiples sub-picker */}
                 {(parentingStage === "mixed" || parentingStage === "multiples") && (
                   <div className="space-y-2 pl-1 border-l-2 border-primary/30 ml-1">
                     <Label className="text-foreground font-medium text-sm">
-                      {parentingStage === "multiples" ? "How old are your multiples?" : "Which age groups?"}{" "}
-                      <span className="text-muted-foreground font-normal">(select all that apply)</span>
+                      {parentingStage === "multiples" ? "How old are your multiples?" : "Which age groups?"}
+                      <span className="text-muted-foreground font-normal"> (select all that apply)</span>
                     </Label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {PARENTING_STAGES.filter(s => s.id !== "mixed" && s.id !== "multiples").map(stage => {
@@ -331,7 +309,6 @@ export default function Onboarding({ user }) {
                         );
                       })}
                     </div>
-
                     {parentingStage === "mixed" && (
                       <button
                         onClick={() => setIsMultipleBirth(p => !p)}
@@ -347,6 +324,29 @@ export default function Onboarding({ user }) {
                   </div>
                 )}
 
+                {/* Gender — optional, folded into this step */}
+                <div className="space-y-2 pt-1">
+                  <Label className="text-foreground font-medium text-sm">
+                    I am a… <span className="text-muted-foreground font-normal">(optional)</span>
+                  </Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {GENDER_OPTIONS.map(opt => (
+                      <button
+                        key={opt.id}
+                        onClick={() => setGender(gender === opt.id ? "" : opt.id)}
+                        className={`rounded-xl p-3 text-center border-2 flex flex-col items-center gap-1 transition-all ${
+                          gender === opt.id ? "border-primary bg-primary/10" : "border-border/50 bg-card hover:border-primary/40"
+                        }`}
+                      >
+                        <span className="text-xl">{opt.emoji}</span>
+                        <span className={`text-xs font-medium ${gender === opt.id ? "text-primary" : "text-foreground"}`}>{opt.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Helps us personalise your spaces — you can skip or change this any time.</p>
+                </div>
+
+                {/* Single parent */}
                 <button
                   onClick={() => setIsSingleParent(p => !p)}
                   className={`w-full rounded-xl p-4 border-2 flex items-center gap-3 transition-all text-left ${
@@ -368,41 +368,14 @@ export default function Onboarding({ user }) {
             </div>
           )}
 
-          {/* ── Step 3: Gender ──────────────────────────────── */}
+          {/* ── Step 3: Location ──────────────────────────────────────────────── */}
           {step === 3 && (
             <div className="animate-fade-in max-w-lg mx-auto w-full">
-              <h2 className="font-heading text-2xl font-bold text-foreground mb-1">How do you identify?</h2>
-              <p className="text-muted-foreground mb-6">Optional — helps us connect you with the right spaces and communities.</p>
-
-              <div className="grid grid-cols-2 gap-3">
-                {GENDER_OPTIONS.map(opt => (
-                  <button
-                    key={opt.id}
-                    onClick={() => setGender(gender === opt.id ? "" : opt.id)}
-                    className={`rounded-xl p-4 text-left border-2 flex items-center gap-3 transition-all ${
-                      gender === opt.id ? "border-primary bg-primary/10" : "border-border/50 bg-card hover:border-primary/40"
-                    }`}
-                  >
-                    <span className="text-2xl">{opt.emoji}</span>
-                    <span className={`text-sm font-medium ${gender === opt.id ? "text-primary" : "text-foreground"}`}>{opt.label}</span>
-                    {gender === opt.id && <Check className="h-4 w-4 text-primary ml-auto" />}
-                  </button>
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground text-center mt-4">You can skip this or change it any time in your profile.</p>
-            </div>
-          )}
-
-          {/* ── Step 4: Location ────────────────────────────── */}
-          {step === 4 && (
-            <div className="animate-fade-in max-w-lg mx-auto w-full">
-              <h2 className="font-heading text-2xl font-bold text-foreground mb-1">Your location</h2>
-              <p className="text-muted-foreground mb-2">
-                Connect with parents near you — in your suburb, postcode, or state.
-              </p>
+              <h2 className="font-heading text-2xl font-bold text-foreground mb-1">Where are you based?</h2>
+              <p className="text-muted-foreground mb-2">Find parents near you and see local group chats and events.</p>
               <div className="flex items-center gap-2 mb-6 text-xs text-muted-foreground bg-secondary/50 rounded-xl px-3 py-2">
                 <MapPin className="h-3.5 w-3.5 text-primary flex-shrink-0" />
-                Your location is never shown publicly. It's only used to surface local chat rooms and nearby parents.
+                Your location is never shown publicly — only used to surface local chats and nearby events.
               </div>
 
               <div className="space-y-4">
@@ -415,9 +388,7 @@ export default function Onboarding({ user }) {
                     className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
                     autoComplete="off"
                   />
-                  {searchingLocation && (
-                    <p className="text-xs text-muted-foreground px-1 mt-1">Searching...</p>
-                  )}
+                  {searchingLocation && <p className="text-xs text-muted-foreground px-1 mt-1">Searching...</p>}
                   {locationResults.length > 0 && (
                     <div className="absolute top-full left-0 right-0 z-50 bg-card border border-border/50 rounded-xl shadow-lg mt-1 overflow-hidden">
                       {locationResults.slice(0, 6).map((loc, i) => (
@@ -435,13 +406,16 @@ export default function Onboarding({ user }) {
                   )}
                   {suburb && (
                     <p className="text-xs text-primary px-1 mt-1 flex items-center gap-1">
-                      <Check className="h-3 w-3" /> {suburb}{postcode ? `, ${postcode}` : ""}{selectedState ? ` · ${selectedState}` : ""}
+                      <Check className="h-3 w-3" />
+                      {suburb}{postcode ? `, ${postcode}` : ""}{selectedState ? ` · ${selectedState}` : ""}
                     </p>
                   )}
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-foreground font-medium">State <span className="text-muted-foreground font-normal">(or select manually)</span></Label>
+                  <Label className="text-foreground font-medium">
+                    State <span className="text-muted-foreground font-normal">(or select manually)</span>
+                  </Label>
                   <div className="grid grid-cols-4 gap-2">
                     {AUSTRALIAN_STATES.map(s => (
                       <button
@@ -462,140 +436,182 @@ export default function Onboarding({ user }) {
             </div>
           )}
 
-          {/* ── Step 5: Interests ───────────────────────────── */}
-          {step === 5 && (
+          {/* ── Step 4: What brings you here? ─────────────────────────────────── */}
+          {step === 4 && (
             <div className="animate-fade-in max-w-lg mx-auto w-full">
-              <h2 className="font-heading text-2xl font-bold text-foreground mb-1">Your interests</h2>
-              <p className="text-muted-foreground mb-6">
-                Pick what matters to you — we'll personalise your Support Spaces and Chat Circles. You can change these any time in your profile.
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                {INTEREST_OPTIONS.map(({ label, emoji }) => {
-                  const active = interests.includes(label);
-                  return (
-                    <button
-                      key={label}
-                      onClick={() => toggleInterest(label)}
-                      className={`rounded-xl px-4 py-3 text-left border-2 flex items-center gap-3 transition-all ${
-                        active ? "border-primary bg-primary/10" : "border-border/50 bg-card hover:border-primary/40"
-                      }`}
-                    >
-                      <span className="text-xl">{emoji}</span>
-                      <span className={`text-sm font-medium ${active ? "text-primary" : "text-foreground"}`}>{label}</span>
-                      {active && <Check className="h-4 w-4 text-primary ml-auto" />}
-                    </button>
-                  );
-                })}
+              <h2 className="font-heading text-2xl font-bold text-foreground mb-2">What brings you here today?</h2>
+              <p className="text-muted-foreground mb-8">We'll take you straight there when you're done.</p>
+
+              <div className="space-y-3">
+                {[
+                  {
+                    id: "vent",
+                    emoji: "💬",
+                    title: "I need to talk or vent",
+                    desc: "Find a real-time group chat or support space with other parents right now.",
+                  },
+                  {
+                    id: "question",
+                    emoji: "🙋",
+                    title: "I have a question",
+                    desc: "Post to a topic-based space and get answers from parents who've been there.",
+                  },
+                  {
+                    id: "browse",
+                    emoji: "👀",
+                    title: "I'm just exploring",
+                    desc: "Have a look around and see what The Village has for you.",
+                  },
+                ].map(({ id, emoji, title, desc }) => (
+                  <button
+                    key={id}
+                    onClick={() => setImmediateNeed(id)}
+                    className={`w-full rounded-2xl p-5 text-left border-2 flex items-start gap-4 transition-all ${
+                      immediateNeed === id
+                        ? "border-primary bg-primary/10"
+                        : "border-border/50 bg-card hover:border-primary/40"
+                    }`}
+                  >
+                    <span className="text-3xl shrink-0">{emoji}</span>
+                    <div className="flex-1">
+                      <p className={`font-semibold text-base mb-1 ${immediateNeed === id ? "text-primary" : "text-foreground"}`}>
+                        {title}
+                      </p>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
+                    </div>
+                    {immediateNeed === id && <Check className="h-5 w-5 text-primary shrink-0 mt-1" />}
+                  </button>
+                ))}
               </div>
-              {interests.length === 0 && (
-                <p className="text-xs text-muted-foreground text-center mt-4">Select at least one to get personalised recommendations</p>
-              )}
             </div>
           )}
 
-          {/* ── Step 6: Tour ────────────────────────────────── */}
-          {step === 6 && (
+          {/* ── Step 5: You're in! — explainer + destination ──────────────────── */}
+          {step === 5 && (
             <div className="animate-fade-in text-center max-w-lg mx-auto w-full">
-              <div className="flex items-center justify-center mx-auto mb-6">
-                <img src="/the_village_wordmark_light.png" alt="The Village" className="h-52 w-auto" />
-              </div>
+              <div className="text-5xl mb-4">🏡</div>
               <h2 className="font-heading text-2xl font-bold text-foreground mb-2">You're all set!</h2>
-              <p className="text-muted-foreground mb-8">Here's how to make the most of The Village.</p>
+              <p className="text-muted-foreground mb-8">Welcome to The Village. Here's what you have access to.</p>
 
-              <div className="space-y-3 text-left mb-8">
-                {[
-                  {
-                    emoji: "💬",
-                    title: "Support Spaces",
-                    tips: [
-                      "Topic-based forums — Feeding, Sleep, Mental Health, Dad Circle, Mum Circle and more",
-                      "Post anonymously whenever you want — no name, no avatar shown",
-                      "Reply and react — every response helps someone feel less alone",
-                    ],
-                  },
-                  {
-                    emoji: "🗣️",
-                    title: "Chat Circles",
-                    tips: [
-                      "Real-time chat grouped by suburb, stage, and national rooms",
-                      "The 3am Club is most active between 10pm and 4am — late-night support when you need it",
-                      "Chat anonymously — just tap the anon toggle before you type",
-                    ],
-                  },
-                  {
-                    emoji: "🔒",
-                    title: "Anonymous posting",
-                    tips: [
-                      "Any post or chat message can be anonymous — your choice, every time",
-                      "Anonymous posts show no name or profile picture",
-                      "Your identity is never revealed — not to other users, not even to moderators",
-                    ],
-                  },
-                  {
-                    emoji: "📅",
-                    title: "Events",
-                    tips: [
-                      "Find local playgroups, meetups, and parent events near you",
-                      "RSVP and add events to your calendar with one tap",
-                      "Create your own event and invite the village",
-                    ],
-                  },
-                  {
-                    emoji: "👥",
-                    title: "Friends & Private Chat",
-                    tips: [
-                      "Send a friend request from anyone's profile",
-                      "Once connected, open a private chat from Chat Circles → Friends",
-                      "The chat popout lets you message friends from anywhere in the app",
-                    ],
-                  },
-                ].map(({ emoji, title, tips }) => (
-                  <div key={title} className="bg-card rounded-2xl border border-border/50 p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xl">{emoji}</span>
-                      <h3 className="font-heading font-semibold text-foreground">{title}</h3>
+              {/* Free / Trial / Premium explainer — no upsell language, just plain info */}
+              <div className="bg-card rounded-2xl border border-border/50 p-5 mb-6 text-left">
+                {isTrial && (
+                  <>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-lg">🎉</span>
+                      <p className="font-semibold text-foreground">Your 7-day Village+ trial is active</p>
                     </div>
-                    <ul className="space-y-1">
-                      {tips.map((tip, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
-                          <span className="text-primary mt-0.5 flex-shrink-0">•</span>
-                          {tip}
-                        </li>
+                    <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
+                      You have full access to everything during your trial — Events, Private Messaging, and Communities included.
+                      After 7 days you'll move to the free plan automatically. No charge unless you choose to upgrade.
+                    </p>
+                    <div className="space-y-2">
+                      {[
+                        "Spaces — topic-based discussions",
+                        "Group Chats — real-time local and national",
+                        "Events — find and RSVP to local meetups",
+                        "Private Messaging — 1:1 with other parents",
+                        "Communities — member-led groups",
+                      ].map(item => (
+                        <div key={item} className="flex items-center gap-2 text-sm text-foreground">
+                          <Check className="h-4 w-4 text-green-500 shrink-0" />
+                          {item}
+                        </div>
                       ))}
-                    </ul>
-                  </div>
-                ))}
+                    </div>
+                  </>
+                )}
+
+                {isFree && (
+                  <>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-lg">✅</span>
+                      <p className="font-semibold text-foreground">Free plan — always included</p>
+                    </div>
+                    <div className="space-y-2 mb-4">
+                      {[
+                        "Spaces — topic-based discussions",
+                        "Group Chats — real-time local and national",
+                        "Post, reply, and react — no weekly cap on chats",
+                      ].map(item => (
+                        <div key={item} className="flex items-center gap-2 text-sm text-foreground">
+                          <Check className="h-4 w-4 text-green-500 shrink-0" />
+                          {item}
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground border-t border-border/30 pt-3">
+                      Events, Private Messaging, and Communities are available with{" "}
+                      <span className="text-primary font-medium">Village+</span>. You can explore and upgrade any time.
+                    </p>
+                  </>
+                )}
+
+                {isPremium && (
+                  <>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-lg">⭐</span>
+                      <p className="font-semibold text-foreground">Village+ — full access</p>
+                    </div>
+                    <div className="space-y-2">
+                      {[
+                        "Spaces, Group Chats, Events",
+                        "Private Messaging",
+                        "Communities",
+                        "Everything we add in the future",
+                      ].map(item => (
+                        <div key={item} className="flex items-center gap-2 text-sm text-foreground">
+                          <Check className="h-4 w-4 text-green-500 shrink-0" />
+                          {item}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
 
+              {/* Destination CTA */}
               <Button
-                onClick={() => { window.location.href = "/dashboard"; }}
+                onClick={() => { window.location.href = getDestination(); }}
                 size="lg"
-                className="w-full rounded-full bg-primary text-primary-foreground shadow-[0_0_20px_rgba(245,197,66,0.3)]"
+                className="w-full rounded-full bg-primary text-primary-foreground shadow-[0_0_20px_rgba(245,197,66,0.3)] mb-3"
                 disabled={saving}
               >
-                {saving ? "Saving your profile..." : "Take me to my village 🏡"}
+                {saving ? "Setting up your village…" : getDestinationLabel()}
+                {!saving && <ArrowRight className="h-5 w-5 ml-2" />}
               </Button>
+
+              {immediateNeed !== "browse" && (
+                <button
+                  onClick={() => { window.location.href = "/dashboard"; }}
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Explore the full village first →
+                </button>
+              )}
             </div>
           )}
 
         </div>
       </div>
 
-      {/* Footer nav */}
+      {/* ── Fixed footer nav ──────────────────────────────────────────────────── */}
       <div className="fixed bottom-0 left-0 right-0 bg-background/90 backdrop-blur-sm border-t border-border/30 px-4 py-4">
         <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
-          {step > 1 && step < 6 ? (
+
+          {/* Back — steps 2-4 only */}
+          {step > 1 && step < 5 ? (
             <Button variant="ghost" onClick={handleBack} className="rounded-full">
               <ArrowLeft className="h-4 w-4 mr-1" />
               Back
             </Button>
-          ) : (
-            <div />
-          )}
+          ) : <div />}
 
-          {step < 6 && (
+          {/* Forward — steps 2-4 only (step 1 + step 5 have in-page CTAs) */}
+          {step >= 2 && step < 5 && (
             <div className="flex items-center gap-2 ml-auto">
-              {(step === 3 || step === 4 || step === 5) && (
+              {/* Location can be skipped; the needs step cannot */}
+              {step === 3 && (
                 <Button variant="ghost" onClick={handleNext} className="rounded-full text-muted-foreground">
                   Skip for now
                 </Button>
@@ -605,13 +621,15 @@ export default function Onboarding({ user }) {
                 disabled={!canProceed() || saving}
                 className="rounded-full bg-primary text-primary-foreground px-6"
               >
-                {saving ? "Saving..." : step === 5 ? "Finish setup" : "Continue"}
+                {saving ? "Saving…" : step === 4 ? "Almost there" : "Continue"}
                 {!saving && <ArrowRight className="h-4 w-4 ml-1" />}
               </Button>
             </div>
           )}
+
         </div>
       </div>
+
     </div>
   );
 }

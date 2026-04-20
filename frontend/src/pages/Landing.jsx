@@ -233,13 +233,13 @@ export default function Landing() {
   const features = [
     {
       emoji: "🌙",
-      title: "Chat Circles",
+      title: "Group Chats",
       description: "Real-time chat grouped by suburb, parenting stage, and national rooms. The 3am Club is always open."
     },
     {
       emoji: "💬",
-      title: "Support Spaces",
-      description: "Topic-based forums for real conversations — sleep, feeding, mental health, and everything in between."
+      title: "Spaces",
+      description: "Topic-based discussions for real conversations — sleep, feeding, mental health, and everything in between."
     },
     {
       emoji: "🔒",
@@ -249,7 +249,7 @@ export default function Landing() {
     {
       emoji: "📍",
       title: "Local Community",
-      description: "Connect with parents in your suburb. Find your Local Circle and see who's nearby in your area."
+      description: "Connect with parents in your suburb. Find your local group chat and see who's nearby in your area."
     },
     {
       emoji: "📅",
@@ -264,8 +264,8 @@ export default function Landing() {
   ];
 
   const DEMO_TABS = [
-    { id: "spaces", label: "Support Spaces", emoji: "💬" },
-    { id: "circles", label: "Chat Circles", emoji: "🌙" },
+    { id: "spaces", label: "Spaces", emoji: "💬" },
+    { id: "circles", label: "Group Chats", emoji: "🌙" },
     { id: "events", label: "Events", emoji: "📅" },
   ];
 
@@ -459,12 +459,12 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="space-y-6">
-              <span className="text-xs font-semibold uppercase tracking-widest text-primary">Chat Circles</span>
+              <span className="text-xs font-semibold uppercase tracking-widest text-primary">Group Chats</span>
               <h2 className="font-heading text-3xl sm:text-4xl font-bold text-foreground">
                 A chat room for every moment
               </h2>
               <p className="text-muted-foreground">
-                National circles, local suburb rooms, and stage-specific spaces. Find your people wherever you are in your parenting journey.
+                National groups, local suburb rooms, and stage-specific chats. Find your people wherever you are in your parenting journey.
               </p>
 
               <div className="space-y-3">
@@ -472,7 +472,7 @@ export default function Landing() {
                   { icon: "🌙", name: "3am Club", desc: "For those late-night moments — always someone awake", featured: true },
                   { icon: "👩", name: "Mum Chat", desc: "A dedicated space just for mums" },
                   { icon: "👨", name: "Dad Chat", desc: "Real talk for dads, no judgment" },
-                  { icon: "📍", name: "Your Local Circle", desc: "Chat with parents in your suburb" },
+                  { icon: "📍", name: "Your Local Group", desc: "Chat with parents in your suburb" },
                 ].map((room, idx) => (
                   <div key={idx} className={`flex items-center gap-4 p-4 rounded-xl border transition-colors ${room.featured ? "bg-primary/5 border-primary/30" : "bg-card border-border/50 hover:border-primary/30"}`}>
                     <span className="text-2xl">{room.icon}</span>

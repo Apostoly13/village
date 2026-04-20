@@ -26,7 +26,6 @@ import CreateCommunity from "./pages/CreateCommunity";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
 import Onboarding from "./pages/Onboarding";
-import OnboardingPage from "./pages/OnboardingPage";
 import Settings from "./pages/Settings";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
@@ -36,7 +35,9 @@ import Suggestions from "./pages/Suggestions";
 import CommunityGuidelines from "./pages/CommunityGuidelines";
 import NotFound from "./pages/NotFound";
 import VillagePlus from "./pages/VillagePlus";
+import ForClinicians from "./pages/ForClinicians";
 import ChatPopout from "./components/ChatPopout";
+import PWAInstallBanner from "./components/PWAInstallBanner";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -293,7 +294,7 @@ const AppRouter = () => {
       } />
       <Route path="/onboarding" element={
         <ProtectedRoute>
-          {({ user }) => <OnboardingPage user={user} />}
+          {({ user }) => <Onboarding user={user} />}
         </ProtectedRoute>
       } />
       {FEATURES.BLOG && <Route path="/blog" element={
@@ -322,6 +323,7 @@ const AppRouter = () => {
       } />
       <Route path="/community-guidelines" element={<CommunityGuidelines />} />
       <Route path="/plus" element={<VillagePlus user={popoutUser} />} />
+      <Route path="/for-clinicians" element={<ForClinicians user={popoutUser} />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
     {popoutUser &&
@@ -341,6 +343,7 @@ function App() {
     <BrowserRouter>
       <AppRouter />
       <Toaster position="top-center" />
+      <PWAInstallBanner />
     </BrowserRouter>
   );
 }

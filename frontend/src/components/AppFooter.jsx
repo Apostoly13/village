@@ -16,6 +16,7 @@ export default function AppFooter() {
           <Link to="/community-guidelines" className="hover:text-foreground transition-colors">Community Guidelines</Link>
           <Link to="/contact" className="hover:text-foreground transition-colors">Contact</Link>
           <Link to="/suggestions" className="hover:text-foreground transition-colors">Suggestions</Link>
+          <Link to="/for-clinicians" className="hover:text-foreground transition-colors">For Clinicians</Link>
         </div>
         <p className="text-xs text-muted-foreground">
           &copy; {new Date().getFullYear()} The Village — built for Australian parents

@@ -25,7 +25,7 @@ export default function CreatePost({ user }) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [categoryId, setCategoryId] = useState(preselectedCategory || "");
-  const [isAnonymous, setIsAnonymous] = useState(user?.anonymous_by_default || false);
+  const [isAnonymous, setIsAnonymous] = useState(true);
   const [loading, setLoading] = useState(false);
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);

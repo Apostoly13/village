@@ -38,7 +38,7 @@ export default function NotFound() {
 
         <div className="mt-12 flex flex-wrap gap-3 justify-center text-sm">
           <Link to="/forums" className="text-muted-foreground hover:text-foreground transition-colors">
-            Support Spaces
+            Spaces
           </Link>
           <span className="text-border">·</span>
           <Link to="/events" className="text-muted-foreground hover:text-foreground transition-colors">

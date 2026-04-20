@@ -1175,7 +1175,7 @@ export default function Events({ user }) {
           <div className="flex items-center gap-3">
             <span className="text-2xl">📍</span>
             <div>
-              <p className="text-sm font-medium text-foreground">Discuss meetups in Support Spaces</p>
+              <p className="text-sm font-medium text-foreground">Discuss meetups in Spaces</p>
               <p className="text-xs text-muted-foreground">Share your experience or find others going to the same event</p>
             </div>
           </div>

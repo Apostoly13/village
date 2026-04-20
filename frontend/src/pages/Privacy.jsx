@@ -95,6 +95,29 @@ export default function Privacy({ user }) {
           </div>
           <h1 className="font-heading text-3xl font-bold text-foreground">Privacy Policy</h1>
         </div>
+
+        {/* ── Plain-language TL;DR ── */}
+        <div className="my-6 bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-5">
+          <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide mb-3">The short version</p>
+          <ul className="space-y-2.5">
+            {[
+              "We only collect what we need — your name, email, location, and parenting stage.",
+              "We never sell your data. Not ever, not to anyone.",
+              "Anonymous posts are truly anonymous — we don't log any link between you and what you post anonymously. Not even admins can see it.",
+              "Your location is used only to show you local events and nearby circles.",
+              "You can delete your account and all your data at any time from Settings.",
+              "We're based in Australia and your data is stored on Australian servers.",
+            ].map((point, i) => (
+              <li key={i} className="flex items-start gap-2.5 text-sm text-foreground">
+                <span className="text-emerald-500 shrink-0 mt-0.5 font-bold">✓</span>
+                {point}
+              </li>
+            ))}
+          </ul>
+          <p className="text-xs text-muted-foreground mt-4 leading-relaxed">
+            The full policy below has the legal detail — but these six points are what actually matter.
+          </p>
+        </div>
         <p className="text-muted-foreground mb-2">
           Your privacy matters deeply to us. Here is exactly what we collect, what we do with it, and — just as importantly — what we don't.
         </p>

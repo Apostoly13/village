@@ -277,7 +277,7 @@ export default function Forums({ user }) {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-1">Support Spaces</h1>
+            <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-1">Spaces</h1>
             <p className="text-sm text-muted-foreground">Discussion threads by topic and age group — post, reply, and connect</p>
           </div>
           <Button
@@ -335,6 +335,21 @@ export default function Forums({ user }) {
             </div>
           )}
         </div>
+
+        {/* Group Chats shortcut — visible on mobile only (desktop has nav link) */}
+        <Link
+          to="/chat"
+          className="flex lg:hidden items-center gap-3 bg-card border border-border/50 rounded-2xl px-4 py-3 mb-4 hover:border-primary/30 transition-colors group"
+        >
+          <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/20 transition-colors">
+            <MessageCircle className="h-4.5 w-4.5 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-foreground leading-tight">Group Chats</p>
+            <p className="text-xs text-muted-foreground">Live conversations with other parents</p>
+          </div>
+          <span className="text-xs text-primary font-medium shrink-0">Join →</span>
+        </Link>
 
         <Tabs defaultValue={defaultTab} className="w-full">
           <TabsList className="w-full bg-card border border-border/50 rounded-xl p-1 mb-6">
@@ -481,7 +496,7 @@ export default function Forums({ user }) {
                     <p className="text-sm text-muted-foreground mb-1 max-w-sm">
                       Create and join member communities — local, topic-based, private or open. Up to 3 communities per Village+ member.
                     </p>
-                    <p className="text-xs text-muted-foreground mb-6">Free members can browse Support Spaces and Chat Circles.</p>
+                    <p className="text-xs text-muted-foreground mb-6">Free members can browse Spaces and Group Chats.</p>
                     <Link to="/premium">
                       <Button className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-8">
                         <Crown className="h-4 w-4 mr-2" />

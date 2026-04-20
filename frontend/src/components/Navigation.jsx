@@ -106,14 +106,25 @@ export default function Navigation({ user }) {
 
   const isAdmin = user?.role === "admin" || user?.role === "moderator";
   const isFree = user?.subscription_tier === "free" && !isAdmin;
+
+  // Desktop nav — full list including Group Chats
   const navItems = [
     { icon: Home, label: "Home", href: "/dashboard", testId: "nav-home" },
-    { icon: MessageSquare, label: "Support Spaces", href: "/forums", testId: "nav-forums" },
-    { icon: Users, label: "Chat Circles", href: "/chat", testId: "nav-chat" },
+    { icon: MessageSquare, label: "Spaces", href: "/forums", testId: "nav-forums" },
+    { icon: Users, label: "Group Chats", href: "/chat", testId: "nav-chat" },
     { icon: Calendar, label: "Events", href: isFree ? "/plus" : "/events", testId: "nav-events", locked: isFree },
     { icon: Mail, label: "Messages", href: isFree ? "/plus" : "/messages", testId: "nav-messages", locked: isFree, badge: isFree ? 0 : unreadMessages },
     ...(FEATURES.BLOG ? [{ icon: BookOpen, label: "Blog", href: "/blog", testId: "nav-blog" }] : []),
     ...(isAdmin ? [{ icon: Shield, label: "Admin", href: "/admin", testId: "nav-admin" }] : []),
+  ];
+
+  // Mobile bottom tab bar — 5 focused tabs, Group Chats accessible via Spaces page
+  const mobileNavItems = [
+    { icon: Home,          label: "Home",     href: "/dashboard",                        testId: "nav-home" },
+    { icon: MessageSquare, label: "Spaces",   href: "/forums",                           testId: "nav-forums" },
+    { icon: Calendar,      label: "Events",   href: isFree ? "/plus" : "/events",        testId: "nav-events",    locked: isFree },
+    { icon: Mail,          label: "Messages", href: isFree ? "/plus" : "/messages",      testId: "nav-messages",  locked: isFree, badge: isFree ? 0 : unreadMessages },
+    { icon: User,          label: "Me",       href: "/profile",                          testId: "nav-me" },
   ];
 
   const toggleTheme = () => {
@@ -508,26 +519,29 @@ export default function Navigation({ user }) {
 
       {/* Mobile Navigation - Bottom Bar */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 glass border-t border-border/30 lg:hidden pb-safe">
-        <div className="flex items-center justify-around h-16">
-          {navItems.map((item) => {
+        <div className="flex items-center justify-around h-[58px]">
+          {mobileNavItems.map((item) => {
             const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
             return (
               <Link
                 key={item.testId}
                 to={item.href}
-                className={`flex items-center justify-center p-1.5 transition-colors ${isActive ? 'text-primary' : item.locked ? 'text-muted-foreground/50' : 'text-muted-foreground'}`}
+                className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors ${isActive ? 'text-primary' : item.locked ? 'text-muted-foreground/50' : 'text-muted-foreground'}`}
                 data-testid={`mobile-${item.testId}`}
                 aria-label={item.label}
               >
-                <div className={`relative ${isActive ? 'bg-primary/15 rounded-xl px-3 py-1.5' : 'px-3 py-1.5'}`}>
-                  <item.icon className="h-5 w-5" />
-                  {item.locked && <Lock className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 text-muted-foreground/70" />}
+                <div className="relative">
+                  <item.icon className="h-[22px] w-[22px]" />
+                  {item.locked && <Lock className="absolute -bottom-0.5 -right-1 h-2.5 w-2.5 text-muted-foreground/70" />}
                   {item.badge > 0 && (
-                    <span className="absolute -top-1 -right-0.5 min-w-[16px] h-4 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center px-1 font-medium">
+                    <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] rounded-full bg-red-500 text-white text-[9px] flex items-center justify-center px-1 font-medium">
                       {item.badge > 9 ? '9+' : item.badge}
                     </span>
                   )}
                 </div>
+                <span className={`text-[10px] font-medium leading-none ${isActive ? 'text-primary' : ''}`}>
+                  {item.label}
+                </span>
               </Link>
             );
           })}

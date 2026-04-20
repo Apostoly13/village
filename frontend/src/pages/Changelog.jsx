@@ -5,6 +5,29 @@ import AppFooter from "../components/AppFooter";
 
 const CHANGELOG = [
   {
+    version: "2.7.0",
+    date: "April 2026",
+    title: "Simplified UX, PWA, Health-Sector Readiness & Dashboard Modes",
+    entries: [
+      { tag: "Design",   text: "Dashboard now has three intent-driven modes — 💙 I need help, 🏘️ Browse, 🔔 Catch up — so the first thing you see matches why you opened the app" },
+      { tag: "Improved", text: "Browse mode right rail trimmed to 3 focused widgets (Activity, Live now, Spaces for you) — the rest is in Catch up where it belongs" },
+      { tag: "Changed",  text: "Dashboard always opens on Browse on every visit — no more remembering your last mode" },
+      { tag: "Changed",  text: "New posts now default to Anonymous — you choose to attach your name, not the other way around" },
+      { tag: "Changed",  text: "\"Support Spaces\" renamed to \"Spaces\" everywhere, \"Chat Circles\" renamed to \"Group Chats\", Friend Chats + Private Messages unified into one Direct Messages list" },
+      { tag: "Added",    text: "PWA support — install The Village to your home screen on any device. iOS: Tap Share → Add to Home Screen. Android/Chrome: tap Install when prompted" },
+      { tag: "Added",    text: "\"Add to Home Screen\" nudge appears after your second visit on supported browsers" },
+      { tag: "Added",    text: "Group Chats shortcut on the Spaces page for mobile users" },
+      { tag: "Added",    text: "Mobile bottom nav redesigned with labels and a Me tab — Home, Spaces, Events, Messages, Me" },
+      { tag: "Improved", text: "Onboarding rebuilt as 5 focused steps: Welcome → About You → Location → What brings you here? → You're in! Interests are now auto-set from your parenting stage" },
+      { tag: "Added",    text: "\"What brings you here?\" step in onboarding routes you directly to the right part of the app — vent, ask a question, or just browse" },
+      { tag: "Added",    text: "Crisis support banner in mental health Spaces — PANDA, Lifeline, and Beyond Blue numbers surface automatically with tap-to-call links" },
+      { tag: "Added",    text: "Verified Partner badge — healthcare professionals (midwives, GPs, psychologists) can receive a verified badge shown on their posts and profile" },
+      { tag: "Added",    text: "/for-clinicians page — referral resource for healthcare professionals to recommend The Village to patients" },
+      { tag: "Added",    text: "Privacy Policy now has a plain-language TL;DR card — six bullet points covering what actually matters, before the legal detail" },
+      { tag: "Added",    text: "\"For Clinicians\" link in the app footer" },
+    ],
+  },
+  {
     version: "2.6.0",
     date: "April 2026",
     title: "Village+ Tiers, Feature Gates & Onboarding Polish",
@@ -175,29 +198,46 @@ const CHANGELOG = [
 
 const ROADMAP = [
   {
-    version: "v2.6",
-    title: "Buy & Swap Marketplace",
+    version: "Next",
+    title: "Native App (iOS & Android)",
     entries: [
-      { tag: "Planned", text: "List baby gear, clothing, and equipment for sale or swap — browse-only for free members, listing for premium" },
-      { tag: "Planned", text: "Contact sellers via private DM — no in-platform payments, just genuine community connections" },
-      { tag: "Planned", text: "Category filters: clothing, gear, toys, feeding, nursery & more" },
+      { tag: "Planned", text: "iOS App Store and Google Play apps — same codebase, wrapped with Capacitor for a true native shell" },
+      { tag: "Planned", text: "Native push notifications — get notified when someone replies to your post, even when the app is closed" },
+      { tag: "Planned", text: "Native home screen icon, no browser chrome, offline-capable" },
     ],
   },
   {
-    version: "Next",
-    title: "Notifications & Settings",
+    version: "Soon",
+    title: "Payments & Subscriptions",
     entries: [
-      { tag: "Planned", text: "Notification preferences — control exactly what you hear about and when" },
-      { tag: "Planned", text: "Email notifications for replies, friend requests, and event reminders (opt-in)" },
+      { tag: "Planned", text: "Stripe-powered Village+ checkout — subscribe directly in-app, no redirect to external page" },
+      { tag: "Planned", text: "Automatic tier changes on subscription events — upgrade, downgrade, and cancellation handled seamlessly" },
+    ],
+  },
+  {
+    version: "Soon",
+    title: "Verified Partner Portal",
+    entries: [
+      { tag: "Planned", text: "Clinicians can apply for Verified status from the For Clinicians page — name, profession, AHPRA number, clinic" },
+      { tag: "Planned", text: "Admin review queue for partner applications — approve with one tap to activate the badge" },
     ],
   },
   {
     version: "Future",
-    title: "On the Horizon",
+    title: "Hospital & Clinic Pilot",
     entries: [
-      { tag: "Planned", text: "Native iOS & Android apps" },
-      { tag: "Planned", text: "Blog bookmarking — save articles to your Saved Resources hub" },
-      { tag: "Planned", text: "Event photos — share photos from meetups you attended" },
+      { tag: "Planned", text: "Co-branded onboarding for referring hospitals and clinics — patients join with a direct link from their provider" },
+      { tag: "Planned", text: "Anonymous aggregate reporting for partners — engagement stats, active users, Space activity (no personal data)" },
+      { tag: "Planned", text: "Bulk referral materials and co-branded one-pagers for hospital waiting rooms" },
+    ],
+  },
+  {
+    version: "Future",
+    title: "Buy & Swap Marketplace",
+    entries: [
+      { tag: "Planned", text: "List baby gear, clothing, and equipment for sale or swap — browse-only for free members, listing for Village+" },
+      { tag: "Planned", text: "Contact sellers via private DM — no in-platform payments, just genuine community connections" },
+      { tag: "Planned", text: "Category filters: clothing, gear, toys, feeding, nursery & more" },
     ],
   },
 ];

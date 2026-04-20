@@ -209,7 +209,6 @@ function MessageBubble({ msg, isOwn, activeUser }) {
 export default function Messages({ user }) {
   const navigate = useNavigate();
 
-  const [sidebarTab, setSidebarTab] = useState("friends"); // "friends" | "dms"
   const [showSearch, setShowSearch] = useState(false);
 
   const [friends, setFriends] = useState([]);
@@ -368,7 +367,6 @@ export default function Messages({ user }) {
 
   const handleSearchStartChat = (u) => {
     setShowSearch(false);
-    setSidebarTab("dms");
     openDmChat({ user_id: u.user_id, name: u.name, nickname: u.nickname, picture: u.picture, is_online: u.is_online });
   };
 
@@ -521,7 +519,7 @@ export default function Messages({ user }) {
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-1">Messages</h1>
-            <p className="text-sm text-muted-foreground">Friends chats and private messages</p>
+            <p className="text-sm text-muted-foreground">Your conversations</p>
           </div>
           <Button size="sm" variant="outline" className="rounded-full gap-2" onClick={() => setShowSearch(true)}>
             <Search className="h-4 w-4" />
@@ -538,129 +536,89 @@ export default function Messages({ user }) {
               {showSearch ? (
                 <UserSearchPanel onClose={() => setShowSearch(false)} onStartChat={handleSearchStartChat} />
               ) : (
-                <>
-                  {/* Tab switcher */}
-                  <div className="p-2 border-b border-border/50">
-                    <div className="flex w-full bg-background border border-border/50 rounded-xl p-1 gap-1">
-                      <button
-                        onClick={() => setSidebarTab("friends")}
-                        className={`flex-1 flex items-center justify-center py-2 text-sm font-medium rounded-lg transition-colors ${sidebarTab === "friends" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                      >
-                        Friend Chats
-                      </button>
-                      <button
-                        onClick={() => setSidebarTab("dms")}
-                        className={`flex-1 flex items-center justify-center py-2 text-sm font-medium rounded-lg transition-colors relative ${sidebarTab === "dms" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                      >
-                        Private Messages
-                        {dmRequests.some(c => c.unread_count > 0) && (
-                          <span className="absolute top-1.5 right-2 w-2 h-2 rounded-full bg-red-500" />
-                        )}
-                      </button>
+                <div className="flex-1 overflow-y-auto">
+                  {(loadingFriends && loadingConvs) ? (
+                    <div className="p-4 space-y-3">
+                      {[1,2,3].map(i => <div key={i} className="flex items-center gap-3 animate-pulse"><div className="w-10 h-10 rounded-full bg-muted shrink-0" /><div className="flex-1 h-4 bg-muted rounded" /></div>)}
                     </div>
-                  </div>
+                  ) : (
+                    <>
+                      {/* Message Requests — people outside your friends list who messaged you */}
+                      {dmRequests.length > 0 && (
+                        <>
+                          <div className="px-4 py-2 bg-amber-500/5 border-b border-amber-500/20 flex items-center gap-2">
+                            <span className="text-xs font-semibold text-amber-600 uppercase tracking-wide">Message Requests</span>
+                            <span className="text-xs bg-amber-500/10 text-amber-600 rounded-full px-1.5">{dmRequests.length}</span>
+                          </div>
+                          <div className="divide-y divide-border/30">
+                            {dmRequests.map(conv => (
+                              <DmRow
+                                key={conv.other_user_id}
+                                conv={conv}
+                                active={activeDmUser?.user_id === conv.other_user_id}
+                                onClick={() => openDmChat({ user_id: conv.other_user_id, name: conv.other_user_name, nickname: null, picture: conv.other_user_picture })}
+                              />
+                            ))}
+                          </div>
+                        </>
+                      )}
 
-                  {/* Friends tab */}
-                  {sidebarTab === "friends" && (
-                    <div className="flex-1 overflow-y-auto">
-                      <div className="px-4 py-2 bg-secondary/30 border-b border-border/30">
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Your Friends</p>
-                      </div>
-                      {loadingFriends ? (
-                        <div className="p-4 space-y-3">
-                          {[1,2,3].map(i => <div key={i} className="flex items-center gap-3 animate-pulse"><div className="w-10 h-10 rounded-full bg-muted shrink-0" /><div className="flex-1 h-4 bg-muted rounded" /></div>)}
-                        </div>
-                      ) : friends.length === 0 ? (
+                      {/* Friends — with DM history shown as conversation, without shown as contact */}
+                      {friends.length > 0 && (
+                        <>
+                          <div className="px-4 py-2 bg-secondary/30 border-b border-border/30">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Friends</p>
+                          </div>
+                          <div className="divide-y divide-border/30">
+                            {friends.map(friend => {
+                              const conv = dmFromFriends.find(c => c.other_user_id === friend.user_id);
+                              if (conv) {
+                                // Has DM history — show as conversation row with last message
+                                return (
+                                  <DmRow
+                                    key={friend.user_id}
+                                    conv={{ ...conv, other_user_picture: friend.picture || conv.other_user_picture }}
+                                    active={activeDmUser?.user_id === friend.user_id}
+                                    onClick={() => openDmChat({ user_id: friend.user_id, name: conv.other_user_name, nickname: friend.nickname, picture: friend.picture || conv.other_user_picture, is_online: friend.is_online })}
+                                  />
+                                );
+                              }
+                              // No DM history — show as contact, opens live chat
+                              return (
+                                <button
+                                  key={friend.user_id}
+                                  onClick={() => openFriendChat(friend)}
+                                  disabled={openingChat === friend.user_id}
+                                  className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${activeFriend?.user_id === friend.user_id ? "bg-primary/10" : ""}`}
+                                >
+                                  <UserAvatar {...friend} isOnline={friend.is_online} />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-foreground truncate">{friend.nickname || friend.name}</p>
+                                    <p className={`text-xs ${friend.is_online ? "text-green-500" : "text-muted-foreground"}`}>
+                                      {friend.is_online ? "Active now" : "Tap to chat"}
+                                    </p>
+                                  </div>
+                                  {openingChat === friend.user_id && <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
+
+                      {/* Empty state */}
+                      {friends.length === 0 && conversations.length === 0 && (
                         <div className="p-6 text-center">
-                          <span className="text-3xl block mb-2">💛</span>
-                          <p className="text-sm text-muted-foreground mb-2">No friends yet.</p>
+                          <span className="text-3xl block mb-2">💬</span>
+                          <p className="text-sm text-muted-foreground mb-2">No conversations yet.</p>
                           <button onClick={() => setShowSearch(true)} className="text-xs text-primary hover:underline">
                             Find parents to connect with →
                           </button>
                         </div>
-                      ) : (
-                        <div className="divide-y divide-border/30">
-                          {friends.map(friend => (
-                            <button
-                              key={friend.user_id}
-                              onClick={() => openFriendChat(friend)}
-                              disabled={openingChat === friend.user_id}
-                              className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${activeFriend?.user_id === friend.user_id ? "bg-primary/10" : ""}`}
-                            >
-                              <UserAvatar {...friend} isOnline={friend.is_online} />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-foreground truncate">{friend.nickname || friend.name}</p>
-                                <p className={`text-xs ${friend.is_online ? "text-green-500" : "text-muted-foreground"}`}>
-                                  {friend.is_online ? "Active now" : "Offline"}
-                                </p>
-                              </div>
-                              {openingChat === friend.user_id && <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />}
-                            </button>
-                          ))}
-                        </div>
                       )}
-                    </div>
+                    </>
                   )}
-
-                  {/* Private Messages tab */}
-                  {sidebarTab === "dms" && (
-                    <div className="flex-1 overflow-y-auto">
-                      {loadingConvs ? (
-                        <div className="p-4 space-y-3">
-                          {[1,2,3].map(i => <div key={i} className="flex items-center gap-3 animate-pulse"><div className="w-10 h-10 rounded-full bg-muted shrink-0" /><div className="flex-1 h-4 bg-muted rounded" /></div>)}
-                        </div>
-                      ) : conversations.length === 0 ? (
-                        <div className="p-6 text-center">
-                          <span className="text-3xl block mb-2">💬</span>
-                          <p className="text-sm text-muted-foreground mb-2">No private messages yet.</p>
-                          <button onClick={() => setShowSearch(true)} className="text-xs text-primary hover:underline">
-                            Message someone →
-                          </button>
-                        </div>
-                      ) : (
-                        <div>
-                          {/* Message Requests */}
-                          {dmRequests.length > 0 && (
-                            <>
-                              <div className="px-4 py-2 bg-amber-500/5 border-b border-amber-500/20 flex items-center gap-2">
-                                <span className="text-xs font-semibold text-amber-600 uppercase tracking-wide">Message Requests</span>
-                                <span className="text-xs bg-amber-500/10 text-amber-600 rounded-full px-1.5">{dmRequests.length}</span>
-                              </div>
-                              <div className="divide-y divide-border/30">
-                                {dmRequests.map(conv => (
-                                  <DmRow
-                                    key={conv.other_user_id}
-                                    conv={conv}
-                                    active={activeDmUser?.user_id === conv.other_user_id}
-                                    onClick={() => openDmChat({ user_id: conv.other_user_id, name: conv.other_user_name, nickname: null, picture: conv.other_user_picture })}
-                                  />
-                                ))}
-                              </div>
-                            </>
-                          )}
-                          {/* From Friends */}
-                          {dmFromFriends.length > 0 && (
-                            <>
-                              <div className="px-4 py-2 bg-secondary/30 border-b border-border/30">
-                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">From Friends</p>
-                              </div>
-                              <div className="divide-y divide-border/30">
-                                {dmFromFriends.map(conv => (
-                                  <DmRow
-                                    key={conv.other_user_id}
-                                    conv={conv}
-                                    active={activeDmUser?.user_id === conv.other_user_id}
-                                    onClick={() => openDmChat({ user_id: conv.other_user_id, name: conv.other_user_name, nickname: null, picture: conv.other_user_picture })}
-                                  />
-                                ))}
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </>
+                </div>
               )}
             </div>
           </div>
@@ -790,20 +748,14 @@ export default function Messages({ user }) {
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
                   <MessagesSquare className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                  <h3 className="font-heading font-semibold text-foreground mb-1">Start a conversation</h3>
+                  <h3 className="font-heading font-semibold text-foreground mb-1">Select a conversation</h3>
                   <p className="text-sm text-muted-foreground max-w-xs mb-6">
-                    Pick a friend from <strong>Friend Chats</strong>, or view your <strong>Private Messages</strong> from other parents.
+                    Choose a friend from the list, or find someone new to connect with.
                   </p>
-                  <div className="flex gap-3">
-                    <Button size="sm" variant="outline" className="rounded-full gap-2" onClick={() => setSidebarTab("friends")}>
-                      <Users className="h-4 w-4" />
-                      Friend Chats
-                    </Button>
-                    <Button size="sm" variant="outline" className="rounded-full gap-2" onClick={() => setSidebarTab("dms")}>
-                      <Lock className="h-4 w-4" />
-                      Private Messages
-                    </Button>
-                  </div>
+                  <Button size="sm" variant="outline" className="rounded-full gap-2" onClick={() => setShowSearch(true)}>
+                    <Search className="h-4 w-4" />
+                    Find a parent
+                  </Button>
                 </div>
               )}
             </div>
