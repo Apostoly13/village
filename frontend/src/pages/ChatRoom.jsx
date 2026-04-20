@@ -24,6 +24,7 @@ export default function ChatRoom({ user }) {
   const [friendProfile, setFriendProfile] = useState(null);
   const messagesEndRef = useRef(null);
   const scrollAreaRef = useRef(null);
+  const isAtBottom = useRef(true);
   const MESSAGE_LIMIT = 50;
 
   useEffect(() => {
@@ -64,9 +65,25 @@ export default function ChatRoom({ user }) {
     }
   };
 
+  // Scroll to bottom only when the user is already near the bottom
+  // (i.e. don't yank them down while they're reading history)
   useEffect(() => {
-    scrollToBottom();
+    if (isAtBottom.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages]);
+
+  // Force-scroll on room change — always land at the bottom of a new conversation
+  useEffect(() => {
+    isAtBottom.current = true;
+    messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
+  }, [roomId]);
+
+  const handleScroll = () => {
+    const el = scrollAreaRef.current;
+    if (!el) return;
+    isAtBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  };
 
   const fetchData = async () => {
     try {
@@ -154,6 +171,7 @@ export default function ChatRoom({ user }) {
       content,
       created_at: new Date().toISOString(),
     };
+    isAtBottom.current = true; // always scroll when you send
     setMessages(prev => [...prev, optimisticMsg]);
     setNewMessage("");
     setSending(true);
@@ -323,7 +341,7 @@ export default function ChatRoom({ user }) {
 
         {/* Messages Area */}
         <div className="flex-1 min-h-0 bg-card rounded-2xl border border-border/50 flex flex-col">
-          <div className="flex-1 min-h-0 overflow-y-auto p-4" ref={scrollAreaRef}>
+          <div className="flex-1 min-h-0 overflow-y-auto p-4" ref={scrollAreaRef} onScroll={handleScroll}>
             <div className="space-y-4">
               {hasMore && (
                 <div className="text-center pb-2">
