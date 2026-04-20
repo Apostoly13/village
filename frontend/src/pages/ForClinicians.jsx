@@ -1,8 +1,7 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ShieldCheck, Heart, Clock, Users, MessageCircle, Download, ArrowRight, MapPin } from "lucide-react";
+import { ShieldCheck, Heart, Download, ArrowRight, Moon, Sun } from "lucide-react";
 import { Button } from "../components/ui/button";
-import Navigation from "../components/Navigation";
-import AppFooter from "../components/AppFooter";
 
 const WHY_RECOMMEND = [
   {
@@ -44,11 +43,49 @@ const CRISIS_LINES = [
 ];
 
 export default function ForClinicians({ user }) {
-  return (
-    <div className="min-h-screen bg-background pb-20 lg:pb-0">
-      <Navigation user={user} />
+  const [darkMode, setDarkMode] = useState(
+    document.documentElement.classList.contains("dark")
+  );
 
-      <main className="max-w-4xl mx-auto px-4 pt-20 lg:pt-24">
+  const toggleTheme = () => {
+    const next = !darkMode;
+    setDarkMode(next);
+    if (next) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* ── Public nav ─────────────────────────────── */}
+      <nav className="sticky top-0 z-50 border-b border-border/50 bg-background/95 backdrop-blur">
+        <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between">
+          <Link to="/">
+            <img src="/BG Removed- Main Logo.png" alt="The Village" className="h-20 w-auto" />
+          </Link>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Button variant="ghost" size="icon" onClick={toggleTheme} className="rounded-full">
+              {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
+            <Link to="/login">
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                Sign In
+              </Button>
+            </Link>
+            <Link to="/register">
+              <Button size="sm" className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90 px-5">
+                Join Free
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </nav>
+
+      <main className="max-w-4xl mx-auto px-4 pt-12 pb-20">
 
         {/* Hero */}
         <div className="mb-10 text-center">
@@ -185,7 +222,19 @@ export default function ForClinicians({ user }) {
           </a>
         </div>
 
-        <AppFooter />
+        {/* Simple public footer */}
+        <div className="mt-12 pt-8 border-t border-border/50 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
+          <Link to="/">
+            <img src="/the_village_wordmark_light.png" alt="The Village" className="h-10 w-auto opacity-70" />
+          </Link>
+          <div className="flex items-center gap-4">
+            <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
+            <Link to="/terms" className="hover:text-foreground transition-colors">Terms</Link>
+            <Link to="/contact" className="hover:text-foreground transition-colors">Contact</Link>
+            <Link to="/" className="hover:text-foreground transition-colors">← Back to home</Link>
+          </div>
+          <p>&copy; {new Date().getFullYear()} The Village · Made in Australia</p>
+        </div>
       </main>
     </div>
   );

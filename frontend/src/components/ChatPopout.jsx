@@ -51,6 +51,8 @@ export default function ChatPopout({ user }) {
   const [openingChat, setOpeningChat] = useState(null);
 
   const messagesEndRef = useRef(null);
+  const scrollContainerRef = useRef(null);
+  const isAtBottom = useRef(true);
   const inputRef = useRef(null);
   const lastSeenMsgIdRef = useRef(null);
   const openRef = useRef(open);
@@ -105,9 +107,21 @@ export default function ChatPopout({ user }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId]);
 
+  // Auto-scroll only when user is already at the bottom
   useEffect(() => {
-    if (open && view === "chat") messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (open && view === "chat" && isAtBottom.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages, open, view]);
+
+  // Force scroll + reset when switching conversations / opening chat view
+  useEffect(() => {
+    if (open && view === "chat") {
+      isAtBottom.current = true;
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "auto" }), 0);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId, activeDmUser, view, open]);
 
   useEffect(() => {
     if (open && view === "chat" && messages.length > 0)
@@ -506,7 +520,14 @@ export default function ChatPopout({ user }) {
           {/* Chat view */}
           {view === "chat" && (
             <>
-              <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
+              <div
+                ref={scrollContainerRef}
+                onScroll={() => {
+                  const el = scrollContainerRef.current;
+                  if (el) isAtBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+                }}
+                className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0"
+              >
                 {messages.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">No messages yet. Say hi!</p>}
                 {messages.map((msg, idx) => {
                   const isOwn = (msg.author_id || msg.sender_id) === user?.user_id;

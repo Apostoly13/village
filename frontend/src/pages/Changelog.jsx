@@ -5,6 +5,21 @@ import AppFooter from "../components/AppFooter";
 
 const CHANGELOG = [
   {
+    version: "2.8.0",
+    date: "April 2026",
+    title: "Homepage Redesign, Scroll Fixes & Clinician Page",
+    entries: [
+      { tag: "Redesign",  text: "Landing page rebuilt end-to-end — new hero headline focused on Australian mums in need, crisis support band (PANDA/Lifeline/Beyond Blue) above the fold, 9-feature grid, Verified Partner section, Village+ pricing comparison, For Clinicians strip, Privacy TL;DR cards, and updated footer with Made in Australia" },
+      { tag: "Added",     text: "Crisis resources band on landing page — PANDA 1300 726 306, Lifeline 13 11 14, Beyond Blue 1300 22 4636 with tap-to-call links, visible before logging in" },
+      { tag: "Added",     text: "Village+ pricing section on landing page — transparent free vs. Village+ comparison with feature checklist" },
+      { tag: "Added",     text: "Verified Partners section on landing page — badge explainer, midwife image, link to /for-clinicians" },
+      { tag: "Improved",  text: "/for-clinicians page now has its own standalone public nav and footer — no longer loads the internal app navigation when accessed pre-login" },
+      { tag: "Fixed",     text: "Chat popout auto-scroll to bottom — was scrolling to bottom on every 5s poll even when user had scrolled up to read history. Now respects scroll position." },
+      { tag: "Fixed",     text: "Messages page auto-scroll — swapped non-standard behavior: instant for behavior: auto so conversation-switch jump works correctly across all browsers" },
+      { tag: "Added",     text: "For Clinicians link in landing page nav (desktop) and both hero CTAs" },
+    ],
+  },
+  {
     version: "2.7.0",
     date: "April 2026",
     title: "Simplified UX, PWA, Health-Sector Readiness & Dashboard Modes",

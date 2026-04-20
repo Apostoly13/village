@@ -272,7 +272,7 @@ export default function Messages({ user }) {
   useEffect(() => {
     isAtBottom.current = true;
     prevMsgCount.current = 0;
-    messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
+    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "auto" }), 0);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeRoomId, activeDmUser]);
 

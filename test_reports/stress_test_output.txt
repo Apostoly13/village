@@ -1,0 +1,80 @@
+
+============================================================
+  THE VILLAGE - COMPREHENSIVE API STRESS TEST
+  Target: https://api-dev.ourlittlevillage.au/api
+  Users: 20
+  Date: 2026-04-14 18:10:54
+============================================================
+
+============================================================
+  ADMIN: Attempting Admin Login
+============================================================
+     [FAIL] Admin login failed: no response - 
+
+============================================================
+  STEP 1: Registering 20 Users
+============================================================
+
+  >> Registering Sarah Mitchell (1/20)
+     [FAIL] Failed to register Sarah Mitchell
+
+  >> Registering James Nguyen (2/20)
+     [FAIL] Failed to register James Nguyen
+
+  >> Registering Emma Thompson (3/20)
+     [FAIL] Failed to register Emma Thompson
+
+  >> Registering Michael O'Brien (4/20)
+     [FAIL] Failed to register Michael O'Brien
+
+  >> Registering Priya Sharma (5/20)
+     [FAIL] Failed to register Priya Sharma
+
+  >> Registering Daniel Walsh (6/20)
+     [FAIL] Failed to register Daniel Walsh
+
+  >> Registering Chloe Anderson (7/20)
+     [FAIL] Failed to register Chloe Anderson
+
+  >> Registering Ryan Patel (8/20)
+     [FAIL] Failed to register Ryan Patel
+
+  >> Registering Grace Kim (9/20)
+     [FAIL] Failed to register Grace Kim
+
+  >> Registering Tom Bennett (10/20)
+     [FAIL] Failed to register Tom Bennett
+
+  >> Registering Natalie Russo (11/20)
+     [FAIL] Failed to register Natalie Russo
+
+  >> Registering Aaron Clarke (12/20)
+     [FAIL] Failed to register Aaron Clarke
+
+  >> Registering Lily Chan (13/20)
+     [FAIL] Failed to register Lily Chan
+
+  >> Registering Ben Foster (14/20)
+     [FAIL] Failed to register Ben Foster
+
+  >> Registering Amanda Green (15/20)
+     [FAIL] Failed to register Amanda Green
+
+  >> Registering Chris Martin (16/20)
+     [FAIL] Failed to register Chris Martin
+
+  >> Registering Sophie Lambert (17/20)
+     [FAIL] Failed to register Sophie Lambert
+
+  >> Registering Kevin Tran (18/20)
+     [FAIL] Failed to register Kevin Tran
+
+  >> Registering Rachel Hughes (19/20)
+     [FAIL] Failed to register Rachel Hughes
+
+  >> Registering David Kowalski (20/20)
+     [FAIL] Failed to register David Kowalski
+
+  Registered/Logged in: 0/20 users
+
+No users registered/logged in. Aborting.
