@@ -27,6 +27,7 @@ export default function CreatePost({ user }) {
   const [categoryId, setCategoryId] = useState(preselectedCategory || "");
   const [isAnonymous, setIsAnonymous] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [touched, setTouched] = useState({ title: false, content: false, category: false });
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -128,8 +129,8 @@ export default function CreatePost({ user }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    setTouched({ title: true, content: true, category: true });
     if (!title.trim() || !content.trim() || !categoryId) {
-      toast.error("Please fill in all fields");
       return;
     }
 
@@ -255,30 +256,40 @@ export default function CreatePost({ user }) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="title" className="text-foreground">Title</Label>
-              <Input 
+              <Label htmlFor="title" className="text-foreground">Title <span className="text-destructive">*</span></Label>
+              <Input
                 id="title"
                 value={title}
-                onChange={(e) => setTitle(e.target.value.slice(0, 200))}
+                onChange={(e) => { setTitle(e.target.value.slice(0, 200)); setTouched(t => ({ ...t, title: true })); }}
                 placeholder="What's on your mind?"
-                className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
+                className={`h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary ${touched.title && !title.trim() ? "border-destructive/50 focus:border-destructive" : ""}`}
                 maxLength={200}
                 data-testid="title-input"
               />
-              <p className="text-xs text-muted-foreground text-right">{title.length}/200</p>
+              <div className="flex items-center justify-between">
+                {touched.title && !title.trim() ? (
+                  <p className="text-xs text-destructive">Title is required</p>
+                ) : <span />}
+                <p className="text-xs text-muted-foreground">{title.length}/200</p>
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="content" className="text-foreground">Content</Label>
-              <Textarea 
+              <Label htmlFor="content" className="text-foreground">Content <span className="text-destructive">*</span></Label>
+              <Textarea
                 id="content"
                 value={content}
-                onChange={(e) => setContent(e.target.value.slice(0, MAX_CONTENT_LENGTH))}
+                onChange={(e) => { setContent(e.target.value.slice(0, MAX_CONTENT_LENGTH)); setTouched(t => ({ ...t, content: true })); }}
                 placeholder="Share your thoughts, questions, or experiences..."
-                className="min-h-[200px] rounded-xl bg-secondary/50 border-transparent focus:border-primary resize-none"
+                className={`min-h-[200px] rounded-xl bg-secondary/50 border-transparent focus:border-primary resize-none ${touched.content && !content.trim() ? "border-destructive/50 focus:border-destructive" : ""}`}
                 data-testid="content-input"
               />
-              <p className="text-xs text-muted-foreground text-right">{content.length}/{MAX_CONTENT_LENGTH}</p>
+              <div className="flex items-center justify-between">
+                {touched.content && !content.trim() ? (
+                  <p className="text-xs text-destructive">Content is required</p>
+                ) : <span />}
+                <p className="text-xs text-muted-foreground">{content.length}/{MAX_CONTENT_LENGTH}</p>
+              </div>
             </div>
 
             {/* Image Upload */}

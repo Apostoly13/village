@@ -6,8 +6,8 @@ import Navigation from "../components/Navigation";
 import { MessageCircle, Users, BookOpen, Crown, Plus, Clock, Lock, MapPin, UserCheck, UserPlus, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { parseApiError } from "../utils/apiError";
-import { formatDistanceToNow } from "date-fns";
 import AppFooter from "../components/AppFooter";
+import { timeAgoVerbose } from "../utils/dateHelpers";
 import { getSpaceName } from "../config/spaces";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -108,11 +108,7 @@ export default function Forums({ user }) {
     }
   };
 
-  const formatLast = (dateString) => {
-    if (!dateString) return null;
-    try { return formatDistanceToNow(new Date(dateString), { addSuffix: true }); }
-    catch { return null; }
-  };
+  const formatLast = (dateString) => dateString ? timeAgoVerbose(dateString) : null;
 
   const topicCategories = categories.filter(c => c.category_type === "topic");
   const ageCategories = categories.filter(c => c.category_type === "age_group");
@@ -183,7 +179,7 @@ export default function Forums({ user }) {
 
   const CommunityCard = ({ community, index }) => (
     <Link
-      to={`/forums/${community.category_id}`}
+      to={`/community/${community.category_id}`}
       className="block"
       data-testid={`community-card-${index}`}
     >

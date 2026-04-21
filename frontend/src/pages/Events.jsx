@@ -7,55 +7,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Crown } from "lucide-react";
 import Navigation from "../components/Navigation";
 import { Calendar, MapPin, Clock, Users, Plus, Download, Check, Pencil, UserPlus, X, Send, MessageCircle, ExternalLink } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { parseApiError } from "../utils/apiError";
 import AppFooter from "../components/AppFooter";
+import { EVENT_CATEGORIES, CATEGORY_STYLES, CATEGORY_LABELS } from "../utils/eventCategories";
+import { formatEventDate, timeAgoVerbose } from "../utils/dateHelpers";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
-const CATEGORIES = [
-  { id: "all", label: "All" },
-  { id: "playgroup", label: "Playgroups" },
-  { id: "meetup", label: "Meetups" },
-  { id: "workshop", label: "Workshops" },
-  { id: "support", label: "Support" },
-  { id: "general", label: "General" },
-];
+// Re-export as CATEGORIES for backward compat within this file
+const CATEGORIES = EVENT_CATEGORIES;
 
 const AU_STATES = ["NSW", "VIC", "QLD", "WA", "SA", "TAS", "ACT", "NT"];
 
-const CATEGORY_STYLES = {
-  general: "bg-secondary text-secondary-foreground",
-  playgroup: "bg-green-500/10 text-green-600",
-  meetup: "bg-blue-500/10 text-blue-600",
-  workshop: "bg-purple-500/10 text-purple-600",
-  support: "bg-pink-500/10 text-pink-600",
-};
-
-const CATEGORY_LABELS = {
-  general: "General",
-  playgroup: "Playgroup",
-  meetup: "Meetup",
-  workshop: "Workshop",
-  support: "Support",
-};
-
 const INPUT_CLASS = "w-full rounded-xl border border-border bg-card text-foreground px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 dark:[color-scheme:dark]";
 
-function formatEventDate(dateStr) {
-  try {
-    const [year, month, day] = dateStr.split("-").map(Number);
-    const d = new Date(year, month - 1, day);
-    return {
-      day: d.getDate(),
-      month: d.toLocaleString("en-AU", { month: "short" }),
-      full: d.toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
-    };
-  } catch {
-    return { day: "?", month: "???", full: dateStr };
-  }
-}
+// formatEventDate imported from utils/dateHelpers
 
 function EditEventDialog({ event, onUpdated, onClose }) {
   const [form, setForm] = useState({
@@ -72,12 +39,18 @@ function EditEventDialog({ event, onUpdated, onClose }) {
     is_private: event.is_private || false,
   });
   const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState({});
+
+  const validate = () => {
+    const e = {};
+    if (!form.title.trim()) e.title = "Title is required";
+    if (!form.date) e.date = "Date is required";
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
 
   const handleSave = async () => {
-    if (!form.title.trim() || !form.date) {
-      toast.error("Title and date are required");
-      return;
-    }
+    if (!validate()) return;
     setSaving(true);
     try {
       const payload = { ...form, rsvp_limit: form.rsvp_limit ? Number(form.rsvp_limit) : null };
@@ -106,8 +79,13 @@ function EditEventDialog({ event, onUpdated, onClose }) {
   return (
     <div className="space-y-4 py-2">
       <div>
-        <label className="text-sm font-medium text-foreground block mb-1">Title</label>
-        <input className={INPUT_CLASS} value={form.title} onChange={e => setForm(f => ({...f, title: e.target.value}))} />
+        <label className="text-sm font-medium text-foreground block mb-1">Title <span className="text-destructive">*</span></label>
+        <input
+          className={`${INPUT_CLASS} ${errors.title ? "border-destructive/60 focus:ring-destructive/50" : ""}`}
+          value={form.title}
+          onChange={e => { setForm(f => ({...f, title: e.target.value})); if (errors.title) setErrors(v => ({...v, title: ""})); }}
+        />
+        {errors.title && <p className="text-xs text-destructive mt-1">{errors.title}</p>}
       </div>
       <div>
         <label className="text-sm font-medium text-foreground block mb-1">Description</label>
@@ -115,8 +93,14 @@ function EditEventDialog({ event, onUpdated, onClose }) {
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="text-sm font-medium text-foreground block mb-1">Date</label>
-          <input type="date" className={INPUT_CLASS} value={form.date} onChange={e => setForm(f => ({...f, date: e.target.value}))} />
+          <label className="text-sm font-medium text-foreground block mb-1">Date <span className="text-destructive">*</span></label>
+          <input
+            type="date"
+            className={`${INPUT_CLASS} ${errors.date ? "border-destructive/60 focus:ring-destructive/50" : ""}`}
+            value={form.date}
+            onChange={e => { setForm(f => ({...f, date: e.target.value})); if (errors.date) setErrors(v => ({...v, date: ""})); }}
+          />
+          {errors.date && <p className="text-xs text-destructive mt-1">{errors.date}</p>}
         </div>
         <div>
           <label className="text-sm font-medium text-foreground block mb-1">Category</label>
@@ -803,9 +787,7 @@ function EventDetailModal({ event, user, onClose, onRsvp, onUpdated }) {
   const isOrganiser = user && localEvent.organiser_user_id === user.user_id;
   const isModerator = user && Array.isArray(localEvent.moderator_ids) && localEvent.moderator_ids.includes(user.user_id);
 
-  const formatMsgTime = (d) => {
-    try { return formatDistanceToNow(new Date(d), { addSuffix: true }); } catch { return ""; }
-  };
+  const formatMsgTime = timeAgoVerbose;
 
   const fetchMessages = useCallback(async () => {
     try {
@@ -1111,9 +1093,11 @@ export default function Events({ user }) {
       const res = await fetch(`${API_URL}/api/events?${params}`, { credentials: "include" });
       if (res.ok) {
         setEvents(await res.json());
+      } else {
+        toast.error("Failed to load events", { action: { label: "Retry", onClick: fetchEvents } });
       }
     } catch (err) {
-      console.error("Error fetching events:", err);
+      toast.error("Couldn't reach the server", { action: { label: "Retry", onClick: fetchEvents } });
     } finally {
       setLoading(false);
     }

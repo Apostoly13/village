@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import Navigation from "../components/Navigation";
 import { toast } from "sonner";
 import { ArrowLeft, Send, Users, Crown, Bookmark, ArrowRight } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { timeAgoVerbose } from "../utils/dateHelpers";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -220,13 +220,7 @@ export default function ChatRoom({ user }) {
     }
   };
 
-  const formatTime = (dateString) => {
-    try {
-      return formatDistanceToNow(new Date(dateString), { addSuffix: true });
-    } catch {
-      return "";
-    }
-  };
+  const formatTime = timeAgoVerbose;
 
   const fetchSavedMessageIds = async () => {
     try {

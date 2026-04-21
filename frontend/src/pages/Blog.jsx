@@ -8,8 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
 import { BookOpen, Sparkles, Eye, Clock, Tag, PenLine } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import { timeAgoVerbose } from "../utils/dateHelpers";
 import { parseApiError } from "../utils/apiError";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -19,13 +19,7 @@ function readTime(content = "") {
   return Math.max(1, Math.round(words / 200));
 }
 
-function formatDate(dateString) {
-  try {
-    return formatDistanceToNow(new Date(dateString), { addSuffix: true });
-  } catch {
-    return "recently";
-  }
-}
+const formatDate = timeAgoVerbose;
 
 function WriteArticleDialog({ onSubmitted }) {
   const [open, setOpen] = useState(false);

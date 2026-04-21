@@ -27,8 +27,8 @@ import AppFooter from "../components/AppFooter";
 import { toast } from "sonner";
 import { ArrowLeft, Heart, MessageCircle, Eye, Clock, Send, Bookmark, BookmarkCheck, MoreVertical, Edit2, Trash2, Flag, Reply, MapPin, Crown, X } from "lucide-react";
 import VerifiedBadge from "../components/VerifiedBadge";
-import { formatDistanceToNow } from "date-fns";
 import { parseApiError } from "../utils/apiError";
+import { timeAgoVerbose } from "../utils/dateHelpers";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 const MAX_CONTENT_LENGTH = 5000;
@@ -318,13 +318,7 @@ export default function ForumPost({ user }) {
     setReportDetails("");
   };
 
-  const formatDate = (dateString) => {
-    try {
-      return formatDistanceToNow(new Date(dateString), { addSuffix: true });
-    } catch {
-      return "recently";
-    }
-  };
+  const formatDate = timeAgoVerbose;
 
   // Organize replies into threads
   const topLevelReplies = replies.filter(r => !r.parent_reply_id);
@@ -558,14 +552,14 @@ export default function ForumPost({ user }) {
       <Navigation user={user} />
       
       <main className="max-w-4xl mx-auto px-4 pt-20 lg:pt-24">
-        <Link
-          to={post?.category_id ? `/forums/${post.category_id}` : "/forums"}
+        <button
+          onClick={() => navigate(-1)}
           className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors"
           data-testid="back-link"
         >
           <ArrowLeft className="h-4 w-4" />
-          {post?.category_name || "Spaces"}
-        </Link>
+          Back
+        </button>
 
         {/* ── Crisis support banner (mental-health categories only) ── */}
         {!crisisDismissed && (() => {

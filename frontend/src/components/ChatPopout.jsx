@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Crown, X, MessagesSquare, Send, Search, UserPlus, Lock } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import { timeAgoVerbose } from "../utils/dateHelpers";
 import { parseApiError } from "../utils/apiError";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -13,7 +13,7 @@ function loadState() {
   catch { return null; }
 }
 function saveState(state) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {} }
-function formatTime(d) { try { return formatDistanceToNow(new Date(d), { addSuffix: true }); } catch { return ""; } }
+const formatTime = timeAgoVerbose;
 function getPrefs() { try { return JSON.parse(localStorage.getItem("village_prefs") || "{}"); } catch { return {}; } }
 
 export default function ChatPopout({ user }) {

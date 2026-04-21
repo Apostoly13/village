@@ -7,8 +7,8 @@ import Navigation from "../components/Navigation";
 // OnboardingModal removed — onboarding is now a standalone page at /onboarding
 import { Search, Plus, MessageCircle, Heart, Eye, Crown, X } from "lucide-react";
 import RecommendedSpaces from "../components/RecommendedSpaces";
-import { formatDistanceToNow } from "date-fns";
 import AppFooter from "../components/AppFooter";
+import { timeAgoVerbose } from "../utils/dateHelpers";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -19,10 +19,7 @@ function typeEmoji(type) {
   return map[type] || "🔔";
 }
 
-function fmtRelative(dateStr) {
-  try { return formatDistanceToNow(new Date(dateStr), { addSuffix: true }); }
-  catch { return ""; }
-}
+const fmtRelative = timeAgoVerbose;
 
 // ── QuickThreadView ───────────────────────────────────────────────────────────
 
@@ -809,6 +806,34 @@ export default function Dashboard({ user }) {
               </div>
             </div>
 
+            {/* Mobile-only quick-access highlights strip */}
+            <div className="flex gap-2 mb-4 lg:hidden">
+              {unreadActivity.length > 0 && (
+                <button
+                  onClick={() => switchMode("catch-up")}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-medium hover:bg-primary/15 transition-colors"
+                >
+                  <span>🔔</span>
+                  {unreadActivity.length} new
+                </button>
+              )}
+              {namedRooms.length > 0 && (
+                <Link
+                  to="/chat"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-green-500/10 border border-green-500/20 text-green-700 dark:text-green-400 text-xs font-medium hover:bg-green-500/15 transition-colors"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse inline-block" />
+                  {namedRooms.length} live
+                </Link>
+              )}
+              <Link
+                to="/forums"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-card border border-border/50 text-muted-foreground text-xs font-medium hover:text-foreground hover:border-primary/30 transition-colors ml-auto"
+              >
+                Spaces →
+              </Link>
+            </div>
+
             {/* Two-column layout */}
             <div className="flex flex-col lg:flex-row gap-5">
 
@@ -1196,7 +1221,7 @@ export default function Dashboard({ user }) {
                 </div>
                 <div className="space-y-1">
                   {userCommunities.slice(0, 4).map(c => (
-                    <Link key={c.category_id} to={`/forums/${c.category_id}`} className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-secondary/50 transition-colors group">
+                    <Link key={c.category_id} to={`/community/${c.category_id}`} className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-secondary/50 transition-colors group">
                       <span className="text-base w-7 text-center shrink-0">{c.icon || "💬"}</span>
                       <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors flex-1 truncate">{c.name}</p>
                       {c.member_count > 0 && (

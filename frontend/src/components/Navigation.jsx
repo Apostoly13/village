@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { ScrollArea } from "./ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Home, MessageSquare, Users, Mail, User, LogOut, Menu, X, Moon, Sun, UserPlus, Bell, Bookmark, Shield, ScrollText, BookOpen, Calendar, Heart, Lock, FileText, Settings, Crown } from "lucide-react";
 import { toast } from "sonner";
 import { FEATURES } from "../config/features";
@@ -118,11 +119,11 @@ export default function Navigation({ user }) {
     ...(isAdmin ? [{ icon: Shield, label: "Admin", href: "/admin", testId: "nav-admin" }] : []),
   ];
 
-  // Mobile bottom tab bar — 5 focused tabs, Group Chats accessible via Spaces page
+  // Mobile bottom tab bar — 5 focused tabs including Group Chats for direct access
   const mobileNavItems = [
     { icon: Home,          label: "Home",     href: "/dashboard",                        testId: "nav-home" },
     { icon: MessageSquare, label: "Spaces",   href: "/forums",                           testId: "nav-forums" },
-    { icon: Calendar,      label: "Events",   href: isFree ? "/plus" : "/events",        testId: "nav-events",    locked: isFree },
+    { icon: Users,         label: "Chats",    href: "/chat",                             testId: "nav-chat" },
     { icon: Mail,          label: "Messages", href: isFree ? "/plus" : "/messages",      testId: "nav-messages",  locked: isFree, badge: isFree ? 0 : unreadMessages },
     { icon: User,          label: "Me",       href: "/profile",                          testId: "nav-me" },
   ];
@@ -167,26 +168,37 @@ export default function Navigation({ user }) {
               <img src="/BG Removed- Main Logo - ps edit.png" alt="The Village" className="h-14 w-auto" />
             </Link>
             <div className="flex items-center gap-1 ml-6">
-              {navItems.map((item) => {
-                const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
-                return (
-                  <Link key={item.testId} to={item.href} data-testid={item.testId}>
-                    <Button
-                      variant="ghost"
-                      className={`rounded-full px-4 ${isActive ? 'bg-primary/10 text-primary' : item.locked ? 'text-muted-foreground/60 hover:text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                    >
-                      <item.icon className="h-4 w-4 mr-2" />
-                      {item.label}
-                      {item.locked && <Lock className="h-3 w-3 ml-1.5 opacity-60" />}
-                      {item.badge > 0 && (
-                        <span className="ml-1.5 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center px-1 font-medium">
-                          {item.badge > 9 ? '9+' : item.badge}
-                        </span>
-                      )}
-                    </Button>
-                  </Link>
-                );
-              })}
+              <TooltipProvider delayDuration={300}>
+                {navItems.map((item) => {
+                  const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
+                  const btn = (
+                    <Link key={item.testId} to={item.href} data-testid={item.testId}>
+                      <Button
+                        variant="ghost"
+                        className={`rounded-full px-4 ${isActive ? 'bg-primary/10 text-primary' : item.locked ? 'text-muted-foreground/60 hover:text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                      >
+                        <item.icon className="h-4 w-4 mr-2" />
+                        {item.label}
+                        {item.locked && <Lock className="h-3 w-3 ml-1.5 opacity-60" />}
+                        {item.badge > 0 && (
+                          <span className="ml-1.5 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center px-1 font-medium">
+                            {item.badge > 9 ? '9+' : item.badge}
+                          </span>
+                        )}
+                      </Button>
+                    </Link>
+                  );
+                  if (!item.locked) return btn;
+                  return (
+                    <Tooltip key={item.testId}>
+                      <TooltipTrigger asChild>{btn}</TooltipTrigger>
+                      <TooltipContent side="bottom" className="text-xs">
+                        Village+ feature — <Link to="/plus" className="underline font-medium">upgrade to unlock</Link>
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                })}
+              </TooltipProvider>
             </div>
           </div>
 
@@ -276,7 +288,7 @@ export default function Navigation({ user }) {
                   <Avatar className="h-9 w-9">
                     <AvatarImage src={user?.picture} />
                     <AvatarFallback className="bg-primary/20 text-primary">
-                      {user?.name?.[0]?.toUpperCase() || 'U'}
+                      {(user?.nickname || user?.name || user?.email || 'V')[0].toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
@@ -405,7 +417,7 @@ export default function Navigation({ user }) {
               <Avatar className="h-10 w-10">
                 <AvatarImage src={user?.picture} />
                 <AvatarFallback className="bg-primary/20 text-primary">
-                  {user?.name?.[0]?.toUpperCase() || 'U'}
+                  {(user?.nickname || user?.name || user?.email || 'V')[0].toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               <div>
@@ -437,6 +449,16 @@ export default function Navigation({ user }) {
               )}
             </Link>
             
+            <Link
+              to={isFree ? "/plus" : "/events"}
+              onClick={() => setMobileMenuOpen(false)}
+              className={`flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 ${isFree ? "text-muted-foreground/60" : "text-foreground"}`}
+            >
+              <Calendar className="h-5 w-5" />
+              Events
+              {isFree && <Lock className="h-3.5 w-3.5 ml-auto opacity-60" />}
+            </Link>
+
             <Link
               to="/saved"
               onClick={() => setMobileMenuOpen(false)}

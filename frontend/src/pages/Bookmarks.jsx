@@ -4,8 +4,8 @@ import { Button } from "../components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import Navigation from "../components/Navigation";
 import { Bookmark, ArrowLeft, Heart, MessageCircle, Eye, Clock, Trash2 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import { timeAgoVerbose } from "../utils/dateHelpers";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -45,13 +45,7 @@ export default function Bookmarks({ user }) {
     }
   };
 
-  const formatDate = (dateString) => {
-    try {
-      return formatDistanceToNow(new Date(dateString), { addSuffix: true });
-    } catch {
-      return "recently";
-    }
-  };
+  const formatDate = timeAgoVerbose;
 
   return (
     <div className="min-h-screen bg-background pb-20 lg:pb-0">

@@ -5,6 +5,28 @@ import AppFooter from "../components/AppFooter";
 
 const CHANGELOG = [
   {
+    version: "2.9.0",
+    date: "April 2026",
+    title: "Design System, Security Hardening & Platform-Wide Polish",
+    entries: [
+      { tag: "Design",   text: "CSS design tokens added to index.css — typography scale (--text-xs through --text-4xl), spacing scale (--space-1 through --space-12), border radius scale, and animation duration variables. All body/heading font references now use token variables." },
+      { tag: "Improved", text: "Profile edit form on mobile now collapses into accordion sections (About You, Parenting Stage, Location, Preferences, Interests, Notifications, Appearance) — no more endless scroll on small screens." },
+      { tag: "Improved", text: "Locked nav items (Events, Messages for free users) now show a tooltip on hover — 'Village+ feature — upgrade to unlock' — with a link to the upgrade page." },
+      { tag: "Improved", text: "Error toasts on Events, Community posts, and Messages conversations now include a Retry button that re-runs the failed fetch." },
+      { tag: "Fixed",    text: "Community posts page now imports toast for error handling — previously failed silently on network errors." },
+      { tag: "Security", text: "All MongoDB regex queries now use re.escape() to prevent ReDoS injection — user search, post search, admin user search, nickname check, event suburb filter." },
+      { tag: "Security", text: "In-memory rate limiter added (no external deps) — login limited to 10 requests/min per IP, search endpoints to 30 requests/min per IP. Returns HTTP 429 with friendly message." },
+      { tag: "Security", text: "CORS configuration tightened — explicit method whitelist (GET/POST/PUT/PATCH/DELETE/OPTIONS) and header whitelist instead of allow_methods='*' / allow_headers='*'. Preflight cache set to 10 minutes." },
+      { tag: "Improved", text: "All email notification links now use FRONTEND_URL env var instead of hardcoded 'http://localhost:3000' — set FRONTEND_URL=https://app.ourlittlevillage.au in production .env." },
+      { tag: "Performance", text: "Admin reports endpoint N+1 eliminated — reporter and content now fetched in batch queries (one query each for posts, replies, reporters) instead of one DB call per report." },
+      { tag: "Performance", text: "Location-based post filtering now uses a lat/lon bounding box pre-filter in MongoDB before Haversine exact check — reduces documents loaded from up to 500 to only those within the geographic window." },
+      { tag: "Improved", text: "Pagination parameters on /forums/posts and /feed now validated with Query(ge=1, le=100) — prevents clients requesting unlimited results in a single call." },
+      { tag: "Improved", text: "Anonymous post masking extracted to reusable mask_anonymous_post() helper — replaced 7 identical 3-line blocks across the codebase." },
+      { tag: "Improved", text: "Background email tasks now use fire_and_forget() wrapper with done-callback error logging — exceptions no longer swallowed silently, appear in server logs as ERROR entries." },
+      { tag: "Architecture", text: "services/ package created in backend — geo.py (calculate_distance, bounding_box, geocode_address), rate_limiter.py, and tasks.py (fire_and_forget) extracted as reusable modules." },
+    ],
+  },
+  {
     version: "2.8.3",
     date: "April 2026",
     title: "Scroll Fix — Messages No Longer Hijacks the Page",

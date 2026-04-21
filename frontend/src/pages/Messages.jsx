@@ -4,8 +4,8 @@ import { Button } from "../components/ui/button";
 import Navigation from "../components/Navigation";
 import { Send, ArrowLeft, MessagesSquare, Search, UserPlus, X, ImageIcon, Users, Lock } from "lucide-react";
 import { Crown } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import { timeAgoVerbose } from "../utils/dateHelpers";
 import { parseApiError } from "../utils/apiError";
 import AppFooter from "../components/AppFooter";
 
@@ -27,10 +27,7 @@ function playDing() {
   } catch {}
 }
 
-function formatTime(dateString) {
-  try { return formatDistanceToNow(new Date(dateString), { addSuffix: true }); }
-  catch { return ""; }
-}
+const formatTime = timeAgoVerbose;
 
 // ── User search panel ─────────────────────────────────────────────────────────
 function UserSearchPanel({ onClose, onStartChat }) {
@@ -294,8 +291,14 @@ export default function Messages({ user }) {
     setLoadingConvs(true);
     try {
       const res = await fetch(`${API_URL}/api/messages/conversations`, { credentials: "include" });
-      if (res.ok) setConversations(await res.json());
-    } catch {}
+      if (res.ok) {
+        setConversations(await res.json());
+      } else {
+        toast.error("Failed to load conversations", { action: { label: "Retry", onClick: fetchConversations } });
+      }
+    } catch {
+      toast.error("Couldn't reach the server", { action: { label: "Retry", onClick: fetchConversations } });
+    }
     finally { setLoadingConvs(false); }
   };
 
@@ -543,8 +546,19 @@ export default function Messages({ user }) {
               ) : (
                 <div className="flex-1 overflow-y-auto">
                   {(loadingFriends && loadingConvs) ? (
-                    <div className="p-4 space-y-3">
-                      {[1,2,3].map(i => <div key={i} className="flex items-center gap-3 animate-pulse"><div className="w-10 h-10 rounded-full bg-muted shrink-0" /><div className="flex-1 h-4 bg-muted rounded" /></div>)}
+                    <div className="p-3 space-y-1">
+                      {[1, 2, 3, 4, 5].map(i => (
+                        <div key={i} className="flex items-center gap-3 px-2 py-3 animate-pulse">
+                          <div className="w-10 h-10 rounded-full bg-muted shrink-0" />
+                          <div className="flex-1 min-w-0 space-y-1.5">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="h-3 bg-muted rounded w-28" />
+                              <div className="h-2.5 bg-muted rounded w-10 shrink-0" />
+                            </div>
+                            <div className="h-2.5 bg-muted rounded w-4/5" />
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   ) : (
                     <>

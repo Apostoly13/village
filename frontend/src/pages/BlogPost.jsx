@@ -4,8 +4,8 @@ import { Button } from "../components/ui/button";
 import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
 import { ArrowLeft, BookOpen, Eye, Clock, Tag, Trash2 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import { timeAgoVerbose } from "../utils/dateHelpers";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -14,13 +14,7 @@ function readTime(content = "") {
   return Math.max(1, Math.round(words / 200));
 }
 
-function formatDate(dateString) {
-  try {
-    return formatDistanceToNow(new Date(dateString), { addSuffix: true });
-  } catch {
-    return "recently";
-  }
-}
+const formatDate = timeAgoVerbose;
 
 // Very basic markdown renderer: bold, italic, headings, bullets, line breaks
 function renderMarkdown(md = "") {

@@ -23,6 +23,7 @@ import SavedResources from "./pages/SavedResources";
 import AdminDashboard from "./pages/AdminDashboard";
 import Changelog from "./pages/Changelog";
 import CreateCommunity from "./pages/CreateCommunity";
+import Community from "./pages/Community";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
 import Onboarding from "./pages/Onboarding";
@@ -290,6 +291,11 @@ const AppRouter = () => {
       <Route path="/create-community" element={
         <ProtectedRoute>
           {({ user }) => <CreateCommunity user={user} />}
+        </ProtectedRoute>
+      } />
+      <Route path="/community/:id" element={
+        <ProtectedRoute>
+          {({ user }) => <Community user={user} />}
         </ProtectedRoute>
       } />
       <Route path="/onboarding" element={

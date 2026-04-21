@@ -4,9 +4,10 @@ import { Button } from "../components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import Navigation from "../components/Navigation";
 import { Bookmark, Heart, MessageCircle, Eye, Clock, Trash2, MessageSquare, Calendar, BookOpen, MapPin, Users, Check } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import AppFooter from "../components/AppFooter";
+import { CATEGORY_STYLES, CATEGORY_LABELS } from "../utils/eventCategories";
+import { timeAgoVerbose, formatEventDate } from "../utils/dateHelpers";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -16,42 +17,7 @@ const TABS = [
   { id: "events", label: "Events" },
 ];
 
-const CATEGORY_STYLES = {
-  general: "bg-secondary text-secondary-foreground",
-  playgroup: "bg-green-500/10 text-green-600",
-  meetup: "bg-blue-500/10 text-blue-600",
-  workshop: "bg-purple-500/10 text-purple-600",
-  support: "bg-pink-500/10 text-pink-600",
-};
-
-const CATEGORY_LABELS = {
-  general: "General",
-  playgroup: "Playgroup",
-  meetup: "Meetup",
-  workshop: "Workshop",
-  support: "Support",
-};
-
-function formatDate(dateString) {
-  try {
-    return formatDistanceToNow(new Date(dateString), { addSuffix: true });
-  } catch {
-    return "recently";
-  }
-}
-
-function formatEventDate(dateStr) {
-  try {
-    const [year, month, day] = dateStr.split("-").map(Number);
-    const d = new Date(year, month - 1, day);
-    return {
-      day: d.getDate(),
-      month: d.toLocaleString("en-AU", { month: "short" }),
-    };
-  } catch {
-    return { day: "?", month: "???" };
-  }
-}
+const formatDate = timeAgoVerbose;
 
 // Posts tab
 function PostsTab() {

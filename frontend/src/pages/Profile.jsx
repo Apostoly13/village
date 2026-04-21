@@ -11,8 +11,31 @@ import { Switch } from "../components/ui/switch";
 import { Badge } from "../components/ui/badge";
 import Navigation from "../components/Navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Edit2, MessageCircle, Save, X, Heart, UserPlus, UserCheck, Clock, Users, ChevronRight, MapPin, Bell, Camera, Search, AlertCircle, Crown, Shield, Handshake, Stethoscope, Ban, Moon, Sun } from "lucide-react";
+import { ArrowLeft, Edit2, MessageCircle, Save, X, Heart, UserPlus, UserCheck, Clock, Users, ChevronRight, MapPin, Bell, Camera, Search, AlertCircle, Crown, Shield, Handshake, Stethoscope, Ban, Moon, Sun, ChevronDown } from "lucide-react";
 import AppFooter from "../components/AppFooter";
+
+// Accordion section for mobile — on lg+ it renders as plain <div>
+function ProfileSection({ title, icon, children, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="rounded-xl border border-border/40 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 bg-secondary/30 hover:bg-secondary/50 transition-colors lg:cursor-default"
+      >
+        <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          {icon && <span className="text-primary">{icon}</span>}
+          {title}
+        </span>
+        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform lg:hidden ${open ? "rotate-180" : ""}`} />
+      </button>
+      <div className={`${open ? "block" : "hidden"} lg:block px-4 py-4 space-y-4`}>
+        {children}
+      </div>
+    </div>
+  );
+}
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 const AUSTRALIAN_STATES = ["NSW", "VIC", "QLD", "WA", "SA", "TAS", "ACT", "NT"];
@@ -701,95 +724,64 @@ function ProfilePage({ user }) {
           </div>
 
           {editing ? (
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="display-name" className="text-foreground">Display Name</Label>
-                <Input
-                  id="display-name"
-                  value={nickname}
-                  onChange={(e) => setNickname(e.target.value)}
-                  placeholder="How should we call you?"
-                  className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
-                  data-testid="nickname-input"
-                />
-                <p className="text-xs text-muted-foreground">This is how other members see you. Your real name stays private unless you choose to share it.</p>
-              </div>
-
-              {/* Show full name toggle */}
-              <div
-                className={`flex items-center justify-between p-3 rounded-xl border-2 cursor-pointer transition-all ${
-                  showFullName ? "border-primary/30 bg-primary/5" : "border-border/40 bg-secondary/30"
-                }`}
-                onClick={() => setShowFullName(p => !p)}
-              >
-                <div>
-                  <p className="text-sm font-medium text-foreground">Show my full name on my profile</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {showFullName
-                      ? `Your real name (${profile?.first_name || ""} ${profile?.last_name || ""}) will be visible on your profile`
-                      : "Only your display name is visible — your real name stays private"}
-                  </p>
+            <div className="space-y-3">
+              {/* About You */}
+              <ProfileSection title="About You" icon="👤" defaultOpen={true}>
+                <div className="space-y-2">
+                  <Label htmlFor="display-name" className="text-foreground">Display Name</Label>
+                  <Input
+                    id="display-name"
+                    value={nickname}
+                    onChange={(e) => setNickname(e.target.value)}
+                    placeholder="How should we call you?"
+                    className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
+                    data-testid="nickname-input"
+                  />
+                  <p className="text-xs text-muted-foreground">This is how other members see you. Your real name stays private unless you choose to share it.</p>
                 </div>
-                <Switch
-                  checked={showFullName}
-                  onCheckedChange={setShowFullName}
-                  onClick={e => e.stopPropagation()}
-                />
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="bio" className="text-foreground">Bio</Label>
-                <Textarea
-                  id="bio"
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value.slice(0, 300))}
-                  placeholder="Tell other parents about yourself..."
-                  className="min-h-[100px] rounded-xl bg-secondary/50 border-transparent focus:border-primary resize-none"
-                  data-testid="bio-input"
-                  maxLength={300}
-                />
-                <p className="text-xs text-muted-foreground text-right">{bio.length}/300</p>
-              </div>
+                {/* Show full name toggle */}
+                <div
+                  className={`flex items-center justify-between p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                    showFullName ? "border-primary/30 bg-primary/5" : "border-border/40 bg-secondary/30"
+                  }`}
+                  onClick={() => setShowFullName(p => !p)}
+                >
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Show my full name on my profile</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {showFullName
+                        ? `Your real name (${profile?.first_name || ""} ${profile?.last_name || ""}) will be visible on your profile`
+                        : "Only your display name is visible — your real name stays private"}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={showFullName}
+                    onCheckedChange={setShowFullName}
+                    onClick={e => e.stopPropagation()}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="bio" className="text-foreground">Bio</Label>
+                  <Textarea
+                    id="bio"
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value.slice(0, 300))}
+                    placeholder="Tell other parents about yourself..."
+                    className="min-h-[100px] rounded-xl bg-secondary/50 border-transparent focus:border-primary resize-none"
+                    data-testid="bio-input"
+                    maxLength={300}
+                  />
+                  <p className="text-xs text-muted-foreground text-right">{bio.length}/300</p>
+                </div>
+              </ProfileSection>
 
               {/* Parenting Stage */}
-              <div className="space-y-2">
-                <Label className="text-foreground">Where are you at?</Label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {[
-                    { id: "expecting", label: "Expecting", emoji: "🤰" },
-                    { id: "newborn", label: "Newborn", emoji: "👶" },
-                    { id: "infant", label: "Infant", emoji: "🧒" },
-                    { id: "toddler", label: "Toddler", emoji: "🚶" },
-                    { id: "school_age", label: "School Age", emoji: "🎒" },
-                    { id: "teenager", label: "Teenager", emoji: "🧑" },
-                    { id: "multiples", label: "Twins/Triplets", emoji: "👶👶" },
-                    { id: "mixed", label: "Mixed ages", emoji: "👨‍👩‍👧‍👦" },
-                  ].map(stage => (
-                    <button
-                      key={stage.id}
-                      type="button"
-                      onClick={() => setParentingStage(stage.id)}
-                      className={`rounded-xl py-2.5 px-2 text-center border-2 transition-all ${
-                        parentingStage === stage.id
-                          ? "border-primary bg-primary/10"
-                          : "border-border/50 bg-secondary/30 hover:border-primary/40"
-                      }`}
-                    >
-                      <span className="text-lg block">{stage.emoji}</span>
-                      <span className="text-xs font-medium text-foreground">{stage.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Mixed / Multiples age group sub-selection */}
-              {(parentingStage === "mixed" || parentingStage === "multiples") && (
-                <div className="space-y-2 pl-3 border-l-2 border-primary/30">
-                  <Label className="text-foreground text-sm">
-                    {parentingStage === "multiples" ? "How old are your multiples?" : "Which age groups do you have?"}{" "}
-                    <span className="text-muted-foreground font-normal">(select all that apply)</span>
-                  </Label>
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+              <ProfileSection title="Parenting Stage" icon="👶" defaultOpen={false}>
+                <div className="space-y-2">
+                  <Label className="text-foreground">Where are you at?</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {[
                       { id: "expecting", label: "Expecting", emoji: "🤰" },
                       { id: "newborn", label: "Newborn", emoji: "👶" },
@@ -797,49 +789,80 @@ function ProfilePage({ user }) {
                       { id: "toddler", label: "Toddler", emoji: "🚶" },
                       { id: "school_age", label: "School Age", emoji: "🎒" },
                       { id: "teenager", label: "Teenager", emoji: "🧑" },
-                    ].map(stage => {
-                      const active = mixedAgeGroups.includes(stage.id);
-                      return (
-                        <button
-                          key={stage.id}
-                          type="button"
-                          onClick={() => setMixedAgeGroups(prev =>
-                            prev.includes(stage.id) ? prev.filter(g => g !== stage.id) : [...prev, stage.id]
-                          )}
-                          className={`rounded-xl py-2.5 px-2 text-center border-2 transition-all ${
-                            active ? "border-primary bg-primary/10" : "border-border/50 bg-secondary/30 hover:border-primary/40"
-                          }`}
-                        >
-                          <span className="text-base block">{stage.emoji}</span>
-                          <span className="text-xs font-medium text-foreground">{stage.label}</span>
-                        </button>
-                      );
-                    })}
+                      { id: "multiples", label: "Twins/Triplets", emoji: "👶👶" },
+                      { id: "mixed", label: "Mixed ages", emoji: "👨‍👩‍👧‍👦" },
+                    ].map(stage => (
+                      <button
+                        key={stage.id}
+                        type="button"
+                        onClick={() => setParentingStage(stage.id)}
+                        className={`rounded-xl py-2.5 px-2 text-center border-2 transition-all ${
+                          parentingStage === stage.id
+                            ? "border-primary bg-primary/10"
+                            : "border-border/50 bg-secondary/30 hover:border-primary/40"
+                        }`}
+                      >
+                        <span className="text-lg block">{stage.emoji}</span>
+                        <span className="text-xs font-medium text-foreground">{stage.label}</span>
+                      </button>
+                    ))}
                   </div>
-
-                  {parentingStage === "mixed" && (
-                    <button
-                      type="button"
-                      onClick={() => setIsMultipleBirth(p => !p)}
-                      className={`w-full rounded-xl px-3 py-2.5 border-2 flex items-center gap-3 transition-all text-left ${
-                        isMultipleBirth ? "border-primary bg-primary/10" : "border-border/50 bg-secondary/30 hover:border-primary/40"
-                      }`}
-                    >
-                      <span className="text-base">👶👶</span>
-                      <span className="text-xs font-medium text-foreground flex-1">Some of these include twins or triplets</span>
-                      {isMultipleBirth && <span className="text-primary text-xs font-bold">✓</span>}
-                    </button>
-                  )}
                 </div>
-              )}
 
-              {/* Location — suburb, state, visibility toggle grouped together */}
-              <div className="space-y-2">
-                <Label className="text-foreground flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  Location
-                </Label>
+                {/* Mixed / Multiples age group sub-selection */}
+                {(parentingStage === "mixed" || parentingStage === "multiples") && (
+                  <div className="space-y-2 pl-3 border-l-2 border-primary/30">
+                    <Label className="text-foreground text-sm">
+                      {parentingStage === "multiples" ? "How old are your multiples?" : "Which age groups do you have?"}{" "}
+                      <span className="text-muted-foreground font-normal">(select all that apply)</span>
+                    </Label>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                      {[
+                        { id: "expecting", label: "Expecting", emoji: "🤰" },
+                        { id: "newborn", label: "Newborn", emoji: "👶" },
+                        { id: "infant", label: "Infant", emoji: "🧒" },
+                        { id: "toddler", label: "Toddler", emoji: "🚶" },
+                        { id: "school_age", label: "School Age", emoji: "🎒" },
+                        { id: "teenager", label: "Teenager", emoji: "🧑" },
+                      ].map(stage => {
+                        const active = mixedAgeGroups.includes(stage.id);
+                        return (
+                          <button
+                            key={stage.id}
+                            type="button"
+                            onClick={() => setMixedAgeGroups(prev =>
+                              prev.includes(stage.id) ? prev.filter(g => g !== stage.id) : [...prev, stage.id]
+                            )}
+                            className={`rounded-xl py-2.5 px-2 text-center border-2 transition-all ${
+                              active ? "border-primary bg-primary/10" : "border-border/50 bg-secondary/30 hover:border-primary/40"
+                            }`}
+                          >
+                            <span className="text-base block">{stage.emoji}</span>
+                            <span className="text-xs font-medium text-foreground">{stage.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
 
+                    {parentingStage === "mixed" && (
+                      <button
+                        type="button"
+                        onClick={() => setIsMultipleBirth(p => !p)}
+                        className={`w-full rounded-xl px-3 py-2.5 border-2 flex items-center gap-3 transition-all text-left ${
+                          isMultipleBirth ? "border-primary bg-primary/10" : "border-border/50 bg-secondary/30 hover:border-primary/40"
+                        }`}
+                      >
+                        <span className="text-base">👶👶</span>
+                        <span className="text-xs font-medium text-foreground flex-1">Some of these include twins or triplets</span>
+                        {isMultipleBirth && <span className="text-primary text-xs font-bold">✓</span>}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </ProfileSection>
+
+              {/* Location */}
+              <ProfileSection title="Location" icon={<MapPin className="h-4 w-4" />} defaultOpen={false}>
                 {/* Suburb / Postcode search */}
                 <div className="relative">
                   <Input
@@ -885,7 +908,7 @@ function ProfilePage({ user }) {
                   )}
                 </div>
 
-                {/* State selector — grouped with location */}
+                {/* State selector */}
                 <Select value={state} onValueChange={setState}>
                   <SelectTrigger className="h-11 rounded-xl bg-secondary/50 border-transparent" data-testid="state-select">
                     <SelectValue placeholder="State" />
@@ -919,159 +942,145 @@ function ProfilePage({ user }) {
                 <p className="text-xs text-muted-foreground px-1">
                   🔒 Your location is never shared publicly — only used to connect you with nearby parents and local chat rooms.
                 </p>
-              </div>
+              </ProfileSection>
 
-              <div className="space-y-2">
-                <Label className="text-foreground">I am a</Label>
-                <Select value={gender} onValueChange={setGender}>
-                  <SelectTrigger className="h-12 rounded-xl bg-secondary/50 border-transparent" data-testid="gender-select">
-                    <SelectValue placeholder="Select gender" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border/50">
-                    {genderOptions.map((opt) => (
-                      <SelectItem key={opt.id} value={opt.id}>
-                        {opt.text}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex items-center justify-between p-4 rounded-xl bg-pink-500/5 border border-pink-500/20">
-                <div className="flex items-center gap-3">
-                  <Heart className="h-5 w-5 text-pink-500" />
-                  <div>
-                    <Label htmlFor="single-parent" className="font-medium text-foreground cursor-pointer">I'm a single parent</Label>
-                    <p className="text-xs text-muted-foreground">Connect with other single parents in our community</p>
-                  </div>
+              {/* Preferences */}
+              <ProfileSection title="Preferences" icon="⚙️" defaultOpen={false}>
+                <div className="space-y-2">
+                  <Label className="text-foreground">I am a</Label>
+                  <Select value={gender} onValueChange={setGender}>
+                    <SelectTrigger className="h-12 rounded-xl bg-secondary/50 border-transparent" data-testid="gender-select">
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border/50">
+                      {genderOptions.map((opt) => (
+                        <SelectItem key={opt.id} value={opt.id}>
+                          {opt.text}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <Switch
-                  id="single-parent"
-                  checked={isSingleParent}
-                  onCheckedChange={setIsSingleParent}
-                  data-testid="single-parent-toggle"
-                />
-              </div>
 
-
-              <div className="flex items-center justify-between p-4 rounded-xl bg-secondary/30 border border-border/30">
-                <div className="flex items-center gap-3">
-                  <span className="text-xl">👤</span>
-                  <div>
-                    <Label htmlFor="anonymous-default" className="font-medium text-foreground cursor-pointer">Post anonymously by default</Label>
-                    <p className="text-xs text-muted-foreground">Your name and avatar won't show on new posts — you can still override per post</p>
+                <div className="flex items-center justify-between p-4 rounded-xl bg-pink-500/5 border border-pink-500/20">
+                  <div className="flex items-center gap-3">
+                    <Heart className="h-5 w-5 text-pink-500" />
+                    <div>
+                      <Label htmlFor="single-parent" className="font-medium text-foreground cursor-pointer">I'm a single parent</Label>
+                      <p className="text-xs text-muted-foreground">Connect with other single parents in our community</p>
+                    </div>
                   </div>
+                  <Switch
+                    id="single-parent"
+                    checked={isSingleParent}
+                    onCheckedChange={setIsSingleParent}
+                    data-testid="single-parent-toggle"
+                  />
                 </div>
-                <Switch
-                  id="anonymous-default"
-                  checked={anonymousByDefault}
-                  onCheckedChange={setAnonymousByDefault}
-                />
-              </div>
 
-              <div className="space-y-2">
-                <Label className="text-foreground">I want to connect with</Label>
-                <Select value={connectWith} onValueChange={setConnectWith}>
-                  <SelectTrigger className="h-12 rounded-xl bg-secondary/50 border-transparent" data-testid="connect-with-select">
-                    <SelectValue placeholder="Select preference" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border/50">
-                    {connectWithOptions.map((opt) => (
-                      <SelectItem key={opt.id} value={opt.id}>
-                        {opt.text}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  This helps filter who you see in chat rooms and can message you
-                </p>
-              </div>
+                <div className="flex items-center justify-between p-4 rounded-xl bg-secondary/30 border border-border/30">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">👤</span>
+                    <div>
+                      <Label htmlFor="anonymous-default" className="font-medium text-foreground cursor-pointer">Post anonymously by default</Label>
+                      <p className="text-xs text-muted-foreground">Your name and avatar won't show on new posts — you can still override per post</p>
+                    </div>
+                  </div>
+                  <Switch
+                    id="anonymous-default"
+                    checked={anonymousByDefault}
+                    onCheckedChange={setAnonymousByDefault}
+                  />
+                </div>
 
+                <div className="space-y-2">
+                  <Label className="text-foreground">I want to connect with</Label>
+                  <Select value={connectWith} onValueChange={setConnectWith}>
+                    <SelectTrigger className="h-12 rounded-xl bg-secondary/50 border-transparent" data-testid="connect-with-select">
+                      <SelectValue placeholder="Select preference" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border/50">
+                      {connectWithOptions.map((opt) => (
+                        <SelectItem key={opt.id} value={opt.id}>
+                          {opt.text}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    This helps filter who you see in chat rooms and can message you
+                  </p>
+                </div>
+              </ProfileSection>
 
               {/* Interests */}
-              <div id="identity" className="space-y-2">
-                <Label className="text-foreground">Your Interests</Label>
-                <p className="text-xs text-muted-foreground">Select topics you care about — we'll recommend relevant circles.</p>
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {INTEREST_OPTIONS.map((interest) => (
-                    <button
-                      key={interest}
-                      type="button"
-                      onClick={() => setInterests(prev =>
-                        prev.includes(interest) ? prev.filter(i => i !== interest) : [...prev, interest]
-                      )}
-                      className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
-                        interests.includes(interest)
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "border-border/50 text-muted-foreground hover:border-primary/40 hover:text-foreground"
-                      }`}
-                    >
-                      {interest}
-                    </button>
-                  ))}
+              <ProfileSection title="Interests" icon="💡" defaultOpen={false}>
+                <div id="identity" className="space-y-2">
+                  <p className="text-xs text-muted-foreground">Select topics you care about — we'll recommend relevant circles.</p>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {INTEREST_OPTIONS.map((interest) => (
+                      <button
+                        key={interest}
+                        type="button"
+                        onClick={() => setInterests(prev =>
+                          prev.includes(interest) ? prev.filter(i => i !== interest) : [...prev, interest]
+                        )}
+                        className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
+                          interests.includes(interest)
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "border-border/50 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                        }`}
+                      >
+                        {interest}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              </ProfileSection>
 
-              {/* Email Notification Preferences */}
-              <div className="p-4 rounded-xl bg-secondary/30 border border-border/30 space-y-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Bell className="h-5 w-5 text-primary" />
-                  <Label className="font-medium text-foreground">Email Notifications</Label>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div>
+              {/* Notifications */}
+              <ProfileSection title="Email Notifications" icon={<Bell className="h-4 w-4" />} defaultOpen={false}>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
                     <Label htmlFor="notify-replies" className="text-sm text-foreground cursor-pointer">New replies to my posts</Label>
+                    <Switch
+                      id="notify-replies"
+                      checked={emailPrefs.notify_replies}
+                      onCheckedChange={(checked) => setEmailPrefs(prev => ({ ...prev, notify_replies: checked }))}
+                    />
                   </div>
-                  <Switch 
-                    id="notify-replies"
-                    checked={emailPrefs.notify_replies}
-                    onCheckedChange={(checked) => setEmailPrefs(prev => ({ ...prev, notify_replies: checked }))}
-                  />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div>
+                  <div className="flex items-center justify-between">
                     <Label htmlFor="notify-dms" className="text-sm text-foreground cursor-pointer">New direct messages</Label>
+                    <Switch
+                      id="notify-dms"
+                      checked={emailPrefs.notify_dms}
+                      onCheckedChange={(checked) => setEmailPrefs(prev => ({ ...prev, notify_dms: checked }))}
+                    />
                   </div>
-                  <Switch 
-                    id="notify-dms"
-                    checked={emailPrefs.notify_dms}
-                    onCheckedChange={(checked) => setEmailPrefs(prev => ({ ...prev, notify_dms: checked }))}
-                  />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div>
+                  <div className="flex items-center justify-between">
                     <Label htmlFor="notify-friends" className="text-sm text-foreground cursor-pointer">Friend requests</Label>
+                    <Switch
+                      id="notify-friends"
+                      checked={emailPrefs.notify_friend_requests}
+                      onCheckedChange={(checked) => setEmailPrefs(prev => ({ ...prev, notify_friend_requests: checked }))}
+                    />
                   </div>
-                  <Switch 
-                    id="notify-friends"
-                    checked={emailPrefs.notify_friend_requests}
-                    onCheckedChange={(checked) => setEmailPrefs(prev => ({ ...prev, notify_friend_requests: checked }))}
-                  />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label htmlFor="notify-digest" className="text-sm text-foreground cursor-pointer">Weekly digest</Label>
-                    <p className="text-xs text-muted-foreground">Summary of activity in your community</p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label htmlFor="notify-digest" className="text-sm text-foreground cursor-pointer">Weekly digest</Label>
+                      <p className="text-xs text-muted-foreground">Summary of activity in your community</p>
+                    </div>
+                    <Switch
+                      id="notify-digest"
+                      checked={emailPrefs.weekly_digest}
+                      onCheckedChange={(checked) => setEmailPrefs(prev => ({ ...prev, weekly_digest: checked }))}
+                    />
                   </div>
-                  <Switch 
-                    id="notify-digest"
-                    checked={emailPrefs.weekly_digest}
-                    onCheckedChange={(checked) => setEmailPrefs(prev => ({ ...prev, weekly_digest: checked }))}
-                  />
                 </div>
-              </div>
+              </ProfileSection>
 
               {/* Appearance */}
-              <div className="p-4 rounded-xl bg-secondary/30 border border-border/30 space-y-4">
-                <div className="flex items-center gap-2 mb-2">
-                  {darkMode ? <Moon className="h-5 w-5 text-primary" /> : <Sun className="h-5 w-5 text-primary" />}
-                  <Label className="font-medium text-foreground">Appearance</Label>
-                </div>
+              <ProfileSection title="Appearance" icon={darkMode ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />} defaultOpen={false}>
                 <div className="flex items-center justify-between">
                   <div>
                     <Label className="text-sm text-foreground">Dark mode</Label>
@@ -1091,9 +1100,9 @@ function ProfilePage({ user }) {
                     }}
                   />
                 </div>
-              </div>
+              </ProfileSection>
 
-              <div className="flex gap-4 pt-4">
+              <div className="flex gap-4 pt-2">
                 <Button
                   variant="outline"
                   onClick={() => setEditing(false)}
@@ -1102,7 +1111,7 @@ function ProfilePage({ user }) {
                 >
                   Cancel
                 </Button>
-                <Button 
+                <Button
                   onClick={handleSave}
                   disabled={saving}
                   className="flex-1 h-12 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90"

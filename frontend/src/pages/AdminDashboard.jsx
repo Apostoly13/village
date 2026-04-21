@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 
 const Chevron = ChevronRight;
-import { formatDistanceToNow } from "date-fns";
+import { timeAgoVerbose } from "../utils/dateHelpers";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -243,9 +243,7 @@ export default function AdminDashboard({ user }) {
     return <Badge variant="outline" className="text-muted-foreground">Free</Badge>;
   };
 
-  const fmtDate = (s) => {
-    try { return formatDistanceToNow(new Date(s), { addSuffix: true }); } catch { return "—"; }
-  };
+  const fmtDate = timeAgoVerbose;
 
   // Clickable stat card
   const StatCard = ({ label, value, icon: Icon, color = "text-primary", drilldownType, sub }) => (

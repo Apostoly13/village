@@ -18,7 +18,7 @@ import { toast } from "sonner";
 import { parseApiError } from "../utils/apiError";
 import { ArrowLeft, Plus, MessageCircle, Heart, Eye, Clock, Filter, ChevronLeft, ChevronRight, HelpCircle, MapPin, Compass, Crown, MoreVertical, Edit2, Trash2, Pin, Lock, Users, X } from "lucide-react";
 import VerifiedBadge from "../components/VerifiedBadge";
-import { formatDistanceToNow } from "date-fns";
+import { timeAgoVerbose } from "../utils/dateHelpers";
 
 import { getSpaceName } from "../config/spaces";
 
@@ -78,6 +78,11 @@ export default function ForumCategory({ user }) {
       const catRes = await fetch(`${API_URL}/api/forums/categories/${categoryId}`, { credentials: "include" });
       if (catRes.ok) {
         const catData = await catRes.json();
+        // Communities now have a dedicated page — redirect there
+        if (catData?.category_type === "community" || catData?.is_user_created) {
+          navigate(`/community/${categoryId}`, { replace: true });
+          return;
+        }
         setCategory(catData);
         if (catData?.is_user_created) {
           setIsMember(catData.is_member || false);
@@ -234,13 +239,7 @@ export default function ForumCategory({ user }) {
     }
   };
 
-  const formatDate = (dateString) => {
-    try {
-      return formatDistanceToNow(new Date(dateString), { addSuffix: true });
-    } catch {
-      return "recently";
-    }
-  };
+  const formatDate = timeAgoVerbose;
 
   const PostCard = ({ post, index }) => (
     <article

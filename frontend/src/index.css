@@ -10,6 +10,49 @@
 
 @layer base {
     :root {
+        /* ─── Design Tokens ───────────────────────────────────────────────────── */
+
+        /* Typography — font families */
+        --font-body:    'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+        --font-heading: 'Nunito', sans-serif;
+        --font-mono:    'JetBrains Mono', source-code-pro, Menlo, Monaco, monospace;
+
+        /* Typography — type scale (rem) */
+        --text-xs:   0.75rem;   /* 12px */
+        --text-sm:   0.875rem;  /* 14px */
+        --text-base: 1rem;      /* 16px */
+        --text-lg:   1.125rem;  /* 18px */
+        --text-xl:   1.25rem;   /* 20px */
+        --text-2xl:  1.5rem;    /* 24px */
+        --text-3xl:  1.875rem;  /* 30px */
+        --text-4xl:  2.25rem;   /* 36px */
+
+        /* Spacing scale (rem) — 4px base unit */
+        --space-1:  0.25rem;   /* 4px  */
+        --space-2:  0.5rem;    /* 8px  */
+        --space-3:  0.75rem;   /* 12px */
+        --space-4:  1rem;      /* 16px */
+        --space-5:  1.25rem;   /* 20px */
+        --space-6:  1.5rem;    /* 24px */
+        --space-8:  2rem;      /* 32px */
+        --space-10: 2.5rem;    /* 40px */
+        --space-12: 3rem;      /* 48px */
+
+        /* Border radius scale */
+        --radius-sm:   0.5rem;   /* 8px  — small chips */
+        --radius-md:   0.75rem;  /* 12px — inputs, badges */
+        --radius-lg:   1rem;     /* 16px — cards (= --radius) */
+        --radius-xl:   1.25rem;  /* 20px — large cards */
+        --radius-full: 9999px;   /* pill buttons */
+
+        /* Animation */
+        --duration-fast:   150ms;
+        --duration-base:   250ms;
+        --duration-slow:   400ms;
+        --ease-out:        cubic-bezier(0.16, 1, 0.3, 1);
+
+        /* ─── Colour Tokens ────────────────────────────────────────────────────── */
+
         /* Light Mode - Warm & Fresh */
         --background: 30 40% 98%;
         --foreground: 30 10% 15%;
@@ -78,22 +121,22 @@ html {
 }
 
 body {
-    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: var(--font-body);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
     min-height: 100vh;
-    transition: background-color 0.3s ease, color 0.3s ease;
+    transition: background-color var(--duration-slow) ease, color var(--duration-slow) ease;
 }
 
 h1, h2, h3, h4, h5, h6 {
-    font-family: 'Nunito', sans-serif;
+    font-family: var(--font-heading);
     font-weight: 700;
 }
 
 code {
-    font-family: 'JetBrains Mono', source-code-pro, Menlo, Monaco, monospace;
+    font-family: var(--font-mono);
 }
 
 @layer base {

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, UploadFile, File
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, UploadFile, File, Body, Query
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -19,8 +19,50 @@ import httpx
 import bcrypt
 import jwt
 import resend
+import time
+from collections import defaultdict
 
 ROOT_DIR = Path(__file__).parent
+
+# ─── Simple in-memory rate limiter ────────────────────────────────────────────
+# Tracks (IP, endpoint) → list[timestamp]. Thread-safe enough for asyncio
+# (single-threaded event loop). Resets on server restart (acceptable for MVP).
+_rate_buckets: dict = defaultdict(list)
+
+def _check_rate_limit(key: str, max_requests: int, window_seconds: int):
+    """Raise HTTP 429 if key has exceeded max_requests within window_seconds."""
+    now = time.monotonic()
+    cutoff = now - window_seconds
+    bucket = _rate_buckets[key]
+    # Prune old entries
+    _rate_buckets[key] = [t for t in bucket if t > cutoff]
+    if len(_rate_buckets[key]) >= max_requests:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many requests — please wait a moment and try again."
+        )
+    _rate_buckets[key].append(now)
+
+def rate_limit(request: Request, max_requests: int = 20, window_seconds: int = 60, endpoint: str = ""):
+    """Dependency: rate-limit by client IP + optional endpoint label."""
+    ip = request.client.host if request.client else "unknown"
+    _check_rate_limit(f"{ip}:{endpoint}", max_requests, window_seconds)
+
+# ─── Fire-and-forget task helper ──────────────────────────────────────────────
+def _log_task_error(task: asyncio.Task) -> None:
+    """Callback: log exceptions from background tasks so they're never silently swallowed."""
+    if task.cancelled():
+        return
+    exc = task.exception()
+    if exc:
+        logging.error("Background task %s failed: %s", task.get_name(), exc, exc_info=exc)
+
+def fire_and_forget(coro) -> asyncio.Task:
+    """Schedule a coroutine as a background task with automatic error logging."""
+    task = asyncio.create_task(coro)
+    task.add_done_callback(_log_task_error)
+    return task
+# ──────────────────────────────────────────────────────────────────────────────
 load_dotenv(ROOT_DIR / '.env', override=True)
 
 # MongoDB connection — tuned pool for concurrent load
@@ -41,6 +83,9 @@ if not JWT_SECRET:
     raise RuntimeError("JWT_SECRET environment variable is not set. Set a strong random secret before starting the server.")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_DAYS = 7
+
+# Frontend URL — used in email links. Override in .env for production.
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000').rstrip('/')
 
 # Resend Email Config
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
@@ -217,13 +262,22 @@ class ForumPost(BaseModel):
     reply_count: int = 0
     like_count: int = 0
     views: int = 0
+    # Community post extras
+    post_type: str = "discussion"          # discussion, question, milestone, poll
+    reactions: dict = Field(default_factory=dict)  # {"❤️": ["user1", ...], ...}
+    poll_options: List[str] = []           # ["Option A", "Option B", ...]
+    poll_votes: dict = Field(default_factory=dict)  # {"0": ["user1"], "1": ["user2"]}
+    is_answered: bool = False              # for question posts
+    answered_reply_id: Optional[str] = None
+    meetup_date: Optional[str] = None      # ISO date string for meetup posts
+    meetup_location: Optional[str] = None  # Location text for meetup posts
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class ForumPostCreate(BaseModel):
     category_id: str
-    title: str
-    content: str
+    title: str = ""
+    content: str = ""
     is_anonymous: bool = False
     image: Optional[str] = None  # Base64 encoded image
     latitude: Optional[float] = None
@@ -232,6 +286,10 @@ class ForumPostCreate(BaseModel):
     postcode: Optional[str] = None
     state: Optional[str] = None
     visibility: Optional[str] = None  # "public", "friends", "only_me" — defaults to public
+    post_type: str = "discussion"      # discussion, general, question, milestone, meetup, poll
+    poll_options: List[str] = []       # for poll posts
+    meetup_date: Optional[str] = None  # ISO date string for meetup posts
+    meetup_location: Optional[str] = None  # Location text for meetup posts
 
 class ForumReply(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -616,6 +674,29 @@ def get_email_template(template_type: str, data: dict) -> tuple:
     
     return subject, html
 
+# ==================== SHARED HELPERS ====================
+
+def mask_anonymous_post(post: dict) -> dict:
+    """Overwrite author fields on anonymous posts. Returns the same dict (mutates in-place)."""
+    if post.get("is_anonymous"):
+        post["author_name"] = "Anonymous Parent"
+        post["author_picture"] = None
+        post["author_id"] = "anonymous"
+    return post
+
+async def create_notification(user_id: str, notif_type: str, title: str, message: str, link: str = "") -> None:
+    """Insert a notification document into the notifications collection."""
+    await db.notifications.insert_one({
+        "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+        "user_id": user_id,
+        "type": notif_type,
+        "title": title,
+        "message": message,
+        "link": link,
+        "is_read": False,
+        "created_at": datetime.now(timezone.utc),
+    })
+
 # ==================== LOCATION HELPERS ====================
 
 def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -783,14 +864,16 @@ async def check_nickname(name: str, user: dict = Depends(get_current_user)):
     if not name or len(name.strip()) < 2:
         return {"available": False, "reason": "Too short"}
     existing = await db.users.find_one(
-        {"nickname": {"$regex": f"^{name.strip()}$", "$options": "i"},
+        {"nickname": {"$regex": f"^{re.escape(name.strip())}$", "$options": "i"},
          "user_id": {"$ne": user["user_id"]}},
         {"_id": 0, "user_id": 1}
     )
     return {"available": existing is None}
 
 @api_router.post("/auth/login")
-async def login(user_data: UserLogin, response: Response):
+async def login(user_data: UserLogin, response: Response, request: Request):
+    # 10 login attempts per minute per IP
+    rate_limit(request, max_requests=10, window_seconds=60, endpoint="login")
     user = await db.users.find_one({"email": user_data.email}, {"_id": 0})
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -1137,14 +1220,16 @@ async def get_single_parents(user: dict = Depends(get_current_user)):
     return single_parents
 
 @api_router.get("/users/search")
-async def search_users(q: str = "", user: dict = Depends(get_current_user)):
+async def search_users(q: str = "", user: dict = Depends(get_current_user), request: Request = None):
     """Search users by name or nickname. Must be defined before /users/{user_id}."""
+    if request:
+        rate_limit(request, max_requests=30, window_seconds=60, endpoint="user-search")
     if not q or len(q) < 2:
         return []
     users = await db.users.find(
         {"$or": [
-            {"name": {"$regex": q, "$options": "i"}},
-            {"nickname": {"$regex": q, "$options": "i"}},
+            {"name": {"$regex": re.escape(q), "$options": "i"}},
+            {"nickname": {"$regex": re.escape(q), "$options": "i"}},
         ]},
         {"_id": 0, "user_id": 1, "name": 1, "nickname": 1, "picture": 1, "is_online": 1}
     ).limit(10).to_list(10)
@@ -1190,7 +1275,7 @@ async def update_profile(profile_data: UserProfileUpdate, user: dict = Depends(g
     # Nickname uniqueness check (case-insensitive, excluding self)
     if "nickname" in update_fields and update_fields["nickname"]:
         taken = await db.users.find_one(
-            {"nickname": {"$regex": f"^{update_fields['nickname'].strip()}$", "$options": "i"},
+            {"nickname": {"$regex": f"^{re.escape(update_fields['nickname'].strip())}$", "$options": "i"},
              "user_id": {"$ne": user["user_id"]}},
             {"_id": 0, "user_id": 1}
         )
@@ -1294,13 +1379,13 @@ async def get_category(category_id: str):
 async def get_posts(
     request: Request,
     category_id: Optional[str] = None,
-    limit: int = 20,
-    skip: int = 0,
+    limit: int = Query(default=20, ge=1, le=100),
+    skip: int = Query(default=0, ge=0, le=10000),
     sort: str = "newest",  # newest, oldest, popular, most_replies, unanswered, nearest
     filter_type: Optional[str] = None,  # unanswered, trending
     lat: Optional[float] = None,
     lon: Optional[float] = None,
-    distance_km: Optional[int] = None,
+    distance_km: Optional[int] = Query(default=None, ge=1, le=500),
     search: Optional[str] = None,
 ):
     # Get blocked user IDs for the current user (if authenticated)
@@ -1340,10 +1425,14 @@ async def get_posts(
         seven_days_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
         query["created_at"] = {"$gte": seven_days_ago}
 
-    # Location-based filtering
+    # Location-based filtering — bounding box pre-filter, then exact Haversine
     if lat is not None and lon is not None and distance_km is not None:
-        # Fetch all posts with location, then filter by distance in Python
-        query["latitude"] = {"$exists": True, "$ne": None}
+        # Approximate bounding box (1° lat ≈ 111km; 1° lon ≈ 111km*cos(lat))
+        lat_delta = distance_km / 111.0
+        lon_delta = distance_km / (111.0 * math.cos(math.radians(lat))) if math.cos(math.radians(lat)) != 0 else 180
+        query["latitude"] = {"$gte": lat - lat_delta, "$lte": lat + lat_delta}
+        query["longitude"] = {"$gte": lon - lon_delta, "$lte": lon + lon_delta}
+
         all_posts = await db.forum_posts.find(query, {"_id": 0}).to_list(500)
 
         filtered_posts = []
@@ -1354,7 +1443,6 @@ async def get_posts(
                     post["distance_km"] = round(dist, 1)
                     filtered_posts.append(post)
 
-        # Sort by distance (nearest first) by default for location queries
         if sort == "nearest" or sort == "newest":
             filtered_posts.sort(key=lambda x: x.get("distance_km", 9999))
         elif sort == "popular":
@@ -1363,12 +1451,8 @@ async def get_posts(
         total = len(filtered_posts)
         posts = filtered_posts[skip:skip + limit]
 
-        # Mask anonymous posts
         for post in posts:
-            if post.get("is_anonymous"):
-                post["author_name"] = "Anonymous Parent"
-                post["author_picture"] = None
-                post["author_id"] = "anonymous"
+            mask_anonymous_post(post)
 
         return {"posts": posts, "total": total, "limit": limit, "skip": skip}
 
@@ -1395,10 +1479,7 @@ async def get_posts(
 
     # Mask anonymous posts
     for post in posts:
-        if post.get("is_anonymous"):
-            post["author_name"] = "Anonymous Parent"
-            post["author_picture"] = None
-            post["author_id"] = "anonymous"
+        mask_anonymous_post(post)
 
     return {"posts": posts, "total": total, "limit": limit, "skip": skip}
 
@@ -1438,10 +1519,7 @@ async def get_trending_posts(limit: int = 5):
         post["category_name"] = category["name"] if category else "General"
         post["category_icon"] = category["icon"] if category else "💬"
 
-        if post.get("is_anonymous"):
-            post["author_name"] = "Anonymous Parent"
-            post["author_picture"] = None
-            post["author_id"] = "anonymous"
+        mask_anonymous_post(post)
 
     return posts
 
@@ -1467,11 +1545,8 @@ async def get_post(post_id: str, user: dict = Depends(get_current_user)):
     original_author_id = post["author_id"]
     post["is_own_post"] = original_author_id == user["user_id"]
     
-    if post.get("is_anonymous"):
-        post["author_name"] = "Anonymous Parent"
-        post["author_picture"] = None
-        post["author_id"] = "anonymous"
-    
+    mask_anonymous_post(post)
+
     return post
 
 @api_router.post("/forums/posts")
@@ -1511,14 +1586,18 @@ async def create_post(post_data: ForumPostCreate, user: dict = Depends(get_curre
         author_picture=user.get("picture"),
         author_subscription_tier=user.get("subscription_tier", "free"),
         is_anonymous=post_data.is_anonymous,
-        title=post_data.title,
-        content=post_data.content,
+        title=post_data.title or "",
+        content=post_data.content or "",
         image=post_data.image,
         latitude=post_lat,
         longitude=post_lon,
         suburb=post_suburb,
         postcode=post_postcode,
         state=post_state,
+        post_type=post_data.post_type or "discussion",
+        poll_options=post_data.poll_options or [],
+        meetup_date=post_data.meetup_date,
+        meetup_location=post_data.meetup_location,
     )
 
     doc = post.model_dump()
@@ -1533,11 +1612,8 @@ async def create_post(post_data: ForumPostCreate, user: dict = Depends(get_curre
     await increment_usage(user["user_id"], "forum_posts")
 
     result = post.model_dump()
-    if post.is_anonymous:
-        result["author_name"] = "Anonymous Parent"
-        result["author_picture"] = None
-        result["author_id"] = "anonymous"
-    
+    mask_anonymous_post(result)
+
     return result
 
 @api_router.post("/upload/image")
@@ -1800,10 +1876,7 @@ async def get_replies(post_id: str, user: dict = Depends(get_current_user)):
             original_author_id = reply["author_id"]
             reply["is_own_reply"] = original_author_id == user["user_id"]
 
-            if reply.get("is_anonymous"):
-                reply["author_name"] = "Anonymous Parent"
-                reply["author_picture"] = None
-                reply["author_id"] = "anonymous"
+            mask_anonymous_post(reply)
 
     return replies
 
@@ -1873,16 +1946,13 @@ async def create_reply(post_id: str, reply_data: ForumReplyCreate, user: dict = 
                     "replier_name": user.get("nickname") or user["name"],
                     "post_title": post["title"],
                     "reply_preview": reply_data.content,
-                    "link": f"http://localhost:3000/forums/post/{post_id}"
+                    "link": f"{FRONTEND_URL}/forums/post/{post_id}"
                 })
-                asyncio.create_task(send_email_notification(post_author["email"], subject, html))
+                fire_and_forget(send_email_notification(post_author["email"], subject, html))
     
     result = reply.model_dump()
-    if reply.is_anonymous:
-        result["author_name"] = "Anonymous Parent"
-        result["author_picture"] = None
-        result["author_id"] = "anonymous"
-    
+    mask_anonymous_post(result)
+
     return result
 
 @api_router.put("/forums/replies/{reply_id}")
@@ -1984,6 +2054,230 @@ async def like_reply(reply_id: str, user: dict = Depends(get_current_user)):
         await db.forum_replies.update_one({"reply_id": reply_id}, {"$inc": {"like_count": 1}})
         return {"liked": True}
 
+# ==================== COMMUNITY ENDPOINTS ====================
+
+@api_router.get("/communities/{community_id}")
+async def get_community_detail(community_id: str, current_user: dict = Depends(get_current_user)):
+    """Get full community detail with member preview — for the dedicated community page."""
+    community = await db.forum_categories.find_one(
+        {"category_id": community_id, "category_type": "community"}, {"_id": 0}
+    )
+    if not community:
+        raise HTTPException(status_code=404, detail="Community not found")
+
+    # Get member details for sidebar preview (up to 20)
+    member_ids = community.get("member_ids", [])
+    members_preview = []
+    if member_ids:
+        preview_ids = member_ids[:20]
+        cursor = db.users.find(
+            {"user_id": {"$in": preview_ids}},
+            {"user_id": 1, "display_name": 1, "profile_picture_url": 1, "nickname": 1, "_id": 0}
+        )
+        async for u in cursor:
+            members_preview.append({
+                "user_id": u["user_id"],
+                "display_name": u.get("nickname") or u.get("display_name", ""),
+                "picture": u.get("profile_picture_url"),
+            })
+
+    uid = current_user["user_id"]
+    return {
+        **community,
+        "members_preview": members_preview,
+        "total_member_count": len(member_ids),
+        "is_member": uid in member_ids,
+        "is_creator": uid == community.get("created_by"),
+    }
+
+
+@api_router.get("/communities/{community_id}/posts")
+async def get_community_posts(
+    community_id: str,
+    limit: int = 30,
+    offset: int = 0,
+    post_type: Optional[str] = None,
+    current_user: dict = Depends(get_current_user),
+):
+    """Get posts for a community with reaction/poll metadata for the current user."""
+    query: dict = {"category_id": community_id, "is_deleted": {"$ne": True}}
+    if post_type and post_type != "all":
+        query["post_type"] = post_type
+
+    cursor = db.forum_posts.find(query, {"_id": 0}).sort("created_at", -1).skip(offset).limit(limit)
+    posts = []
+    uid = current_user["user_id"]
+    async for p in cursor:
+        # Which emojis has this user reacted with?
+        user_reactions = [
+            emoji for emoji, users in p.get("reactions", {}).items() if uid in users
+        ]
+        p["user_reactions"] = user_reactions
+
+        # Which poll option has this user voted for?
+        user_poll_vote = None
+        for idx_str, voters in p.get("poll_votes", {}).items():
+            if uid in voters:
+                user_poll_vote = int(idx_str)
+                break
+        p["user_poll_vote"] = user_poll_vote
+
+        mask_anonymous_post(p)
+        posts.append(p)
+    return posts
+
+
+@api_router.get("/communities/{community_id}/members")
+async def get_community_members(community_id: str, current_user: dict = Depends(get_current_user)):
+    """Get the full member list for a community."""
+    community = await db.forum_categories.find_one(
+        {"category_id": community_id, "category_type": "community"}, {"_id": 0}
+    )
+    if not community:
+        raise HTTPException(status_code=404, detail="Community not found")
+
+    member_ids = community.get("member_ids", [])
+    members = []
+    if member_ids:
+        cursor = db.users.find(
+            {"user_id": {"$in": member_ids}},
+            {"user_id": 1, "display_name": 1, "profile_picture_url": 1, "nickname": 1, "_id": 0}
+        )
+        async for u in cursor:
+            members.append({
+                "user_id": u["user_id"],
+                "display_name": u.get("nickname") or u.get("display_name", "Member"),
+                "picture": u.get("profile_picture_url"),
+                "is_creator": u["user_id"] == community.get("created_by"),
+            })
+    return {"members": members, "total": len(member_ids)}
+
+
+@api_router.delete("/communities/{community_id}/members/{user_id}")
+async def remove_community_member(
+    community_id: str, user_id: str, current_user: dict = Depends(get_current_user)
+):
+    """Remove a member from a community. Only creator or admin/mod can do this."""
+    community = await db.forum_categories.find_one(
+        {"category_id": community_id, "category_type": "community"}, {"_id": 0}
+    )
+    if not community:
+        raise HTTPException(status_code=404, detail="Community not found")
+
+    is_creator = community.get("created_by") == current_user["user_id"]
+    is_admin = current_user.get("role") in ("admin", "moderator")
+    if not (is_creator or is_admin):
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    if user_id == community.get("created_by"):
+        raise HTTPException(status_code=400, detail="Cannot remove the community creator")
+
+    await db.forum_categories.update_one(
+        {"category_id": community_id},
+        {"$pull": {"member_ids": user_id}, "$inc": {"member_count": -1}}
+    )
+    return {"message": "Member removed"}
+
+
+@api_router.post("/forums/posts/{post_id}/react")
+async def react_to_post(
+    post_id: str,
+    payload: dict = Body(...),
+    current_user: dict = Depends(get_current_user),
+):
+    """Toggle an emoji reaction on a post. Payload: {"emoji": "❤️"}"""
+    ALLOWED_REACTIONS = {"❤️", "🤣", "😮", "💪", "🌟"}
+    emoji = payload.get("emoji", "")
+    if emoji not in ALLOWED_REACTIONS:
+        raise HTTPException(status_code=400, detail="Invalid reaction emoji")
+
+    post = await db.forum_posts.find_one({"post_id": post_id}, {"_id": 0})
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    uid = current_user["user_id"]
+    reactions = post.get("reactions", {})
+    emoji_users = reactions.get(emoji, [])
+
+    if uid in emoji_users:
+        # Remove reaction
+        await db.forum_posts.update_one(
+            {"post_id": post_id},
+            {"$pull": {f"reactions.{emoji}": uid}}
+        )
+    else:
+        # Add reaction (initialise array if missing)
+        await db.forum_posts.update_one(
+            {"post_id": post_id},
+            {"$addToSet": {f"reactions.{emoji}": uid}}
+        )
+
+    updated = await db.forum_posts.find_one({"post_id": post_id}, {"_id": 0})
+    updated_reactions = updated.get("reactions", {})
+    user_reactions = [e for e, users in updated_reactions.items() if uid in users]
+    return {"reactions": updated_reactions, "user_reactions": user_reactions}
+
+
+@api_router.post("/forums/posts/{post_id}/poll-vote")
+async def vote_on_poll(
+    post_id: str,
+    payload: dict = Body(...),
+    current_user: dict = Depends(get_current_user),
+):
+    """Vote on a poll option. Payload: {"option_index": 0}"""
+    post = await db.forum_posts.find_one({"post_id": post_id}, {"_id": 0})
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if post.get("post_type") != "poll":
+        raise HTTPException(status_code=400, detail="This post is not a poll")
+
+    option_index = payload.get("option_index")
+    if option_index is None or not isinstance(option_index, int):
+        raise HTTPException(status_code=400, detail="option_index required")
+
+    poll_options = post.get("poll_options", [])
+    if option_index < 0 or option_index >= len(poll_options):
+        raise HTTPException(status_code=400, detail="Invalid option index")
+
+    uid = current_user["user_id"]
+
+    # Remove user from all other options (change vote)
+    for i in range(len(poll_options)):
+        await db.forum_posts.update_one(
+            {"post_id": post_id},
+            {"$pull": {f"poll_votes.{i}": uid}}
+        )
+
+    # Cast vote
+    await db.forum_posts.update_one(
+        {"post_id": post_id},
+        {"$addToSet": {f"poll_votes.{option_index}": uid}}
+    )
+
+    updated = await db.forum_posts.find_one({"post_id": post_id}, {"_id": 0})
+    return {"poll_votes": updated.get("poll_votes", {}), "user_poll_vote": option_index}
+
+
+@api_router.post("/forums/posts/{post_id}/mark-answered")
+async def mark_post_answered(
+    post_id: str,
+    payload: dict = Body(...),
+    current_user: dict = Depends(get_current_user),
+):
+    """Mark a reply as the answer to a question post (post author only)."""
+    post = await db.forum_posts.find_one({"post_id": post_id}, {"_id": 0})
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if post.get("author_id") != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Only the post author can mark an answer")
+    reply_id = payload.get("reply_id")
+    await db.forum_posts.update_one(
+        {"post_id": post_id},
+        {"$set": {"is_answered": True, "answered_reply_id": reply_id}}
+    )
+    return {"is_answered": True, "answered_reply_id": reply_id}
+
+
 # ==================== BOOKMARKS ENDPOINTS ====================
 
 @api_router.post("/forums/posts/{post_id}/bookmark")
@@ -2044,11 +2338,7 @@ async def get_bookmarks(user: dict = Depends(get_current_user), limit: int = 20,
                 post["category_icon"] = cat.get("icon", "💬")
                 post["bookmarked_at"] = bm["created_at"]
 
-                if post.get("is_anonymous"):
-                    post["author_name"] = "Anonymous Parent"
-                    post["author_picture"] = None
-                    post["author_id"] = "anonymous"
-
+                mask_anonymous_post(post)
                 posts.append(post)
 
     return posts
@@ -2148,7 +2438,7 @@ async def get_events(
         "date": {"$gte": today},
     }
     if suburb:
-        query["suburb"] = {"$regex": suburb, "$options": "i"}
+        query["suburb"] = {"$regex": re.escape(suburb), "$options": "i"}
     if state and state != "all":
         query["state"] = state
     if category and category != "all":
@@ -3226,9 +3516,9 @@ async def send_direct_message(message_data: DirectMessageCreate, user: dict = De
         subject, html = get_email_template("dm", {
             "sender_name": user.get("nickname") or user["name"],
             "message_preview": message_data.content,
-            "link": f"http://localhost:3000/messages/{user['user_id']}"
+            "link": f"{FRONTEND_URL}/messages/{user['user_id']}"
         })
-        asyncio.create_task(send_email_notification(receiver["email"], subject, html))
+        fire_and_forget(send_email_notification(receiver["email"], subject, html))
     
     return message.model_dump()
 
@@ -3296,9 +3586,9 @@ async def send_friend_request(request_data: FriendRequestCreate, user: dict = De
     if email_prefs.get("notify_friend_requests", True) and target.get("email"):
         subject, html = get_email_template("friend_request", {
             "sender_name": user.get("nickname") or user["name"],
-            "link": "http://localhost:3000/friends"
+            "link": f"{FRONTEND_URL}/friends"
         })
-        asyncio.create_task(send_email_notification(target["email"], subject, html))
+        fire_and_forget(send_email_notification(target["email"], subject, html))
     
     return {"message": "Friend request sent", "request_id": request.request_id}
 
@@ -3480,7 +3770,7 @@ async def remove_friend(friend_id: str, user: dict = Depends(get_current_user)):
 # ==================== FEED/HOME ENDPOINTS ====================
 
 @api_router.get("/feed")
-async def get_feed(request: Request, limit: int = 20, skip: int = 0):
+async def get_feed(request: Request, limit: int = Query(default=20, ge=1, le=100), skip: int = Query(default=0, ge=0, le=10000)):
     """Get recent posts for the home feed"""
     # Exclude only_me posts unless the viewer is the author
     current_user_id = None
@@ -3541,29 +3831,25 @@ async def get_feed(request: Request, limit: int = 20, skip: int = 0):
         post["category_icon"] = category["icon"] if category else "💬"
         post["user_liked"] = post.get("post_id") in liked_set
 
-        if post.get("is_anonymous"):
-            post["author_name"] = "Anonymous Parent"
-            post["author_picture"] = None
-            post["author_id"] = "anonymous"
+        mask_anonymous_post(post)
 
     return posts
 
 @api_router.get("/search")
-async def search_posts(q: str, limit: int = 20):
+async def search_posts(q: str, limit: int = Query(default=20, ge=1, le=100), request: Request = None):
     """Search posts by title or content"""
+    if request:
+        rate_limit(request, max_requests=30, window_seconds=60, endpoint="post-search")
     posts = await db.forum_posts.find(
         {"$or": [
-            {"title": {"$regex": q, "$options": "i"}},
-            {"content": {"$regex": q, "$options": "i"}}
+            {"title": {"$regex": re.escape(q), "$options": "i"}},
+            {"content": {"$regex": re.escape(q), "$options": "i"}}
         ]},
         {"_id": 0}
     ).sort("created_at", -1).limit(limit).to_list(limit)
     
     for post in posts:
-        if post.get("is_anonymous"):
-            post["author_name"] = "Anonymous Parent"
-            post["author_picture"] = None
-            post["author_id"] = "anonymous"
+        mask_anonymous_post(post)
     
     return posts
 
@@ -3683,10 +3969,11 @@ async def admin_get_users(
 ):
     query = {}
     if search:
+        sq = re.escape(search)
         query["$or"] = [
-            {"name": {"$regex": search, "$options": "i"}},
-            {"email": {"$regex": search, "$options": "i"}},
-            {"nickname": {"$regex": search, "$options": "i"}}
+            {"name": {"$regex": sq, "$options": "i"}},
+            {"email": {"$regex": sq, "$options": "i"}},
+            {"nickname": {"$regex": sq, "$options": "i"}}
         ]
     if filter == "auto_suspended":
         query["auto_suspended"] = True
@@ -3755,14 +4042,26 @@ async def admin_get_reports(
     skip = (page - 1) * limit
     reports = await db.reports.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
 
+    # Batch-fetch all related content and reporters (avoids N+1)
+    post_ids = [r["content_id"] for r in reports if r.get("content_type") == "post" and r.get("content_id")]
+    reply_ids = [r["content_id"] for r in reports if r.get("content_type") != "post" and r.get("content_id")]
+    reporter_ids = list({r["reporter_id"] for r in reports if r.get("reporter_id")})
+
+    posts_map, replies_map, reporters_map = {}, {}, {}
+    if post_ids:
+        async for doc in db.forum_posts.find({"post_id": {"$in": post_ids}}, {"_id": 0}):
+            posts_map[doc["post_id"]] = doc
+    if reply_ids:
+        async for doc in db.forum_replies.find({"reply_id": {"$in": reply_ids}}, {"_id": 0}):
+            replies_map[doc["reply_id"]] = doc
+    if reporter_ids:
+        async for doc in db.users.find({"user_id": {"$in": reporter_ids}}, {"_id": 0, "password_hash": 0}):
+            reporters_map[doc["user_id"]] = doc
+
     for report in reports:
-        if report.get("content_type") == "post":
-            content = await db.forum_posts.find_one({"post_id": report.get("content_id")}, {"_id": 0})
-        else:
-            content = await db.forum_replies.find_one({"reply_id": report.get("content_id")}, {"_id": 0})
-        report["content"] = content
-        reporter = await db.users.find_one({"user_id": report.get("reporter_id")}, {"_id": 0, "password_hash": 0})
-        report["reporter"] = reporter
+        cid = report.get("content_id")
+        report["content"] = posts_map.get(cid) if report.get("content_type") == "post" else replies_map.get(cid)
+        report["reporter"] = reporters_map.get(report.get("reporter_id"))
 
     total = await db.reports.count_documents(query)
     return {"reports": reports, "total": total, "page": page, "pages": math.ceil(total / limit) if total > 0 else 1}
@@ -4470,8 +4769,10 @@ app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
     allow_origins=_cors_origins,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+    expose_headers=["Content-Length"],
+    max_age=600,  # preflight cache 10 min
 )
 
 # Include the router in the main app (after middleware so CORS applies correctly)
