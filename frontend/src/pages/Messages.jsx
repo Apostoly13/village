@@ -262,9 +262,11 @@ export default function Messages({ user }) {
   }, [activeDmUser, chatMode]);
 
   // Auto-scroll only when user is already at the bottom
+  // Use scrollTop directly on the container — scrollIntoView can bubble up and scroll the page
   useEffect(() => {
     if (isAtBottom.current) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      const el = scrollContainerRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
     }
   }, [messages]);
 
@@ -272,7 +274,10 @@ export default function Messages({ user }) {
   useEffect(() => {
     isAtBottom.current = true;
     prevMsgCount.current = 0;
-    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "auto" }), 0);
+    setTimeout(() => {
+      const el = scrollContainerRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    }, 0);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeRoomId, activeDmUser]);
 

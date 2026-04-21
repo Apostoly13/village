@@ -5,6 +5,14 @@ import AppFooter from "../components/AppFooter";
 
 const CHANGELOG = [
   {
+    version: "2.8.3",
+    date: "April 2026",
+    title: "Scroll Fix — Messages No Longer Hijacks the Page",
+    entries: [
+      { tag: "Fixed", text: "Messages page and chat popout were scrolling the entire browser page to the bottom when new messages arrived. Switched from scrollIntoView() (which bubbles up to the page) to direct scrollTop assignment on the messages container — only the chat scrolls now." },
+    ],
+  },
+  {
     version: "2.8.2",
     date: "April 2026",
     title: "Infrastructure Tuning, Seed Data & Test Suite",

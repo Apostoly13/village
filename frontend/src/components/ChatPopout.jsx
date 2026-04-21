@@ -108,9 +108,11 @@ export default function ChatPopout({ user }) {
   }, [roomId]);
 
   // Auto-scroll only when user is already at the bottom
+  // Use scrollTop directly — scrollIntoView can bubble up and scroll the whole page
   useEffect(() => {
     if (open && view === "chat" && isAtBottom.current) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      const el = scrollContainerRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
     }
   }, [messages, open, view]);
 
@@ -118,7 +120,10 @@ export default function ChatPopout({ user }) {
   useEffect(() => {
     if (open && view === "chat") {
       isAtBottom.current = true;
-      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "auto" }), 0);
+      setTimeout(() => {
+        const el = scrollContainerRef.current;
+        if (el) el.scrollTop = el.scrollHeight;
+      }, 0);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, activeDmUser, view, open]);
