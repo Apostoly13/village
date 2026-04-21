@@ -218,11 +218,23 @@ export default function Landing() {
     document.documentElement.classList.contains("dark")
   );
   const [demoTab, setDemoTab] = useState("spaces");
+  const [onlineStats, setOnlineStats] = useState({ online_now: null, active_rooms: 0 });
 
   useEffect(() => {
     fetch(`${API_URL}/api/seed`, { method: "POST" }).catch(() => {});
     const user = localStorage.getItem("user");
     if (user) navigate("/dashboard");
+
+    // Fetch live online count for hero badge
+    const fetchStats = () => {
+      fetch(`${API_URL}/api/stats/online`)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d) setOnlineStats(d); })
+        .catch(() => {});
+    };
+    fetchStats();
+    const interval = setInterval(fetchStats, 60000); // refresh every 60s
+    return () => clearInterval(interval);
   }, [navigate]);
 
   const toggleTheme = () => {
@@ -335,7 +347,13 @@ export default function Landing() {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
                 </span>
-                <span className="text-sm text-muted-foreground">Australian parents online right now</span>
+                <span className="text-sm text-muted-foreground">
+                  {onlineStats.online_now === null
+                    ? "Australian parents online right now"
+                    : onlineStats.online_now === 0
+                      ? "Be the first parent online today"
+                      : `${onlineStats.online_now} Australian parent${onlineStats.online_now === 1 ? "" : "s"} online right now`}
+                </span>
               </div>
 
               <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground leading-tight">

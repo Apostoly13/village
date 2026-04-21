@@ -5,6 +5,31 @@ import AppFooter from "../components/AppFooter";
 
 const CHANGELOG = [
   {
+    version: "2.8.2",
+    date: "April 2026",
+    title: "Infrastructure Tuning, Seed Data & Test Suite",
+    entries: [
+      { tag: "Improved", text: "MongoDB connection pool tuned — maxPoolSize 50, minPoolSize 5, idle timeout 30s, connect timeout 5s. Reduces latency spikes under concurrent load on the hosted DB." },
+      { tag: "Improved", text: "uvicorn now runs with 4 workers and uvloop event loop on Railway — meaningfully higher throughput for concurrent API requests" },
+      { tag: "Added",    text: "Seed endpoint now seeds 4 sample events (Morning Playgroup, Mums Coffee Morning, Dad & Toddler Catch-up, Online Q&A Webinar) and 3 communities (Bondi Beach Mums, Sydney Dads Network, NICU & Premmie Parents) if collections are empty" },
+      { tag: "Fixed",    text: "Events modal had two close buttons — shadcn DialogContent auto-renders its own X plus the header had a custom one. Suppressed the shadcn auto-X via [&>button]:hidden." },
+      { tag: "Improved", text: "Comprehensive test suite now accepts --url flag so it can run against any environment: python test_comprehensive.py --url https://backend.railway.app/api" },
+      { tag: "Improved", text: "Test suite events and communities creation now uses the premium user session — avoids false 403 failures from tier-gating in those sections" },
+      { tag: "Added",    text: "MongoDB indexes added for notifications and direct_messages collections — (user_id, is_read), (user_id, created_at), (receiver_id, sender_id, created_at) — dramatically faster queries on hosted DB" },
+    ],
+  },
+  {
+    version: "2.8.1",
+    date: "April 2026",
+    title: "Backend Fixes & Live Online Count",
+    entries: [
+      { tag: "Fixed",   text: "verified_partner role now accepted by admin endpoint — admins can assign clinician badge to healthcare professionals" },
+      { tag: "Fixed",   text: "GET /users/blocked returning 404 — route was shadowed by the wildcard /users/{user_id} pattern. Moved to correct position." },
+      { tag: "Added",   text: "GET /stats/online — new public endpoint returning live online_now count (users active in last 5 min) and active_rooms (rooms with messages in last hour)" },
+      { tag: "Improved", text: "Landing page hero badge now shows live count — '12 Australian parents online right now'. Refreshes every 60s. Shows 0 if empty, falls back to static label if API unreachable." },
+    ],
+  },
+  {
     version: "2.8.0",
     date: "April 2026",
     title: "Homepage Redesign, Scroll Fixes & Clinician Page",

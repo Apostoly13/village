@@ -23,9 +23,16 @@ import resend
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env', override=True)
 
-# MongoDB connection
+# MongoDB connection — tuned pool for concurrent load
 mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
+client = AsyncIOMotorClient(
+    mongo_url,
+    maxPoolSize=50,          # max concurrent connections
+    minPoolSize=5,           # keep 5 warm connections
+    maxIdleTimeMS=30000,     # recycle idle connections after 30s
+    connectTimeoutMS=5000,
+    serverSelectionTimeoutMS=5000,
+)
 db = client[os.environ['DB_NAME']]
 
 # JWT Config
@@ -958,6 +965,23 @@ async def logout(request: Request, response: Response):
 
 # ==================== USER PROFILE ENDPOINTS ====================
 
+@api_router.get("/stats/online")
+async def get_online_stats():
+    """Public endpoint — live platform stats for landing page hero."""
+    from datetime import timedelta
+    five_min_ago = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
+    online_now = await db.users.count_documents({"last_seen_at": {"$gte": five_min_ago}})
+    # Count rooms that have had a message in the last hour
+    one_hour_ago = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+    active_rooms = await db.chat_messages.count_documents({"created_at": {"$gte": one_hour_ago}})
+    # Rough distinct room count (cap at actual value)
+    try:
+        active_room_ids = await db.chat_messages.distinct("room_id", {"created_at": {"$gte": one_hour_ago}})
+        active_rooms = len(active_room_ids)
+    except Exception:
+        pass
+    return {"online_now": online_now, "active_rooms": active_rooms}
+
 @api_router.post("/users/heartbeat")
 async def heartbeat(user: dict = Depends(get_current_user)):
     """Update user's last_seen_at and auto-convert expired trial → free"""
@@ -1124,6 +1148,19 @@ async def search_users(q: str = "", user: dict = Depends(get_current_user)):
         ]},
         {"_id": 0, "user_id": 1, "name": 1, "nickname": 1, "picture": 1, "is_online": 1}
     ).limit(10).to_list(10)
+    return users
+
+@api_router.get("/users/blocked")
+async def get_blocked_users_early(user: dict = Depends(get_current_user)):
+    """Get list of users blocked by the current user (early route — avoids /users/{user_id} shadow)"""
+    blocks = await db.user_blocks.find({"blocker_id": user["user_id"]}, {"_id": 0}).to_list(200)
+    blocked_ids = [b["blocked_id"] for b in blocks]
+    if not blocked_ids:
+        return []
+    users = await db.users.find(
+        {"user_id": {"$in": blocked_ids}},
+        {"_id": 0, "user_id": 1, "name": 1, "nickname": 1, "picture": 1}
+    ).to_list(200)
     return users
 
 @api_router.get("/users/{user_id}")
@@ -3683,11 +3720,16 @@ async def admin_unban_user(user_id: str, admin: dict = Depends(get_admin_user)):
 async def admin_set_role(user_id: str, request: Request, admin: dict = Depends(get_admin_user)):
     body = await request.json()
     role = body.get("role")
-    if role not in ("user", "moderator", "admin"):
+    if role not in ("user", "moderator", "admin", "verified_partner"):
         raise HTTPException(400, "Invalid role")
     if admin.get("role") != "admin" and role == "admin":
         raise HTTPException(403, "Only admins can promote to admin")
-    await db.users.update_one({"user_id": user_id}, {"$set": {"role": role}})
+    update: dict = {"role": role}
+    if role == "verified_partner":
+        update["is_verified_partner"] = True
+    elif role == "user":
+        update["is_verified_partner"] = False
+    await db.users.update_one({"user_id": user_id}, {"$set": update})
     return {"message": f"Role updated to {role}"}
 
 @api_router.post("/admin/users/{user_id}/subscription")
@@ -4309,6 +4351,104 @@ async def seed_data():
             room["created_at"] = datetime.now(timezone.utc).isoformat()
             await db.chat_rooms.insert_one(room)
     
+    # ── Seed sample events (only if none exist) ──────────────────────────────
+    event_count = await db.events.count_documents({})
+    if event_count == 0:
+        # Find or use admin user as organiser
+        admin_user = await db.users.find_one({"role": "admin"})
+        organiser_id   = admin_user["user_id"] if admin_user else "admin_seed"
+        organiser_name = admin_user.get("nickname") or admin_user.get("name", "Village Team") if admin_user else "Village Team"
+        sample_events = [
+            {
+                "event_id": f"evt_{uuid.uuid4().hex[:12]}",
+                "title": "Morning Playgroup — Newborns & Babies",
+                "description": "A relaxed morning playgroup for parents of newborns and babies up to 12 months. Come along, meet other parents, and enjoy a coffee while the babies play!",
+                "date": "2026-05-10", "time": "09:30",
+                "venue_name": "Centennial Park", "venue_address": "Oxford St, Paddington NSW 2021",
+                "suburb": "Paddington", "postcode": "2021", "state": "NSW",
+                "latitude": -33.8915, "longitude": 151.2331,
+                "max_attendees": 15, "category": "Playgroup", "is_online": False,
+                "organiser_user_id": organiser_id, "organiser_name": organiser_name,
+                "attendees": [], "rsvp_count": 0, "emoji": "👶",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            },
+            {
+                "event_id": f"evt_{uuid.uuid4().hex[:12]}",
+                "title": "Mums Coffee Morning",
+                "description": "A casual coffee catch-up for mums. All welcome — bump, baby, or toddler in tow!",
+                "date": "2026-05-17", "time": "10:00",
+                "venue_name": "The Grounds of Alexandria", "venue_address": "7A/2 Huntley St, Alexandria NSW 2015",
+                "suburb": "Alexandria", "postcode": "2015", "state": "NSW",
+                "latitude": -33.9116, "longitude": 151.1952,
+                "max_attendees": 20, "category": "Social", "is_online": False,
+                "organiser_user_id": organiser_id, "organiser_name": organiser_name,
+                "attendees": [], "rsvp_count": 0, "emoji": "☕",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            },
+            {
+                "event_id": f"evt_{uuid.uuid4().hex[:12]}",
+                "title": "Dad & Toddler Catch-up",
+                "description": "A morning out for dads and their toddlers. Bring a snack, enjoy the fresh air and connect with other dads.",
+                "date": "2026-05-18", "time": "08:00",
+                "venue_name": "Bicentennial Park", "venue_address": "Homebush Bay Dr, Homebush Bay NSW 2127",
+                "suburb": "Homebush", "postcode": "2140", "state": "NSW",
+                "latitude": -33.8478, "longitude": 151.0665,
+                "max_attendees": 10, "category": "Dad Group", "is_online": False,
+                "organiser_user_id": organiser_id, "organiser_name": organiser_name,
+                "attendees": [], "rsvp_count": 0, "emoji": "👨",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            },
+            {
+                "event_id": f"evt_{uuid.uuid4().hex[:12]}",
+                "title": "Online Q&A: Newborn Sleep — What Actually Works",
+                "description": "Join our verified midwife for a 45-minute online session on newborn sleep. Questions welcome! Link sent on RSVP.",
+                "date": "2026-05-14", "time": "19:30",
+                "venue_name": "Online (Zoom)", "venue_address": "",
+                "suburb": "Online", "postcode": "", "state": "All Australia",
+                "latitude": None, "longitude": None,
+                "max_attendees": 50, "category": "Webinar", "is_online": True,
+                "organiser_user_id": organiser_id, "organiser_name": organiser_name,
+                "attendees": [], "rsvp_count": 0, "emoji": "🎙️",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            },
+        ]
+        await db.events.insert_many(sample_events)
+        logging.info(f"Seeded {len(sample_events)} sample events")
+
+    # ── Seed sample communities (only if none exist) ───────────────────────────
+    community_count = await db.forum_communities.count_documents({})
+    if community_count == 0:
+        admin_user = admin_user if 'admin_user' in dir() else await db.users.find_one({"role": "admin"})
+        creator_id = admin_user["user_id"] if admin_user else "admin_seed"
+        sample_communities = [
+            {
+                "community_id": f"com_{uuid.uuid4().hex[:12]}",
+                "name": "Bondi Beach Mums",
+                "description": "A local community for mums in and around Bondi Beach. Coffee dates, beach walks, and real talk.",
+                "is_private": False, "created_by": creator_id,
+                "member_count": 1, "member_ids": [creator_id],
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            },
+            {
+                "community_id": f"com_{uuid.uuid4().hex[:12]}",
+                "name": "Sydney Dads Network",
+                "description": "Sydney-based dads supporting each other — meetups, advice, and good company.",
+                "is_private": False, "created_by": creator_id,
+                "member_count": 1, "member_ids": [creator_id],
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            },
+            {
+                "community_id": f"com_{uuid.uuid4().hex[:12]}",
+                "name": "NICU & Premmie Parents",
+                "description": "A private, safe space for families who have experienced the NICU journey.",
+                "is_private": True, "created_by": creator_id,
+                "member_count": 1, "member_ids": [creator_id],
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            },
+        ]
+        await db.forum_communities.insert_many(sample_communities)
+        logging.info(f"Seeded {len(sample_communities)} sample communities")
+
     return {"message": "Data seeded successfully"}
 
 @api_router.get("/")
