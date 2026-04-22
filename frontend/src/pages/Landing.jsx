@@ -70,7 +70,7 @@ const DEMO_EVENTS = [
   },
   {
     id: 2,
-    title: "Mums Coffee Morning",
+    title: "Parents Coffee Morning",
     date: "Sat 12 Apr",
     time: "10:00 AM",
     venue: "The Grounds, Alexandria",
@@ -82,15 +82,15 @@ const DEMO_EVENTS = [
   },
   {
     id: 3,
-    title: "Dad & Toddler Catch-up",
+    title: "Toddler Playgroup — Outdoor Fun",
     date: "Sun 13 Apr",
     time: "8:00 AM",
     venue: "Bicentennial Park, Homebush",
     distance: "5.1km away",
     rsvp: 5,
     limit: 10,
-    category: "Dad Group",
-    emoji: "👨",
+    category: "Playgroup",
+    emoji: "🏃",
   },
 ];
 
@@ -616,8 +616,8 @@ export default function Landing() {
               <div className="space-y-3">
                 {[
                   { icon: "🌙", name: "3am Club", desc: "For the late-night moments — always someone awake", featured: true },
-                  { icon: "👩", name: "Mum Chat", desc: "A dedicated space just for mums" },
-                  { icon: "👨", name: "Dad Chat", desc: "Real talk for dads, no judgment" },
+                  { icon: "🧠", name: "Mental Health", desc: "An open, judgment-free space for the hard days" },
+                  { icon: "😴", name: "Sleep & Settling", desc: "Share what worked — or just commiserate" },
                   { icon: "📍", name: "Your Local Group", desc: "Chat with parents in your suburb" },
                 ].map((room, idx) => (
                   <div key={idx} className={`flex items-center gap-4 p-4 rounded-xl border transition-colors ${room.featured ? "bg-primary/5 border-primary/30" : "bg-card border-border/50 hover:border-primary/30"}`}>

@@ -263,6 +263,15 @@ function ProfilePage({ user }) {
         setProfile(updated);
         setEditing(false);
         toast.success("Profile updated!");
+
+        // Sync localStorage so other pages see fresh data on next mount
+        try {
+          const stored = JSON.parse(localStorage.getItem("user") || "{}");
+          const merged = { ...stored, ...updated };
+          localStorage.setItem("user", JSON.stringify(merged));
+          // Notify any mounted pages (ChatRooms, Forums, etc.) to re-render immediately
+          window.dispatchEvent(new CustomEvent("village:profileUpdated", { detail: merged }));
+        } catch {}
       } else {
         toast.error("Failed to update profile");
       }

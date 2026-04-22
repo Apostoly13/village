@@ -767,6 +767,11 @@ function CreateEventForm({ onCreated, onClose }) {
           {submitting ? "Creating..." : "Create Event"}
         </Button>
       </div>
+      <p className="text-xs text-muted-foreground text-center pt-1">
+        By creating an event you agree to our{" "}
+        <a href="/community-guidelines" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-foreground">Community Guidelines</a>.
+        For in-person meetups, always meet in a public place and trust your instincts.
+      </p>
     </form>
   );
 }
@@ -963,6 +968,12 @@ function EventDetailModal({ event, user, onClose, onRsvp, onUpdated }) {
                 </Button>
               </div>
             </div>
+            {/* Safety notice for in-person events */}
+            {(localEvent.venue_name || localEvent.venue_address || localEvent.suburb) && (
+              <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border/20">
+                🛡️ For in-person meetups, always meet in a public place and let someone know where you're going. Stay safe.
+              </p>
+            )}
           </div>
 
           {/* ── Right: Event chat ────────────────────────────────── */}

@@ -14,7 +14,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
 from typing import List, Optional
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, date as date_type
 import httpx
 import bcrypt
 import jwt
@@ -142,6 +142,7 @@ class UserCreate(BaseModel):
     password: Optional[str] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+    date_of_birth: Optional[str] = None  # ISO date string YYYY-MM-DD
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -783,6 +784,18 @@ async def register(user_data: UserCreate, response: Response):
     if not (user_data.last_name or "").strip():
         raise HTTPException(status_code=400, detail="Last name is required")
 
+    # Age verification — must be 18+
+    if not user_data.date_of_birth:
+        raise HTTPException(status_code=400, detail="Date of birth is required")
+    try:
+        dob = date_type.fromisoformat(user_data.date_of_birth)
+        today = date_type.today()
+        age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+        if age < 18:
+            raise HTTPException(status_code=400, detail="You must be 18 or older to join The Village")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date of birth format")
+
     # Password strength
     pwd = user_data.password
     if len(pwd) < 8:
@@ -806,6 +819,7 @@ async def register(user_data: UserCreate, response: Response):
         "first_name": user_data.first_name.strip(),
         "last_name": user_data.last_name.strip(),
         "name": full_name,
+        "date_of_birth": user_data.date_of_birth,  # stored for age verification; not surfaced publicly
         "password_hash": hash_password(user_data.password),
         "picture": None,
         "nickname": None,          # Set during onboarding (display name step)

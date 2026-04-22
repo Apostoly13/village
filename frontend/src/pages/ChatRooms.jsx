@@ -46,6 +46,9 @@ export default function ChatRooms({ user }) {
   const [activeTab, setActiveTab] = useState("village");
   const [creatingRoom, setCreatingRoom] = useState(false);
 
+  // Live gender — starts from prop, updates instantly when profile is saved
+  const [liveGender, setLiveGender] = useState(user?.gender);
+
   // Local Circles search state (replaces the separate Search tab)
   const [localSearch, setLocalSearch] = useState("");
   const [searchResults, setSearchResults] = useState([]);
@@ -63,6 +66,13 @@ export default function ChatRooms({ user }) {
   useEffect(() => {
     fetchRooms();
     fetchFriends();
+
+    // Listen for profile updates — update gender instantly without page reload
+    const handleProfileUpdate = (e) => {
+      if (e.detail?.gender !== undefined) setLiveGender(e.detail.gender);
+    };
+    window.addEventListener("village:profileUpdated", handleProfileUpdate);
+    return () => window.removeEventListener("village:profileUpdated", handleProfileUpdate);
   }, []);
 
   const fetchFriends = async () => {
@@ -338,10 +348,9 @@ export default function ChatRooms({ user }) {
 
                 {/* Featured: Mum Chat + Dad Chat — full-width when only one is visible */}
                 {(() => {
-                  const gender = user?.gender;
-                  // Only show gender-specific featured rooms if gender is explicitly set
-                  const mumChat = (gender === "female" || gender === "other" || gender === "prefer-not-say") ? allAustraliaRooms.find(r => r.name === "Mum Chat" || r.name === "Mum Circle") : null;
-                  const dadChat = (gender === "male" || gender === "other" || gender === "prefer-not-say") ? allAustraliaRooms.find(r => r.name === "Dad Chat" || r.name === "Dad Circle") : null;
+                  // Only females see Mum Chat; only males see Dad Chat; undisclosed/other see neither
+                  const mumChat = liveGender === "female" ? allAustraliaRooms.find(r => r.name === "Mum Chat" || r.name === "Mum Circle") : null;
+                  const dadChat = liveGender === "male"   ? allAustraliaRooms.find(r => r.name === "Dad Chat" || r.name === "Dad Circle") : null;
                   if (!mumChat && !dadChat) return null;
                   const isSingle = !mumChat || !dadChat; // only one card to show
                   return (
@@ -395,16 +404,14 @@ export default function ChatRooms({ user }) {
                 <div className="grid sm:grid-cols-2 gap-4">
                   {allAustraliaRooms
                     .filter(r => {
-                      const gender = user?.gender;
                       // Always exclude gender-specific featured rooms from main grid
                       if (["Mum Chat", "Mum Circle", "Dad Chat", "Dad Circle"].includes(r.name)) return false;
                       // During night owl hours, exclude 3am Club from grid (shown in featured highlight above)
                       if (nightOwl && r.name?.toLowerCase().includes("3am")) return false;
-                      // Filter gender-restricted rooms — hide all if gender not set
+                      // Filter gender-restricted rooms — only exact gender match sees restricted rooms
                       if (r.gender_restriction) {
-                        if (!gender) return false; // hide gender-restricted rooms until profile complete
-                        if (gender === "male" && r.gender_restriction === "female") return false;
-                        if (gender === "female" && r.gender_restriction === "male") return false;
+                        if (liveGender !== "female" && r.gender_restriction === "female") return false;
+                        if (liveGender !== "male"   && r.gender_restriction === "male")   return false;
                       }
                       return true;
                     })

@@ -5,6 +5,30 @@ import AppFooter from "../components/AppFooter";
 
 const CHANGELOG = [
   {
+    version: "3.0.0",
+    date: "April 2026",
+    title: "Legal & Compliance, Age Verification, Gender-Aware Spaces & Public Pages",
+    entries: [
+      { tag: "Legal",     text: "Terms & Conditions fully rewritten — 13 sections covering eligibility (18+), anonymous posting with accurate legal framing, Village+ subscription terms, Australian Consumer Law preservation clause, governing law (Victoria), appeals process, and updated contact emails (ourlittlevillage.au)." },
+      { tag: "Legal",     text: "Privacy Policy fully rewritten to comply with the Australian Privacy Act 1988 and Australian Privacy Principles — 12 sections including NDB scheme, OAIC complaints pathway, data storage statement, and updated TL;DR summary." },
+      { tag: "Legal",     text: "Community Guidelines expanded — 8 guidelines with explicit zero-tolerance section, spam/MLM rule, medical info disclaimer, safeguarding detail, consequences table, and appeals process." },
+      { tag: "Added",     text: "Date of birth field added to registration — 18+ age verification enforced on both frontend (date picker with max date) and backend (ISO date parse + exact age calculation). DOB stored on user record." },
+      { tag: "Added",     text: "Legal acceptance checkbox on registration — users must confirm they are 18+ and agree to Terms & Conditions, Privacy Policy, and Community Guidelines before creating an account. Uses shadcn Checkbox for reliable click handling." },
+      { tag: "Added",     text: "PublicNav component — a minimal auth-free navigation bar for public pages (Terms, Privacy, Community Guidelines, Contact). No API calls, no redirects, just logo → landing, theme toggle, Sign In and Join Free links." },
+      { tag: "Fixed",     text: "Terms, Privacy, Community Guidelines, and Contact pages now use PublicNav instead of the authenticated Navigation — previously these pages made backend API calls and could redirect unauthenticated visitors to /login." },
+      { tag: "Fixed",     text: "Back buttons on all public legal pages now use window.history.back() — previously pointed to /dashboard which required auth and redirected unregistered users to login." },
+      { tag: "Fixed",     text: "Legal document links on the registration form (Terms, Privacy, Guidelines) now open in a new tab as fully self-contained public pages with zero backend calls." },
+      { tag: "Fixed",     text: "Registration checkbox click area — replaced broken custom implementation (sr-only input + separate onClick div with misaligned hit areas) with shadcn Checkbox + htmlFor label. Links inside label use stopPropagation so clicking them opens the doc without toggling the checkbox." },
+      { tag: "Fixed",     text: "Gender filtering — Mum Space/Chat now only visible to users with gender=female; Dad Space/Chat only visible to gender=male. Users who select 'Prefer not to say', 'Other', or have not disclosed gender see neither. Applies to Forums (featured cards + applyGenderFilter), ChatRooms (featured cards + grid filter), and Dashboard (room list)." },
+      { tag: "Fixed",     text: "Landing page demo content was showing Mum Chat and Dad Chat to all visitors before sign-up. Replaced with gender-neutral rooms (Mental Health, Sleep & Settling) and neutral events (Parents Coffee Morning, Toddler Playgroup)." },
+      { tag: "Improved",  text: "Gender change in Profile Settings now instantly unlocks Mum/Dad spaces and chats across the platform without page reload. Profile dispatches a village:profileUpdated CustomEvent; ChatRooms, Forums, and Dashboard listen for it and update liveGender state immediately — no re-login, no refresh required." },
+      { tag: "Improved",  text: "Anonymous posting description updated to accurate legal framing — 'Your name and avatar are hidden from other members. Anonymous posts are not linked to your account by design.' (removed 'truly anonymous' claim)." },
+      { tag: "Improved",  text: "Event creation form now shows a safety notice — 'For in-person meetups, always meet in a public place and trust your instincts.' Event detail modal shows the notice when the event has a physical venue." },
+      { tag: "Improved",  text: "Settings page now has a Legal section — direct links to Terms, Privacy Policy, and Community Guidelines, plus an account deletion reminder with 30-day data removal notice." },
+      { tag: "Removed",   text: "Suggestions link removed from AppFooter — it required authentication and was appearing on public pages (Terms, Privacy, Guidelines) accessible before registration." },
+    ],
+  },
+  {
     version: "2.9.0",
     date: "April 2026",
     title: "Design System, Security Hardening & Platform-Wide Polish",

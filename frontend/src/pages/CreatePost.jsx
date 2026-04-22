@@ -426,7 +426,7 @@ export default function CreatePost({ user }) {
                 <Label htmlFor="anonymous" className="font-medium text-foreground cursor-pointer">
                   Post anonymously
                 </Label>
-                <p className="text-xs text-muted-foreground">This post won't show your name or avatar</p>
+                <p className="text-xs text-muted-foreground">Your name and avatar are hidden from other members. Anonymous posts are not linked to your account by design.</p>
               </div>
             </div>
 

@@ -5,9 +5,27 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { toast } from "sonner";
 import { ArrowLeft, Eye, EyeOff, Check } from "lucide-react";
+import { Checkbox } from "../components/ui/checkbox";
 import { parseApiError } from "../utils/apiError";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
+
+function calculateAge(dobString) {
+  if (!dobString) return null;
+  const dob = new Date(dobString);
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const m = today.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+  return age;
+}
+
+// Maximum date allowed for DOB input: must be at least 18 years ago
+function maxDobDate() {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 18);
+  return d.toISOString().split("T")[0];
+}
 
 export default function Register() {
   const navigate = useNavigate();
@@ -15,6 +33,8 @@ export default function Register() {
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [dob, setDob] = useState("");
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -25,6 +45,8 @@ export default function Register() {
   ];
 
   const passwordValid = passwordRequirements.every((r) => r.met);
+  const age = calculateAge(dob);
+  const dobValid = age !== null && age >= 18;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -41,15 +63,32 @@ export default function Register() {
       toast.error("Email is required");
       return;
     }
+    if (!dob) {
+      toast.error("Date of birth is required");
+      return;
+    }
+    if (!dobValid) {
+      toast.error("You must be 18 or older to join The Village");
+      return;
+    }
     if (!passwordValid) {
       toast.error("Password must be at least 8 characters with an uppercase letter and a number");
+      return;
+    }
+    if (!agreedToTerms) {
+      toast.error("Please accept the Terms & Conditions and Privacy Policy to continue");
       return;
     }
 
     setLoading(true);
 
-    const payload = { first_name: firstName.trim(), last_name: lastName.trim(), email: email.trim(), password };
-    console.log("[Register] submitting:", { ...payload, password: "***" });
+    const payload = {
+      first_name: firstName.trim(),
+      last_name: lastName.trim(),
+      email: email.trim(),
+      password,
+      date_of_birth: dob,
+    };
 
     try {
       const response = await fetch(`${API_URL}/api/auth/register`, {
@@ -65,7 +104,6 @@ export default function Register() {
         localStorage.setItem("user", JSON.stringify(data));
         navigate("/onboarding");
       } else {
-        console.error("[Register] error response:", JSON.stringify(data));
         toast.error(parseApiError(data.detail, "Registration failed"));
       }
     } catch (error) {
@@ -79,6 +117,8 @@ export default function Register() {
     // TODO: Implement local Google OAuth
     toast.error("Google login is not yet configured for local development");
   };
+
+  const canSubmit = !loading && passwordValid && firstName.trim() && lastName.trim() && dobValid && agreedToTerms;
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -98,9 +138,9 @@ export default function Register() {
           <p className="text-muted-foreground mb-8">Create your account and find your parenting tribe</p>
 
           {/* Google Signup */}
-          <Button 
+          <Button
             type="button"
-            variant="outline" 
+            variant="outline"
             className="w-full h-12 rounded-xl border-border/50 hover:bg-secondary mb-6"
             onClick={handleGoogleLogin}
             data-testid="google-register-btn"
@@ -124,6 +164,7 @@ export default function Register() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Name */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="first_name" className="text-foreground">First name</Label>
@@ -156,9 +197,10 @@ export default function Register() {
               Your real name is kept private. You'll choose a display name in the next step.
             </p>
 
+            {/* Email */}
             <div className="space-y-2">
               <Label htmlFor="email" className="text-foreground">Email</Label>
-              <Input 
+              <Input
                 id="email"
                 type="email"
                 value={email}
@@ -170,10 +212,36 @@ export default function Register() {
               />
             </div>
 
+            {/* Date of Birth */}
+            <div className="space-y-2">
+              <Label htmlFor="dob" className="text-foreground">Date of birth</Label>
+              <Input
+                id="dob"
+                type="date"
+                value={dob}
+                onChange={(e) => setDob(e.target.value)}
+                max={maxDobDate()}
+                className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
+                required
+                data-testid="dob-input"
+              />
+              {dob && !dobValid && (
+                <p className="text-xs text-red-500 mt-1">
+                  You must be 18 or older to join The Village.
+                </p>
+              )}
+              {!dob && (
+                <p className="text-xs text-muted-foreground">
+                  The Village is for adults 18+. We collect your date of birth to verify eligibility.
+                </p>
+              )}
+            </div>
+
+            {/* Password */}
             <div className="space-y-2">
               <Label htmlFor="password" className="text-foreground">Password</Label>
               <div className="relative">
-                <Input 
+                <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
                   value={password}
@@ -191,7 +259,7 @@ export default function Register() {
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
-              
+
               <div className="mt-2 space-y-1">
                 {passwordRequirements.map((req, idx) => (
                   <div key={idx} className="flex items-center gap-2 text-sm">
@@ -204,10 +272,59 @@ export default function Register() {
               </div>
             </div>
 
+            {/* Legal acceptance */}
+            <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id="terms-check"
+                  checked={agreedToTerms}
+                  onCheckedChange={(checked) => setAgreedToTerms(!!checked)}
+                  className="mt-0.5 h-5 w-5 shrink-0"
+                  data-testid="terms-checkbox"
+                />
+                <label
+                  htmlFor="terms-check"
+                  className="text-sm text-muted-foreground leading-relaxed cursor-pointer select-none"
+                >
+                  I am 18 or older and I agree to The Village{" "}
+                  <Link
+                    to="/terms"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary underline underline-offset-2 hover:text-primary/80"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Terms &amp; Conditions
+                  </Link>
+                  {", "}
+                  <Link
+                    to="/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary underline underline-offset-2 hover:text-primary/80"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Privacy Policy
+                  </Link>
+                  {", and "}
+                  <Link
+                    to="/community-guidelines"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary underline underline-offset-2 hover:text-primary/80"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Community Guidelines
+                  </Link>
+                  .
+                </label>
+              </div>
+            </div>
+
             <Button
               type="submit"
               className="w-full h-12 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_15px_rgba(245,197,66,0.3)]"
-              disabled={loading || !passwordValid || !firstName.trim() || !lastName.trim()}
+              disabled={!canSubmit}
               data-testid="register-submit-btn"
             >
               {loading ? "Creating account..." : "Create Account"}
@@ -226,8 +343,8 @@ export default function Register() {
       {/* Right side - Image */}
       <div className="hidden lg:flex lg:w-1/2 relative">
         <div className="absolute inset-0 bg-gradient-to-l from-background via-transparent to-transparent z-10"></div>
-        <img 
-          src="https://images.unsplash.com/photo-1761891954120-7dce2a8bd06c?w=800&h=1200&fit=crop" 
+        <img
+          src="https://images.unsplash.com/photo-1761891954120-7dce2a8bd06c?w=800&h=1200&fit=crop"
           alt="Mother with baby"
           className="w-full h-full object-cover"
         />

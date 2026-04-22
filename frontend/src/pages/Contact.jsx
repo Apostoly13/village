@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import Navigation from "../components/Navigation";
+import PublicNav from "../components/PublicNav";
 import AppFooter from "../components/AppFooter";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -18,7 +18,7 @@ const SUBJECTS = [
 
 const EMPTY_FORM = { name: "", email: "", subject: "General Enquiry", message: "" };
 
-export default function Contact({ user }) {
+export default function Contact() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [sending, setSending] = useState(false);
 
@@ -39,16 +39,17 @@ export default function Contact({ user }) {
 
   return (
     <div className="min-h-screen bg-background pb-20 lg:pb-0">
-      <Navigation user={user} />
+      <PublicNav />
 
       <main className="max-w-3xl mx-auto px-4 pt-20 lg:pt-24">
-        <Link
-          to="/dashboard"
+        <button
+          type="button"
+          onClick={() => window.history.length > 1 ? window.history.back() : window.location.assign("/")}
           className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
           Back
-        </Link>
+        </button>
 
         <div className="flex items-center gap-3 mb-2">
           <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center">

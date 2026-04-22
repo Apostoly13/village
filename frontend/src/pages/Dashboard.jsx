@@ -243,6 +243,8 @@ export default function Dashboard({ user }) {
   const [recentActivity, setRecentActivity] = useState([]);
   const [userCommunities, setUserCommunities] = useState([]);
   const [showDowngradeNotice, setShowDowngradeNotice] = useState(false);
+  // Live gender — starts from prop, updates instantly when profile is saved
+  const [liveGender, setLiveGender] = useState(user?.gender);
 
   // ── Dashboard mode — always resets to Browse on page load ────────────────
   const [dashMode, setDashMode] = useState("browse");
@@ -343,6 +345,16 @@ export default function Dashboard({ user }) {
       fetchRecentActivity(),
     ]);
     // Onboarding is now a standalone page (/onboarding) — ProtectedRoute handles the redirect
+
+    // Listen for profile updates — re-apply gender filter on rooms instantly
+    const handleProfileUpdate = (e) => {
+      if (e.detail?.gender !== undefined) {
+        setLiveGender(e.detail.gender);
+        fetchBusyChatRooms(e.detail.gender);
+      }
+    };
+    window.addEventListener("village:profileUpdated", handleProfileUpdate);
+    return () => window.removeEventListener("village:profileUpdated", handleProfileUpdate);
   }, [user]);
 
   const fetchFeed = async () => {
@@ -406,7 +418,7 @@ export default function Dashboard({ user }) {
     } catch {}
   };
 
-  const fetchBusyChatRooms = async () => {
+  const fetchBusyChatRooms = async (genderOverride) => {
     try {
       const res = await fetch(`${API_URL}/api/chat/rooms`, { credentials: "include" });
       if (res.ok) {
@@ -417,13 +429,15 @@ export default function Dashboard({ user }) {
           ...(data.my_suburb_room ? [data.my_suburb_room] : []),
         ];
 
-        // Filter out gender-restricted rooms the user cannot access
-        const userGender = user?.gender || "";
+        // Filter out gender-restricted rooms — only exact gender match sees restricted rooms
+        // genderOverride is passed when triggered by a profile update event (avoids stale closure)
+        const g = genderOverride !== undefined ? genderOverride : (liveGender ?? user?.gender);
         const accessible = allRooms.filter(r => {
           const restriction = r.gender_restriction;
           if (!restriction) return true;
-          if (!userGender) return true; // gender not set — show all
-          return restriction === userGender;
+          if (restriction === "female" && g !== "female") return false;
+          if (restriction === "male"   && g !== "male")   return false;
+          return true;
         });
 
         // Deduplicate by name — catches legacy duplicates with different room_ids

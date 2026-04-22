@@ -235,6 +235,20 @@ export default function Settings({ user }) {
             </div>
           </section>
 
+          {/* ── Legal ──────────────────────────────────────── */}
+          <section className="bg-card rounded-2xl border border-border/50 p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Sliders className="h-4 w-4 text-primary" />
+              <h2 className="font-heading font-semibold text-foreground">Legal</h2>
+            </div>
+            <div className="flex flex-wrap gap-3 text-sm">
+              <Link to="/terms" className="text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">Terms &amp; Conditions</Link>
+              <Link to="/privacy" className="text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">Privacy Policy</Link>
+              <Link to="/community-guidelines" className="text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">Community Guidelines</Link>
+            </div>
+            <p className="text-xs text-muted-foreground mt-3">To delete your account and all associated data, visit your <Link to="/profile" className="underline underline-offset-2 hover:text-foreground">Profile Settings</Link>. Data is removed within 30 days of deletion.</p>
+          </section>
+
           <div className="flex items-center justify-between pt-2 pb-6 flex-wrap gap-3">
             <p className="text-xs text-muted-foreground">Appearance &amp; chat saved on this device. Privacy &amp; notifications sync across all devices.</p>
             <div className="flex items-center gap-2">

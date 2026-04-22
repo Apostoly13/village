@@ -22,23 +22,30 @@ export default function Forums({ user }) {
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
 
+  // Live gender — starts from prop, updates instantly when profile is saved
+  const [liveGender, setLiveGender] = useState(user?.gender);
+
   useEffect(() => {
     fetchData();
+
+    // Listen for profile updates — update gender instantly without page reload
+    const handleProfileUpdate = (e) => {
+      if (e.detail?.gender !== undefined) setLiveGender(e.detail.gender);
+    };
+    window.addEventListener("village:profileUpdated", handleProfileUpdate);
+    return () => window.removeEventListener("village:profileUpdated", handleProfileUpdate);
   }, []);
 
   // Gender filter: hide gender-specific spaces until gender is set; then filter by gender
   const applyGenderFilter = (cats) => {
-    const g = user?.gender;
+    const g = liveGender;
     const isMumSpace = (c) => (c.name || "").toLowerCase().includes("mum") || c.category_id === "mum-circle";
     const isDadSpace = (c) => (c.name || "").toLowerCase().includes("dad") || c.category_id === "dad-circle";
 
-    if (!g) {
-      // Gender not set — hide all gender-specific spaces until profile is complete
-      return cats.filter(c => !isMumSpace(c) && !isDadSpace(c));
-    }
-    if (g === "male")   return cats.filter(c => !isMumSpace(c));
+    // Only females see Mum Space; only males see Dad Space; everyone else sees neither
     if (g === "female") return cats.filter(c => !isDadSpace(c));
-    return cats; // "other" / "prefer-not-say" — show all
+    if (g === "male")   return cats.filter(c => !isMumSpace(c));
+    return cats.filter(c => !isMumSpace(c) && !isDadSpace(c)); // undisclosed / other — show neither
   };
 
   const fetchData = async () => {
@@ -386,10 +393,9 @@ export default function Forums({ user }) {
               <>
                 {/* Featured: Mum Circle / Dad Circle — gender filtered, full-width when only one */}
                 {(() => {
-                  const g = user?.gender;
-                  // Males don't see Mum Circle; females don't see Dad Circle
-                  const mumSpace = g !== "male"   ? topicCategories.find(isMum) : null;
-                  const dadSpace = g !== "female" ? topicCategories.find(isDad) : null;
+                  // Only females see Mum Circle; only males see Dad Circle; everyone else sees neither
+                  const mumSpace = liveGender === "female" ? topicCategories.find(isMum) : null;
+                  const dadSpace = liveGender === "male"   ? topicCategories.find(isDad) : null;
                   if (!mumSpace && !dadSpace) return null;
                   const isSingle = !mumSpace || !dadSpace;
                   return (
