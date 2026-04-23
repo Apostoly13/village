@@ -19,6 +19,7 @@ import httpx
 import bcrypt
 import jwt
 import resend
+import stripe
 import time
 from collections import defaultdict
 
@@ -94,8 +95,16 @@ if RESEND_API_KEY:
     resend.api_key = RESEND_API_KEY
 
 # Admin Config
-ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'admin@thevillage.com')
+ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'admin@ourlittlevillage.com.au')
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', '')
+
+# Stripe Config
+STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY', '')
+STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
+STRIPE_MONTHLY_PRICE_ID = os.environ.get('STRIPE_MONTHLY_PRICE_ID', '')
+STRIPE_ANNUAL_PRICE_ID = os.environ.get('STRIPE_ANNUAL_PRICE_ID', '')
+if STRIPE_SECRET_KEY:
+    stripe.api_key = STRIPE_SECRET_KEY
 
 # Freemium Limits
 WEEKLY_POST_LIMIT_FREE = 5
@@ -2623,7 +2632,7 @@ async def get_event_ical(event_id: str):
         "CALSCALE:GREGORIAN",
         "METHOD:PUBLISH",
         "BEGIN:VEVENT",
-        f"UID:{event['event_id']}@thevillage.com",
+        f"UID:{event['event_id']}@ourlittlevillage.com.au",
         f"DTSTAMP:{now_stamp}",
         dtstart_line,
         dtend_line,
@@ -3867,6 +3876,204 @@ async def search_posts(q: str, limit: int = Query(default=20, ge=1, le=100), req
     
     return posts
 
+# ==================== STRIPE HELPERS ====================
+
+def _sync_ensure_stripe_prices() -> tuple:
+    """
+    Synchronous Stripe API calls — run via asyncio.to_thread so they don't block the event loop.
+    Returns (monthly_price_id, annual_price_id).
+    """
+    # Find or create the Village+ product
+    products = stripe.Product.list(active=True, limit=100)
+    product = next((p for p in products.data if p.metadata.get("village_product") == "village_plus"), None)
+    if not product:
+        product = stripe.Product.create(
+            name="Village+",
+            description="Unlimited access to The Village — Australian parenting support community",
+            metadata={"village_product": "village_plus"}
+        )
+        logging.info(f"Stripe: created Village+ product {product.id}")
+
+    prices = stripe.Price.list(product=product.id, active=True, limit=100)
+
+    # Monthly $9.99 AUD
+    monthly = next((p for p in prices.data if p.metadata.get("plan") == "monthly"), None)
+    if not monthly:
+        monthly = stripe.Price.create(
+            product=product.id,
+            unit_amount=999,
+            currency="aud",
+            recurring={"interval": "month"},
+            metadata={"plan": "monthly"}
+        )
+        logging.info(f"Stripe: created monthly price {monthly.id}")
+
+    # Annual $95.88 AUD
+    annual = next((p for p in prices.data if p.metadata.get("plan") == "annual"), None)
+    if not annual:
+        annual = stripe.Price.create(
+            product=product.id,
+            unit_amount=9588,
+            currency="aud",
+            recurring={"interval": "year"},
+            metadata={"plan": "annual"}
+        )
+        logging.info(f"Stripe: created annual price {annual.id}")
+
+    return monthly.id, annual.id
+
+
+async def ensure_stripe_products():
+    """Create Village+ products and prices in Stripe if they don't already exist."""
+    global STRIPE_MONTHLY_PRICE_ID, STRIPE_ANNUAL_PRICE_ID
+    if not STRIPE_SECRET_KEY:
+        logging.warning("STRIPE_SECRET_KEY not set — Stripe payments disabled.")
+        return
+    try:
+        monthly_id, annual_id = await asyncio.to_thread(_sync_ensure_stripe_prices)
+        STRIPE_MONTHLY_PRICE_ID = monthly_id
+        STRIPE_ANNUAL_PRICE_ID = annual_id
+        logging.info(f"Stripe ready — monthly: {STRIPE_MONTHLY_PRICE_ID} | annual: {STRIPE_ANNUAL_PRICE_ID}")
+    except Exception as e:
+        logging.error(f"Stripe product setup failed: {e}")
+
+
+# ==================== STRIPE ENDPOINTS ====================
+
+@api_router.post("/stripe/create-checkout-session")
+async def create_checkout_session(request: Request, user: dict = Depends(get_current_user)):
+    """Create a Stripe Checkout Session for monthly or annual Village+ subscription."""
+    if not STRIPE_SECRET_KEY:
+        raise HTTPException(status_code=503, detail="Payments not configured")
+
+    body = await request.json()
+    plan = body.get("plan", "monthly")  # "monthly" or "annual"
+
+    # If globals are empty (startup failed), try once more on demand
+    if not STRIPE_MONTHLY_PRICE_ID or not STRIPE_ANNUAL_PRICE_ID:
+        await ensure_stripe_products()
+
+    price_id = STRIPE_ANNUAL_PRICE_ID if plan == "annual" else STRIPE_MONTHLY_PRICE_ID
+    if not price_id:
+        raise HTTPException(status_code=503, detail="Could not connect to Stripe — check STRIPE_SECRET_KEY and server logs")
+
+    # Reuse existing Stripe customer if we have one
+    customer_id = user.get("stripe_customer_id")
+    customer_kwargs = {"customer": customer_id} if customer_id else {"customer_email": user.get("email")}
+
+    try:
+        session = stripe.checkout.Session.create(
+            mode="subscription",
+            line_items=[{"price": price_id, "quantity": 1}],
+            success_url=f"{FRONTEND_URL}/subscription/success?session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{FRONTEND_URL}/plus",
+            metadata={"user_id": user["user_id"]},
+            subscription_data={"metadata": {"user_id": user["user_id"]}},
+            allow_promotion_codes=True,
+            **customer_kwargs
+        )
+        return {"url": session.url}
+    except stripe.StripeError as e:
+        logging.error(f"Stripe checkout error: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@api_router.post("/stripe/webhook")
+async def stripe_webhook(request: Request):
+    """Handle Stripe webhook events — updates subscription_tier in DB."""
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature", "")
+
+    try:
+        if STRIPE_WEBHOOK_SECRET:
+            event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
+        else:
+            # Dev mode — no signature verification (never do this in production)
+            event = stripe.Event.construct_from(json.loads(payload), stripe.api_key)
+    except Exception as e:
+        logging.error(f"Stripe webhook signature error: {e}")
+        raise HTTPException(status_code=400, detail="Invalid webhook signature")
+
+    event_type = event["type"]
+    data = event["data"]["object"]
+
+    try:
+        if event_type == "checkout.session.completed":
+            user_id = data.get("metadata", {}).get("user_id")
+            customer_id = data.get("customer")
+            subscription_id = data.get("subscription")
+            if user_id:
+                await db.users.update_one(
+                    {"user_id": user_id},
+                    {"$set": {
+                        "subscription_tier": "premium",
+                        "stripe_customer_id": customer_id,
+                        "stripe_subscription_id": subscription_id,
+                        "premium_since": datetime.now(timezone.utc).isoformat(),
+                        "trial_ends_at": None,
+                    }}
+                )
+                logging.info(f"Stripe: user {user_id} → premium (checkout complete)")
+
+        elif event_type in ("customer.subscription.updated", "customer.subscription.deleted"):
+            sub = data
+            user_id = sub.get("metadata", {}).get("user_id")
+            if not user_id:
+                # Fall back to looking up by stripe_customer_id
+                customer_id = sub.get("customer")
+                doc = await db.users.find_one({"stripe_customer_id": customer_id})
+                if doc:
+                    user_id = doc["user_id"]
+
+            if user_id:
+                status = sub.get("status")  # active, past_due, canceled, unpaid
+                new_tier = "premium" if status == "active" else "free"
+                update = {"subscription_tier": new_tier}
+                if new_tier == "free":
+                    update["stripe_subscription_id"] = None
+                await db.users.update_one({"user_id": user_id}, {"$set": update})
+                logging.info(f"Stripe: user {user_id} subscription {event_type} → {new_tier} (status={status})")
+
+        elif event_type == "invoice.payment_failed":
+            customer_id = data.get("customer")
+            doc = await db.users.find_one({"stripe_customer_id": customer_id})
+            if doc:
+                # Notify the user
+                await db.notifications.insert_one({
+                    "notification_id": str(uuid.uuid4()),
+                    "user_id": doc["user_id"],
+                    "type": "system",
+                    "message": "Your Village+ payment failed. Please update your payment details to keep your subscription.",
+                    "link": "/plus",
+                    "is_read": False,
+                    "created_at": datetime.now(timezone.utc).isoformat()
+                })
+                logging.info(f"Stripe: payment failed for customer {customer_id} — notified user")
+
+    except Exception as e:
+        logging.error(f"Stripe webhook handler error ({event_type}): {e}")
+
+    return {"received": True}
+
+
+@api_router.get("/stripe/customer-portal")
+async def create_customer_portal(user: dict = Depends(get_current_user)):
+    """Create a Stripe Billing Portal session so users can manage/cancel their subscription."""
+    if not STRIPE_SECRET_KEY:
+        raise HTTPException(status_code=503, detail="Payments not configured")
+    customer_id = user.get("stripe_customer_id")
+    if not customer_id:
+        raise HTTPException(status_code=400, detail="No Stripe customer found for this account")
+    try:
+        session = stripe.billing_portal.Session.create(
+            customer=customer_id,
+            return_url=f"{FRONTEND_URL}/settings"
+        )
+        return {"url": session.url}
+    except stripe.StripeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 # ==================== SUBSCRIPTION ENDPOINT ====================
 
 @api_router.get("/subscription/status")
@@ -4557,6 +4764,9 @@ async def seed_data():
     await db.direct_messages.create_index([("receiver_id", 1), ("is_read", 1)])
     await db.direct_messages.create_index([("sender_id", 1), ("receiver_id", 1), ("created_at", -1)])
     await db.direct_messages.create_index([("receiver_id", 1), ("sender_id", 1), ("created_at", -1)])
+
+    # Stripe: create/retrieve products and prices
+    await ensure_stripe_products()
 
     # Remove legacy category names that have been renamed to Circles
     LEGACY_CATEGORY_NAMES = [

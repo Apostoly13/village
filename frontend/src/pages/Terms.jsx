@@ -25,7 +25,7 @@ const SECTIONS = [
     content: [
       "You are responsible for keeping your login credentials secure and for all activity that occurs under your account.",
       "You must provide accurate information when registering. Using a false identity or impersonating another person is a breach of these Terms.",
-      "Notify us immediately at hello@ourlittlevillage.au if you become aware of any unauthorised use of your account.",
+      "Notify us immediately at hello@ourlittlevillage.com.au if you become aware of any unauthorised use of your account.",
     ],
   },
   {
@@ -76,7 +76,7 @@ const SECTIONS = [
       "Our moderation team reviews reports and removes content that violates our Community Guidelines. Moderators act with empathy and consistency.",
       "For minor violations, we may remove content and issue a warning. For serious or repeated violations, we may suspend or permanently close your account.",
       "If your account is suspended, we will tell you why unless doing so would compromise the safety or privacy of another member.",
-      "You may appeal a moderation decision by contacting us at hello@ourlittlevillage.au. We will review your appeal and respond within 14 days.",
+      "You may appeal a moderation decision by contacting us at hello@ourlittlevillage.com.au. We will review your appeal and respond within 14 days.",
     ],
   },
   {
@@ -114,10 +114,11 @@ const SECTIONS = [
     title: "13. Contact & Complaints",
     content: [
       "Questions about these Terms? We're happy to talk it through.",
-      "General enquiries: hello@ourlittlevillage.au",
-      "Safety concerns: safety@ourlittlevillage.au",
-      "Privacy matters: privacy@ourlittlevillage.au",
+      "General enquiries: hello@ourlittlevillage.com.au",
+      "Safety concerns: safety@ourlittlevillage.com.au",
+      "Privacy matters: privacy@ourlittlevillage.com.au",
       "You can also reach us through the Contact page. We aim to respond to all enquiries within 5 business days.",
+      "Legal entity: Our Little Village — Parenting Assistance Platform | ABN: [YOUR ABN]",
     ],
   },
 ];

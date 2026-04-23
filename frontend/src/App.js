@@ -36,6 +36,8 @@ import Suggestions from "./pages/Suggestions";
 import CommunityGuidelines from "./pages/CommunityGuidelines";
 import NotFound from "./pages/NotFound";
 import VillagePlus from "./pages/VillagePlus";
+import SubscriptionSuccess from "./pages/SubscriptionSuccess";
+import SubscriptionCancel from "./pages/SubscriptionCancel";
 import ForClinicians from "./pages/ForClinicians";
 import ChatPopout from "./components/ChatPopout";
 import PWAInstallBanner from "./components/PWAInstallBanner";
@@ -329,6 +331,8 @@ const AppRouter = () => {
       } />
       <Route path="/community-guidelines" element={<CommunityGuidelines />} />
       <Route path="/plus" element={<VillagePlus user={popoutUser} />} />
+      <Route path="/subscription/success" element={<SubscriptionSuccess user={popoutUser} />} />
+      <Route path="/subscription/cancel" element={<SubscriptionCancel user={popoutUser} />} />
       <Route path="/for-clinicians" element={<ForClinicians user={popoutUser} />} />
       <Route path="*" element={<NotFound />} />
     </Routes>

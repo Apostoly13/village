@@ -67,10 +67,10 @@ export default function Contact() {
           <p className="text-sm text-foreground leading-relaxed">
             <span className="font-semibold">For urgent safety concerns</span>, please email us directly at{" "}
             <a
-              href="mailto:safety@thevillage.com.au"
+              href="mailto:safety@ourlittlevillage.com.au"
               className="text-primary underline underline-offset-2 font-medium"
             >
-              safety@thevillage.com.au
+              safety@ourlittlevillage.com.au
             </a>{" "}
             — we monitor this address around the clock.
           </p>

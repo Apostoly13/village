@@ -13,8 +13,8 @@ from typing import Optional
 
 # ==================== CONFIG ====================
 
-BASE_URL = "https://api-dev.ourlittlevillage.au/api"
-ADMIN_EMAIL = "admin@thevillage.com"
+BASE_URL = "https://api-dev.ourlittlevillage.com.au/api"
+ADMIN_EMAIL = "admin@ourlittlevillage.com.au"
 ADMIN_PASSWORD = "VillageAdmin2024!"  # Will attempt; if wrong we skip admin ops
 
 SLOW_THRESHOLD_SECONDS = 2.0

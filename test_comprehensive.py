@@ -222,11 +222,11 @@ def test_user_tiers(admin_session: Optional[requests.Session]) -> dict:
         # Verify admin role
         r = req(admin_s, "get", "/admin/analytics", "Admin: /admin/analytics access", silent=True)
         if r and 200 <= r.status_code < 300:
-            passed("Admin tier: admin@thevillage.com has admin access to /admin/analytics")
+            passed("Admin tier: admin@ourlittlevillage.com.au has admin access to /admin/analytics")
             tier_sessions["admin"] = (admin_s, admin_info)
         elif r and r.status_code == 403:
             warn("Admin login succeeded but user lacks admin role",
-                 "Set role=admin in DB for admin@thevillage.com")
+                 "Set role=admin in DB for admin@ourlittlevillage.com.au")
             tier_sessions["admin_no_role"] = (admin_s, admin_info)
         else:
             warn("Admin analytics check failed", f"HTTP {r.status_code if r else 'no response'}")

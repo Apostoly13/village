@@ -1,11 +1,15 @@
-import { Link } from "react-router-dom";
-import { Crown, Check, MessageCircle, PenSquare, Users, Calendar, MessageSquare, ArrowRight, ShoppingBag } from "lucide-react";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Crown, Check, ArrowRight, Loader2, ExternalLink } from "lucide-react";
 import { Button } from "../components/ui/button";
 import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
 
+const API_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:8000";
+
 const PRICE_MONTHLY = 9.99;
-const PRICE_ANNUAL  = 7.99; // per month billed annually
+const PRICE_ANNUAL_MONTHLY = 7.99; // per month
+const PRICE_ANNUAL_TOTAL = 95.88;  // billed annually
 
 const FREE_FEATURES = [
   { label: "5 support space posts per week" },
@@ -26,22 +30,64 @@ const PREMIUM_FEATURES = [
 ];
 
 const COMPARISON = [
-  { feature: "Support space posts",       free: "5/week",    plus: "Unlimited" },
-  { feature: "Support space replies",     free: "5/week",    plus: "Unlimited" },
-  { feature: "Chat circle messages",      free: "10/day",    plus: "Unlimited" },
-  { feature: "Direct messages",          free: "—",         plus: "Unlimited" },
-  { feature: "View events",              free: "—",         plus: "✓" },
-  { feature: "Create events",            free: "—",         plus: "✓" },
-  { feature: "Create communities",       free: "—",         plus: "✓" },
-  { feature: "Anonymous posting",        free: "✓",         plus: "✓" },
-  { feature: "Read all posts",           free: "✓",         plus: "✓" },
-  { feature: "Crown badge",              free: "—",         plus: "✓" },
-  { feature: "Buy & Swap marketplace",   free: "—",         plus: "Coming Soon" },
+  { feature: "Support space posts",     free: "5/week",    plus: "Unlimited" },
+  { feature: "Support space replies",   free: "5/week",    plus: "Unlimited" },
+  { feature: "Chat circle messages",    free: "10/day",    plus: "Unlimited" },
+  { feature: "Direct messages",         free: "—",         plus: "Unlimited" },
+  { feature: "View events",             free: "—",         plus: "✓" },
+  { feature: "Create events",           free: "—",         plus: "✓" },
+  { feature: "Create communities",      free: "—",         plus: "✓" },
+  { feature: "Anonymous posting",       free: "✓",         plus: "✓" },
+  { feature: "Read all posts",          free: "✓",         plus: "✓" },
+  { feature: "Crown badge",             free: "—",         plus: "✓" },
+  { feature: "Buy & Swap marketplace",  free: "—",         plus: "Coming Soon" },
 ];
 
 export default function VillagePlus({ user }) {
+  const [billing, setBilling] = useState("monthly"); // "monthly" | "annual"
+  const [loading, setLoading] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [error, setError] = useState("");
+  const navigate = useNavigate();
+
   const isPremium = user?.subscription_tier === "premium";
   const isTrial   = user?.subscription_tier === "trial";
+
+  const handleUpgrade = async () => {
+    if (!user) { navigate("/register"); return; }
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`${API_URL}/api/stripe/create-checkout-session`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: billing }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Something went wrong");
+      window.location.href = data.url; // redirect to Stripe Checkout
+    } catch (e) {
+      setError(e.message);
+      setLoading(false);
+    }
+  };
+
+  const handleManageBilling = async () => {
+    setPortalLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`${API_URL}/api/stripe/customer-portal`, {
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Something went wrong");
+      window.location.href = data.url;
+    } catch (e) {
+      setError(e.message);
+      setPortalLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background pb-20 lg:pb-0">
@@ -53,7 +99,6 @@ export default function VillagePlus({ user }) {
         <div className="relative text-center mb-12 rounded-3xl overflow-hidden py-12 px-6">
           <div className="absolute inset-0 bg-gradient-to-br from-amber-500/15 via-primary/5 to-transparent pointer-events-none" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent pointer-events-none" />
-
           <div className="relative z-10">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/15 border border-primary/30 mb-6 shadow-sm">
               <Crown className="h-4 w-4 text-primary" />
@@ -81,6 +126,44 @@ export default function VillagePlus({ user }) {
             )}
           </div>
         </div>
+
+        {/* Billing toggle */}
+        {!isPremium && (
+          <div className="flex justify-center mb-8">
+            <div className="inline-flex items-center bg-secondary/60 border border-border/50 rounded-full p-1 gap-1">
+              <button
+                onClick={() => setBilling("monthly")}
+                className={`px-5 py-2 rounded-full text-sm font-semibold transition-all ${
+                  billing === "monthly"
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Monthly
+              </button>
+              <button
+                onClick={() => setBilling("annual")}
+                className={`px-5 py-2 rounded-full text-sm font-semibold transition-all flex items-center gap-2 ${
+                  billing === "annual"
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Annual
+                <span className="text-[10px] font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">
+                  Save 20%
+                </span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Error */}
+        {error && (
+          <div className="mb-6 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive text-center">
+            {error}
+          </div>
+        )}
 
         {/* Pricing cards */}
         <div className="grid sm:grid-cols-2 gap-6 mb-12">
@@ -128,13 +211,28 @@ export default function VillagePlus({ user }) {
               <p className="font-heading font-semibold text-xs uppercase tracking-widest text-primary mb-2 flex items-center gap-1.5">
                 <Crown className="h-3.5 w-3.5" /> Village+
               </p>
-              <div className="flex items-end gap-2">
-                <p className="font-heading text-4xl font-bold text-foreground">${PRICE_MONTHLY}</p>
-                <p className="text-sm text-muted-foreground mb-1.5">/month</p>
-              </div>
-              <p className="text-sm text-muted-foreground mt-1">
-                or <span className="text-foreground font-medium">${PRICE_ANNUAL}/mo</span> billed annually
-              </p>
+              {billing === "annual" ? (
+                <>
+                  <div className="flex items-end gap-2">
+                    <p className="font-heading text-4xl font-bold text-foreground">${PRICE_ANNUAL_MONTHLY}</p>
+                    <p className="text-sm text-muted-foreground mb-1.5">/mo</p>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    <span className="text-foreground font-medium">A${PRICE_ANNUAL_TOTAL}</span> billed once per year
+                  </p>
+                  <p className="text-xs text-primary font-medium mt-1">You save A$23.88 vs monthly</p>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-end gap-2">
+                    <p className="font-heading text-4xl font-bold text-foreground">${PRICE_MONTHLY}</p>
+                    <p className="text-sm text-muted-foreground mb-1.5">/month</p>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    or <span className="text-foreground font-medium">${PRICE_ANNUAL_MONTHLY}/mo</span> billed annually
+                  </p>
+                </>
+              )}
             </div>
             <ul className="space-y-3 mb-6 flex-1 relative z-10">
               {PREMIUM_FEATURES.map(({ label }, i) => (
@@ -146,18 +244,39 @@ export default function VillagePlus({ user }) {
                 </li>
               ))}
             </ul>
-            <div className="relative z-10">
+            <div className="relative z-10 space-y-3">
               {isPremium ? (
-                <div className="flex items-center justify-center gap-2 py-2.5 bg-primary/10 rounded-xl text-primary font-semibold text-sm border border-primary/20">
-                  <Check className="h-4 w-4" />
-                  You're on Village+
-                </div>
+                <>
+                  <div className="flex items-center justify-center gap-2 py-2.5 bg-primary/10 rounded-xl text-primary font-semibold text-sm border border-primary/20">
+                    <Check className="h-4 w-4" />
+                    You're on Village+
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="w-full rounded-xl"
+                    onClick={handleManageBilling}
+                    disabled={portalLoading}
+                  >
+                    {portalLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                    )}
+                    Manage billing
+                  </Button>
+                </>
               ) : (
-                <Button className="w-full rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all" asChild>
-                  <Link to="/contact">
-                    Get Village+
+                <Button
+                  className="w-full rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all"
+                  onClick={handleUpgrade}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
                     <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
+                  )}
+                  {loading ? "Redirecting…" : `Get Village+ — ${billing === "annual" ? `A$${PRICE_ANNUAL_TOTAL}/yr` : `A$${PRICE_MONTHLY}/mo`}`}
                 </Button>
               )}
             </div>
@@ -195,9 +314,10 @@ export default function VillagePlus({ user }) {
           * Buy &amp; Swap marketplace is in development and will be available to Village+ members when it launches.
         </p>
 
-        {/* FAQ / trust */}
+        {/* Trust / FAQ */}
         <div className="text-center py-6 px-6 rounded-2xl bg-secondary/30 border border-border/30 space-y-2 text-sm text-muted-foreground">
           <p className="font-medium text-foreground">Cancel any time. No lock-in, no nonsense.</p>
+          <p>Payments are processed securely by Stripe. We never store your card details.</p>
           <p>
             Questions?{" "}
             <Link to="/contact" className="text-primary hover:underline underline-offset-2 font-medium">

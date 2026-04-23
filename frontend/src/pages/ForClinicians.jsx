@@ -190,7 +190,7 @@ export default function ForClinicians({ user }) {
           </p>
           <div className="space-y-3">
             {[
-              { step: "1", text: "Direct your patient to ourlittlevillage.au" },
+              { step: "1", text: "Direct your patient to ourlittlevillage.com.au" },
               { step: "2", text: "They register with an email address — takes under 2 minutes" },
               { step: "3", text: "A 7-day full-access trial starts automatically, then a free tier" },
             ].map(({ step, text }) => (
@@ -202,7 +202,7 @@ export default function ForClinicians({ user }) {
           </div>
           <div className="mt-5 p-4 bg-secondary/40 rounded-xl">
             <p className="text-xs text-muted-foreground mb-1 font-medium">Shareable link</p>
-            <p className="text-sm font-semibold text-foreground">ourlittlevillage.au</p>
+            <p className="text-sm font-semibold text-foreground">ourlittlevillage.com.au</p>
           </div>
         </div>
 
@@ -215,7 +215,7 @@ export default function ForClinicians({ user }) {
             </p>
           </div>
           <a
-            href="mailto:partners@thevillage.com.au"
+            href="mailto:partners@ourlittlevillage.com.au"
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors whitespace-nowrap shrink-0"
           >
             Get in touch

@@ -5,11 +5,37 @@ import AppFooter from "../components/AppFooter";
 
 const CHANGELOG = [
   {
+    version: "3.1.0",
+    date: "April 2026",
+    title: "Stripe Payments — Village+ Subscriptions",
+    entries: [
+      { tag: "Added",    text: "Stripe subscription checkout — Village+ pricing ($9.99/mo or $95.88/yr) wired to real Stripe Checkout Sessions. Users are redirected to Stripe's hosted checkout page; no card data ever touches our servers." },
+      { tag: "Added",    text: "Billing period toggle on Village+ page — switch between Monthly and Annual before checkout. Annual shows 20% saving badge and calculates A$23.88 saved vs monthly." },
+      { tag: "Added",    text: "Stripe webhook handler — listens for checkout.session.completed, customer.subscription.updated, customer.subscription.deleted, and invoice.payment_failed. Automatically upgrades/downgrades subscription_tier in the database." },
+      { tag: "Added",    text: "Stripe Billing Portal — Village+ subscribers can manage, update payment details, or cancel their subscription via Stripe's hosted portal. Accessible via 'Manage billing' button on the Village+ page." },
+      { tag: "Added",    text: "Subscription success page (/subscription/success) — shown after successful checkout with confirmation message and links to Dashboard and billing management." },
+      { tag: "Added",    text: "Subscription cancel page (/subscription/cancel) — shown if user exits Stripe checkout without completing. Reassures user nothing was charged." },
+      { tag: "Added",    text: "Stripe product/price auto-creation at server startup — Village+ product and both prices (monthly $9.99 AUD, annual $95.88 AUD) are created in Stripe automatically if they don't exist. No manual dashboard setup required." },
+      { tag: "Added",    text: "Payment failed notification — when Stripe invoice.payment_failed fires, the user receives an in-app notification prompting them to update their payment details." },
+      { tag: "Updated",  text: "Domain updated from ourlittlevillage.au to ourlittlevillage.com.au across all files — emails, CORS origins, API docs, env examples, stress tests." },
+      { tag: "Legal",    text: "Business entity name and ABN placeholder added to Terms & Conditions and Privacy Policy contact sections as required by Australian Consumer Law." },
+    ],
+  },
+  {
+    version: "3.0.1",
+    date: "April 2026",
+    title: "Domain Update & Business Name Display",
+    entries: [
+      { tag: "Updated",  text: "All platform references updated from ourlittlevillage.au to ourlittlevillage.com.au — email addresses (hello, safety, privacy), website URLs, CORS origins, .env examples, and stress test base URL." },
+      { tag: "Legal",    text: "Legal entity name and ABN placeholder added to Terms & Conditions and Privacy Policy contact sections — 'Our Little Village — Parenting Assistance Platform | ABN: [YOUR ABN]' — required display under Australian Consumer Law and Business Names Registration Act." },
+    ],
+  },
+  {
     version: "3.0.0",
     date: "April 2026",
     title: "Legal & Compliance, Age Verification, Gender-Aware Spaces & Public Pages",
     entries: [
-      { tag: "Legal",     text: "Terms & Conditions fully rewritten — 13 sections covering eligibility (18+), anonymous posting with accurate legal framing, Village+ subscription terms, Australian Consumer Law preservation clause, governing law (Victoria), appeals process, and updated contact emails (ourlittlevillage.au)." },
+      { tag: "Legal",     text: "Terms & Conditions fully rewritten — 13 sections covering eligibility (18+), anonymous posting with accurate legal framing, Village+ subscription terms, Australian Consumer Law preservation clause, governing law (Victoria), appeals process, and updated contact emails (ourlittlevillage.com.au)." },
       { tag: "Legal",     text: "Privacy Policy fully rewritten to comply with the Australian Privacy Act 1988 and Australian Privacy Principles — 12 sections including NDB scheme, OAIC complaints pathway, data storage statement, and updated TL;DR summary." },
       { tag: "Legal",     text: "Community Guidelines expanded — 8 guidelines with explicit zero-tolerance section, spam/MLM rule, medical info disclaimer, safeguarding detail, consequences table, and appeals process." },
       { tag: "Added",     text: "Date of birth field added to registration — 18+ age verification enforced on both frontend (date picker with max date) and backend (ISO date parse + exact age calculation). DOB stored on user record." },
@@ -41,7 +67,7 @@ const CHANGELOG = [
       { tag: "Security", text: "All MongoDB regex queries now use re.escape() to prevent ReDoS injection — user search, post search, admin user search, nickname check, event suburb filter." },
       { tag: "Security", text: "In-memory rate limiter added (no external deps) — login limited to 10 requests/min per IP, search endpoints to 30 requests/min per IP. Returns HTTP 429 with friendly message." },
       { tag: "Security", text: "CORS configuration tightened — explicit method whitelist (GET/POST/PUT/PATCH/DELETE/OPTIONS) and header whitelist instead of allow_methods='*' / allow_headers='*'. Preflight cache set to 10 minutes." },
-      { tag: "Improved", text: "All email notification links now use FRONTEND_URL env var instead of hardcoded 'http://localhost:3000' — set FRONTEND_URL=https://app.ourlittlevillage.au in production .env." },
+      { tag: "Improved", text: "All email notification links now use FRONTEND_URL env var instead of hardcoded 'http://localhost:3000' — set FRONTEND_URL=https://app.ourlittlevillage.com.au in production .env." },
       { tag: "Performance", text: "Admin reports endpoint N+1 eliminated — reporter and content now fetched in batch queries (one query each for posts, replies, reporters) instead of one DB call per report." },
       { tag: "Performance", text: "Location-based post filtering now uses a lat/lon bounding box pre-filter in MongoDB before Haversine exact check — reduces documents loaded from up to 500 to only those within the geographic window." },
       { tag: "Improved", text: "Pagination parameters on /forums/posts and /feed now validated with Query(ge=1, le=100) — prevents clients requesting unlimited results in a single call." },

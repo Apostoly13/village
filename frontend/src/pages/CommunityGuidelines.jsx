@@ -134,8 +134,8 @@ export default function CommunityGuidelines() {
             Tap the <span className="font-semibold text-foreground">⋯</span> menu on any post or message and select{" "}
             <span className="font-semibold text-foreground">Report</span>. Every report is reviewed by a real person. You can
             report anonymously — we will never reveal who submitted a report. For urgent safety concerns, email{" "}
-            <a href="mailto:safety@ourlittlevillage.au" className="text-primary underline underline-offset-2">
-              safety@ourlittlevillage.au
+            <a href="mailto:safety@ourlittlevillage.com.au" className="text-primary underline underline-offset-2">
+              safety@ourlittlevillage.com.au
             </a>{" "}
             directly.
           </p>
@@ -146,8 +146,8 @@ export default function CommunityGuidelines() {
           <h2 className="font-heading text-lg font-semibold text-foreground mb-2">Appeals</h2>
           <p className="text-muted-foreground leading-relaxed">
             If you believe a moderation decision was made in error, you can appeal within 14 days by contacting us at{" "}
-            <a href="mailto:hello@ourlittlevillage.au" className="text-primary underline underline-offset-2">
-              hello@ourlittlevillage.au
+            <a href="mailto:hello@ourlittlevillage.com.au" className="text-primary underline underline-offset-2">
+              hello@ourlittlevillage.com.au
             </a>
             . Please include the content in question and the reason you believe the decision was incorrect. We review all appeals
             and respond within 14 days.

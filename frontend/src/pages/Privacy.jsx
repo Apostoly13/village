@@ -17,7 +17,7 @@ const SECTIONS = [
     title: "1. Who We Are",
     content: [
       "The Village is operated by The Village AU Pty Ltd, an Australian company. This Privacy Policy explains how we collect, use, store, and disclose your personal information in accordance with the Australian Privacy Act 1988 (Cth) and the Australian Privacy Principles ('APPs').",
-      "Our Privacy Officer can be reached at privacy@ourlittlevillage.au.",
+      "Our Privacy Officer can be reached at privacy@ourlittlevillage.com.au.",
     ],
   },
   {
@@ -91,7 +91,7 @@ const SECTIONS = [
     title: "8. Your Rights",
     content: [
       "Under the Australian Privacy Act, you have the right to:",
-      "• Access the personal information we hold about you — request a copy by emailing privacy@ourlittlevillage.au",
+      "• Access the personal information we hold about you — request a copy by emailing privacy@ourlittlevillage.com.au",
       "• Correct inaccurate or out-of-date information — update most details directly in your Profile Settings, or contact us",
       "• Delete your account and associated personal information — available in Profile Settings",
       "• Opt out of non-essential notifications — managed in your Notification Settings",
@@ -126,10 +126,11 @@ const SECTIONS = [
     title: "12. Complaints & Contact",
     content: [
       "If you have a concern about how we handle your personal information, please contact us first — we'd like the opportunity to resolve it directly.",
-      "Privacy Officer: privacy@ourlittlevillage.au",
-      "General enquiries: hello@ourlittlevillage.au",
-      "Safety concerns: safety@ourlittlevillage.au",
+      "Privacy Officer: privacy@ourlittlevillage.com.au",
+      "General enquiries: hello@ourlittlevillage.com.au",
+      "Safety concerns: safety@ourlittlevillage.com.au",
       "If you are not satisfied with our response, you may lodge a complaint with the Office of the Australian Information Commissioner (OAIC) at www.oaic.gov.au.",
+      "Legal entity: Our Little Village — Parenting Assistance Platform | ABN: [YOUR ABN]",
     ],
   },
 ];
