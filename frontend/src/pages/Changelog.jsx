@@ -5,6 +5,21 @@ import AppFooter from "../components/AppFooter";
 
 const CHANGELOG = [
   {
+    version: "3.3.0",
+    date: "April 2026",
+    title: "Design System — Warm Theme, Fraunces Typography & Wordmark",
+    entries: [
+      { tag: "Design",     text: "New day/night token sheet (theme.css) — warm paper-cream day palette (#f7f2e9 base) and candlelight-warm night palette (#17120e base). Full shadcn bridge so all existing components inherit the new palette without code changes." },
+      { tag: "Design",     text: "Typography upgraded: Fraunces (editorial serif) for all headings and the wordmark, Inter Tight for body text, JetBrains Mono for metadata labels. Loaded via Google Fonts with preconnect hints." },
+      { tag: "Design",     text: "Typographic wordmark component (Wordmark.jsx) — 'The Village' rendered in Fraunces with italic accent on 'Village'. Replaces logo PNG in Navigation header (desktop and mobile). Monogram variant available for avatars and watermark corners." },
+      { tag: "Design",     text: "Custom icon set (icons.jsx) — 20 hand-drawn-feel SVG icons (IconHome, IconChat, IconMoon, IconHand, IconPin, IconShield, IconMask, etc.) for use in place of emojis in feature sections." },
+      { tag: "Added",      text: "useTheme hook + ThemeToggle component — Day / Night / Auto pill. Replaces the old binary dark/light Switch in Profile. Auto mode follows system preference. Writes to 'village.theme' key with legacy 'theme' key kept in sync." },
+      { tag: "Improved",   text: "Theme initialisation in index.html updated — reads 'village.theme' first, falls back to old 'theme' key for migration. Sets data-theme attribute on <html> before first paint to prevent flash." },
+      { tag: "Improved",   text: "Navigation theme toggle now uses useTheme() — no more direct DOM classList manipulation. Both desktop Sun/Moon button and Profile ThemeToggle stay in sync via localStorage." },
+      { tag: "Improved",   text: "Profile Appearance section upgraded from binary dark/light Switch to Day / Night / Auto ThemeToggle pill." },
+    ],
+  },
+  {
     version: "3.2.0",
     date: "April 2026",
     title: "Security Hardening, Performance, Location Detection & UX Polish",

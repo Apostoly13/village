@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Wordmark } from "./Wordmark";
+import { useTheme } from "../useTheme";
 import { Button } from "./ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import {
@@ -21,7 +23,8 @@ export default function Navigation({ user }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [darkMode, setDarkMode] = useState(document.documentElement.classList.contains('dark'));
+  const [themeSetting, setThemeSetting, themeResolved] = useTheme();
+  const darkMode = themeResolved === "night";
   const [friendRequestCount, setFriendRequestCount] = useState(0);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -154,14 +157,7 @@ export default function Navigation({ user }) {
   ];
 
   const toggleTheme = () => {
-    setDarkMode(!darkMode);
-    if (!darkMode) {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
-    }
+    setThemeSetting(darkMode ? "day" : "night");
   };
 
   const handleLogout = async () => {
@@ -190,7 +186,7 @@ export default function Navigation({ user }) {
           {/* Center: logo + nav items */}
           <div className="flex items-center gap-3">
             <Link to="/dashboard" className="flex items-center" data-testid="nav-logo">
-              <img src="/BG Removed- Main Logo - ps edit.png" alt="The Village" className="h-14 w-auto" />
+              <Wordmark size={22} />
             </Link>
             <div className="flex items-center gap-1 ml-6">
               <TooltipProvider delayDuration={300}>
@@ -440,7 +436,7 @@ export default function Navigation({ user }) {
       <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/30 lg:hidden">
         <div className="px-4 h-14 flex items-center justify-between">
           <Link to="/dashboard" className="flex items-center">
-            <img src="/BG Removed- Main Logo.png" alt="The Village" className="h-14 w-auto" />
+            <Wordmark size={20} />
           </Link>
 
           <div className="flex items-center gap-2">

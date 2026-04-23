@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { useTheme } from "./useTheme";
 import { FEATURES } from "./config/features";
 import { Toaster } from "./components/ui/sonner";
 
@@ -355,6 +356,7 @@ const AppRouter = () => {
 };
 
 function App() {
+  useTheme(); // applies data-theme + html.dark from stored preference on first render
   return (
     <BrowserRouter>
       <AppRouter />

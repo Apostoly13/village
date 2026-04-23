@@ -11,6 +11,7 @@ import { Switch } from "../components/ui/switch";
 import { Badge } from "../components/ui/badge";
 import Navigation from "../components/Navigation";
 import LocationButton from "../components/LocationButton";
+import { ThemeToggle } from "../useTheme";
 import { toast } from "sonner";
 import { ArrowLeft, Edit2, MessageCircle, Save, X, Heart, UserPlus, UserCheck, Clock, Users, ChevronRight, MapPin, Bell, Camera, Search, AlertCircle, Crown, Shield, Handshake, Stethoscope, Ban, Moon, Sun, ChevronDown } from "lucide-react";
 import AppFooter from "../components/AppFooter";
@@ -69,7 +70,6 @@ function ProfilePage({ user }) {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [darkMode, setDarkMode] = useState(document.documentElement.classList.contains('dark'));
   const [friendStatus, setFriendStatus] = useState(null);
   const [friendActionLoading, setFriendActionLoading] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
@@ -1118,25 +1118,13 @@ function ProfilePage({ user }) {
               </ProfileSection>
 
               {/* Appearance */}
-              <ProfileSection title="Appearance" icon={darkMode ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />} defaultOpen={false}>
+              <ProfileSection title="Appearance" icon={<Sun className="h-4 w-4" />} defaultOpen={false}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-sm text-foreground">Dark mode</Label>
-                    <p className="text-xs text-muted-foreground">Easier on the eyes at night</p>
+                    <Label className="text-sm text-foreground">Theme</Label>
+                    <p className="text-xs text-muted-foreground">Day, Night, or follows your device</p>
                   </div>
-                  <Switch
-                    checked={darkMode}
-                    onCheckedChange={(checked) => {
-                      setDarkMode(checked);
-                      if (checked) {
-                        document.documentElement.classList.add('dark');
-                        localStorage.setItem('theme', 'dark');
-                      } else {
-                        document.documentElement.classList.remove('dark');
-                        localStorage.setItem('theme', 'light');
-                      }
-                    }}
-                  />
+                  <ThemeToggle />
                 </div>
               </ProfileSection>
 

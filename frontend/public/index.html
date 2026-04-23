@@ -27,17 +27,17 @@
         <link rel="icon" type="image/png" href="%PUBLIC_URL%/logo.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400;1,9..144,500&family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
         <title>The Village</title>
         <script>
           (function() {
-            var stored = localStorage.getItem('theme');
-            if (!stored) {
-              document.documentElement.classList.add('dark');
-              localStorage.setItem('theme', 'dark');
-            } else if (stored === 'dark') {
-              document.documentElement.classList.add('dark');
-            }
+            // Resolve theme — new key 'village.theme' (day/night/auto), falls back to legacy 'theme' (dark/light)
+            var stored = localStorage.getItem('village.theme') || localStorage.getItem('theme');
+            var isDark = stored === 'night' || stored === 'dark' ||
+                         (!stored && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            var theme = (stored === 'day' || stored === 'light') ? 'day' : (isDark ? 'night' : 'day');
+            document.documentElement.setAttribute('data-theme', theme);
+            if (isDark) document.documentElement.classList.add('dark');
           })();
         </script>
     </head>
