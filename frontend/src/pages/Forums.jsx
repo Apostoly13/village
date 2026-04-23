@@ -499,7 +499,7 @@ export default function Forums({ user }) {
                       Create and join member communities — local, topic-based, private or open. Up to 3 communities per Village+ member.
                     </p>
                     <p className="text-xs text-muted-foreground mb-6">Free members can browse Spaces and Group Chats.</p>
-                    <Link to="/premium">
+                    <Link to="/plus">
                       <Button className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-8">
                         <Crown className="h-4 w-4 mr-2" />
                         Upgrade to Village+

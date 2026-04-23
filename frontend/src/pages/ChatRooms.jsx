@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
@@ -7,7 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
 import { toast } from "sonner";
-import { Users, MapPin, Compass, Search, Plus, MessagesSquare } from "lucide-react";
+import { Users, MapPin, Compass, Search, Plus, MessagesSquare, Loader2 } from "lucide-react";
+import LocationButton from "../components/LocationButton";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -34,6 +35,7 @@ function isNightOwlTime() {
 
 export default function ChatRooms({ user }) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [mySuburbRoom, setMySuburbRoom] = useState(null);
   const [nearbyRooms, setNearbyRooms] = useState([]);
   const [allAustraliaRooms, setAllAustraliaRooms] = useState([]);
@@ -42,8 +44,11 @@ export default function ChatRooms({ user }) {
   const [preferredReach, setPreferredReach] = useState(user?.preferred_reach || "25km");
   const [hasLocation, setHasLocation] = useState(false);
   const [loading, setLoading] = useState(true);
-  // Default to "village" (All Australia) tab
-  const [activeTab, setActiveTab] = useState("village");
+  // Default tab can be overridden via ?tab=local / ?tab=village / ?tab=friends
+  const [activeTab, setActiveTab] = useState(() => {
+    const t = searchParams.get("tab");
+    return ["village", "local", "friends"].includes(t) ? t : "village";
+  });
   const [creatingRoom, setCreatingRoom] = useState(false);
 
   // Live gender — starts from prop, updates instantly when profile is saved
@@ -172,6 +177,29 @@ export default function ChatRooms({ user }) {
     }
   };
 
+  // Save location from GPS detection directly to profile, then reload rooms
+  const saveLocation = async ({ suburb, postcode, state, latitude, longitude }) => {
+    try {
+      const res = await fetch(`${API_URL}/api/users/profile`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ suburb, postcode, state, latitude, longitude, location: suburb }),
+      });
+      if (res.ok) {
+        setUserSuburb(suburb);
+        setUserPostcode(postcode);
+        setHasLocation(true);
+        toast.success(`Location set to ${suburb || postcode}!`);
+        fetchRooms();
+      } else {
+        toast.error("Couldn't save location — please update your profile.");
+      }
+    } catch {
+      toast.error("Couldn't save location — please update your profile.");
+    }
+  };
+
   // Debounced search within Local Circles tab
   useEffect(() => {
     if (activeTab !== "local" || localSearch.length < 2) {
@@ -242,11 +270,16 @@ export default function ChatRooms({ user }) {
         <div className="flex-1">
           <h3 className="font-heading font-bold text-foreground mb-1">Set your location to connect locally</h3>
           <p className="text-sm text-muted-foreground mb-3">
-            Add your suburb or postcode in your profile to see local group chats.
+            Add your suburb or postcode to see local group chats in your area.
           </p>
-          <Link to="/profile">
-            <Button size="sm" className="rounded-full bg-primary text-primary-foreground">Update Profile</Button>
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <LocationButton onLocation={saveLocation} size="sm" />
+            <Link to="/profile">
+              <Button size="sm" variant="outline" className="rounded-full text-xs border-border/50">
+                Update Profile
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
     </div>
@@ -496,10 +529,13 @@ export default function ChatRooms({ user }) {
               <div className="text-center py-12 bg-card rounded-2xl border border-border/50">
                 <span className="text-4xl mb-3 block">📍</span>
                 <h3 className="font-heading font-semibold text-foreground mb-1">Location not set</h3>
-                <p className="text-sm text-muted-foreground mb-4">Update your profile with your suburb, or search above for any area.</p>
-                <Link to="/profile">
-                  <Button className="rounded-full bg-primary text-primary-foreground">Set Location</Button>
-                </Link>
+                <p className="text-sm text-muted-foreground mb-4">Detect your location automatically, or search above for any suburb.</p>
+                <div className="flex flex-wrap gap-2 justify-center">
+                  <LocationButton onLocation={saveLocation} size="default" />
+                  <Link to="/profile">
+                    <Button variant="outline" className="rounded-full border-border/50">Set Manually</Button>
+                  </Link>
+                </div>
               </div>
             ) : loading ? (
               <LoadingSkeleton />

@@ -47,6 +47,7 @@ export default function Settings({ user }) {
         messages: user?.email_preferences?.notify_dms ?? true,
         friendRequests: user?.email_preferences?.notify_friend_requests ?? true,
         likes: user?.email_preferences?.notify_likes ?? true,
+        trial: user?.email_preferences?.notify_trial ?? true,
       },
       ...local,
     };
@@ -67,7 +68,7 @@ export default function Settings({ user }) {
   function setNotif(key, value) {
     setPrefs(p => ({ ...p, notifications: { ...(p.notifications || {}), [key]: value } }));
     // Sync notification preferences to backend
-    const keyMap = { replies: "notify_replies", messages: "notify_dms", friendRequests: "notify_friend_requests", likes: "notify_likes" };
+    const keyMap = { replies: "notify_replies", messages: "notify_dms", friendRequests: "notify_friend_requests", likes: "notify_likes", trial: "notify_trial" };
     if (keyMap[key]) {
       syncToBackend({ email_preferences: { ...((user?.email_preferences) || {}), [keyMap[key]]: value } });
     }
@@ -188,6 +189,7 @@ export default function Settings({ user }) {
               { key: "messages", icon: Mail, label: "Private messages", desc: "When a friend or member sends you a direct message" },
               { key: "friendRequests", icon: Users, label: "Friend requests", desc: "When someone sends you a friend request" },
               { key: "likes", icon: Heart, label: "Post likes", desc: "When someone likes one of your posts" },
+              { key: "trial", icon: Bell, label: "Trial & subscription reminders", desc: "Reminders before your Village+ trial ends or expires" },
             ].map(({ key, icon: Icon, label, desc }) => (
               <div key={key} className="flex items-center justify-between gap-4">
                 <div className="flex items-start gap-3">

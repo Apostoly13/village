@@ -357,52 +357,58 @@ export default function Dashboard({ user }) {
     return () => window.removeEventListener("village:profileUpdated", handleProfileUpdate);
   }, [user]);
 
+  // Cache TTL: 5 minutes — skip revalidation for fresh caches
+  const CACHE_TTL_MS = 5 * 60 * 1000;
+  const readCache = (key) => {
+    try {
+      const raw = sessionStorage.getItem(key);
+      if (!raw) return null;
+      const { data, ts } = JSON.parse(raw);
+      if (Date.now() - ts > CACHE_TTL_MS) return null; // expired
+      return data;
+    } catch { return null; }
+  };
+  const writeCache = (key, data) => {
+    try { sessionStorage.setItem(key, JSON.stringify({ data, ts: Date.now() })); } catch {}
+  };
+
   const fetchFeed = async () => {
     // Stale-while-revalidate: show cached data instantly, refresh in background
-    try {
-      const cached = sessionStorage.getItem("village_feed_cache");
-      if (cached) {
-        setPosts(JSON.parse(cached));
-        setLoading(false);
-      }
-    } catch {}
+    const cached = readCache("village_feed_cache");
+    if (cached) { setPosts(cached); setLoading(false); }
     try {
       const res = await fetch(`${API_URL}/api/feed`, { credentials: "include" });
       if (res.ok) {
         const data = await res.json();
         setPosts(data);
-        try { sessionStorage.setItem("village_feed_cache", JSON.stringify(data)); } catch {}
+        writeCache("village_feed_cache", data);
       }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
 
   const fetchTodaysPosts = async () => {
-    try {
-      const cached = sessionStorage.getItem("village_trending_cache");
-      if (cached) setTodaysPosts(JSON.parse(cached));
-    } catch {}
+    const cached = readCache("village_trending_cache");
+    if (cached) { setTodaysPosts(cached); return; } // fresh — skip fetch
     try {
       const res = await fetch(`${API_URL}/api/forums/posts/trending?limit=3`, { credentials: "include" });
       if (res.ok) {
         const data = await res.json();
         setTodaysPosts(data);
-        try { sessionStorage.setItem("village_trending_cache", JSON.stringify(data)); } catch {}
+        writeCache("village_trending_cache", data);
       }
     } catch {}
   };
 
   const fetchNearbyEvents = async () => {
-    try {
-      const cached = sessionStorage.getItem("village_events_cache");
-      if (cached) setNearbyEvents(JSON.parse(cached));
-    } catch {}
+    const cached = readCache("village_events_cache");
+    if (cached) { setNearbyEvents(cached); return; } // fresh — skip fetch
     try {
       const res = await fetch(`${API_URL}/api/events?distance_km=25&limit=2`, { credentials: "include" });
       if (res.ok) {
         const data = await res.json();
         setNearbyEvents(data);
-        try { sessionStorage.setItem("village_events_cache", JSON.stringify(data)); } catch {}
+        writeCache("village_events_cache", data);
       }
     } catch {}
   };
@@ -817,36 +823,31 @@ export default function Dashboard({ user }) {
                     {f.label}
                   </button>
                 ))}
+                {/* Live shortcut — navigates to Group Chats */}
+                {namedRooms.length > 0 && (
+                  <Link
+                    to="/chat"
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap shrink-0 bg-green-500/10 border border-green-500/30 text-green-700 dark:text-green-400 hover:bg-green-500/20 transition-colors"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse inline-block" />
+                    {namedRooms.length} Live
+                  </Link>
+                )}
               </div>
             </div>
 
-            {/* Mobile-only quick-access highlights strip */}
-            <div className="flex gap-2 mb-4 lg:hidden">
-              {unreadActivity.length > 0 && (
+            {/* Quick-access highlights strip — unread catch-up + spaces shortcut */}
+            {(unreadActivity.length > 0) && (
+              <div className="flex gap-2 mb-4 flex-wrap">
                 <button
                   onClick={() => switchMode("catch-up")}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-medium hover:bg-primary/15 transition-colors"
                 >
                   <span>🔔</span>
-                  {unreadActivity.length} new
+                  {unreadActivity.length} unread
                 </button>
-              )}
-              {namedRooms.length > 0 && (
-                <Link
-                  to="/chat"
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-green-500/10 border border-green-500/20 text-green-700 dark:text-green-400 text-xs font-medium hover:bg-green-500/15 transition-colors"
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse inline-block" />
-                  {namedRooms.length} live
-                </Link>
-              )}
-              <Link
-                to="/forums"
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-card border border-border/50 text-muted-foreground text-xs font-medium hover:text-foreground hover:border-primary/30 transition-colors ml-auto"
-              >
-                Spaces →
-              </Link>
-            </div>
+              </div>
+            )}
 
             {/* Two-column layout */}
             <div className="flex flex-col lg:flex-row gap-5">

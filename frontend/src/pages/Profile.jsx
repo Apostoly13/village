@@ -10,11 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Switch } from "../components/ui/switch";
 import { Badge } from "../components/ui/badge";
 import Navigation from "../components/Navigation";
+import LocationButton from "../components/LocationButton";
 import { toast } from "sonner";
 import { ArrowLeft, Edit2, MessageCircle, Save, X, Heart, UserPlus, UserCheck, Clock, Users, ChevronRight, MapPin, Bell, Camera, Search, AlertCircle, Crown, Shield, Handshake, Stethoscope, Ban, Moon, Sun, ChevronDown } from "lucide-react";
 import AppFooter from "../components/AppFooter";
 
-// Accordion section for mobile — on lg+ it renders as plain <div>
+// Collapsible accordion section — works on all screen sizes
 function ProfileSection({ title, icon, children, defaultOpen = false }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
@@ -22,17 +23,19 @@ function ProfileSection({ title, icon, children, defaultOpen = false }) {
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-4 py-3 bg-secondary/30 hover:bg-secondary/50 transition-colors lg:cursor-default"
+        className="w-full flex items-center justify-between px-4 py-3 bg-secondary/30 hover:bg-secondary/50 transition-colors"
       >
         <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
           {icon && <span className="text-primary">{icon}</span>}
           {title}
         </span>
-        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform lg:hidden ${open ? "rotate-180" : ""}`} />
+        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
-      <div className={`${open ? "block" : "hidden"} lg:block px-4 py-4 space-y-4`}>
-        {children}
-      </div>
+      {open && (
+        <div className="px-4 py-4 space-y-4">
+          {children}
+        </div>
+      )}
     </div>
   );
 }
@@ -734,6 +737,17 @@ function ProfilePage({ user }) {
 
           {editing ? (
             <div className="space-y-3">
+              {/* Sticky save bar */}
+              <div className="sticky top-16 z-10 -mx-4 px-4 py-2 bg-background/95 backdrop-blur border-b border-border/30 flex items-center justify-between gap-3 mb-1">
+                <p className="text-xs text-muted-foreground">Editing profile</p>
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => setEditing(false)} className="rounded-full h-8 px-3">Cancel</Button>
+                  <Button size="sm" onClick={handleSave} disabled={saving} className="rounded-full h-8 px-4 bg-primary text-primary-foreground hover:bg-primary/90">
+                    {saving ? "Saving…" : <><Save className="h-3.5 w-3.5 mr-1.5" />Save</>}
+                  </Button>
+                </div>
+              </div>
+
               {/* About You */}
               <ProfileSection title="About You" icon="👤" defaultOpen={true}>
                 <div className="space-y-2">
@@ -874,6 +888,21 @@ function ProfilePage({ user }) {
               <ProfileSection title="Location" icon={<MapPin className="h-4 w-4" />} defaultOpen={false}>
                 {/* Suburb / Postcode search */}
                 <div className="relative">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <Label className="text-sm text-muted-foreground">Suburb or postcode</Label>
+                    <LocationButton
+                      onLocation={({ suburb, postcode, state: newState, latitude, longitude }) => {
+                        setSuburb(suburb);
+                        setPostcode(postcode);
+                        setState(newState);
+                        setLatitude(latitude);
+                        setLongitude(longitude);
+                        setUserLocation(suburb);
+                        setLocationSearch(`${suburb}${postcode ? ", " + postcode : ""}`);
+                        setLocationResults([]);
+                      }}
+                    />
+                  </div>
                   <Input
                     value={locationSearch}
                     onChange={(e) => {
@@ -1136,26 +1165,54 @@ function ProfilePage({ user }) {
               </div>
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-5">
+              {/* Bio */}
               {profile.bio ? (
                 <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">About</h3>
-                  <p className="text-foreground">{profile.bio}</p>
+                  <p className="text-sm font-medium text-muted-foreground mb-1.5">About</p>
+                  <p className="text-foreground leading-relaxed">{profile.bio}</p>
                 </div>
               ) : isOwnProfile ? (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground mb-4">Complete your profile to help other parents connect with you!</p>
-                  <Button onClick={() => setEditing(true)} className="rounded-full" data-testid="complete-profile-btn">
+                <div className="text-center py-6 bg-secondary/20 rounded-xl border border-border/30">
+                  <p className="text-muted-foreground text-sm mb-3">Complete your profile to help other parents connect with you!</p>
+                  <Button onClick={() => setEditing(true)} size="sm" className="rounded-full" data-testid="complete-profile-btn">
                     <Edit2 className="h-4 w-4 mr-2" />
                     Complete Profile
                   </Button>
                 </div>
               ) : null}
 
-              {profile.connect_with && profile.connect_with !== "all" && (
+              {/* Quick-info chips */}
+              {(() => {
+                const STAGE_LABELS = {
+                  expecting: "🤰 Expecting", newborn: "👶 Newborn", infant: "🧒 Infant",
+                  toddler: "🚶 Toddler", school_age: "🎒 School Age", teenager: "🧑 Teenager",
+                  multiples: "👶👶 Twins/Triplets", mixed: "👨‍👩‍👧‍👦 Mixed Ages",
+                };
+                const chips = [];
+                if (profile.parenting_stage) chips.push(STAGE_LABELS[profile.parenting_stage] || profile.parenting_stage);
+                if (profile.is_single_parent) chips.push("❤️ Single Parent");
+                if (profile.connect_with && profile.connect_with !== "all") {
+                  chips.push(`🤝 Connects with ${connectWithOptions.find(o => o.id === profile.connect_with)?.text || profile.connect_with}`);
+                }
+                return chips.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {chips.map(c => (
+                      <span key={c} className="text-xs px-2.5 py-1 rounded-full bg-secondary/60 border border-border/40 text-foreground">{c}</span>
+                    ))}
+                  </div>
+                ) : null;
+              })()}
+
+              {/* Interests */}
+              {profile.interests?.length > 0 && (
                 <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">Connection Preference</h3>
-                  <p className="text-foreground">{connectWithOptions.find(o => o.id === profile.connect_with)?.text}</p>
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Interests</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {profile.interests.map(interest => (
+                      <span key={interest} className="text-xs px-2.5 py-1 rounded-full bg-primary/8 border border-primary/20 text-primary/80">{interest}</span>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

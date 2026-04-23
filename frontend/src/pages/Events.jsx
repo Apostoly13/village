@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Crown } from "lucide-react";
 import Navigation from "../components/Navigation";
+import LocationButton from "../components/LocationButton";
 import { Calendar, MapPin, Clock, Users, Plus, Download, Check, Pencil, UserPlus, X, Send, MessageCircle, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { parseApiError } from "../utils/apiError";
@@ -476,8 +477,8 @@ function CreateEventForm({ onCreated, onClose }) {
       setSearchingVenue(true);
       try {
         const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q + " Australia")}&limit=5&addressdetails=1`,
-          { headers: { "Accept-Language": "en" } }
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=5&addressdetails=1&countrycodes=au`,
+          { headers: { "Accept-Language": "en", "User-Agent": "TheVillage/1.0" } }
         );
         if (res.ok) setVenueResults(await res.json());
       } catch {}
@@ -598,7 +599,22 @@ function CreateEventForm({ onCreated, onClose }) {
 
       {/* Venue address search */}
       <div className="relative">
-        <label className="text-sm font-medium text-foreground block mb-1">Address or location *</label>
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-sm font-medium text-foreground">Address or location *</label>
+          <LocationButton
+            onLocation={({ suburb, postcode, state, latitude, longitude }) => {
+              setForm(prev => ({
+                ...prev,
+                suburb,
+                state,
+                latitude,
+                longitude,
+                venue_address: prev.venue_address || `${suburb}${postcode ? " " + postcode : ""}${state ? ", " + state : ""}`,
+              }));
+              setVenueResults([]);
+            }}
+          />
+        </div>
         <input
           type="text"
           value={form.venue_address}
@@ -962,7 +978,7 @@ function EventDetailModal({ event, user, onClose, onRsvp, onUpdated }) {
                 <Button
                   onClick={handleRsvp}
                   disabled={rsvping || (localEvent.rsvp_limit && localEvent.rsvp_count >= localEvent.rsvp_limit && !localEvent.user_has_rsvp)}
-                  className={`rounded-xl h-9 text-sm px-5 ${localEvent.user_has_rsvp ? "bg-primary text-primary-foreground hover:bg-primary/90" : "bg-primary text-primary-foreground hover:bg-primary/90"}`}
+                  className={`rounded-xl h-9 text-sm px-5 ${localEvent.user_has_rsvp ? "bg-green-500/10 text-green-600 border border-green-500/40 hover:bg-green-500/20" : "bg-primary text-primary-foreground hover:bg-primary/90"}`}
                 >
                   {localEvent.user_has_rsvp ? <><Check className="h-4 w-4 mr-1.5" /> Going</> : "RSVP"}
                 </Button>
@@ -1069,6 +1085,7 @@ function EventDetailModal({ event, user, onClose, onRsvp, onUpdated }) {
 }
 
 export default function Events({ user }) {
+  const isFree = user?.subscription_tier === "free";
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("all");
@@ -1131,6 +1148,29 @@ export default function Events({ user }) {
   const handleUpdated = (updatedEvent) => {
     setEvents(prev => prev.map(e => e.event_id === updatedEvent.event_id ? { ...e, ...updatedEvent } : e));
   };
+
+  if (isFree) {
+    return (
+      <div className="min-h-screen bg-background pb-20 lg:pb-0">
+        <Navigation user={user} />
+        <main className="max-w-lg mx-auto px-4 pt-24 pb-16 text-center">
+          <div className="w-16 h-16 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center mx-auto mb-5">
+            <Crown className="h-8 w-8 text-primary" />
+          </div>
+          <h1 className="font-heading text-2xl font-bold text-foreground mb-2">Events are a Village+ feature</h1>
+          <p className="text-muted-foreground text-sm mb-6">
+            Find local meetups, playgroups and parent events near you — upgrade to Village+ to browse and create events.
+          </p>
+          <Link to="/plus">
+            <Button className="rounded-xl px-8">
+              <Crown className="h-4 w-4 mr-2" />
+              Upgrade to Village+
+            </Button>
+          </Link>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-20 lg:pb-8">

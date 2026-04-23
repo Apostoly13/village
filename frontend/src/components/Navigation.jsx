@@ -11,7 +11,7 @@ import {
 } from "./ui/dropdown-menu";
 import { ScrollArea } from "./ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
-import { Home, MessageSquare, Users, Mail, User, LogOut, Menu, X, Moon, Sun, UserPlus, Bell, Bookmark, Shield, ScrollText, BookOpen, Calendar, Heart, Lock, FileText, Settings, Crown } from "lucide-react";
+import { Home, MessageSquare, Users, Mail, User, LogOut, Menu, X, Moon, Sun, UserPlus, Bell, Bookmark, Shield, ScrollText, BookOpen, Calendar, Heart, Lock, FileText, Settings, Crown, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { FEATURES } from "../config/features";
 
@@ -30,8 +30,11 @@ export default function Navigation({ user }) {
 
   useEffect(() => {
     // Single polling loop: badge counts every 20s + heartbeat piggybacked every 6th tick (120s)
+    // Pauses automatically when the browser tab is hidden to reduce server load
     let tickCount = 0;
     const poll = async () => {
+      // Skip poll entirely when tab is hidden
+      if (document.hidden) return;
       tickCount++;
       try {
         const [friendsRes, notifCountRes, msgRes] = await Promise.all([
@@ -58,9 +61,16 @@ export default function Navigation({ user }) {
       }
     };
 
+    // Resume immediately when tab becomes visible again
+    const onVisibilityChange = () => { if (!document.hidden) poll(); };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
     poll();
     const interval = setInterval(poll, 20000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, []);
 
   const fetchNotifications = async () => {
@@ -111,8 +121,23 @@ export default function Navigation({ user }) {
   // Desktop nav — full list including Group Chats
   const navItems = [
     { icon: Home, label: "Home", href: "/dashboard", testId: "nav-home" },
-    { icon: MessageSquare, label: "Spaces", href: "/forums", testId: "nav-forums" },
-    { icon: Users, label: "Group Chats", href: "/chat", testId: "nav-chat" },
+    {
+      icon: MessageSquare, label: "Spaces", href: "/forums", testId: "nav-forums",
+      subItems: [
+        { label: "📖 All Spaces", href: "/forums" },
+        { label: "🏘️ Communities", href: "/forums?tab=communities" },
+        { label: "✏️ Create Post", href: "/create-post" },
+        { label: "💾 Saved Posts", href: "/saved" },
+      ],
+    },
+    {
+      icon: Users, label: "Group Chats", href: "/chat", testId: "nav-chat",
+      subItems: [
+        { label: "🇦🇺 All Australia", href: "/chat?tab=village" },
+        { label: "📍 Local Circles", href: "/chat?tab=local" },
+        { label: "👥 Friends", href: "/chat?tab=friends" },
+      ],
+    },
     { icon: Calendar, label: "Events", href: isFree ? "/plus" : "/events", testId: "nav-events", locked: isFree },
     { icon: Mail, label: "Messages", href: isFree ? "/plus" : "/messages", testId: "nav-messages", locked: isFree, badge: isFree ? 0 : unreadMessages },
     ...(FEATURES.BLOG ? [{ icon: BookOpen, label: "Blog", href: "/blog", testId: "nav-blog" }] : []),
@@ -171,12 +196,41 @@ export default function Navigation({ user }) {
               <TooltipProvider delayDuration={300}>
                 {navItems.map((item) => {
                   const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
+                  const activeClass = isActive ? 'bg-primary/10 text-primary' : item.locked ? 'text-muted-foreground/60 hover:text-foreground' : 'text-muted-foreground hover:text-foreground';
+
+                  // Items with sub-menus: split button (link + chevron dropdown)
+                  if (item.subItems) {
+                    const mainLink = (
+                      <div key={item.testId} className="flex items-center">
+                        <Link to={item.href} data-testid={item.testId}>
+                          <Button variant="ghost" className={`rounded-l-full rounded-r-none px-4 pr-3 ${activeClass}`}>
+                            <item.icon className="h-4 w-4 mr-2" />
+                            {item.label}
+                          </Button>
+                        </Link>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className={`rounded-r-full rounded-l-none px-1.5 h-9 border-l border-border/20 ${activeClass}`}>
+                              <ChevronDown className="h-3 w-3" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="w-44 bg-card border-border/50">
+                            {item.subItems.map(sub => (
+                              <DropdownMenuItem key={sub.href} asChild>
+                                <Link to={sub.href} className="cursor-pointer">{sub.label}</Link>
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    );
+                    return mainLink;
+                  }
+
+                  // Regular nav items
                   const btn = (
                     <Link key={item.testId} to={item.href} data-testid={item.testId}>
-                      <Button
-                        variant="ghost"
-                        className={`rounded-full px-4 ${isActive ? 'bg-primary/10 text-primary' : item.locked ? 'text-muted-foreground/60 hover:text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                      >
+                      <Button variant="ghost" className={`rounded-full px-4 ${activeClass}`}>
                         <item.icon className="h-4 w-4 mr-2" />
                         {item.label}
                         {item.locked && <Lock className="h-3 w-3 ml-1.5 opacity-60" />}
@@ -237,13 +291,14 @@ export default function Navigation({ user }) {
                     </div>
                   ) : (
                     notifications.map((notif) => (
-                      <div
+                      <button
                         key={notif.notification_id}
                         onClick={() => handleNotificationClick(notif)}
-                        className={`p-3 cursor-pointer hover:bg-secondary/50 border-b border-border/30 ${!notif.is_read ? 'bg-primary/5' : ''}`}
+                        onKeyDown={(e) => e.key === "Enter" && handleNotificationClick(notif)}
+                        className={`w-full text-left p-3 cursor-pointer hover:bg-secondary/50 border-b border-border/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${!notif.is_read ? 'bg-primary/5' : ''}`}
                       >
                         <div className="flex items-start gap-2">
-                          <span className="text-base mt-0.5 flex-shrink-0">
+                          <span className="text-base mt-0.5 flex-shrink-0" aria-hidden="true">
                             {notif.type === "reply" ? "💬" : notif.type === "like" ? "❤️" : notif.type === "friend_request" || notif.type === "friend_accept" ? "👋" : notif.type === "moderation" ? "🛡️" : "🔔"}
                           </span>
                           <div className="min-w-0">
@@ -251,7 +306,7 @@ export default function Navigation({ user }) {
                             <p className="text-xs text-muted-foreground line-clamp-2">{notif.message}</p>
                           </div>
                         </div>
-                      </div>
+                      </button>
                     ))
                   )}
                 </ScrollArea>

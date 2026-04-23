@@ -5,7 +5,7 @@ import { Button } from "../components/ui/button";
 import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
 
-const API_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:8000";
+const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const PRICE_MONTHLY = 9.99;
 const PRICE_ANNUAL_MONTHLY = 7.99; // per month

@@ -14,6 +14,8 @@ from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
 from typing import List, Optional
 import uuid
+import secrets
+import html as html_module
 from datetime import datetime, timezone, timedelta, date as date_type
 import httpx
 import bcrypt
@@ -95,7 +97,7 @@ if RESEND_API_KEY:
     resend.api_key = RESEND_API_KEY
 
 # Admin Config
-ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'admin@ourlittlevillage.com.au')
+ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL') or 'admin@ourlittlevillage.com.au'
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', '')
 
 # Stripe Config
@@ -175,8 +177,8 @@ class UserProfile(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class UserProfileUpdate(BaseModel):
-    nickname: Optional[str] = None
-    bio: Optional[str] = None
+    nickname: Optional[str] = Field(None, max_length=50)
+    bio: Optional[str] = Field(None, max_length=500)
     parenting_stage: Optional[str] = None
     child_age_ranges: Optional[List[str]] = None
     interests: Optional[List[str]] = None
@@ -286,8 +288,8 @@ class ForumPost(BaseModel):
 
 class ForumPostCreate(BaseModel):
     category_id: str
-    title: str = ""
-    content: str = ""
+    title: str = Field("", max_length=300)
+    content: str = Field("", max_length=10000)
     is_anonymous: bool = False
     image: Optional[str] = None  # Base64 encoded image
     latitude: Optional[float] = None
@@ -317,7 +319,7 @@ class ForumReply(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class ForumReplyCreate(BaseModel):
-    content: str
+    content: str = Field(..., max_length=2000)
     is_anonymous: bool = False
     parent_reply_id: Optional[str] = None  # For nested replies
 
@@ -424,7 +426,7 @@ class FriendRequestCreate(BaseModel):
 
 class DirectMessageCreate(BaseModel):
     receiver_id: str
-    content: str
+    content: str = Field(..., max_length=2000)
 
 class Conversation(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -582,6 +584,9 @@ async def send_email_notification(to_email: str, subject: str, html_content: str
 
 def get_email_template(template_type: str, data: dict) -> tuple:
     """Generate email subject and HTML content based on template type"""
+    # Sanitise all user-controlled string values to prevent HTML injection
+    data = {k: html_module.escape(str(v)) if isinstance(v, str) else v for k, v in data.items()}
+
     base_style = """
         <style>
             body { font-family: 'Segoe UI', Tahoma, Geneva, sans-serif; background-color: #FDF8F3; margin: 0; padding: 20px; }
@@ -664,6 +669,61 @@ def get_email_template(template_type: str, data: dict) -> tuple:
                 <a href="{data.get('link', '#')}" class="button">Visit The Village</a>
             </div>
             <div class="footer">You're receiving this weekly digest because you're subscribed.<br/>The Village - You're not alone on this journey.</div>
+        </div>
+        </body></html>
+        """
+    elif template_type == "password_reset":
+        subject = "Reset your Village password"
+        html = f"""
+        <html><head>{base_style}</head><body>
+        <div class="container">
+            <div class="header"><h1>🏡 The Village</h1></div>
+            <div class="content">
+                <h2>Password reset request</h2>
+                <p>Hi {data.get('first_name', 'there')}, we received a request to reset your password.</p>
+                <p>Click the button below — this link expires in <strong>1 hour</strong>.</p>
+                <a href="{data.get('link', '#')}" class="button">Reset Password</a>
+                <p style="font-size: 13px; color: #888; margin-top: 20px;">
+                    If you didn't request this, you can safely ignore this email. Your password won't change.
+                </p>
+            </div>
+            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>hello@ourlittlevillage.com.au</div>
+        </div>
+        </body></html>
+        """
+    elif template_type == "trial_warning":
+        subject = "⏰ Your Village+ trial ends in 2 days"
+        html = f"""
+        <html><head>{base_style}</head><body>
+        <div class="container">
+            <div class="header"><h1>🏡 The Village</h1></div>
+            <div class="content">
+                <h2>Your trial ends soon, {data.get('first_name', 'there')}</h2>
+                <p>Your free Village+ trial expires in <strong>2 days</strong>. After that you'll move to the free plan with limited posts and messages.</p>
+                <p>Upgrade now to keep unlimited access — it's just A$9.99/month or A$7.99/month billed annually.</p>
+                <a href="{FRONTEND_URL}/plus" class="button">Keep Village+ Access</a>
+                <p style="font-size: 13px; color: #888; margin-top: 20px;">
+                    No lock-in. Cancel any time.
+                </p>
+            </div>
+            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>hello@ourlittlevillage.com.au</div>
+        </div>
+        </body></html>
+        """
+    elif template_type == "trial_expired":
+        subject = "Your Village+ trial has ended"
+        html = f"""
+        <html><head>{base_style}</head><body>
+        <div class="container">
+            <div class="header"><h1>🏡 The Village</h1></div>
+            <div class="content">
+                <h2>Your trial has ended, {data.get('first_name', 'there')}</h2>
+                <p>Your Village+ trial has expired and your account has moved to the free plan.</p>
+                <p>You can still read all posts, chat with the community, and post anonymously — but with limits.</p>
+                <p>Upgrade any time to restore unlimited access.</p>
+                <a href="{FRONTEND_URL}/plus" class="button">Upgrade to Village+</a>
+            </div>
+            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>hello@ourlittlevillage.com.au</div>
         </div>
         </body></html>
         """
@@ -851,7 +911,8 @@ async def get_users_within_distance(user_lat: float, user_lon: float, distance_k
 # ==================== AUTH ENDPOINTS ====================
 
 @api_router.post("/auth/register")
-async def register(user_data: UserCreate, response: Response):
+async def register(user_data: UserCreate, response: Response, request: Request):
+    _check_rate_limit(f"{request.client.host if request.client else 'unknown'}:register", 5, 3600)
     # --- Validate all required fields explicitly (avoids Pydantic 422 noise) ---
     if not user_data.email:
         raise HTTPException(status_code=400, detail="Email is required")
@@ -914,7 +975,16 @@ async def register(user_data: UserCreate, response: Response):
         "is_banned": False,
         "ban_reason": None,
         "onboarding_complete": False,
-        "created_at": now.isoformat()
+        "created_at": now.isoformat(),
+        "email_preferences": {
+            "notify_replies": True,
+            "notify_dms": True,
+            "notify_friend_requests": True,
+            "notify_likes": True,
+            "notify_trial": True,
+        },
+        "reset_token": None,
+        "reset_token_expires": None,
     }
     await db.users.insert_one(user)
 
@@ -1138,9 +1208,78 @@ async def logout(request: Request, response: Response):
     session_token = request.cookies.get("session_token")
     if session_token:
         await db.user_sessions.delete_one({"session_token": session_token})
-    
-    response.delete_cookie(key="session_token", path="/")
+
+    response.delete_cookie(key="session_token", path="/", secure=COOKIE_SECURE, samesite=COOKIE_SAMESITE)
     return {"message": "Logged out successfully"}
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+@api_router.post("/auth/forgot-password")
+async def forgot_password(payload: ForgotPasswordRequest, request: Request):
+    """Generate a password reset token and email it. Always returns 200 to avoid user enumeration."""
+    # Rate-limit: 5 requests per IP per 15 minutes
+    ip = request.client.host if request.client else "unknown"
+    _check_rate_limit(f"{ip}:forgot-password", 5, 900)
+
+    email = payload.email.strip().lower()
+    user = await db.users.find_one({"email": email})
+
+    if user:
+        token = secrets.token_urlsafe(32)
+        expires = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+        await db.users.update_one(
+            {"user_id": user["user_id"]},
+            {"$set": {"reset_token": token, "reset_token_expires": expires}}
+        )
+        reset_link = f"{FRONTEND_URL}/reset-password?token={token}"
+        fire_and_forget(send_email(
+            to=email,
+            template_type="password_reset",
+            data={"first_name": user.get("first_name", "there"), "link": reset_link}
+        ))
+
+    # Always return 200 — don't reveal whether the email exists
+    return {"message": "If that email is registered, a reset link is on its way."}
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    password: str
+
+@api_router.post("/auth/reset-password")
+async def reset_password(payload: ResetPasswordRequest, request: Request):
+    _check_rate_limit(f"{request.client.host if request.client else 'unknown'}:reset-password", 10, 3600)
+    """Validate a reset token and update the user's password."""
+    if len(payload.password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters.")
+
+    user = await db.users.find_one({"reset_token": payload.token})
+    if not user:
+        raise HTTPException(status_code=400, detail="This reset link is invalid or has already been used.")
+
+    # Check expiry
+    expires_raw = user.get("reset_token_expires")
+    if not expires_raw:
+        raise HTTPException(status_code=400, detail="This reset link is invalid.")
+    try:
+        expires = datetime.fromisoformat(expires_raw)
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=timezone.utc)
+        if datetime.now(timezone.utc) > expires:
+            raise HTTPException(status_code=400, detail="This reset link has expired. Please request a new one.")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="This reset link is invalid.")
+
+    # Hash the new password and clear the token
+    hashed = bcrypt.hashpw(payload.password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    await db.users.update_one(
+        {"user_id": user["user_id"]},
+        {"$set": {"password_hash": hashed, "reset_token": None, "reset_token_expires": None}}
+    )
+    return {"message": "Password updated. You can now sign in."}
+
 
 # ==================== USER PROFILE ENDPOINTS ====================
 
@@ -1344,24 +1483,35 @@ async def get_blocked_users_early(user: dict = Depends(get_current_user)):
     ).to_list(200)
     return users
 
+_PROFILE_SENSITIVE_FIELDS = {
+    "password_hash", "email", "date_of_birth", "reset_token", "reset_token_expires",
+    "stripe_customer_id", "stripe_subscription_id", "email_preferences",
+    "is_banned", "ban_reason", "trial_warning_sent", "trial_expired_notified",
+    "premium_since", "_id",
+}
+
 @api_router.get("/users/{user_id}")
 async def get_user_profile(user_id: str, request: Request):
     user = await db.users.find_one({"user_id": user_id}, {"_id": 0, "password_hash": 0})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    # For non-owners: strip email; strip real name unless show_full_name is true
+
     try:
         caller = await get_current_user(request)
-        if caller.get("user_id") != user_id:
-            user.pop("email", None)
-            if not user.get("show_full_name"):
-                user.pop("first_name", None)
-                user.pop("last_name", None)
+        is_owner = caller.get("user_id") == user_id
+        is_admin = caller.get("role") in ("admin", "moderator")
     except HTTPException:
-        user.pop("email", None)
+        is_owner = False
+        is_admin = False
+
+    if not is_owner and not is_admin:
+        # Strip all sensitive fields for public profile views
+        for field in _PROFILE_SENSITIVE_FIELDS:
+            user.pop(field, None)
         if not user.get("show_full_name"):
             user.pop("first_name", None)
             user.pop("last_name", None)
+
     return user
 
 @api_router.put("/users/profile")
@@ -1404,7 +1554,7 @@ async def delete_account(request: Request, response: Response, user: dict = Depe
     await db.user_sessions.delete_many({"user_id": uid})
     await db.users.delete_one({"user_id": uid})
     # Clear auth cookie
-    response.delete_cookie("session_token", path="/", samesite="lax")
+    response.delete_cookie("session_token", path="/", secure=COOKIE_SECURE, samesite=COOKIE_SAMESITE)
     return {"message": "Account deleted"}
 
 # ==================== FORUM ENDPOINTS ====================
@@ -1505,6 +1655,11 @@ async def get_posts(
     if blocked_ids:
         query["$and"].append({"author_id": {"$nin": blocked_ids}})
     if category_id:
+        # Enforce private/invite-only community membership server-side
+        _cat = await db.forum_categories.find_one({"category_id": category_id}, {"_id": 0, "is_private": 1, "invite_only": 1, "member_ids": 1})
+        if _cat and (_cat.get("is_private") or _cat.get("invite_only")):
+            if not current_user_id or current_user_id not in _cat.get("member_ids", []):
+                raise HTTPException(status_code=403, detail="This is a private community")
         query["$and"].append({"category_id": category_id})
     if search and len(search.strip()) >= 2:
         sq = search.strip()
@@ -1713,8 +1868,9 @@ async def create_post(post_data: ForumPostCreate, user: dict = Depends(get_curre
     return result
 
 @api_router.post("/upload/image")
-async def upload_image(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
+async def upload_image(file: UploadFile = File(...), user: dict = Depends(get_current_user), request: Request = None):
     """Upload an image and return base64 encoded string"""
+    _check_rate_limit(f"{user['user_id']}:upload-image", 10, 60)
     # Validate file type
     if file.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(status_code=400, detail=f"Invalid file type. Allowed: {', '.join(ALLOWED_IMAGE_TYPES)}")
@@ -3387,7 +3543,8 @@ async def get_room_messages(room_id: str, limit: int = 50, before: Optional[str]
     return list(reversed(messages))
 
 @api_router.post("/chat/rooms/{room_id}/messages")
-async def send_room_message(room_id: str, message_data: ChatMessageCreate, user: dict = Depends(get_current_user)):
+async def send_room_message(room_id: str, message_data: ChatMessageCreate, user: dict = Depends(get_current_user), request: Request = None):
+    _check_rate_limit(f"{user['user_id']}:chat-send", 60, 60)
     # Verify room exists
     room = await db.chat_rooms.find_one({"room_id": room_id}, {"_id": 0})
     if not room:
@@ -3515,22 +3672,31 @@ async def get_conversations(user: dict = Depends(get_current_user)):
     
     conversations_raw = await db.direct_messages.aggregate(pipeline).to_list(50)
     
-    # Get user info for each conversation
+    # Batch-fetch all other-user profiles in one query (eliminates N+1)
+    other_ids = [c["_id"] for c in conversations_raw]
+    user_map: dict = {}
+    if other_ids:
+        other_users = await db.users.find(
+            {"user_id": {"$in": other_ids}},
+            {"_id": 0, "user_id": 1, "name": 1, "nickname": 1, "picture": 1, "subscription_tier": 1}
+        ).to_list(50)
+        user_map = {u["user_id"]: u for u in other_users}
+
     conversations = []
     for conv in conversations_raw:
         other_user_id = conv["_id"]
-        other_user = await db.users.find_one({"user_id": other_user_id}, {"_id": 0})
+        other_user = user_map.get(other_user_id)
         if other_user:
             conversations.append({
                 "conversation_id": f"{min(user_id, other_user_id)}_{max(user_id, other_user_id)}",
                 "other_user_id": other_user_id,
-                "other_user_name": other_user.get("nickname") or other_user["name"],
+                "other_user_name": other_user.get("nickname") or other_user.get("name", ""),
                 "other_user_picture": other_user.get("picture"),
                 "last_message": conv["last_message"],
                 "last_message_time": conv["last_message_time"],
                 "unread_count": conv["unread_count"]
             })
-    
+
     return sorted(conversations, key=lambda x: x["last_message_time"], reverse=True)
 
 @api_router.get("/messages/unread-count")
@@ -3562,7 +3728,8 @@ async def get_direct_messages(other_user_id: str, user: dict = Depends(get_curre
     return messages
 
 @api_router.post("/messages")
-async def send_direct_message(message_data: DirectMessageCreate, user: dict = Depends(get_current_user)):
+async def send_direct_message(message_data: DirectMessageCreate, user: dict = Depends(get_current_user), request: Request = None):
+    _check_rate_limit(f"{user['user_id']}:dm-send", 30, 60)
     # Check freemium limits
     sub = await get_user_subscription_status(user)
     if sub["limits_apply"]:
@@ -3621,8 +3788,9 @@ async def send_direct_message(message_data: DirectMessageCreate, user: dict = De
 # ==================== FRIENDS ENDPOINTS ====================
 
 @api_router.post("/friends/request")
-async def send_friend_request(request_data: FriendRequestCreate, user: dict = Depends(get_current_user)):
+async def send_friend_request(request_data: FriendRequestCreate, user: dict = Depends(get_current_user), http_request: Request = None):
     """Send a friend request to another user"""
+    _check_rate_limit(f"{user['user_id']}:friend-request", 20, 3600)
     to_user_id = request_data.to_user_id
     from_user_id = user["user_id"]
     
@@ -3696,11 +3864,17 @@ async def get_friend_requests(user: dict = Depends(get_current_user)):
         {"_id": 0}
     ).to_list(50)
     
-    # Add sender info
-    for req in requests:
-        sender = await db.users.find_one({"user_id": req["from_user_id"]}, {"_id": 0, "password_hash": 0, "email": 0})
-        req["from_user"] = sender
-    
+    # Batch-fetch all senders in one query (eliminates N+1)
+    sender_ids = [r["from_user_id"] for r in requests]
+    if sender_ids:
+        senders = await db.users.find(
+            {"user_id": {"$in": sender_ids}},
+            {"_id": 0, "password_hash": 0, "email": 0, "reset_token": 0, "stripe_customer_id": 0}
+        ).to_list(50)
+        sender_map = {s["user_id"]: s for s in senders}
+        for req in requests:
+            req["from_user"] = sender_map.get(req["from_user_id"])
+
     return requests
 
 @api_router.get("/friends/sent")
@@ -4057,12 +4231,12 @@ async def stripe_webhook(request: Request):
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature", "")
 
+    if not STRIPE_WEBHOOK_SECRET:
+        logging.error("Stripe webhook received but STRIPE_WEBHOOK_SECRET is not configured — rejecting")
+        raise HTTPException(status_code=503, detail="Webhook secret not configured")
+
     try:
-        if STRIPE_WEBHOOK_SECRET:
-            event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
-        else:
-            # Dev mode — no signature verification (never do this in production)
-            event = stripe.Event.construct_from(json.loads(payload), stripe.api_key)
+        event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
     except Exception as e:
         logging.error(f"Stripe webhook signature error: {e}")
         raise HTTPException(status_code=400, detail="Invalid webhook signature")
@@ -4076,6 +4250,10 @@ async def stripe_webhook(request: Request):
             customer_id = data.get("customer")
             subscription_id = data.get("subscription")
             if user_id:
+                _u = await db.users.find_one({"user_id": user_id}, {"_id": 0, "user_id": 1})
+                if not _u:
+                    logging.warning(f"Stripe webhook: unknown user_id {user_id} in checkout.session.completed")
+                    return {"received": True}
                 await db.users.update_one(
                     {"user_id": user_id},
                     {"$set": {
@@ -4848,9 +5026,38 @@ async def seed_data():
     await db.direct_messages.create_index([("receiver_id", 1), ("is_read", 1)])
     await db.direct_messages.create_index([("sender_id", 1), ("receiver_id", 1), ("created_at", -1)])
     await db.direct_messages.create_index([("receiver_id", 1), ("sender_id", 1), ("created_at", -1)])
+    # Single-field DM indexes for $or query union
+    await db.direct_messages.create_index("sender_id")
+    await db.direct_messages.create_index("receiver_id")
+    # Password reset token index
+    await db.users.create_index("reset_token", sparse=True)
+    # Users — hot-path lookup fields
+    await db.users.create_index("user_id", unique=True)
+    await db.users.create_index("email", unique=True)
+    await db.users.create_index("stripe_customer_id", sparse=True)
+    # Friendships — no indexes existed
+    await db.friendships.create_index("user1_id")
+    await db.friendships.create_index("user2_id")
+    await db.friendships.create_index([("user1_id", 1), ("user2_id", 1)])
+    # Friend requests — polled every 20s per user
+    await db.friend_requests.create_index([("to_user_id", 1), ("status", 1)])
+    await db.friend_requests.create_index([("from_user_id", 1), ("status", 1)])
+    # Events — filtered by date + cancelled flag on dashboard/events page
+    await db.events.create_index([("is_cancelled", 1), ("date", 1)])
+    await db.events.create_index([("state", 1), ("date", 1)])
+    # Chat messages — polled every 1.5s per active chat
+    await db.chat_messages.create_index([("room_id", 1), ("created_at", -1)])
+    # User blocks — checked on every feed/posts load
+    await db.user_blocks.create_index("blocker_id")
+    await db.user_blocks.create_index("blocked_id")
+    # Reports — auto-ban threshold check
+    await db.reports.create_index([("reported_user_id", 1), ("created_at", 1)])
 
     # Stripe: create/retrieve products and prices
     await ensure_stripe_products()
+
+    # Start background trial-email loop
+    asyncio.create_task(_trial_email_loop())
 
     # Remove legacy category names that have been renamed to Circles
     LEGACY_CATEGORY_NAMES = [
@@ -5069,10 +5276,11 @@ async def health_check():
 
 _cors_env = os.environ.get('CORS_ORIGINS', '')
 _cors_origins = [o.strip() for o in _cors_env.split(',') if o.strip()] if _cors_env else ["http://localhost:3000"]
-# Cookie flags differ between local (HTTP) and production (HTTPS cross-origin)
-IS_LOCAL_DEV = any("localhost" in o for o in _cors_origins)
-COOKIE_SECURE = not IS_LOCAL_DEV
-COOKIE_SAMESITE = "lax" if IS_LOCAL_DEV else "none"
+# Cookie flags: use explicit IS_PRODUCTION env var to avoid staging/mixed-origin confusion
+IS_PRODUCTION = os.environ.get("IS_PRODUCTION", "false").lower() == "true"
+IS_LOCAL_DEV = not IS_PRODUCTION  # kept for backwards-compat references
+COOKIE_SECURE = IS_PRODUCTION
+COOKIE_SAMESITE = "none" if IS_PRODUCTION else "lax"
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
@@ -5085,6 +5293,59 @@ app.add_middleware(
 
 # Include the router in the main app (after middleware so CORS applies correctly)
 app.include_router(api_router)
+
+
+# ── Trial expiry email background loop ────────────────────────────────────────
+async def _trial_email_loop():
+    """Runs every hour. Sends trial warning (2 days out) and trial expired emails."""
+    while True:
+        try:
+            now = datetime.now(timezone.utc)
+            two_days_from_now = now + timedelta(days=2)
+
+            # ── Warning: trial ends within 2 days, warning not yet sent ──
+            warning_cursor = db.users.find({
+                "subscription_tier": "trial",
+                "trial_ends_at": {"$lte": two_days_from_now.isoformat(), "$gte": now.isoformat()},
+                "trial_warning_sent": {"$ne": True},
+            })
+            async for user in warning_cursor:
+                prefs = user.get("email_preferences", {})
+                if prefs.get("notify_trial", True):
+                    fire_and_forget(send_email(
+                        to=user["email"],
+                        template_type="trial_warning",
+                        data={"first_name": user.get("first_name", "there")}
+                    ))
+                await db.users.update_one(
+                    {"user_id": user["user_id"]},
+                    {"$set": {"trial_warning_sent": True}}
+                )
+
+            # ── Expired: trial has ended, expired email not yet sent ──
+            expired_cursor = db.users.find({
+                "subscription_tier": "trial",
+                "trial_ends_at": {"$lt": now.isoformat()},
+                "trial_expired_notified": {"$ne": True},
+            })
+            async for user in expired_cursor:
+                # Downgrade to free first
+                await db.users.update_one(
+                    {"user_id": user["user_id"]},
+                    {"$set": {"subscription_tier": "free", "trial_expired_notified": True}}
+                )
+                prefs = user.get("email_preferences", {})
+                if prefs.get("notify_trial", True):
+                    fire_and_forget(send_email(
+                        to=user["email"],
+                        template_type="trial_expired",
+                        data={"first_name": user.get("first_name", "there")}
+                    ))
+
+        except Exception as e:
+            logging.error("Trial email loop error: %s", e, exc_info=True)
+
+        await asyncio.sleep(3600)  # Check once per hour
 
 @app.on_event("startup")
 async def seed_required_rooms():

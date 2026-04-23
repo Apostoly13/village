@@ -38,6 +38,8 @@ import NotFound from "./pages/NotFound";
 import VillagePlus from "./pages/VillagePlus";
 import SubscriptionSuccess from "./pages/SubscriptionSuccess";
 import SubscriptionCancel from "./pages/SubscriptionCancel";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import ForClinicians from "./pages/ForClinicians";
 import ChatPopout from "./components/ChatPopout";
 import PWAInstallBanner from "./components/PWAInstallBanner";
@@ -209,6 +211,8 @@ const AppRouter = () => {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/dashboard" element={
         <ProtectedRoute>
           {({ user }) => <Dashboard user={user} />}
@@ -340,6 +344,8 @@ const AppRouter = () => {
       location.pathname !== "/" &&
       location.pathname !== "/login" &&
       location.pathname !== "/register" &&
+      location.pathname !== "/forgot-password" &&
+      location.pathname !== "/reset-password" &&
       location.pathname !== "/onboarding" &&
       !location.pathname.match(/^\/chat\/.+/) &&
       (() => { try { return JSON.parse(localStorage.getItem("village_prefs") || "{}").chatBubble !== false; } catch { return true; } })() &&

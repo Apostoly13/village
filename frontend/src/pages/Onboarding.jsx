@@ -5,6 +5,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { toast } from "sonner";
 import { ArrowRight, ArrowLeft, MapPin, Check, EyeOff } from "lucide-react";
+import LocationButton from "../components/LocationButton";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -380,7 +381,20 @@ export default function Onboarding({ user }) {
 
               <div className="space-y-4">
                 <div className="space-y-1.5 relative">
-                  <Label className="text-foreground font-medium">Suburb or postcode</Label>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-foreground font-medium">Suburb or postcode</Label>
+                    <LocationButton
+                      onLocation={({ suburb, postcode, state, latitude, longitude }) => {
+                        setSuburb(suburb);
+                        setPostcode(postcode);
+                        setSelectedState(state);
+                        setLatitude(latitude);
+                        setLongitude(longitude);
+                        setLocationSearch(`${suburb}${postcode ? ", " + postcode : ""}`);
+                        setLocationResults([]);
+                      }}
+                    />
+                  </div>
                   <Input
                     value={locationSearch}
                     onChange={e => searchLocation(e.target.value)}
