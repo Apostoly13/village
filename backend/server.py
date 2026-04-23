@@ -667,6 +667,75 @@ def get_email_template(template_type: str, data: dict) -> tuple:
         </div>
         </body></html>
         """
+    elif template_type == "welcome":
+        subject = "👋 Welcome to The Village!"
+        html = f"""
+        <html><head>{base_style}</head><body>
+        <div class="container">
+            <div class="header"><h1>🏡 The Village</h1></div>
+            <div class="content">
+                <h2>Welcome, {data.get('first_name', 'there')}!</h2>
+                <p>You've joined a warm, safe space built for Australian parents. You're not alone on this journey.</p>
+                <p>Here's what you can do right now:</p>
+                <ul style="color: #4A4A4A; line-height: 2;">
+                    <li>💬 Join a <strong>Chat Circle</strong> and connect with other parents</li>
+                    <li>📝 Post in a <strong>Support Space</strong> — anonymously if you prefer</li>
+                    <li>📅 Find or create a <strong>local event</strong> near you</li>
+                </ul>
+                <a href="{FRONTEND_URL}/dashboard" class="button">Go to Dashboard</a>
+                <p style="font-size: 13px; color: #888; margin-top: 20px;">
+                    You have a 7-day free trial of Village+ — unlimited posts, messages and access to every feature.
+                </p>
+            </div>
+            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>hello@ourlittlevillage.com.au</div>
+        </div>
+        </body></html>
+        """
+    elif template_type == "subscription_confirmed":
+        subject = "🎉 Village+ is now active!"
+        html = f"""
+        <html><head>{base_style}</head><body>
+        <div class="container">
+            <div class="header"><h1>🏡 The Village</h1></div>
+            <div class="content">
+                <h2>You're on Village+, {data.get('first_name', 'there')}!</h2>
+                <p>Your subscription is confirmed. Every limit has been lifted — post, chat, and connect freely.</p>
+                <ul style="color: #4A4A4A; line-height: 2;">
+                    <li>✅ Unlimited posts, replies &amp; messages</li>
+                    <li>✅ Create &amp; manage community spaces</li>
+                    <li>✅ Create &amp; RSVP to local events</li>
+                    <li>✅ Unlimited direct messages</li>
+                    <li>✅ Crown badge on your profile</li>
+                </ul>
+                <a href="{FRONTEND_URL}/plus" class="button">Manage Subscription</a>
+                <p style="font-size: 13px; color: #888; margin-top: 20px;">
+                    You can cancel any time from the Village+ page — no lock-in, no hassle. Stripe handles all billing securely.
+                </p>
+            </div>
+            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>hello@ourlittlevillage.com.au</div>
+        </div>
+        </body></html>
+        """
+    elif template_type == "subscription_cancelled":
+        subject = "Your Village+ subscription has been cancelled"
+        html = f"""
+        <html><head>{base_style}</head><body>
+        <div class="container">
+            <div class="header"><h1>🏡 The Village</h1></div>
+            <div class="content">
+                <h2>Subscription cancelled</h2>
+                <p>Hi {data.get('first_name', 'there')}, your Village+ subscription has been cancelled.</p>
+                <p>You'll keep full Village+ access until the end of your current billing period. After that your account moves to the free plan.</p>
+                <p>We'd love to know why you cancelled — your feedback helps us improve.</p>
+                <a href="{FRONTEND_URL}/contact" class="button">Share Feedback</a>
+                <p style="font-size: 13px; color: #888; margin-top: 20px;">
+                    Changed your mind? You can resubscribe any time from the Village+ page.
+                </p>
+            </div>
+            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>hello@ourlittlevillage.com.au</div>
+        </div>
+        </body></html>
+        """
     else:
         subject = "🏡 Notification from The Village"
         html = f"""
@@ -681,7 +750,7 @@ def get_email_template(template_type: str, data: dict) -> tuple:
         </div>
         </body></html>
         """
-    
+
     return subject, html
 
 # ==================== SHARED HELPERS ====================
@@ -848,6 +917,10 @@ async def register(user_data: UserCreate, response: Response):
         "created_at": now.isoformat()
     }
     await db.users.insert_one(user)
+
+    # Send welcome email
+    welcome_subject, welcome_html = get_email_template("welcome", {"first_name": user_data.first_name.strip()})
+    fire_and_forget(send_email_notification(user_data.email, welcome_subject, welcome_html))
 
     # Create JWT token
     token = create_jwt_token(user_id)
@@ -4014,6 +4087,11 @@ async def stripe_webhook(request: Request):
                     }}
                 )
                 logging.info(f"Stripe: user {user_id} → premium (checkout complete)")
+                # Send subscription confirmed email
+                doc = await db.users.find_one({"user_id": user_id})
+                if doc:
+                    subj, html = get_email_template("subscription_confirmed", {"first_name": doc.get("first_name", "")})
+                    fire_and_forget(send_email_notification(doc["email"], subj, html))
 
         elif event_type in ("customer.subscription.updated", "customer.subscription.deleted"):
             sub = data
@@ -4033,6 +4111,12 @@ async def stripe_webhook(request: Request):
                     update["stripe_subscription_id"] = None
                 await db.users.update_one({"user_id": user_id}, {"$set": update})
                 logging.info(f"Stripe: user {user_id} subscription {event_type} → {new_tier} (status={status})")
+                # Send cancellation email
+                if new_tier == "free" and event_type == "customer.subscription.deleted":
+                    doc = await db.users.find_one({"user_id": user_id})
+                    if doc:
+                        subj, html = get_email_template("subscription_cancelled", {"first_name": doc.get("first_name", "")})
+                        fire_and_forget(send_email_notification(doc["email"], subj, html))
 
         elif event_type == "invoice.payment_failed":
             customer_id = data.get("customer")
