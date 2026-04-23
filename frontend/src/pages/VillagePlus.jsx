@@ -247,23 +247,26 @@ export default function VillagePlus({ user }) {
             <div className="relative z-10 space-y-3">
               {isPremium ? (
                 <>
-                  <div className="flex items-center justify-center gap-2 py-2.5 bg-primary/10 rounded-xl text-primary font-semibold text-sm border border-primary/20">
+                  <div className="flex items-center justify-center gap-2 py-2.5 bg-primary/10 rounded-xl text-primary font-semibold text-sm border border-primary/20 mb-2">
                     <Check className="h-4 w-4" />
                     You're on Village+
                   </div>
                   <Button
                     variant="outline"
-                    className="w-full rounded-xl"
+                    className="w-full rounded-xl justify-center gap-2"
                     onClick={handleManageBilling}
                     disabled={portalLoading}
                   >
                     {portalLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      <ExternalLink className="h-4 w-4 mr-2" />
+                      <ExternalLink className="h-4 w-4" />
                     )}
-                    Manage billing
+                    Update card / Cancel subscription
                   </Button>
+                  <p className="text-xs text-muted-foreground text-center mt-2">
+                    Manage your billing, view invoices, or cancel any time
+                  </p>
                 </>
               ) : (
                 <Button
