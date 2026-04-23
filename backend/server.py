@@ -4111,8 +4111,8 @@ async def stripe_webhook(request: Request):
                     update["stripe_subscription_id"] = None
                 await db.users.update_one({"user_id": user_id}, {"$set": update})
                 logging.info(f"Stripe: user {user_id} subscription {event_type} → {new_tier} (status={status})")
-                # Send cancellation email
-                if new_tier == "free" and event_type == "customer.subscription.deleted":
+                # Send cancellation email when subscription ends (status = canceled)
+                if new_tier == "free" and status in ("canceled", "cancelled"):
                     doc = await db.users.find_one({"user_id": user_id})
                     if doc:
                         subj, html = get_email_template("subscription_cancelled", {"first_name": doc.get("first_name", "")})
