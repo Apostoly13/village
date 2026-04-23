@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Crown, Check, ArrowRight, Loader2, ExternalLink } from "lucide-react";
+import { Crown, Check, ArrowRight, Loader2, ExternalLink, CreditCard, XCircle, Settings, CheckCircle2 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
@@ -43,6 +43,77 @@ const COMPARISON = [
   { feature: "Buy & Swap marketplace",  free: "—",         plus: "Coming Soon" },
 ];
 
+// ── Premium management view ────────────────────────────────────────────────────
+function PremiumManagement({ user, onPortal, portalLoading, error }) {
+  return (
+    <div className="max-w-lg mx-auto px-4 pt-20 lg:pt-24 pb-16">
+
+      {/* Status */}
+      <div className="text-center mb-8">
+        <div className="w-16 h-16 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center mb-4 mx-auto">
+          <Crown className="h-8 w-8 text-primary" />
+        </div>
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 mb-3">
+          <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+          <span className="text-xs font-bold text-primary">Active subscription</span>
+        </div>
+        <h1 className="font-heading text-2xl font-bold text-foreground mb-1">You're on Village+</h1>
+        <p className="text-sm text-muted-foreground">All limits lifted. Thank you for supporting The Village.</p>
+      </div>
+
+      {/* What's included */}
+      <div className="bg-card border border-border/50 rounded-2xl p-5 mb-4">
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4">Your plan includes</p>
+        <div className="space-y-2.5">
+          {PREMIUM_FEATURES.map(({ label }, i) => (
+            <div key={i} className="flex items-center gap-3 text-sm text-foreground">
+              <div className="w-4 h-4 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                <Check className="h-2.5 w-2.5 text-primary" />
+              </div>
+              {label}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Manage billing */}
+      <div className="bg-card border border-border/50 rounded-2xl p-5 mb-4">
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Manage your subscription</p>
+        <p className="text-sm text-muted-foreground mb-4">Update payment details, view invoices, or cancel — all managed securely through Stripe.</p>
+
+        {error && (
+          <div className="mb-3 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+            {error}
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <Button variant="outline" className="w-full rounded-xl justify-start gap-3" onClick={onPortal} disabled={portalLoading}>
+            {portalLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+            Update payment method
+          </Button>
+          <Button variant="outline" className="w-full rounded-xl justify-start gap-3" onClick={onPortal} disabled={portalLoading}>
+            <Settings className="h-4 w-4" />
+            View invoices & billing history
+          </Button>
+          <Button variant="outline" className="w-full rounded-xl justify-start gap-3 text-destructive border-destructive/30 hover:bg-destructive/5" onClick={onPortal} disabled={portalLoading}>
+            <XCircle className="h-4 w-4" />
+            Cancel subscription
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground mt-3 text-center">
+          Cancelling keeps Village+ active until the end of your billing period.
+        </p>
+      </div>
+
+      <Button asChild className="w-full rounded-xl">
+        <Link to="/dashboard">Back to Dashboard</Link>
+      </Button>
+    </div>
+  );
+}
+
+// ── Main page ──────────────────────────────────────────────────────────────────
 export default function VillagePlus({ user }) {
   const [billing, setBilling] = useState("monthly"); // "monthly" | "annual"
   const [loading, setLoading] = useState(false);
@@ -88,6 +159,17 @@ export default function VillagePlus({ user }) {
       setPortalLoading(false);
     }
   };
+
+  // Premium users get the management view, not the upsell page
+  if (isPremium) {
+    return (
+      <div className="min-h-screen bg-background pb-20 lg:pb-0">
+        <Navigation user={user} />
+        <PremiumManagement user={user} onPortal={handleManageBilling} portalLoading={portalLoading} error={error} />
+        <AppFooter />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-20 lg:pb-0">

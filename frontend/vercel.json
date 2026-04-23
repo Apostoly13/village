@@ -22,9 +22,6 @@
       ]
     }
   ],
-  "env": {
-    "REACT_APP_BACKEND_URL": "https://api.ourlittlevillage.au"
-  },
   "git": {
     "deploymentEnabled": {
       "main": true,

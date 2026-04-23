@@ -311,14 +311,12 @@ export default function Navigation({ user }) {
                     Settings
                   </Link>
                 </DropdownMenuItem>
-                {user?.subscription_tier !== "premium" && (
-                  <DropdownMenuItem asChild>
-                    <Link to="/plus" className="cursor-pointer text-primary font-medium">
-                      <Crown className="h-4 w-4 mr-2 text-primary" />
-                      Village+
-                    </Link>
-                  </DropdownMenuItem>
-                )}
+                <DropdownMenuItem asChild>
+                  <Link to="/plus" className={`cursor-pointer font-medium ${user?.subscription_tier === "premium" ? "text-foreground" : "text-primary"}`}>
+                    <Crown className={`h-4 w-4 mr-2 ${user?.subscription_tier === "premium" ? "text-primary" : "text-primary"}`} />
+                    {user?.subscription_tier === "premium" ? "Manage Village+" : "Village+"}
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link to="/friends" className="cursor-pointer" data-testid="dropdown-friends">
                     <UserPlus className="h-4 w-4 mr-2" />
@@ -477,16 +475,18 @@ export default function Navigation({ user }) {
               Settings
             </Link>
 
-            {user?.subscription_tier !== "premium" && (
-              <Link
-                to="/plus"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 p-3 rounded-xl bg-primary/10 border border-primary/20 text-primary font-medium"
-              >
-                <Crown className="h-5 w-5" />
-                Village+
-              </Link>
-            )}
+            <Link
+              to="/plus"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`flex items-center gap-3 p-3 rounded-xl font-medium ${
+                user?.subscription_tier === "premium"
+                  ? "hover:bg-secondary/50 text-foreground"
+                  : "bg-primary/10 border border-primary/20 text-primary"
+              }`}
+            >
+              <Crown className="h-5 w-5" />
+              {user?.subscription_tier === "premium" ? "Manage Village+" : "Village+"}
+            </Link>
 
             <Link
               to="/changelog"
