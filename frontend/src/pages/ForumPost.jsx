@@ -507,9 +507,9 @@ export default function ForumPost({ user }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background pb-20 lg:pb-0">
+      <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
         <Navigation user={user} />
-        <main className="max-w-4xl mx-auto px-4 pt-20 lg:pt-24">
+        <main className="max-w-4xl mx-auto px-4 pt-16 lg:pt-8">
           <div className="animate-pulse space-y-6">
             <div className="h-6 w-32 bg-muted rounded"></div>
             <div className="bg-card rounded-2xl p-6 border border-border/50 space-y-4">
@@ -531,9 +531,9 @@ export default function ForumPost({ user }) {
 
   if (!post) {
     return (
-      <div className="min-h-screen bg-background pb-20 lg:pb-0">
+      <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
         <Navigation user={user} />
-        <main className="max-w-4xl mx-auto px-4 pt-20 lg:pt-24">
+        <main className="max-w-4xl mx-auto px-4 pt-16 lg:pt-8">
           <div className="text-center py-16 bg-card rounded-2xl border border-border/40 card-elevated">
             <span className="text-4xl mb-4 block">🔍</span>
             <h1 className="font-heading text-xl font-bold text-foreground mb-2">Post not found</h1>
@@ -548,10 +548,10 @@ export default function ForumPost({ user }) {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pb-0">
+    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
       <Navigation user={user} />
       
-      <main className="max-w-4xl mx-auto px-4 pt-20 lg:pt-24">
+      <main className="max-w-4xl mx-auto px-4 pt-16 lg:pt-8">
         <button
           onClick={() => navigate(-1)}
           className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors"
@@ -689,7 +689,12 @@ export default function ForumPost({ user }) {
             </div>
           ) : (
             <>
-              <h1 className="font-heading text-2xl font-bold text-foreground mb-4">{post.title}</h1>
+              <h1
+                className="text-2xl sm:text-3xl font-medium leading-snug mb-4"
+                style={{ fontFamily: "var(--serif)", letterSpacing: "-0.025em", color: "var(--ink)" }}
+              >
+                {post.title}
+              </h1>
               {(post.suburb || post.postcode) && (
                 <div className="flex items-center gap-1 text-sm text-muted-foreground mb-3" data-testid="post-location-badge">
                   <MapPin className="h-4 w-4 text-primary" />

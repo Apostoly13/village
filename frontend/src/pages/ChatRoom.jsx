@@ -256,9 +256,9 @@ export default function ChatRoom({ user }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background lg:pl-60">
         <Navigation user={user} />
-        <main className="max-w-4xl mx-auto px-4 pt-20 lg:pt-24">
+        <main className="max-w-4xl mx-auto px-4 pt-16 lg:pt-8">
           <div className="animate-pulse space-y-4">
             <div className="h-6 w-32 bg-muted rounded"></div>
             <div className="bg-card rounded-2xl h-[60vh] border border-border/50"></div>
@@ -270,9 +270,9 @@ export default function ChatRoom({ user }) {
 
   if (!room) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background lg:pl-60">
         <Navigation user={user} />
-        <main className="max-w-4xl mx-auto px-4 pt-20 lg:pt-24 text-center">
+        <main className="max-w-4xl mx-auto px-4 pt-16 lg:pt-8 text-center">
           <h1 className="font-heading text-2xl font-bold text-foreground">Room not found</h1>
           <Link to="/chat">
             <Button className="mt-4">Back to Chat Rooms</Button>
@@ -283,10 +283,10 @@ export default function ChatRoom({ user }) {
   }
 
   return (
-    <div className="h-screen bg-background flex flex-col overflow-hidden">
+    <div className="h-screen bg-background flex flex-col overflow-hidden lg:pl-60">
       <Navigation user={user} />
 
-      <main className="flex-1 flex flex-col max-w-4xl mx-auto w-full px-4 pt-20 lg:pt-24 pb-20 lg:pb-4 min-h-0">
+      <main className="flex-1 flex flex-col max-w-4xl mx-auto w-full px-4 pt-16 lg:pt-8 pb-20 lg:pb-4 min-h-0">
         {/* Room Header */}
         <div className="flex items-center gap-4 mb-4">
           <Link to="/chat" className="text-muted-foreground hover:text-foreground" data-testid="back-link">
@@ -381,11 +381,13 @@ export default function ChatRoom({ user }) {
                           </Link>
                         )}
                         <div className={`flex items-start gap-1 ${isOwnMessage(msg) ? 'flex-row-reverse' : ''}`}>
-                          <div className={`rounded-2xl px-4 py-2 shadow-sm ${
-                            isOwnMessage(msg)
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-secondary text-foreground'
-                          }`}>
+                          <div
+                            className="rounded-2xl px-4 py-2 shadow-sm"
+                            style={isOwnMessage(msg)
+                              ? { background: "hsl(var(--accent))", color: "var(--tv-primary-fg, #f7f2e9)" }
+                              : { background: "var(--paper-2)", border: "1px solid var(--line)", color: "var(--ink)" }
+                            }
+                          >
                             <p className="text-sm break-all whitespace-pre-wrap">{msg.content}</p>
                           </div>
                           <button
@@ -429,22 +431,24 @@ export default function ChatRoom({ user }) {
                   {subscription.chat_messages.limit - subscription.chat_messages.used}/{subscription.chat_messages.limit} messages today
                 </p>
               )}
-              <div className="flex gap-3">
+              <div className="flex gap-2">
                 <Input
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value.slice(0, 1000))}
                   placeholder="Type a message..."
-                  className="flex-1 h-12 rounded-xl bg-secondary border-border/60 focus:border-primary"
+                  className="flex-1 rounded-full"
+                  style={{ height: 44, background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
                   maxLength={1000}
                   data-testid="message-input"
                 />
                 <Button
                   type="submit"
                   disabled={sending || !newMessage.trim()}
-                  className="h-12 w-12 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 p-0"
+                  className="rounded-full p-0 shrink-0"
+                  style={{ height: 44, width: 44, background: "var(--ink)", color: "var(--paper)" }}
                   data-testid="send-btn"
                 >
-                  <Send className="h-5 w-5" />
+                  <Send className="h-4 w-4" />
                 </Button>
               </div>
               {newMessage.length > 800 && (

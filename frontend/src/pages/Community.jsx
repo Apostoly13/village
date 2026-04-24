@@ -1122,7 +1122,7 @@ export default function Community() {
   // ---- Loading ----
   if (loadingCommunity) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background lg:pl-60">
         <Navigation user={user} />
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
@@ -1137,7 +1137,7 @@ export default function Community() {
   const memberCount = community.total_member_count ?? community.member_count ?? 0;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background lg:pl-60">
       <Navigation user={user} />
 
       <div className="max-w-5xl mx-auto px-4 pb-20 pt-4">

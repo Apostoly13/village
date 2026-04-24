@@ -13,7 +13,8 @@ import {
 } from "./ui/dropdown-menu";
 import { ScrollArea } from "./ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
-import { Home, MessageSquare, Users, Mail, User, LogOut, Menu, X, Moon, Sun, UserPlus, Bell, Bookmark, Shield, ScrollText, BookOpen, Calendar, Heart, Lock, FileText, Settings, Crown, ChevronDown } from "lucide-react";
+import { Mail, User, LogOut, Menu, X, Moon, Sun, UserPlus, Bell, Bookmark, Shield, ScrollText, BookOpen, Calendar, Lock, FileText, Settings, Crown, ChevronDown, MessageSquare, Users, Home } from "lucide-react";
+import { IconHome, IconChat, IconMoon, IconCal, IconPeople, IconHeart, IconMail, IconShield, IconCog } from "../icons";
 import { toast } from "sonner";
 import { FEATURES } from "../config/features";
 
@@ -177,131 +178,149 @@ export default function Navigation({ user }) {
 
   return (
     <>
-      {/* Desktop Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/30 hidden lg:block">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center">
-          {/* Left spacer to balance right icons */}
-          <div className="flex-1" />
+      {/* ── Desktop Left Sidebar ─────────────────────────────────── */}
+      <aside
+        className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 z-50 w-60"
+        style={{ background: "var(--paper)", borderRight: "1px solid var(--line-2)" }}
+      >
+        {/* Wordmark */}
+        <div className="px-6 pt-6 pb-4 shrink-0">
+          <Link to="/dashboard" data-testid="nav-logo">
+            <Wordmark size={22} />
+          </Link>
+        </div>
 
-          {/* Center: logo + nav items */}
-          <div className="flex items-center gap-3">
-            <Link to="/dashboard" className="flex items-center" data-testid="nav-logo">
-              <Wordmark size={22} />
-            </Link>
-            <div className="flex items-center gap-1 ml-6">
-              <TooltipProvider delayDuration={300}>
-                {navItems.map((item) => {
-                  const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
-                  const activeClass = isActive ? 'bg-primary/10 text-primary' : item.locked ? 'text-muted-foreground/60 hover:text-foreground' : 'text-muted-foreground hover:text-foreground';
+        {/* Primary nav */}
+        <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">
+          {[
+            { Icon: IconHome,   label: "Home",      href: "/dashboard",                     testId: "nav-home" },
+            { Icon: IconChat,   label: "Spaces",    href: "/forums",                        testId: "nav-forums",   subItems: [
+              { label: "All Spaces",    href: "/forums" },
+              { label: "Communities",   href: "/forums?tab=communities" },
+              { label: "Create Post",   href: "/create-post" },
+              { label: "Saved Posts",   href: "/saved" },
+            ]},
+            { Icon: IconMoon,   label: "Chats",     href: "/chat",                          testId: "nav-chat",     subItems: [
+              { label: "All Australia", href: "/chat?tab=village" },
+              { label: "Local Circles", href: "/chat?tab=local" },
+              { label: "Friends",       href: "/chat?tab=friends" },
+            ]},
+            { Icon: IconCal,    label: "Events",    href: isFree ? "/plus" : "/events",     testId: "nav-events",   locked: isFree },
+            { Icon: IconMail,   label: "Messages",  href: isFree ? "/plus" : "/messages",   testId: "nav-messages", locked: isFree, badge: isFree ? 0 : unreadMessages },
+            { Icon: IconPeople, label: "Friends",   href: "/friends",                        testId: "nav-friends-link", badge: friendRequestCount },
+            { Icon: IconHeart,  label: "Saved",     href: "/saved",                         testId: "nav-saved" },
+            ...(FEATURES.BLOG  ? [{ Icon: IconChat, label: "Blog",  href: "/blog",    testId: "nav-blog"  }] : []),
+            ...(isAdmin        ? [{ Icon: IconShield,label:"Admin", href: "/admin",   testId: "nav-admin" }] : []),
+          ].map((item) => {
+            const active = location.pathname === item.href || (item.href !== "/dashboard" && location.pathname.startsWith(item.href.split("?")[0]));
+            const itemStyle = active
+              ? { background: "var(--paper-2)", color: "var(--ink)" }
+              : { color: "var(--ink-2)" };
 
-                  // Items with sub-menus: split button (link + chevron dropdown)
-                  if (item.subItems) {
-                    const mainLink = (
-                      <div key={item.testId} className="flex items-center">
-                        <Link to={item.href} data-testid={item.testId}>
-                          <Button variant="ghost" className={`rounded-l-full rounded-r-none px-4 pr-3 ${activeClass}`}>
-                            <item.icon className="h-4 w-4 mr-2" />
-                            {item.label}
-                          </Button>
-                        </Link>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className={`rounded-r-full rounded-l-none px-1.5 h-9 border-l border-border/20 ${activeClass}`}>
-                              <ChevronDown className="h-3 w-3" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start" className="w-44 bg-card border-border/50">
-                            {item.subItems.map(sub => (
-                              <DropdownMenuItem key={sub.href} asChild>
-                                <Link to={sub.href} className="cursor-pointer">{sub.label}</Link>
-                              </DropdownMenuItem>
-                            ))}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    );
-                    return mainLink;
-                  }
+            const inner = (
+              <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors cursor-pointer" style={itemStyle}
+                onMouseEnter={e => { if (!active) e.currentTarget.style.background = "var(--paper-2)"; }}
+                onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}
+              >
+                <item.Icon size={18} style={{ color: active ? "hsl(var(--accent))" : "var(--ink-3)", flexShrink: 0 }} />
+                <span className="text-sm font-medium flex-1">{item.label}</span>
+                {item.locked && <Lock className="h-3 w-3 opacity-40 shrink-0" />}
+                {item.badge > 0 && !item.locked && (
+                  <span className="min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center px-1 font-medium shrink-0">
+                    {item.badge > 9 ? "9+" : item.badge}
+                  </span>
+                )}
+              </div>
+            );
 
-                  // Regular nav items
-                  const btn = (
-                    <Link key={item.testId} to={item.href} data-testid={item.testId}>
-                      <Button variant="ghost" className={`rounded-full px-4 ${activeClass}`}>
-                        <item.icon className="h-4 w-4 mr-2" />
-                        {item.label}
-                        {item.locked && <Lock className="h-3 w-3 ml-1.5 opacity-60" />}
-                        {item.badge > 0 && (
-                          <span className="ml-1.5 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center px-1 font-medium">
-                            {item.badge > 9 ? '9+' : item.badge}
-                          </span>
-                        )}
-                      </Button>
-                    </Link>
-                  );
-                  if (!item.locked) return btn;
-                  return (
-                    <Tooltip key={item.testId}>
-                      <TooltipTrigger asChild>{btn}</TooltipTrigger>
-                      <TooltipContent side="bottom" className="text-xs">
-                        Village+ feature — <Link to="/plus" className="underline font-medium">upgrade to unlock</Link>
-                      </TooltipContent>
-                    </Tooltip>
-                  );
-                })}
-              </TooltipProvider>
+            if (item.subItems) {
+              return (
+                <DropdownMenu key={item.testId}>
+                  <div className="flex items-center gap-0">
+                    <Link to={item.href} data-testid={item.testId} className="flex-1 min-w-0">{inner}</Link>
+                    <DropdownMenuTrigger asChild>
+                      <button className="p-1.5 rounded-lg opacity-40 hover:opacity-100 transition-opacity" style={{ color: "var(--ink-2)" }}>
+                        <ChevronDown className="h-3 w-3" />
+                      </button>
+                    </DropdownMenuTrigger>
+                  </div>
+                  <DropdownMenuContent side="right" align="start" className="w-44" style={{ background: "var(--paper-2)", border: "1px solid var(--line)" }}>
+                    {item.subItems.map(sub => (
+                      <DropdownMenuItem key={sub.href} asChild>
+                        <Link to={sub.href} className="cursor-pointer text-sm" style={{ color: "var(--ink)" }}>{sub.label}</Link>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
+            if (item.locked) {
+              return (
+                <Tooltip key={item.testId}>
+                  <TooltipTrigger asChild>
+                    <Link to={item.href} data-testid={item.testId} className="block">{inner}</Link>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="text-xs">Village+ feature</TooltipContent>
+                </Tooltip>
+              );
+            }
+            return <Link key={item.testId} to={item.href} data-testid={item.testId} className="block">{inner}</Link>;
+          })}
+        </nav>
+
+        {/* Village+ promo (free users) */}
+        {isFree && (
+          <Link to="/plus" className="mx-3 mb-3 shrink-0">
+            <div className="px-4 py-3 rounded-xl transition-colors"
+              style={{ background: "var(--paper-2)", border: "1px solid var(--line)" }}
+            >
+              <p className="text-xs font-semibold mb-0.5" style={{ color: "var(--ink)" }}>✦ Village+</p>
+              <p className="text-xs leading-tight" style={{ color: "var(--ink-3)" }}>Unlock 1:1 messaging, host events, ad-free.</p>
             </div>
-          </div>
+          </Link>
+        )}
 
-          {/* Right: actions */}
-          <div className="flex-1 flex justify-end items-center gap-2">
+        {/* Bottom: notifications + theme + user */}
+        <div className="shrink-0 px-3 pb-4 pt-2 space-y-1" style={{ borderTop: "1px solid var(--line-2)" }}>
+          <div className="flex items-center gap-1 px-1">
             {/* Notifications */}
             <DropdownMenu open={notificationsOpen} onOpenChange={handleNotificationsOpen}>
               <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  className="rounded-full relative"
+                <button className="relative p-2 rounded-lg transition-colors" style={{ color: "var(--ink-2)" }}
                   data-testid="nav-notifications"
+                  onMouseEnter={e => e.currentTarget.style.background = "var(--paper-2)"}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                 >
-                  <Bell className="h-5 w-5" />
+                  <Bell className="h-4.5 w-4.5" style={{ width: 18, height: 18 }} />
                   {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center font-medium">
-                      {unreadCount > 9 ? '9+' : unreadCount}
+                    <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] flex items-center justify-center font-medium">
+                      {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
                   )}
-                </Button>
+                </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-80 bg-card border-border/50">
-                <div className="flex items-center justify-between px-3 py-2 border-b border-border/50">
-                  <span className="font-medium text-foreground">Notifications</span>
+              <DropdownMenuContent side="right" align="end" className="w-80" style={{ background: "var(--paper-2)", border: "1px solid var(--line)" }}>
+                <div className="flex items-center justify-between px-3 py-2" style={{ borderBottom: "1px solid var(--line)" }}>
+                  <span className="font-medium text-sm" style={{ color: "var(--ink)" }}>Notifications</span>
                   {unreadCount > 0 && (
-                    <Button variant="ghost" size="sm" onClick={markAllRead} className="text-xs h-7">
-                      Mark all read
-                    </Button>
+                    <Button variant="ghost" size="sm" onClick={markAllRead} className="text-xs h-7">Mark all read</Button>
                   )}
                 </div>
                 <ScrollArea className="h-[300px]">
                   {notifications.length === 0 ? (
-                    <div className="p-4 text-center text-muted-foreground text-sm">
-                      No notifications yet
-                    </div>
+                    <div className="p-4 text-center text-sm" style={{ color: "var(--ink-3)" }}>No notifications yet</div>
                   ) : (
                     notifications.map((notif) => (
                       <button
                         key={notif.notification_id}
                         onClick={() => handleNotificationClick(notif)}
-                        onKeyDown={(e) => e.key === "Enter" && handleNotificationClick(notif)}
-                        className={`w-full text-left p-3 cursor-pointer hover:bg-secondary/50 border-b border-border/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${!notif.is_read ? 'bg-primary/5' : ''}`}
+                        className={`w-full text-left p-3 cursor-pointer transition-colors focus:outline-none ${!notif.is_read ? "bg-primary/5" : ""}`}
+                        style={{ borderBottom: "1px solid var(--line-2)" }}
+                        onMouseEnter={e => e.currentTarget.style.background = "var(--paper-3)"}
+                        onMouseLeave={e => e.currentTarget.style.background = notif.is_read ? "transparent" : ""}
                       >
-                        <div className="flex items-start gap-2">
-                          <span className="text-base mt-0.5 flex-shrink-0" aria-hidden="true">
-                            {notif.type === "reply" ? "💬" : notif.type === "like" ? "❤️" : notif.type === "friend_request" || notif.type === "friend_accept" ? "👋" : notif.type === "moderation" ? "🛡️" : "🔔"}
-                          </span>
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-foreground">{notif.title}</p>
-                            <p className="text-xs text-muted-foreground line-clamp-2">{notif.message}</p>
-                          </div>
-                        </div>
+                        <p className="text-xs font-medium mb-0.5" style={{ color: "var(--ink)" }}>{notif.title}</p>
+                        <p className="text-xs line-clamp-2" style={{ color: "var(--ink-3)" }}>{notif.message}</p>
                       </button>
                     ))
                   )}
@@ -309,131 +328,60 @@ export default function Navigation({ user }) {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Link to="/friends" data-testid="nav-friends">
-              <Button 
-                variant="ghost" 
-                size="icon"
-                className="rounded-full relative"
-              >
-                <UserPlus className="h-5 w-5" />
-                {friendRequestCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center font-medium" data-testid="friend-request-badge">
-                    {friendRequestCount > 9 ? '9+' : friendRequestCount}
-                  </span>
-                )}
-              </Button>
-            </Link>
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={toggleTheme}
-              className="rounded-full"
-              data-testid="theme-toggle-nav"
+            {/* Theme toggle */}
+            <button className="p-2 rounded-lg transition-colors" style={{ color: "var(--ink-2)" }}
+              onClick={toggleTheme} data-testid="theme-toggle-nav"
+              onMouseEnter={e => e.currentTarget.style.background = "var(--paper-2)"}
+              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
             >
-              {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-            </Button>
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="rounded-full p-0" data-testid="nav-profile-dropdown">
-                  <Avatar className="h-9 w-9">
-                    <AvatarImage src={user?.picture} />
-                    <AvatarFallback className="bg-primary/20 text-primary">
-                      {(user?.nickname || user?.name || user?.email || 'V')[0].toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 bg-card border-border/50">
-                <div className="px-2 py-1.5">
-                  <p className="font-medium text-foreground">{user?.name}</p>
-                  <p className="text-sm text-muted-foreground truncate">{user?.email}</p>
-                </div>
-                <DropdownMenuSeparator className="bg-border/50" />
-                <DropdownMenuItem asChild>
-                  <Link to="/profile" className="cursor-pointer" data-testid="dropdown-profile">
-                    <User className="h-4 w-4 mr-2" />
-                    Profile
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/settings" className="cursor-pointer">
-                    <Settings className="h-4 w-4 mr-2" />
-                    Settings
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/plus" className={`cursor-pointer font-medium ${user?.subscription_tier === "premium" ? "text-foreground" : "text-primary"}`}>
-                    <Crown className={`h-4 w-4 mr-2 ${user?.subscription_tier === "premium" ? "text-primary" : "text-primary"}`} />
-                    {user?.subscription_tier === "premium" ? "Manage Village+" : "Village+"}
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/friends" className="cursor-pointer" data-testid="dropdown-friends">
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Friends
-                    {friendRequestCount > 0 && (
-                      <span className="ml-auto w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
-                        {friendRequestCount}
-                      </span>
-                    )}
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/saved" className="cursor-pointer" data-testid="dropdown-bookmarks">
-                    <Bookmark className="h-4 w-4 mr-2" />
-                    Saved
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/changelog" className="cursor-pointer" data-testid="dropdown-changelog">
-                    <ScrollText className="h-4 w-4 mr-2" />
-                    What's New
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/suggestions" className="cursor-pointer">
-                    <Heart className="h-4 w-4 mr-2" />
-                    Suggestions
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/community-guidelines" className="cursor-pointer">
-                    <Shield className="h-4 w-4 mr-2" />
-                    Community Guidelines
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/terms" className="cursor-pointer">
-                    <FileText className="h-4 w-4 mr-2" />
-                    Terms
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/privacy" className="cursor-pointer">
-                    <Lock className="h-4 w-4 mr-2" />
-                    Privacy
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/contact" className="cursor-pointer">
-                    <Mail className="h-4 w-4 mr-2" />
-                    Contact
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-border/50" />
-                <DropdownMenuItem onClick={handleLogout} className="text-destructive cursor-pointer" data-testid="dropdown-logout">
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Log out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+              {darkMode ? <Sun style={{ width: 18, height: 18 }} /> : <Moon style={{ width: 18, height: 18 }} />}
+            </button>
+
+            {/* Settings */}
+            <Link to="/settings" className="p-2 rounded-lg transition-colors block" style={{ color: "var(--ink-2)" }}
+              onMouseEnter={e => e.currentTarget.style.background = "var(--paper-2)"}
+              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+            >
+              <IconCog size={18} />
+            </Link>
           </div>
+
+          {/* User row */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="w-full flex items-center gap-3 px-2 py-2 rounded-xl transition-colors text-left"
+                style={{ color: "var(--ink)" }}
+                onMouseEnter={e => e.currentTarget.style.background = "var(--paper-2)"}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                data-testid="nav-profile-dropdown"
+              >
+                <Avatar className="h-8 w-8 shrink-0">
+                  <AvatarImage src={user?.picture} />
+                  <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                    {(user?.nickname || user?.name || user?.email || "V")[0].toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>{user?.nickname || user?.name}</p>
+                  <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{user?.email}</p>
+                </div>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="right" align="end" className="w-52" style={{ background: "var(--paper-2)", border: "1px solid var(--line)" }}>
+              <DropdownMenuItem asChild><Link to="/profile" className="cursor-pointer" data-testid="dropdown-profile"><User className="h-4 w-4 mr-2" />Profile</Link></DropdownMenuItem>
+              <DropdownMenuItem asChild><Link to="/settings" className="cursor-pointer"><Settings className="h-4 w-4 mr-2" />Settings</Link></DropdownMenuItem>
+              <DropdownMenuItem asChild><Link to="/plus" className="cursor-pointer"><Crown className="h-4 w-4 mr-2 text-primary" />{user?.subscription_tier === "premium" ? "Manage Village+" : "Village+"}</Link></DropdownMenuItem>
+              <DropdownMenuItem asChild><Link to="/changelog" className="cursor-pointer" data-testid="dropdown-changelog"><ScrollText className="h-4 w-4 mr-2" />What's New</Link></DropdownMenuItem>
+              <DropdownMenuItem asChild><Link to="/suggestions" className="cursor-pointer"><Mail className="h-4 w-4 mr-2" />Suggestions</Link></DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleLogout} className="text-destructive cursor-pointer" data-testid="dropdown-logout"><LogOut className="h-4 w-4 mr-2" />Log out</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-      </nav>
+      </aside>
 
       {/* Mobile Navigation - Top Bar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/30 lg:hidden">
+      <nav className="fixed top-0 left-0 right-0 z-50 lg:hidden" style={{ background: "var(--paper)", borderBottom: "1px solid var(--line-2)" }}>
         <div className="px-4 h-14 flex items-center justify-between">
           <Link to="/dashboard" className="flex items-center">
             <Wordmark size={20} />
@@ -461,7 +409,7 @@ export default function Navigation({ user }) {
 
         {/* Mobile Menu Dropdown */}
         {mobileMenuOpen && (
-          <div className="absolute top-14 left-0 right-0 bg-card border-b border-border/50 p-4 space-y-2 animate-fade-in">
+          <div className="absolute top-14 left-0 right-0 p-4 space-y-2 animate-fade-in" style={{ background: "var(--paper-2)", borderBottom: "1px solid var(--line)" }}>
             <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/50">
               <Avatar className="h-10 w-10">
                 <AvatarImage src={user?.picture} />
@@ -591,7 +539,7 @@ export default function Navigation({ user }) {
       </nav>
 
       {/* Mobile Navigation - Bottom Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 glass border-t border-border/30 lg:hidden pb-safe">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden pb-safe" style={{ background: "var(--paper)", borderTop: "1px solid var(--line-2)" }}>
         <div className="flex items-center justify-around h-[58px]">
           {mobileNavItems.map((item) => {
             const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');

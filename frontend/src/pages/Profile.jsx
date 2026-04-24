@@ -482,9 +482,9 @@ function ProfilePage({ user }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background pb-20 lg:pb-0">
+      <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
         <Navigation user={user} />
-        <main className="max-w-2xl mx-auto px-4 pt-20 lg:pt-24">
+        <main className="max-w-2xl mx-auto px-4 pt-16 lg:pt-8">
           <div className="animate-pulse space-y-6">
             <div className="flex items-center gap-4">
               <div className="w-20 h-20 rounded-full bg-muted"></div>
@@ -501,9 +501,9 @@ function ProfilePage({ user }) {
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-background pb-20 lg:pb-0">
+      <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
         <Navigation user={user} />
-        <main className="max-w-2xl mx-auto px-4 pt-20 lg:pt-24 text-center">
+        <main className="max-w-2xl mx-auto px-4 pt-16 lg:pt-8 text-center">
           <h1 className="font-heading text-2xl font-bold text-foreground">Profile not found</h1>
         </main>
       </div>
@@ -587,10 +587,10 @@ function ProfilePage({ user }) {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pb-0">
+    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
       <Navigation user={user} />
       
-      <main className="max-w-2xl mx-auto px-4 pt-20 lg:pt-24">
+      <main className="max-w-2xl mx-auto px-4 pt-16 lg:pt-8">
         {!isOwnProfile && (
           <button 
             onClick={() => navigate(-1)}

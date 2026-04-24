@@ -379,10 +379,10 @@ export default function SavedResources({ user }) {
   const [activeTab, setActiveTab] = useState("posts");
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pb-8">
+    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-8">
       <Navigation user={user} />
 
-      <main className="max-w-4xl mx-auto px-4 pt-20 lg:pt-24">
+      <main className="max-w-4xl mx-auto px-4 pt-16 lg:pt-8">
         {/* Header */}
         <div className="mb-6">
           <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-1 flex items-center gap-2">

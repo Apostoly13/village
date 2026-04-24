@@ -60,7 +60,7 @@ export default function ForClinicians({ user }) {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background lg:pl-60">
       {/* ── Public nav ─────────────────────────────── */}
       <nav className="sticky top-0 z-50 border-b border-border/50 bg-background/95 backdrop-blur">
         <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between">

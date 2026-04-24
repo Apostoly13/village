@@ -12,7 +12,7 @@
 
 /* ── DAY ────────────────────────────────────────────────────────────────
    Warm paper cream + brand brown from the wordmark. */
-[data-theme="day"] {
+html[data-theme="day"], [data-theme="day"] {
   /* Raw design tokens — hex, use directly in component styles */
   --paper:        #f7f2e9;
   --paper-2:      #f1eadc;
@@ -72,7 +72,7 @@
   --accent-foreground:   37 45% 94%;
   --destructive:         0 60% 50%;
   --destructive-foreground: 0 0% 98%;
-  --border:              25 29% 13% / 0.10;
+  --border:              30 20% 82%;    /* warm light border, replaces alpha syntax */
   --input:               35 44% 90%;
   --ring:                14 55% 54%;
   --radius:              0.875rem;
@@ -83,7 +83,7 @@
 
 /* ── NIGHT ──────────────────────────────────────────────────────────────
    Candlelight-warm dark. Keeps existing NightOwl amber for primary actions. */
-[data-theme="night"] {
+html[data-theme="night"], [data-theme="night"] {
   /* Raw design tokens */
   --paper:        #17120e;
   --paper-2:      #1f1812;
@@ -143,7 +143,7 @@
   --accent-foreground:   30 45% 6%;
   --destructive:         2 70% 55%;
   --destructive-foreground: 0 0% 98%;
-  --border:              40 65% 89% / 0.08;
+  --border:              26 20% 20%;    /* warm dark border */
   --input:               26 23% 13%;
   --ring:                47 91% 61%;
   --radius:              0.875rem;

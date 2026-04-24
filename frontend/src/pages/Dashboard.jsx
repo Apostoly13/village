@@ -560,10 +560,10 @@ export default function Dashboard({ user }) {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pb-8">
+    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-8">
       <Navigation user={user} />
 
-      <main className="max-w-5xl mx-auto px-4 pt-20 lg:pt-24">
+      <main className="max-w-5xl mx-auto px-4 pt-16 lg:pt-8">
 
         {/* ── Downgrade notice (one-time, shown on first login after trial expires) ── */}
         {showDowngradeNotice && (
@@ -637,17 +637,27 @@ export default function Dashboard({ user }) {
         })()}
 
         {/* ── Hero ── */}
-        <div className="mb-5 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/15 px-5 py-4">
-          <h1 className="font-heading text-xl sm:text-2xl font-bold text-foreground mb-1 leading-tight">
-            Welcome back, {firstName} 👋
+        <div className="mb-5 px-1">
+          <p className="font-mono text-[10px] uppercase tracking-[0.16em] mb-1.5" style={{ color: "var(--ink-3)" }}>
+            {new Date().toLocaleDateString("en-AU", { weekday: "long" })} · {new Date().toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" })}
+          </p>
+          <h1
+            className="text-2xl sm:text-3xl font-medium leading-tight mb-1"
+            style={{ fontFamily: "var(--serif)", letterSpacing: "-0.02em", color: "var(--ink)" }}
+          >
+            {(() => {
+              const h = new Date().getHours();
+              const greeting = h < 12 ? "Morning" : h < 17 ? "Afternoon" : "Evening";
+              return <>{greeting}, <em style={{ fontStyle: "italic", color: "hsl(var(--accent))" }}>{firstName}</em>.</>;
+            })()}
           </h1>
           {heroContent.sentence ? (
-            <p className="text-sm text-foreground/70 leading-relaxed">
+            <p className="text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>
               {heroContent.sentence}
             </p>
           ) : (
-            <p className="text-sm text-foreground/70 leading-relaxed">
-              Your village is here whenever you need it 🌿
+            <p className="text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>
+              Your village is here whenever you need it.
             </p>
           )}
         </div>
@@ -922,7 +932,8 @@ export default function Dashboard({ user }) {
                           tabIndex={0}
                           onKeyDown={e => e.key === "Enter" && navigate(`/forums/post/${post.post_id}`)}
                           aria-label={`Open post: ${post.title}`}
-                          className="bg-card rounded-2xl px-4 py-3.5 border border-border/40 cursor-pointer hover:shadow-md hover:-translate-y-px transition-all duration-200 card-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                          className="rounded-2xl px-4 py-3.5 cursor-pointer hover:shadow-md hover:-translate-y-px transition-all duration-200 card-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                          style={{ background: "var(--paper-2)", border: "1px solid var(--line)" }}
                           data-testid={`post-card-${idx}`}
                         >
                           {/* Row 1: Author + meta */}
@@ -959,17 +970,17 @@ export default function Dashboard({ user }) {
                               {post.author_subscription_tier === "premium" && !isAnon && (
                                 <Crown className="h-3 w-3 text-amber-500 shrink-0" />
                               )}
-                              <span className="text-xs text-muted-foreground/60 shrink-0">·</span>
-                              <span className="text-xs text-muted-foreground truncate flex items-center gap-1 shrink-0">
-                                <span>{post.category_icon}</span>
-                                <span className="truncate">{post.category_name}</span>
-                              </span>
-                              <span className="text-xs text-muted-foreground/60 shrink-0 hidden sm:inline">·</span>
-                              <span className="text-xs text-muted-foreground/60 shrink-0 hidden sm:inline whitespace-nowrap">
-                                {fmtRelative(post.created_at)}
+                              <span
+                                className="font-mono text-[9px] uppercase tracking-[0.12em] shrink-0 hidden sm:inline"
+                                style={{ color: "var(--ink-3)" }}
+                              >
+                                {post.category_name} · {fmtRelative(post.created_at)}
                               </span>
                             </div>
-                            <span className="text-xs text-muted-foreground/60 shrink-0 ml-auto sm:hidden">
+                            <span
+                              className="font-mono text-[9px] uppercase tracking-[0.10em] shrink-0 ml-auto sm:hidden"
+                              style={{ color: "var(--ink-3)" }}
+                            >
                               {fmtRelative(post.created_at)}
                             </span>
                           </div>

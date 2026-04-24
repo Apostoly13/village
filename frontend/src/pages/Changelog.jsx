@@ -5,6 +5,25 @@ import AppFooter from "../components/AppFooter";
 
 const CHANGELOG = [
   {
+    version: "3.4.0",
+    date: "April 2026",
+    title: "Design Handoff — Left Sidebar, Custom Icons & Full Layout Overhaul",
+    entries: [
+      { tag: "Design",   text: "Desktop navigation converted from top bar to fixed left sidebar (w-60). Wordmark at top, primary nav with custom SVG icons, Village+ promo strip, and user/notifications footer row. All page content offset with lg:pl-60." },
+      { tag: "Design",   text: "Custom icon pack (icons.jsx) now used throughout the sidebar: IconHome, IconChat, IconMoon, IconCal, IconMail, IconPeople, IconHeart, IconShield, IconCog — hand-drawn 24×24 SVGs with 1.5px stroke." },
+      { tag: "Design",   text: "Sidebar active item: paper-2 background with accent-coloured icon. Hover state uses inline onMouseEnter/Leave for CSS-variable-aware colour without Tailwind conflicts." },
+      { tag: "Design",   text: "Sidebar dropdown sub-menus (Spaces, Chats) open to the right (side='right') with paper-2 background and var(--line) border, replacing the old top-bar hover menus." },
+      { tag: "Design",   text: "All 30+ authenticated pages updated: outer wrapper gains lg:pl-60 for sidebar offset; main element changes from pt-20 lg:pt-24 to pt-16 lg:pt-8 (no top bar on desktop)." },
+      { tag: "Design",   text: "Login and Register pages: warm split-screen layout — 40% left panel with watercolour blob SVG, Wordmark, and italic testimonial quote; 60% right panel form on paper-2 background. All inputs 44px height with var(--line) borders." },
+      { tag: "Design",   text: "Landing page: paper-cream hero with noise overlay, Fraunces heading with italic accent on 'your village', single dark-ink CTA, custom icon feature cards on paper-2, proverb block in serif italic, dark-ink footer with inverted Wordmark." },
+      { tag: "Design",   text: "Dashboard greeting: mono eyebrow (weekday · time in 10px uppercase), serif h1 with italic accent on first name, replacing old gradient card header." },
+      { tag: "Design",   text: "Events page header: 'What\u2019s on · near you.' with serif italic accent." },
+      { tag: "Design",   text: "CSS cascade fix: html[data-theme='day/night'] selector specificity raised to (0,1,1) — prevents any .dark class or :root block from overriding the warm palette. All colour tokens moved exclusively to theme.css." },
+      { tag: "Fixed",    text: "index.js import order fixed: theme.css loaded before index.css so design tokens are always available on first paint." },
+      { tag: "Fixed",    text: "index.css stripped of all colour token definitions (:root colour block and .dark block removed) — eliminates warm/cold palette conflict in dark mode." },
+    ],
+  },
+  {
     version: "3.3.0",
     date: "April 2026",
     title: "Design System — Warm Theme, Fraunces Typography & Wordmark",
@@ -454,10 +473,10 @@ function VersionCard({ version, date, title, entries, muted }) {
 
 export default function Changelog({ user }) {
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pb-0">
+    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
       <Navigation user={user} />
 
-      <main className="max-w-3xl mx-auto px-4 pt-20 lg:pt-24">
+      <main className="max-w-3xl mx-auto px-4 pt-16 lg:pt-8">
         <Link
           to="/dashboard"
           className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors"

@@ -1151,7 +1151,7 @@ export default function Events({ user }) {
 
   if (isFree) {
     return (
-      <div className="min-h-screen bg-background pb-20 lg:pb-0">
+      <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
         <Navigation user={user} />
         <main className="max-w-lg mx-auto px-4 pt-24 pb-16 text-center">
           <div className="w-16 h-16 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center mx-auto mb-5">
@@ -1173,17 +1173,21 @@ export default function Events({ user }) {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pb-8">
+    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-8">
       <Navigation user={user} />
 
-      <main className="max-w-4xl mx-auto px-4 pt-20 lg:pt-24">
+      <main className="max-w-4xl mx-auto px-4 pt-16 lg:pt-8">
         {/* Header */}
         <div className="flex items-start justify-between mb-6">
           <div>
-            <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-1">
-              Events near you
+            <h1
+              className="text-2xl sm:text-3xl font-medium leading-tight mb-1"
+              style={{ fontFamily: "var(--serif)", letterSpacing: "-0.025em", color: "var(--ink)" }}
+            >
+              What's on ·{" "}
+              <em style={{ fontStyle: "italic", color: "hsl(var(--accent))" }}>near you.</em>
             </h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm" style={{ color: "var(--ink-2)" }}>
               Find meetups, playgroups and local events for parents in your area.
             </p>
           </div>

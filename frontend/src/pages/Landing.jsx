@@ -2,9 +2,15 @@ import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import {
-  Moon, Sun, Heart, ArrowRight, ChevronRight, ShieldCheck, Stethoscope,
-  Lock, Phone, Sparkles, Check
+  Heart, ArrowRight, ChevronRight, ShieldCheck, Stethoscope,
+  Lock, Phone, Sparkles, Check, Moon, Sun
 } from "lucide-react";
+import { Wordmark } from "../components/Wordmark";
+import { useTheme } from "../useTheme";
+import {
+  IconMoon, IconChat, IconLock, IconShield, IconPin, IconCal,
+  IconPeople, IconPhone, IconSun, IconHand
+} from "../icons";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -214,9 +220,9 @@ function DemoEvents() {
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function Landing() {
   const navigate = useNavigate();
-  const [darkMode, setDarkMode] = useState(
-    document.documentElement.classList.contains("dark")
-  );
+  const [themeSetting, setThemeSetting, themeResolved] = useTheme();
+  const isDark = themeResolved === "night";
+  const toggleTheme = () => setThemeSetting(isDark ? "day" : "night");
   const [demoTab, setDemoTab] = useState("spaces");
   const [onlineStats, setOnlineStats] = useState({ online_now: null, active_rooms: 0 });
 
@@ -237,61 +243,49 @@ export default function Landing() {
     return () => clearInterval(interval);
   }, [navigate]);
 
-  const toggleTheme = () => {
-    const next = !darkMode;
-    setDarkMode(next);
-    if (next) {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
-    }
-  };
-
   const features = [
     {
-      emoji: "🌙",
+      Icon: IconMoon,
       title: "Group Chats",
       description: "Real-time chat by suburb, parenting stage, and national rooms. The 3am Club is always open — someone's always awake."
     },
     {
-      emoji: "💬",
+      Icon: IconChat,
       title: "Spaces",
       description: "Topic discussions for the real stuff — sleep, feeding, mental health, relationships, and everything in between."
     },
     {
-      emoji: "🔒",
+      Icon: IconLock,
       title: "Anonymous when you need it",
       description: "Post under your name, or flip to anonymous on any post. No name, no avatar, no trace — your choice, every time."
     },
     {
-      emoji: "🩺",
+      Icon: IconShield,
       title: "Verified healthcare voices",
       description: "Midwives, paediatricians, mental-health clinicians — verified with a badge so you know who you're listening to."
     },
     {
-      emoji: "📍",
+      Icon: IconPin,
       title: "Local community",
       description: "Suburb-based groups and events. Find parents near you and real-life meetups you can actually get to."
     },
     {
-      emoji: "📅",
+      Icon: IconCal,
       title: "Events & playgroups",
       description: "Browse and RSVP to local playgroups, coffee mornings, and dad meetups. Host your own in one tap."
     },
     {
-      emoji: "👥",
+      Icon: IconPeople,
       title: "Private messaging",
       description: "Build real friendships and message privately. End-to-end private between you and the parent you're chatting with."
     },
     {
-      emoji: "🆘",
+      Icon: IconPhone,
       title: "Crisis support, built in",
       description: "PANDA, Lifeline, and Beyond Blue surfaced on every sensitive space. Help is never more than a tap away."
     },
     {
-      emoji: "🇦🇺",
+      Icon: IconSun,
       title: "Built in Australia",
       description: "Australian parents, Australian moderation, Australian data. Made for the way we actually do parenting here."
     },
@@ -304,34 +298,48 @@ export default function Landing() {
   ];
 
   return (
-    <div className="min-h-screen bg-background transition-colors duration-300">
+    <div className="min-h-screen bg-[var(--paper)] transition-colors duration-300">
 
       {/* ── Hero ───────────────────────────────────── */}
-      <div className="relative overflow-hidden">
-        <div className="hero-gradient absolute inset-0"></div>
+      <div className="relative overflow-hidden bg-[var(--paper)]">
+        {/* Paper noise overlay */}
+        <div className="tv-paper-noise absolute inset-0 opacity-50 pointer-events-none z-0" />
+
+        {/* Watercolour blob top-right */}
+        <svg
+          className="absolute top-0 right-0 w-[55vw] max-w-[640px] opacity-30 pointer-events-none z-0"
+          viewBox="0 0 640 520" fill="none" xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <ellipse cx="400" cy="180" rx="260" ry="200" fill="hsl(var(--accent))" fillOpacity="0.18" />
+          <ellipse cx="500" cy="100" rx="180" ry="140" fill="hsl(var(--accent))" fillOpacity="0.12" />
+          <ellipse cx="320" cy="260" rx="200" ry="140" fill="var(--honey, hsl(var(--primary)))" fillOpacity="0.08" />
+        </svg>
 
         {/* Nav */}
         <nav className="relative z-10 px-6 py-4 flex items-center justify-between max-w-7xl mx-auto">
-          <div className="flex items-center">
-            <img src="/BG Removed- Main Logo.png" alt="The Village" className="h-48 w-auto" />
-          </div>
+          <Wordmark size={22} />
           <div className="flex items-center gap-2 sm:gap-3">
             <Button variant="ghost" size="icon" onClick={toggleTheme} className="rounded-full" data-testid="theme-toggle">
-              {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </Button>
             <Link to="/for-clinicians" className="hidden md:inline-flex">
-              <Button variant="ghost" className="text-muted-foreground hover:text-foreground gap-1.5">
+              <Button variant="ghost" className="text-[var(--ink-2)] hover:text-[var(--ink)] gap-1.5">
                 <Stethoscope className="h-4 w-4" />
                 For Clinicians
               </Button>
             </Link>
             <Link to="/login">
-              <Button variant="ghost" className="text-muted-foreground hover:text-foreground" data-testid="nav-login-btn">
+              <Button variant="ghost" className="text-[var(--ink-2)] hover:text-[var(--ink)]" data-testid="nav-login-btn">
                 Sign In
               </Button>
             </Link>
             <Link to="/register">
-              <Button className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-6 shadow-[0_0_15px_hsl(var(--primary)/0.3)]" data-testid="nav-register-btn">
+              <Button
+                className="rounded-full px-6 h-10"
+                style={{ background: "var(--ink)", color: "var(--paper)" }}
+                data-testid="nav-register-btn"
+              >
                 Join Free
               </Button>
             </Link>
@@ -339,88 +347,76 @@ export default function Landing() {
         </nav>
 
         {/* Hero content */}
-        <div className="relative z-10 px-6 pt-16 pb-24 max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className="space-y-8">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  {onlineStats.online_now === null
-                    ? "Australian parents online right now"
-                    : onlineStats.online_now === 0
-                      ? "Be the first parent online today"
-                      : `${onlineStats.online_now} Australian parent${onlineStats.online_now === 1 ? "" : "s"} online right now`}
-                </span>
-              </div>
+        <div className="relative z-10 px-6 pt-16 pb-28 max-w-7xl mx-auto">
+          <div className="max-w-2xl space-y-8">
+            {/* Eyebrow */}
+            <p className="font-mono text-xs uppercase tracking-[0.16em] text-[var(--ink-2)]">
+              FOR AUSTRALIAN PARENTS · INVITE-ONLY
+            </p>
 
-              <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground leading-tight">
-                A village for Australian parents — <span className="text-primary">especially when it's hard</span>.
-              </h1>
-
-              <p className="text-lg text-muted-foreground max-lg">
-                The 3am feeds. The second-guessing. The days that are too long and the nights that don't end.
-                The Village is a private, moderated community built for Australian mums and dads —
-                with real clinicians in the room and help close by when you need it.
-              </p>
-
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Link to="/register">
-                  <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-8 h-14 text-lg shadow-[0_0_20px_hsl(var(--primary)/0.3)] btn-shine group" data-testid="hero-join-btn">
-                    Join The Village
-                    <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-                </Link>
-                <Link to="/for-clinicians">
-                  <Button variant="outline" size="lg" className="rounded-full px-8 h-14 text-lg border-border hover:bg-secondary gap-2">
-                    <Stethoscope className="h-5 w-5" />
-                    For Clinicians
-                  </Button>
-                </Link>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-                <span className="flex items-center gap-1.5"><Check className="h-4 w-4 text-primary" /> Free to join</span>
-                <span className="flex items-center gap-1.5"><Check className="h-4 w-4 text-primary" /> Anonymous posting</span>
-                <span className="flex items-center gap-1.5"><Check className="h-4 w-4 text-primary" /> Moderated 24/7</span>
-                <span className="flex items-center gap-1.5"><Check className="h-4 w-4 text-primary" /> Made in Australia</span>
-              </div>
-
-              <p className="text-sm text-muted-foreground italic">
-                "It takes a village to raise a child" — African Proverb
-              </p>
+            {/* Live badge */}
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[var(--paper-2)] border border-[var(--line)]">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+              </span>
+              <span className="text-xs text-[var(--ink-2)]">
+                {onlineStats.online_now === null
+                  ? "Australian parents online right now"
+                  : onlineStats.online_now === 0
+                    ? "Be the first parent online today"
+                    : `${onlineStats.online_now} Australian parent${onlineStats.online_now === 1 ? "" : "s"} online right now`}
+              </span>
             </div>
 
-            {/* Hero image + floating cards */}
-            <div className="relative hidden lg:block">
-              <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent z-10"></div>
-              <div className="rounded-3xl overflow-hidden border border-border/30 shadow-2xl">
-                <img
-                  src="https://images.unsplash.com/photo-1476703993599-0035a21b17a9?w=600&h=500&fit=crop"
-                  alt="Family together"
-                  className="w-full h-[500px] object-cover"
-                />
-              </div>
-              <div className="absolute -bottom-6 -left-6 bg-card p-4 rounded-2xl border border-border/50 shadow-lg z-20">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                    <Heart className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-foreground">Emily just posted</p>
-                    <p className="text-xs text-muted-foreground">"Finally got 4 hours of sleep! 🎉"</p>
-                  </div>
-                </div>
-              </div>
-              <div className="absolute -top-4 -right-4 bg-card px-4 py-2 rounded-full border border-border/50 shadow-lg z-20 text-sm font-medium text-foreground">
-                🌙 3am Club is live
-              </div>
-              <div className="absolute top-24 -right-6 bg-card px-3 py-2 rounded-full border border-sky-500/30 shadow-lg z-20 text-xs font-medium text-sky-600 dark:text-sky-400 flex items-center gap-1.5">
-                <ShieldCheck className="h-3.5 w-3.5" />
-                Verified midwife online
-              </div>
+            {/* H1 */}
+            <h1
+              style={{
+                fontFamily: "var(--serif)",
+                fontSize: "clamp(42px, 6vw, 84px)",
+                fontWeight: 500,
+                letterSpacing: "-0.03em",
+                lineHeight: 1.1,
+                color: "var(--ink)",
+              }}
+            >
+              Find{" "}
+              <em style={{ fontStyle: "italic", color: "hsl(var(--accent))" }}>your village</em>
+              {" "}—{" "}
+              Australian parents who get it.
+            </h1>
+
+            <p className="text-lg leading-relaxed" style={{ color: "var(--ink-2)" }}>
+              The 3am feeds. The second-guessing. The days that are too long and the nights that don't end.
+              The Village is a private, moderated community built for Australian mums and dads —
+              with real clinicians in the room and help close by when you need it.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-4 items-start">
+              <Link to="/register">
+                <Button
+                  size="lg"
+                  className="rounded-full px-8 h-12 text-base group"
+                  style={{ background: "var(--ink)", color: "var(--paper)" }}
+                  data-testid="hero-join-btn"
+                >
+                  Join The Village
+                  <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </Link>
+              <Link to="/for-clinicians">
+                <Button variant="outline" size="lg" className="rounded-full px-8 h-12 text-base border-[var(--line)] hover:bg-[var(--paper-2)] gap-2 text-[var(--ink)]">
+                  <Stethoscope className="h-4 w-4" />
+                  For Clinicians
+                </Button>
+              </Link>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm" style={{ color: "var(--ink-2)" }}>
+              <span className="flex items-center gap-1.5"><Check className="h-4 w-4 text-primary" /> Free to join</span>
+              <span className="flex items-center gap-1.5"><Check className="h-4 w-4 text-primary" /> Anonymous posting</span>
+              <span className="flex items-center gap-1.5"><Check className="h-4 w-4 text-primary" /> Moderated 24/7</span>
+              <span className="flex items-center gap-1.5"><Check className="h-4 w-4 text-primary" /> Made in Australia</span>
             </div>
           </div>
         </div>
@@ -455,14 +451,14 @@ export default function Landing() {
       </section>
 
       {/* ── Features ───────────────────────────────── */}
-      <section className="px-6 py-24 bg-secondary/30">
+      <section className="px-6 py-24" style={{ background: "var(--paper-2)" }}>
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <span className="text-xs font-semibold uppercase tracking-widest text-primary">What's inside</span>
-            <h2 className="font-heading text-3xl sm:text-4xl font-bold text-foreground mt-2 mb-4">
+            <span className="font-mono text-xs uppercase tracking-[0.16em]" style={{ color: "hsl(var(--accent))" }}>What's inside</span>
+            <h2 className="font-heading text-3xl sm:text-4xl font-bold mt-2 mb-4" style={{ color: "var(--ink)" }}>
               Everything a parent needs, in one place
             </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
+            <p className="max-w-2xl mx-auto" style={{ color: "var(--ink-2)" }}>
               From 3am feeds to the school gate, from questions you'd never ask out loud to a verified midwife's answer —
               The Village holds all of it.
             </p>
@@ -472,12 +468,14 @@ export default function Landing() {
             {features.map((feature, index) => (
               <div
                 key={index}
-                className="bg-card p-6 rounded-2xl border border-border/50 hover:border-primary/30 transition-all card-hover animate-fade-in"
-                style={{ animationDelay: `${index * 0.06}s`, background: `radial-gradient(ellipse at top left, hsl(var(--primary)/0.06) 0%, transparent 60%), hsl(var(--card))` }}
+                className="bg-[var(--paper-2)] p-6 rounded-2xl border border-[var(--line)] hover:border-[var(--line-2)] transition-all card-hover animate-fade-in"
+                style={{ animationDelay: `${index * 0.06}s` }}
               >
-                <div className="text-3xl mb-4">{feature.emoji}</div>
-                <h3 className="font-heading font-bold text-lg text-foreground mb-2">{feature.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
+                <div className="mb-4 text-[hsl(var(--accent))]">
+                  <feature.Icon size={28} />
+                </div>
+                <h3 className="font-heading font-bold text-lg mb-2" style={{ color: "var(--ink)" }}>{feature.title}</h3>
+                <p className="text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>{feature.description}</p>
               </div>
             ))}
           </div>
@@ -534,6 +532,25 @@ export default function Landing() {
               </Link>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* ── Proverb block ──────────────────────────── */}
+      <section className="px-6 py-16">
+        <div className="max-w-2xl mx-auto text-center">
+          <p
+            style={{
+              fontFamily: "var(--serif)",
+              fontSize: "clamp(22px, 3vw, 32px)",
+              fontStyle: "italic",
+              fontWeight: 400,
+              letterSpacing: "-0.02em",
+              lineHeight: 1.4,
+              color: "var(--ink-2)",
+            }}
+          >
+            "Raising a child was never meant to be done alone."
+          </p>
         </div>
       </section>
 
@@ -800,37 +817,43 @@ export default function Landing() {
       </section>
 
       {/* ── Final CTA ──────────────────────────────── */}
-      <section className="px-6 py-24 bg-gradient-to-b from-secondary/50 to-background">
+      <section className="px-6 py-24" style={{ background: "var(--paper-2)" }}>
         <div className="max-w-3xl mx-auto text-center">
-          <h2 className="font-heading text-3xl sm:text-4xl font-bold text-foreground mb-4">
+          <h2
+            className="font-heading text-3xl sm:text-4xl font-bold mb-4"
+            style={{ color: "var(--ink)", fontFamily: "var(--serif)" }}
+          >
             Ready to find your village?
           </h2>
-          <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
+          <p className="mb-8 max-w-xl mx-auto" style={{ color: "var(--ink-2)" }}>
             Join Australian parents supporting each other through the beautiful, exhausting, rewarding chaos of parenthood.
           </p>
           <Link to="/register">
-            <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-12 h-14 text-lg shadow-[0_0_25px_hsl(var(--primary)/0.4)]" data-testid="cta-join-btn">
+            <Button
+              size="lg"
+              className="rounded-full px-12 h-14 text-lg"
+              style={{ background: "var(--ink)", color: "var(--paper)" }}
+              data-testid="cta-join-btn"
+            >
               Join The Village
             </Button>
           </Link>
-          <p className="text-xs text-muted-foreground mt-4">Free to join · No credit card · Cancel any time</p>
+          <p className="text-xs mt-4" style={{ color: "var(--ink-3)" }}>Free to join · No credit card · Cancel any time</p>
         </div>
       </section>
 
       {/* ── Footer ─────────────────────────────────── */}
-      <footer className="px-6 py-8 border-t border-border/50">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center">
-            <img src="/the_village_wordmark_light.png" alt="The Village" className="h-16 w-auto opacity-80" />
+      <footer className="px-6 py-10" style={{ background: "var(--ink)" }}>
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
+          <Wordmark size={20} invert />
+          <div className="flex items-center gap-4 text-sm flex-wrap justify-center" style={{ color: "var(--brand-cream)" }}>
+            <Link to="/for-clinicians" className="opacity-70 hover:opacity-100 transition-opacity">For Clinicians</Link>
+            <Link to="/terms" className="opacity-70 hover:opacity-100 transition-opacity">Terms</Link>
+            <Link to="/privacy" className="opacity-70 hover:opacity-100 transition-opacity">Privacy</Link>
+            <Link to="/community-guidelines" className="opacity-70 hover:opacity-100 transition-opacity">Community Guidelines</Link>
+            <Link to="/contact" className="opacity-70 hover:opacity-100 transition-opacity">Contact</Link>
           </div>
-          <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap justify-center">
-            <Link to="/for-clinicians" className="hover:text-foreground transition-colors">For Clinicians</Link>
-            <Link to="/terms" className="hover:text-foreground transition-colors">Terms</Link>
-            <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
-            <Link to="/community-guidelines" className="hover:text-foreground transition-colors">Community Guidelines</Link>
-            <Link to="/contact" className="hover:text-foreground transition-colors">Contact</Link>
-          </div>
-          <p className="text-xs text-muted-foreground">&copy; {new Date().getFullYear()} The Village · Made in Australia</p>
+          <p className="text-xs opacity-50" style={{ color: "var(--brand-cream)" }}>&copy; {new Date().getFullYear()} The Village · Made in Australia</p>
         </div>
       </footer>
     </div>

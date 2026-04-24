@@ -10,103 +10,50 @@
 
 @layer base {
     :root {
-        /* ─── Design Tokens ───────────────────────────────────────────────────── */
+        /* ─── Non-colour design tokens (colour lives in theme.css) ───────────── */
 
-        /* Typography — font families */
-        --font-body:    'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-        --font-heading: 'Nunito', sans-serif;
-        --font-mono:    'JetBrains Mono', source-code-pro, Menlo, Monaco, monospace;
+        /* Typography — font families (theme.css owns --serif/--sans/--mono) */
+        --font-body:    'Inter Tight', 'Inter', 'DM Sans', -apple-system, sans-serif;
+        --font-heading: 'Fraunces', 'Nunito', serif;
+        --font-mono:    'JetBrains Mono', ui-monospace, monospace;
 
         /* Typography — type scale (rem) */
-        --text-xs:   0.75rem;   /* 12px */
-        --text-sm:   0.875rem;  /* 14px */
-        --text-base: 1rem;      /* 16px */
-        --text-lg:   1.125rem;  /* 18px */
-        --text-xl:   1.25rem;   /* 20px */
-        --text-2xl:  1.5rem;    /* 24px */
-        --text-3xl:  1.875rem;  /* 30px */
-        --text-4xl:  2.25rem;   /* 36px */
+        --text-xs:   0.75rem;
+        --text-sm:   0.875rem;
+        --text-base: 1rem;
+        --text-lg:   1.125rem;
+        --text-xl:   1.25rem;
+        --text-2xl:  1.5rem;
+        --text-3xl:  1.875rem;
+        --text-4xl:  2.25rem;
 
-        /* Spacing scale (rem) — 4px base unit */
-        --space-1:  0.25rem;   /* 4px  */
-        --space-2:  0.5rem;    /* 8px  */
-        --space-3:  0.75rem;   /* 12px */
-        --space-4:  1rem;      /* 16px */
-        --space-5:  1.25rem;   /* 20px */
-        --space-6:  1.5rem;    /* 24px */
-        --space-8:  2rem;      /* 32px */
-        --space-10: 2.5rem;    /* 40px */
-        --space-12: 3rem;      /* 48px */
+        /* Spacing scale (rem) */
+        --space-1:  0.25rem;
+        --space-2:  0.5rem;
+        --space-3:  0.75rem;
+        --space-4:  1rem;
+        --space-5:  1.25rem;
+        --space-6:  1.5rem;
+        --space-8:  2rem;
+        --space-10: 2.5rem;
+        --space-12: 3rem;
 
         /* Border radius scale */
-        --radius-sm:   0.5rem;   /* 8px  — small chips */
-        --radius-md:   0.75rem;  /* 12px — inputs, badges */
-        --radius-lg:   1rem;     /* 16px — cards (= --radius) */
-        --radius-xl:   1.25rem;  /* 20px — large cards */
-        --radius-full: 9999px;   /* pill buttons */
+        --radius-sm:   0.5rem;
+        --radius-md:   0.75rem;
+        --radius-lg:   1rem;
+        --radius-xl:   1.25rem;
+        --radius-full: 9999px;
 
         /* Animation */
         --duration-fast:   150ms;
         --duration-base:   250ms;
         --duration-slow:   400ms;
         --ease-out:        cubic-bezier(0.16, 1, 0.3, 1);
-
-        /* ─── Colour Tokens ────────────────────────────────────────────────────── */
-
-        /* Light Mode - Warm & Fresh */
-        --background: 30 40% 98%;
-        --foreground: 30 10% 15%;
-        --card: 0 0% 100%;
-        --card-foreground: 30 10% 15%;
-        --popover: 0 0% 100%;
-        --popover-foreground: 30 10% 15%;
-        --primary: 158 35% 45%;
-        --primary-foreground: 0 0% 100%;
-        --secondary: 30 30% 94%;
-        --secondary-foreground: 30 10% 25%;
-        --muted: 30 20% 92%;
-        --muted-foreground: 30 10% 45%;
-        --accent: 24 70% 70%;
-        --accent-foreground: 30 10% 15%;
-        --destructive: 0 72% 51%;
-        --destructive-foreground: 0 0% 100%;
-        --border: 30 20% 88%;
-        --input: 30 20% 92%;
-        --ring: 158 35% 45%;
-        --radius: 1rem;
-        --success: 142 71% 45%;
-        --warning: 38 92% 50%;
-        --info: 199 89% 48%;
-        --sage: 158 35% 45%;
-        --peach: 24 70% 70%;
-        --cream: 30 40% 96%;
     }
-
-    :root.dark, .dark {
-        /* Dark Mode - Night Light */
-        --background: 240 5% 9%;
-        --foreground: 240 6% 90%;
-        --card: 240 4% 14%;
-        --card-foreground: 240 6% 90%;
-        --popover: 240 4% 14%;
-        --popover-foreground: 240 6% 90%;
-        --primary: 45 91% 60%;
-        --primary-foreground: 240 4% 12%;
-        --secondary: 240 4% 18%;
-        --secondary-foreground: 240 6% 90%;
-        --muted: 240 4% 18%;
-        --muted-foreground: 240 5% 65%;
-        --accent: 240 4% 18%;
-        --accent-foreground: 45 91% 60%;
-        --destructive: 0 72% 51%;
-        --destructive-foreground: 0 0% 100%;
-        --border: 240 4% 18%;
-        --input: 240 4% 18%;
-        --ring: 45 91% 60%;
-        --sage: 45 91% 60%;
-        --peach: 24 70% 70%;
-        --cream: 240 4% 15%;
-    }
+    /* NOTE: ALL colour tokens (--background, --foreground, --primary, --accent,
+       --card, --border, etc.) are defined in theme.css via [data-theme] attribute
+       selectors. Do NOT add colour tokens here — it breaks the day/night cascade. */
 }
 
 * {
@@ -121,18 +68,19 @@ html {
 }
 
 body {
-    font-family: var(--font-body);
+    font-family: var(--sans, var(--font-body));
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background-color: hsl(var(--background));
-    color: hsl(var(--foreground));
+    background-color: var(--paper, hsl(var(--background)));
+    color: var(--ink, hsl(var(--foreground)));
     min-height: 100vh;
     transition: background-color var(--duration-slow) ease, color var(--duration-slow) ease;
 }
 
 h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-heading);
-    font-weight: 700;
+    font-family: var(--serif, var(--font-heading));
+    font-weight: 500;
+    letter-spacing: -0.02em;
 }
 
 code {

@@ -46,7 +46,7 @@ const COMPARISON = [
 // ── Premium management view ────────────────────────────────────────────────────
 function PremiumManagement({ user, onPortal, portalLoading, error }) {
   return (
-    <div className="max-w-lg mx-auto px-4 pt-20 lg:pt-24 pb-16">
+    <div className="max-w-lg mx-auto px-4 pt-16 lg:pt-8 pb-16">
 
       {/* Status */}
       <div className="text-center mb-8">
@@ -163,7 +163,7 @@ export default function VillagePlus({ user }) {
   // Premium users get the management view, not the upsell page
   if (isPremium) {
     return (
-      <div className="min-h-screen bg-background pb-20 lg:pb-0">
+      <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
         <Navigation user={user} />
         <PremiumManagement user={user} onPortal={handleManageBilling} portalLoading={portalLoading} error={error} />
         <AppFooter />
@@ -172,37 +172,53 @@ export default function VillagePlus({ user }) {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pb-0">
+    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
       <Navigation user={user} />
 
-      <main className="max-w-3xl mx-auto px-4 pt-20 lg:pt-24 pb-16">
+      <main className="max-w-3xl mx-auto px-4 pt-16 lg:pt-8 pb-16">
 
         {/* Hero */}
-        <div className="relative text-center mb-12 rounded-3xl overflow-hidden py-12 px-6">
-          <div className="absolute inset-0 bg-gradient-to-br from-amber-500/15 via-primary/5 to-transparent pointer-events-none" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent pointer-events-none" />
+        <div
+          className="relative text-center mb-12 rounded-3xl overflow-hidden py-14 px-6"
+          style={{ background: "var(--ink)" }}
+        >
+          {/* Honey glow overlay */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{ background: "radial-gradient(ellipse at 30% 40%, rgba(245,197,66,0.18) 0%, transparent 65%)" }}
+          />
           <div className="relative z-10">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/15 border border-primary/30 mb-6 shadow-sm">
-              <Crown className="h-4 w-4 text-primary" />
-              <span className="text-sm font-bold text-primary tracking-wide">Village+</span>
+            <div
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6"
+              style={{ background: "rgba(245,197,66,0.15)", border: "1px solid rgba(245,197,66,0.35)" }}
+            >
+              <Crown className="h-4 w-4" style={{ color: "var(--honey)" }} />
+              <span className="text-sm font-bold tracking-wide" style={{ color: "var(--honey)" }}>Village+</span>
             </div>
-            <h1 className="font-heading text-4xl sm:text-5xl font-bold text-foreground mb-4 leading-tight">
-              Support without limits
+            <h1
+              className="text-4xl sm:text-5xl font-medium leading-tight mb-4"
+              style={{ fontFamily: "var(--serif)", letterSpacing: "-0.03em", color: "var(--brand-cream)" }}
+            >
+              Support{" "}
+              <em style={{ fontStyle: "italic", color: "var(--honey)" }}>without limits</em>
             </h1>
-            <p className="text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed mb-4">
+            <p className="text-lg max-w-xl mx-auto leading-relaxed mb-6" style={{ color: "rgba(245,230,208,0.75)" }}>
               The Village is built for parents. Village+ removes every limit so you can connect, post, and support freely — any time of day.
             </p>
-            <div className="inline-flex items-start gap-3 bg-card/60 border border-border/50 rounded-2xl px-5 py-4 mb-4 max-w-md mx-auto text-left shadow-sm">
+            <div
+              className="inline-flex items-start gap-3 rounded-2xl px-5 py-4 mb-4 max-w-md mx-auto text-left"
+              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(245,197,66,0.20)" }}
+            >
               <span className="text-2xl shrink-0">🏡</span>
               <div>
-                <p className="text-sm font-semibold text-foreground mb-1">A family-run platform</p>
-                <p className="text-xs text-muted-foreground leading-relaxed">
+                <p className="text-sm font-semibold mb-1" style={{ color: "var(--brand-cream)" }}>A family-run platform</p>
+                <p className="text-xs leading-relaxed" style={{ color: "rgba(245,230,208,0.65)" }}>
                   The Village is independent and family-run — not a corporation. Your subscription directly funds the servers, development, and moderation that keep this community safe and growing.
                 </p>
               </div>
             </div>
             {isTrial && (
-              <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+              <p className="text-xs font-medium" style={{ color: "var(--honey)" }}>
                 You're on a free trial — upgrade now to keep full access when it ends.
               </p>
             )}

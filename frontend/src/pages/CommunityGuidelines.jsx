@@ -63,10 +63,10 @@ const CONSEQUENCES = [
 
 export default function CommunityGuidelines() {
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pb-0">
+    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
       <PublicNav />
 
-      <main className="max-w-3xl mx-auto px-4 pt-20 lg:pt-24">
+      <main className="max-w-3xl mx-auto px-4 pt-16 lg:pt-8">
         <button
           type="button"
           onClick={() => window.history.length > 1 ? window.history.back() : window.location.assign("/")}

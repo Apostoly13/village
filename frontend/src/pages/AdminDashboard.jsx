@@ -303,9 +303,9 @@ export default function AdminDashboard({ user }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background pb-20 lg:pb-0">
+      <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
         <Navigation user={user} />
-        <main className="max-w-6xl mx-auto px-4 pt-20 lg:pt-24 flex items-center justify-center py-20">
+        <main className="max-w-6xl mx-auto px-4 pt-16 lg:pt-8 flex items-center justify-center py-20">
           <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         </main>
       </div>
@@ -313,10 +313,10 @@ export default function AdminDashboard({ user }) {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pb-0">
+    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
       <Navigation user={user} />
 
-      <main className="max-w-6xl mx-auto px-4 pt-20 lg:pt-24">
+      <main className="max-w-6xl mx-auto px-4 pt-16 lg:pt-8">
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
 
           {/* Tab bar — scrollable on mobile */}

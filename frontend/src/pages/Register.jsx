@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Eye, EyeOff, Check } from "lucide-react";
 import { Checkbox } from "../components/ui/checkbox";
 import { parseApiError } from "../utils/apiError";
+import { Wordmark } from "../components/Wordmark";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -121,27 +122,47 @@ export default function Register() {
   const canSubmit = !loading && passwordValid && firstName.trim() && lastName.trim() && dobValid && agreedToTerms;
 
   return (
-    <div className="min-h-screen bg-background flex">
-      {/* Left side - Form */}
-      <div className="w-full lg:w-1/2 flex flex-col justify-center px-8 py-12 lg:px-16">
-        <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8 transition-colors">
+    <div className="min-h-screen flex" style={{ background: "var(--paper)" }}>
+
+      {/* Left panel — 40% design panel */}
+      <div
+        className="hidden lg:flex lg:w-[40%] flex-col justify-between relative overflow-hidden px-12 py-10"
+        style={{ background: "var(--paper)" }}
+      >
+        {/* Watercolour blob */}
+        <svg className="absolute top-0 right-0 w-full opacity-40 pointer-events-none" viewBox="0 0 480 520" fill="none" aria-hidden="true">
+          <ellipse cx="360" cy="160" rx="200" ry="180" fill="hsl(var(--accent))" fillOpacity="0.20" />
+          <ellipse cx="420" cy="80" rx="140" ry="110" fill="hsl(var(--accent))" fillOpacity="0.14" />
+          <ellipse cx="260" cy="240" rx="160" ry="120" fill="var(--honey)" fillOpacity="0.10" />
+        </svg>
+        <div className="relative z-10"><Wordmark size={26} /></div>
+        <div className="relative z-10 mb-8">
+          <p style={{ fontFamily: "var(--serif)", fontSize: "clamp(18px,2vw,24px)", fontStyle: "italic", fontWeight: 400, letterSpacing: "-0.02em", lineHeight: 1.5, color: "var(--ink)" }}>
+            "The support here is incredible"
+          </p>
+          <p className="mt-2 text-sm" style={{ color: "var(--ink-3)" }}>— Mike, dad of two</p>
+        </div>
+      </div>
+
+      {/* Right panel — 60% form */}
+      <div className="flex-1 flex flex-col justify-center px-8 py-12 lg:px-14 overflow-y-auto" style={{ background: "var(--paper-2)" }}>
+        <Link to="/" className="inline-flex items-center gap-2 mb-6 transition-opacity opacity-60 hover:opacity-100 text-sm" style={{ color: "var(--ink)" }}>
           <ArrowLeft className="h-4 w-4" />
           Back to home
         </Link>
 
         <div className="max-w-md w-full mx-auto">
-          <div className="flex items-center justify-center mb-8">
-            <img src="/BG Removed- Main Logo.png" alt="The Village" className="h-64 w-auto" />
-          </div>
+          <div className="lg:hidden mb-6"><Wordmark size={22} /></div>
 
-          <h1 className="font-heading text-3xl font-bold text-foreground mb-2">Join the community</h1>
-          <p className="text-muted-foreground mb-8">Create your account and find your parenting tribe</p>
+          <h1 className="text-3xl font-medium mb-1" style={{ fontFamily: "var(--serif)", color: "var(--ink)" }}>Join the community</h1>
+          <p className="mb-6 text-sm" style={{ color: "var(--ink-2)" }}>Create your account and find your parenting tribe</p>
 
           {/* Google Signup */}
           <Button
             type="button"
             variant="outline"
-            className="w-full h-12 rounded-xl border-border/50 hover:bg-secondary mb-6"
+            className="w-full rounded-full border-[var(--line)] hover:bg-[var(--paper)] mb-6"
+            style={{ height: 44, color: "var(--ink)", background: "var(--paper)" }}
             onClick={handleGoogleLogin}
             data-testid="google-register-btn"
           >
@@ -154,12 +175,12 @@ export default function Register() {
             Continue with Google
           </Button>
 
-          <div className="relative my-6">
+          <div className="relative my-5">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-border/50"></div>
+              <div className="w-full border-t" style={{ borderColor: "var(--line)" }} />
             </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-background text-muted-foreground">or sign up with email</span>
+            <div className="relative flex justify-center text-xs">
+              <span className="px-4 text-[var(--ink-3)]" style={{ background: "var(--paper-2)" }}>or sign up with email</span>
             </div>
           </div>
 
@@ -174,7 +195,8 @@ export default function Register() {
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   placeholder="Jane"
-                  className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
+                  className="rounded-xl"
+                  style={{ height: 44, background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
                   required
                   data-testid="first-name-input"
                 />
@@ -187,7 +209,8 @@ export default function Register() {
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   placeholder="Smith"
-                  className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
+                  className="rounded-xl"
+                  style={{ height: 44, background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
                   required
                   data-testid="last-name-input"
                 />
@@ -206,7 +229,8 @@ export default function Register() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
+                className="rounded-xl"
+                style={{ height: 44, background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
                 required
                 data-testid="email-input"
               />
@@ -221,7 +245,8 @@ export default function Register() {
                 value={dob}
                 onChange={(e) => setDob(e.target.value)}
                 max={maxDobDate()}
-                className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
+                className="rounded-xl"
+                style={{ height: 44, background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
                 required
                 data-testid="dob-input"
               />
@@ -247,7 +272,8 @@ export default function Register() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary pr-10"
+                  className="rounded-xl pr-10"
+                  style={{ height: 44, background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
                   required
                   data-testid="password-input"
                 />
@@ -323,7 +349,8 @@ export default function Register() {
 
             <Button
               type="submit"
-              className="w-full h-12 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_15px_rgba(245,197,66,0.3)]"
+              className="w-full rounded-full"
+              style={{ height: 44, background: "var(--ink)", color: "var(--paper)" }}
               disabled={!canSubmit}
               data-testid="register-submit-btn"
             >
@@ -331,28 +358,12 @@ export default function Register() {
             </Button>
           </form>
 
-          <p className="text-center text-muted-foreground mt-6">
+          <p className="text-center mt-6 text-sm" style={{ color: "var(--ink-2)" }}>
             Already have an account?{" "}
-            <Link to="/login" className="text-primary hover:underline font-medium" data-testid="login-link">
+            <Link to="/login" className="font-medium hover:underline" style={{ color: "hsl(var(--accent))" }} data-testid="login-link">
               Sign in
             </Link>
           </p>
-        </div>
-      </div>
-
-      {/* Right side - Image */}
-      <div className="hidden lg:flex lg:w-1/2 relative">
-        <div className="absolute inset-0 bg-gradient-to-l from-background via-transparent to-transparent z-10"></div>
-        <img
-          src="https://images.unsplash.com/photo-1761891954120-7dce2a8bd06c?w=800&h=1200&fit=crop"
-          alt="Mother with baby"
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute bottom-12 right-12 z-20 max-w-md text-right">
-          <p className="text-2xl font-heading font-bold text-foreground mb-2">
-            "The support here is incredible"
-          </p>
-          <p className="text-muted-foreground">— Mike, dad of two</p>
         </div>
       </div>
     </div>
