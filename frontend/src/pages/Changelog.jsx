@@ -5,6 +5,20 @@ import AppFooter from "../components/AppFooter";
 
 const CHANGELOG = [
   {
+    version: "3.7.0",
+    date: "April 2026",
+    title: "Stall Messaging Overhaul",
+    entries: [
+      { tag: "Improved",  text: "Stall listing detail 'Message seller' now opens a full-screen threaded chat panel instead of a one-shot message form. Shows full conversation history, polls every 3 seconds for new messages, supports multi-turn threads, and auto-scrolls to the latest message." },
+      { tag: "Added",     text: "Stall Messages tab — a new 5th tab in The Village Stall shows all your Stall conversations in one inbox. Lists each conversation with listing thumbnail, other user's name, last message preview, timestamp, and unread badge." },
+      { tag: "Added",     text: "Inline thread view within the Messages tab — click any conversation to open the full chat thread right inside the Stall section, with real-time polling, message bubbles, and an auto-resizing input bar." },
+      { tag: "Added",     text: "Unread message count badge on the Messages tab — red pill badge appears on the tab whenever there are unread Stall messages, and updates automatically when messages are read." },
+      { tag: "Improved",  text: "Own listing CTA changed from 'Manage' to 'View enquiries' — takes the seller directly to the Messages tab so they can respond to buyers without hunting for the right conversation." },
+      { tag: "Improved",  text: "Chat panel correctly offsets for the desktop sidebar (lg:left-60), so the sidebar remains visible and the chat fills only the content area on desktop." },
+      { tag: "Improved",  text: "Timestamp grouping in chat threads — consecutive messages within 10 minutes are grouped without repeated timestamps; larger gaps show a relative time label between messages." },
+    ],
+  },
+  {
     version: "3.6.0",
     date: "April 2026",
     title: "Village Stall, Pro Verification & UX Polish",

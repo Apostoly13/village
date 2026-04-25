@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
-import { ArrowLeft, MapPin, Clock, Bookmark, BookmarkCheck, Tag, ArrowLeftRight, Heart, Search, MessageCircle, Crown, ChevronLeft, ChevronRight, Send, X, AlertTriangle, ShoppingBag, Check } from "lucide-react";
+import { ArrowLeft, MapPin, Clock, Bookmark, BookmarkCheck, Tag, ArrowLeftRight, Heart, Search, MessageCircle, Crown, ChevronLeft, ChevronRight, Send, X, ShoppingBag, Check } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { parseApiError } from "../utils/apiError";
@@ -22,15 +22,52 @@ const CONDITION_LABELS = {
   like_new: "Like new", good: "Good", fair: "Fair", well_loved: "Well loved",
 };
 
-function MessageModal({ listing, user, onClose }) {
-  const [message, setMessage] = useState(
-    `Hi! I'm interested in your "${listing.title}". Is it still available?`
-  );
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
+const fmtTime = (d) => { try { return formatDistanceToNow(new Date(d), { addSuffix: true }); } catch { return ""; } };
+
+// ── StallChatPanel ─────────────────────────────────────────────────────────────
+// Full-screen threaded chat overlay. Opens over the listing detail page.
+
+function StallChatPanel({ listing, user, onClose }) {
+  const [messages, setMessages] = useState([]);
+  const [newMsg, setNewMsg]     = useState("");
+  const [sending, setSending]   = useState(false);
+  const [loading, setLoading]   = useState(true);
+  const bottomRef   = useRef(null);
+  const intervalRef = useRef(null);
+  const textareaRef = useRef(null);
+
+  const otherUserId = listing.seller_id;
+
+  const fetchMessages = useCallback(async () => {
+    try {
+      const res = await fetch(
+        `${API_URL}/api/stall/messages/${listing.listing_id}/${otherUserId}`,
+        { credentials: "include" }
+      );
+      if (res.ok) setMessages(await res.json());
+    } catch {}
+    finally { setLoading(false); }
+  }, [listing.listing_id, otherUserId]);
+
+  useEffect(() => {
+    fetchMessages();
+    intervalRef.current = setInterval(fetchMessages, 3000);
+    document.body.style.overflow = "hidden";
+    return () => {
+      clearInterval(intervalRef.current);
+      document.body.style.overflow = "";
+    };
+  }, [fetchMessages]);
+
+  useEffect(() => {
+    if (!loading) bottomRef.current?.scrollIntoView({ behavior: messages.length <= 1 ? "instant" : "smooth" });
+  }, [messages, loading]);
 
   const handleSend = async () => {
-    if (!message.trim()) return;
+    const text = newMsg.trim();
+    if (!text || sending) return;
+    setNewMsg("");
+    if (textareaRef.current) { textareaRef.current.style.height = "auto"; }
     setSending(true);
     try {
       const res = await fetch(`${API_URL}/api/stall/messages`, {
@@ -39,83 +76,140 @@ function MessageModal({ listing, user, onClose }) {
         credentials: "include",
         body: JSON.stringify({
           listing_id: listing.listing_id,
-          receiver_id: listing.seller_id,
-          content: message.trim(),
+          receiver_id: otherUserId,
+          content: text,
         }),
       });
-      if (res.ok) {
-        setSent(true);
-        toast.success("Message sent!");
-      } else {
-        const err = await res.json();
-        toast.error(parseApiError(err.detail, "Failed to send message"));
-      }
+      if (res.ok) fetchMessages();
+      else { const e = await res.json(); toast.error(parseApiError(e.detail, "Failed to send")); }
     } catch { toast.error("Something went wrong"); }
     finally { setSending(false); }
   };
 
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
+  };
+
+  const autoResize = (el) => {
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 120) + "px";
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
-      <div className="bg-card rounded-2xl w-full max-w-md p-5 space-y-4 shadow-xl">
-        {/* Listing preview */}
-        <div className="flex items-center gap-3 pb-3 border-b border-border/40">
-          {listing.images?.[0]
-            ? <img src={listing.images[0]} alt="" className="w-12 h-12 rounded-xl object-cover shrink-0" />
-            : <div className="w-12 h-12 rounded-xl bg-secondary/50 flex items-center justify-center shrink-0"><ShoppingBag className="h-5 w-5 text-muted-foreground" /></div>
-          }
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-foreground line-clamp-1">{listing.title}</p>
-            <p className="text-xs text-muted-foreground">to {listing.seller_name}</p>
-          </div>
-          <button onClick={onClose} className="ml-auto p-1 text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+    <div className="fixed inset-0 lg:left-60 z-50 flex flex-col bg-background">
+      {/* Header */}
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-border/40 bg-card shrink-0">
+        <button
+          onClick={onClose}
+          className="p-1.5 -ml-1 rounded-lg text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+
+        {listing.images?.[0]
+          ? <img src={listing.images[0]} alt="" className="w-9 h-9 rounded-lg object-cover shrink-0" />
+          : <div className="w-9 h-9 rounded-lg bg-secondary/50 flex items-center justify-center shrink-0">
+              <ShoppingBag className="h-4 w-4 text-muted-foreground/40" />
+            </div>
+        }
+
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-foreground line-clamp-1">{listing.title}</p>
+          <p className="text-xs text-muted-foreground">with {listing.seller_name}</p>
         </div>
 
-        {sent ? (
-          <div className="text-center py-4 space-y-2">
-            <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto">
-              <Check className="h-6 w-6 text-emerald-600" />
+        <button onClick={onClose} className="text-xs text-primary hover:underline shrink-0">
+          Back to listing
+        </button>
+      </div>
+
+      {/* Messages area */}
+      <div className="flex-1 overflow-y-auto px-4 py-4">
+        {loading ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="w-5 h-5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full gap-3 text-center pb-12">
+            <MessageCircle className="h-12 w-12 text-muted-foreground/20" />
+            <div>
+              <p className="font-semibold text-foreground text-sm">Start the conversation</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Ask {listing.seller_name} about this listing.
+              </p>
             </div>
-            <p className="font-semibold text-foreground">Message sent!</p>
-            <p className="text-xs text-muted-foreground">You can continue the conversation in your Stall Messages inbox.</p>
-            <Button variant="outline" className="rounded-full w-full mt-2" onClick={onClose}>Done</Button>
           </div>
         ) : (
-          <>
-            <div>
-              <label className="text-sm font-medium text-foreground mb-1.5 block">Your message</label>
-              <textarea
-                value={message}
-                onChange={e => setMessage(e.target.value.slice(0, 500))}
-                rows={4}
-                className="w-full rounded-xl border border-border bg-card text-foreground px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                autoFocus
-              />
-              <p className="text-xs text-muted-foreground mt-1">{message.length}/500</p>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" className="flex-1 rounded-xl" onClick={onClose}>Cancel</Button>
-              <Button className="flex-1 rounded-xl" disabled={sending || !message.trim()} onClick={handleSend}>
-                <Send className="h-4 w-4 mr-1.5" />
-                {sending ? "Sending…" : "Send"}
-              </Button>
-            </div>
-          </>
+          <div className="space-y-1.5">
+            {messages.map((msg, i) => {
+              const isMe = msg.sender_id === user?.user_id;
+              const prev = messages[i - 1];
+              const showTimestamp = i === 0 ||
+                (prev && new Date(msg.created_at) - new Date(prev.created_at) > 10 * 60 * 1000);
+
+              return (
+                <div key={msg.message_id || i}>
+                  {showTimestamp && i > 0 && (
+                    <p className="text-center text-[10px] text-muted-foreground/50 py-2">
+                      {fmtTime(msg.created_at)}
+                    </p>
+                  )}
+                  <div className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[78%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed break-words ${
+                      isMe
+                        ? "bg-primary text-primary-foreground rounded-br-md"
+                        : "bg-card border border-border/60 text-foreground rounded-bl-md"
+                    }`}>
+                      {msg.content}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <div ref={bottomRef} />
+          </div>
         )}
+      </div>
+
+      {/* Input bar */}
+      <div className="px-4 py-3 border-t border-border/40 bg-card shrink-0 flex items-end gap-2">
+        <textarea
+          ref={textareaRef}
+          value={newMsg}
+          onChange={e => { setNewMsg(e.target.value.slice(0, 500)); autoResize(e.target); }}
+          onKeyDown={handleKeyDown}
+          placeholder="Message…"
+          rows={1}
+          className="flex-1 resize-none bg-background border border-border rounded-2xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none focus:ring-2 focus:ring-primary/30 transition overflow-hidden"
+        />
+        <button
+          onClick={handleSend}
+          disabled={!newMsg.trim() || sending}
+          className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-40 hover:opacity-90 active:scale-95 transition-all shrink-0 mb-px"
+        >
+          {sending
+            ? <div className="w-4 h-4 rounded-full border-2 border-primary-foreground/40 border-t-primary-foreground animate-spin" />
+            : <Send className="h-4 w-4" />
+          }
+        </button>
       </div>
     </div>
   );
 }
 
+// ── Main ──────────────────────────────────────────────────────────────────────
+
 export default function StallListingDetail({ user }) {
   const { listingId } = useParams();
   const navigate = useNavigate();
-  const [listing, setListing] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [listing, setListing]   = useState(null);
+  const [loading, setLoading]   = useState(true);
   const [photoIdx, setPhotoIdx] = useState(0);
-  const [saved, setSaved] = useState(false);
-  const [showMessage, setShowMessage] = useState(false);
+  const [saved, setSaved]       = useState(false);
+  const [showChat, setShowChat] = useState(false);
 
-  const isAdmin = user?.role === "admin" || user?.role === "moderator";
+  const isAdmin   = user?.role === "admin" || user?.role === "moderator";
   const isPremium = user?.subscription_tier === "premium" || user?.subscription_tier === "trial" || isAdmin;
 
   useEffect(() => {
@@ -135,8 +229,15 @@ export default function StallListingDetail({ user }) {
   const toggleSave = async () => {
     if (!isPremium) { navigate("/plus"); return; }
     try {
-      const res = await fetch(`${API_URL}/api/stall/listings/${listingId}/save`, { method: "POST", credentials: "include" });
-      if (res.ok) { const data = await res.json(); setSaved(data.saved); toast.success(data.saved ? "Saved!" : "Removed from saved"); }
+      const res = await fetch(`${API_URL}/api/stall/listings/${listingId}/save`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSaved(data.saved);
+        toast.success(data.saved ? "Saved!" : "Removed from saved");
+      }
     } catch {}
   };
 
@@ -149,20 +250,29 @@ export default function StallListingDetail({ user }) {
   if (!listing) return null;
 
   const typeStyle = TYPE_STYLES[listing.listing_type] || TYPE_STYLES.sell;
-  const photos = listing.images || [];
-  const isOwn = listing.is_own_listing;
-  const isActive = listing.status === "active";
-
-  const formatTime = (d) => { try { return formatDistanceToNow(new Date(d), { addSuffix: true }); } catch { return ""; } };
+  const photos    = listing.images || [];
+  const isOwn     = listing.is_own_listing;
+  const isActive  = listing.status === "active";
 
   return (
     <div className="min-h-screen bg-background pb-32 lg:pl-60 lg:pb-0">
       <Navigation user={user} />
-      {showMessage && <MessageModal listing={listing} user={user} onClose={() => setShowMessage(false)} />}
+
+      {/* Full-screen chat panel */}
+      {showChat && (
+        <StallChatPanel
+          listing={listing}
+          user={user}
+          onClose={() => setShowChat(false)}
+        />
+      )}
 
       <main className="max-w-3xl mx-auto px-4 pt-16 lg:pt-8 pb-8">
         {/* Back */}
-        <button onClick={() => navigate("/stall")} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4 mt-2 transition-colors">
+        <button
+          onClick={() => navigate("/stall")}
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4 mt-2 transition-colors"
+        >
           <ArrowLeft className="h-4 w-4" /> Back to Stall
         </button>
 
@@ -175,14 +285,22 @@ export default function StallListingDetail({ user }) {
                   <img src={photos[photoIdx]} alt={listing.title} className="w-full h-full object-cover" />
                   {photos.length > 1 && (
                     <>
-                      <button onClick={() => setPhotoIdx(i => (i - 1 + photos.length) % photos.length)} className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-card/80 backdrop-blur-sm flex items-center justify-center hover:bg-card transition-colors">
+                      <button
+                        onClick={() => setPhotoIdx(i => (i - 1 + photos.length) % photos.length)}
+                        className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-card/80 backdrop-blur-sm flex items-center justify-center hover:bg-card transition-colors"
+                      >
                         <ChevronLeft className="h-4 w-4" />
                       </button>
-                      <button onClick={() => setPhotoIdx(i => (i + 1) % photos.length)} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-card/80 backdrop-blur-sm flex items-center justify-center hover:bg-card transition-colors">
+                      <button
+                        onClick={() => setPhotoIdx(i => (i + 1) % photos.length)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-card/80 backdrop-blur-sm flex items-center justify-center hover:bg-card transition-colors"
+                      >
                         <ChevronRight className="h-4 w-4" />
                       </button>
                       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-                        {photos.map((_, i) => <div key={i} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === photoIdx ? "bg-white" : "bg-white/50"}`} />)}
+                        {photos.map((_, i) => (
+                          <div key={i} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === photoIdx ? "bg-white" : "bg-white/50"}`} />
+                        ))}
                       </div>
                     </>
                   )}
@@ -196,7 +314,9 @@ export default function StallListingDetail({ user }) {
               {/* Status overlay */}
               {!isActive && (
                 <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                  <span className="bg-card px-4 py-2 rounded-full font-semibold text-foreground capitalize">{listing.status}</span>
+                  <span className="bg-card px-4 py-2 rounded-full font-semibold text-foreground capitalize">
+                    {listing.status}
+                  </span>
                 </div>
               )}
             </div>
@@ -205,7 +325,11 @@ export default function StallListingDetail({ user }) {
             {photos.length > 1 && (
               <div className="flex gap-2 mt-2">
                 {photos.map((img, i) => (
-                  <button key={i} onClick={() => setPhotoIdx(i)} className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-colors ${i === photoIdx ? "border-primary" : "border-transparent"}`}>
+                  <button
+                    key={i}
+                    onClick={() => setPhotoIdx(i)}
+                    className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-colors ${i === photoIdx ? "border-primary" : "border-transparent"}`}
+                  >
                     <img src={img} alt="" className="w-full h-full object-cover" />
                   </button>
                 ))}
@@ -220,7 +344,10 @@ export default function StallListingDetail({ user }) {
               <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${typeStyle.bg}`}>
                 {typeStyle.label}
               </span>
-              <button onClick={toggleSave} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+              <button
+                onClick={toggleSave}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
                 {saved ? <BookmarkCheck className="h-4 w-4 text-primary" /> : <Bookmark className="h-4 w-4" />}
                 {saved ? "Saved" : "Save"}
               </button>
@@ -233,21 +360,24 @@ export default function StallListingDetail({ user }) {
             <div className="text-3xl font-bold font-heading">
               {listing.listing_type === "give_away" && <span className="text-amber-600 dark:text-amber-400">Free</span>}
               {listing.listing_type === "sell" && (
-                listing.make_offer ? <span className="text-emerald-600 dark:text-emerald-400 text-2xl">Make an offer</span>
-                : listing.price != null ? <span className="text-emerald-600 dark:text-emerald-400">${listing.price.toFixed(0)}</span>
-                : <span className="text-muted-foreground text-xl">POA</span>
+                listing.make_offer
+                  ? <span className="text-emerald-600 dark:text-emerald-400 text-2xl">Make an offer</span>
+                  : listing.price != null
+                    ? <span className="text-emerald-600 dark:text-emerald-400">${listing.price.toFixed(0)}</span>
+                    : <span className="text-muted-foreground text-xl">POA</span>
               )}
               {listing.listing_type === "swap" && <span className="text-sky-600 dark:text-sky-400 text-2xl">Swap</span>}
               {listing.listing_type === "wanted" && (
-                listing.price ? <span className="text-violet-600 dark:text-violet-400">Up to ${listing.price.toFixed(0)}</span>
-                : <span className="text-violet-600 dark:text-violet-400 text-2xl">Wanted</span>
+                listing.price
+                  ? <span className="text-violet-600 dark:text-violet-400">Up to ${listing.price.toFixed(0)}</span>
+                  : <span className="text-violet-600 dark:text-violet-400 text-2xl">Wanted</span>
               )}
             </div>
 
             {/* Chips */}
             <div className="flex flex-wrap gap-2 text-xs">
               {listing.condition && <span className="px-2.5 py-1 rounded-full bg-secondary border border-border/50 text-muted-foreground">{CONDITION_LABELS[listing.condition] || listing.condition}</span>}
-              {listing.category && <span className="px-2.5 py-1 rounded-full bg-secondary border border-border/50 text-muted-foreground capitalize">{listing.category}</span>}
+              {listing.category  && <span className="px-2.5 py-1 rounded-full bg-secondary border border-border/50 text-muted-foreground capitalize">{listing.category}</span>}
               {listing.age_group && <span className="px-2.5 py-1 rounded-full bg-secondary border border-border/50 text-muted-foreground">{listing.age_group}</span>}
               {listing.postage_available && <span className="px-2.5 py-1 rounded-full bg-secondary border border-border/50 text-muted-foreground">📦 Postage available</span>}
             </div>
@@ -267,8 +397,13 @@ export default function StallListingDetail({ user }) {
 
             {/* Location + time */}
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              {listing.suburb && <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{listing.suburb}{listing.state ? `, ${listing.state}` : ""}</span>}
-              <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{formatTime(listing.created_at)}</span>
+              {listing.suburb && (
+                <span className="flex items-center gap-1">
+                  <MapPin className="h-3.5 w-3.5" />
+                  {listing.suburb}{listing.state ? `, ${listing.state}` : ""}
+                </span>
+              )}
+              <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{fmtTime(listing.created_at)}</span>
               {listing.views > 0 && <span className="ml-auto">{listing.views} views</span>}
             </div>
 
@@ -276,7 +411,9 @@ export default function StallListingDetail({ user }) {
             <div className="bg-card border border-border/50 rounded-2xl p-3.5 flex items-center gap-3">
               <Avatar className="h-10 w-10">
                 <AvatarImage src={listing.seller_picture} />
-                <AvatarFallback className="bg-primary/20 text-primary text-sm">{listing.seller_name?.[0]?.toUpperCase()}</AvatarFallback>
+                <AvatarFallback className="bg-primary/20 text-primary text-sm">
+                  {listing.seller_name?.[0]?.toUpperCase()}
+                </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-foreground flex items-center gap-1">
@@ -285,7 +422,9 @@ export default function StallListingDetail({ user }) {
                 </p>
                 <p className="text-xs text-muted-foreground">Village+ member</p>
               </div>
-              <Link to={`/profile/${listing.seller_id}`} className="text-xs text-primary hover:underline">View profile</Link>
+              <Link to={`/profile/${listing.seller_id}`} className="text-xs text-primary hover:underline">
+                View profile
+              </Link>
             </div>
 
             {/* Safety tip */}
@@ -296,15 +435,21 @@ export default function StallListingDetail({ user }) {
         </div>
       </main>
 
-      {/* Sticky CTA (not own listing, active listing) */}
+      {/* Sticky CTA — not own listing, active */}
       {!isOwn && isActive && (
         <div className="fixed bottom-16 left-0 right-0 lg:bottom-0 lg:left-60 z-40 p-4 bg-background/80 backdrop-blur-md border-t border-border/40">
           <div className="max-w-3xl mx-auto flex gap-3">
             <Button variant="outline" className="flex-1 rounded-xl" onClick={toggleSave}>
-              {saved ? <><BookmarkCheck className="h-4 w-4 mr-1.5" />Saved</> : <><Bookmark className="h-4 w-4 mr-1.5" />Save</>}
+              {saved
+                ? <><BookmarkCheck className="h-4 w-4 mr-1.5" />Saved</>
+                : <><Bookmark className="h-4 w-4 mr-1.5" />Save</>
+              }
             </Button>
             {isPremium ? (
-              <Button className="flex-1 rounded-xl shadow-lg shadow-primary/20" onClick={() => setShowMessage(true)}>
+              <Button
+                className="flex-1 rounded-xl shadow-lg shadow-primary/20"
+                onClick={() => setShowChat(true)}
+              >
                 <MessageCircle className="h-4 w-4 mr-1.5" />
                 Message seller
               </Button>
@@ -322,12 +467,20 @@ export default function StallListingDetail({ user }) {
       {isOwn && (
         <div className="fixed bottom-16 left-0 right-0 lg:bottom-0 lg:left-60 z-40 p-4 bg-background/80 backdrop-blur-md border-t border-border/40">
           <div className="max-w-3xl mx-auto flex gap-3">
-            <Button variant="outline" className="flex-1 rounded-xl" onClick={() => navigate(`/stall/listing/${listingId}/edit`)}>
+            <Button
+              variant="outline"
+              className="flex-1 rounded-xl"
+              onClick={() => navigate(`/stall/listing/${listingId}/edit`)}
+            >
               Edit listing
             </Button>
             {isActive && (
-              <Button className="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => navigate("/stall?tab=my")}>
-                Manage
+              <Button
+                className="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={() => navigate("/stall?tab=messages")}
+              >
+                <MessageCircle className="h-4 w-4 mr-1.5" />
+                View enquiries
               </Button>
             )}
           </div>
