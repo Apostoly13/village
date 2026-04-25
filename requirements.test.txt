@@ -1,0 +1,5 @@
+requests>=2.32.0
+pytest>=9.0.0
+pytest-xdist>=3.6.0
+python-dotenv>=1.0.0
+colorama>=0.4.6

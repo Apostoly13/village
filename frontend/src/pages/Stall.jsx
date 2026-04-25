@@ -815,7 +815,7 @@ function StallThreadView({ conv, user, onBack }) {
   };
 
   return (
-    <div className="flex flex-col bg-card rounded-2xl border border-border/50 overflow-hidden" style={{ height: "calc(100dvh - 260px)", minHeight: "420px" }}>
+    <div className="flex flex-col bg-card rounded-2xl border border-border/50 overflow-hidden" style={{ height: "calc(100vh - 260px)", minHeight: "420px" }}>
       {/* Thread header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border/40 shrink-0">
         <button onClick={onBack} className="p-1 -ml-1 text-muted-foreground hover:text-foreground rounded-lg transition-colors">

@@ -1,5 +1,22 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# Test output — generated at runtime, never commit
+test-results/playwright-report/
+test-results/playwright-output/
+test-results/*.json
+test-results/*.mp4
+test-results/screenshots/
+test-results/videos/
+# Keep the directory itself and static reports
+!test-results/.gitkeep
+!test-results/dev-test-report.md
+!test-results/security-findings.md
+!test-results/performance-summary.md
+
+# Playwright
+playwright-report/
+playwright/.cache/
+
 # IDE and editors
 .idea/
 .vscode/

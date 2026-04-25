@@ -48,6 +48,7 @@ import StallListingDetail from "./pages/StallListingDetail";
 import CreateStallListing from "./pages/CreateStallListing";
 import DonationGroupDetail from "./pages/DonationGroupDetail";
 import CreateDonationGroup from "./pages/CreateDonationGroup";
+import EditStallListing from "./pages/EditStallListing";
 import ChatPopout from "./components/ChatPopout";
 import PWAInstallBanner from "./components/PWAInstallBanner";
 
@@ -359,6 +360,11 @@ const AppRouter = () => {
       <Route path="/stall/listing/:listingId" element={
         <ProtectedRoute>
           {({ user }) => <StallListingDetail user={user} />}
+        </ProtectedRoute>
+      } />
+      <Route path="/stall/listing/:listingId/edit" element={
+        <ProtectedRoute>
+          {({ user }) => <EditStallListing user={user} />}
         </ProtectedRoute>
       } />
       <Route path="/stall/groups/new" element={

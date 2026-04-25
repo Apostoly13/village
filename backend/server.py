@@ -1,6 +1,7 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, UploadFile, File, Body, Query
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
@@ -150,7 +151,7 @@ class UserBase(BaseModel):
 
 class UserCreate(BaseModel):
     email: Optional[EmailStr] = None
-    password: Optional[str] = None
+    password: Optional[str] = Field(None, max_length=128)
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     date_of_birth: Optional[str] = None  # ISO date string YYYY-MM-DD
@@ -502,6 +503,13 @@ async def get_current_user(request: Request) -> dict:
 async def get_admin_user(request: Request) -> dict:
     user = await get_current_user(request)
     if user.get("role") not in ("admin", "moderator"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user
+
+async def get_admin_only_user(request: Request) -> dict:
+    """Stricter dependency: only full admins (not moderators) may proceed."""
+    user = await get_current_user(request)
+    if user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     return user
 
@@ -1548,10 +1556,17 @@ async def delete_account(request: Request, response: Response, user: dict = Depe
     await db.bookmarks.delete_many({"user_id": uid})
     await db.saved_messages.delete_many({"user_id": uid})
     await db.friend_requests.delete_many({"$or": [{"from_user_id": uid}, {"to_user_id": uid}]})
+    await db.friendships.delete_many({"$or": [{"user1_id": uid}, {"user2_id": uid}]})
     await db.user_blocks.delete_many({"$or": [{"blocker_id": uid}, {"blocked_id": uid}]})
     await db.event_rsvps.delete_many({"user_id": uid})
     await db.notifications.delete_many({"user_id": uid})
     await db.reports.delete_many({"reporter_id": uid})
+    # Stall cascade: listings, saves, messages (both sent and received)
+    await db.stall_listings.delete_many({"seller_id": uid})
+    await db.stall_saves.delete_many({"user_id": uid})
+    await db.stall_messages.delete_many({"$or": [{"sender_id": uid}, {"receiver_id": uid}]})
+    # Direct messages (both sent and received)
+    await db.direct_messages.delete_many({"$or": [{"sender_id": uid}, {"receiver_id": uid}]})
     # Clear sessions and delete user record
     await db.user_sessions.delete_many({"user_id": uid})
     await db.users.delete_one({"user_id": uid})
@@ -1877,25 +1892,48 @@ async def create_post(post_data: ForumPostCreate, user: dict = Depends(get_curre
 
     return result
 
+# Magic-byte signatures for allowed image types
+_IMAGE_MAGIC: list[tuple[bytes, str]] = [
+    (b"\xff\xd8\xff", "image/jpeg"),
+    (b"\x89PNG\r\n\x1a\n", "image/png"),
+    (b"GIF87a", "image/gif"),
+    (b"GIF89a", "image/gif"),
+    (b"RIFF", "image/webp"),   # RIFF????WEBP — checked further below
+]
+
+def _detect_image_type(data: bytes) -> str | None:
+    """Return MIME type from magic bytes, or None if unrecognised."""
+    if data[:3] == b"\xff\xd8\xff":
+        return "image/jpeg"
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        return "image/png"
+    if data[:6] in (b"GIF87a", b"GIF89a"):
+        return "image/gif"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
 @api_router.post("/upload/image")
 async def upload_image(file: UploadFile = File(...), user: dict = Depends(get_current_user), request: Request = None):
     """Upload an image and return base64 encoded string"""
     _check_rate_limit(f"{user['user_id']}:upload-image", 10, 60)
-    # Validate file type
-    if file.content_type not in ALLOWED_IMAGE_TYPES:
-        raise HTTPException(status_code=400, detail=f"Invalid file type. Allowed: {', '.join(ALLOWED_IMAGE_TYPES)}")
-    
-    # Read file content
+
+    # Read file content first so we can validate magic bytes
     content = await file.read()
-    
+
     # Check file size
     if len(content) > MAX_IMAGE_SIZE:
         raise HTTPException(status_code=400, detail=f"File too large. Max size: {MAX_IMAGE_SIZE // (1024*1024)}MB")
-    
+
+    # Validate by magic bytes (not just the user-supplied Content-Type header)
+    detected_type = _detect_image_type(content[:12])
+    if detected_type is None or detected_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(status_code=400, detail=f"Invalid file type. Allowed: JPEG, PNG, GIF, WebP")
+
     # Convert to base64
     base64_image = base64.b64encode(content).decode('utf-8')
-    data_url = f"data:{file.content_type};base64,{base64_image}"
-    
+    data_url = f"data:{detected_type};base64,{base64_image}"
+
     return {"image_url": data_url, "filename": file.filename, "size": len(content)}
 
 @api_router.put("/forums/posts/{post_id}")
@@ -4502,7 +4540,11 @@ async def admin_get_users(
         query["is_banned"] = True
         query["auto_suspended"] = {"$ne": True}
     skip = (page - 1) * limit
-    users = await db.users.find(query, {"_id": 0, "password_hash": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    users = await db.users.find(
+        query,
+        {"_id": 0, "password_hash": 0, "reset_token": 0, "reset_token_expires": 0,
+         "stripe_customer_id": 0, "stripe_subscription_id": 0}
+    ).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
     total = await db.users.count_documents(query)
     return {"users": users, "total": total, "page": page, "pages": math.ceil(total / limit) if total > 0 else 1}
 
@@ -4524,13 +4566,11 @@ async def admin_unban_user(user_id: str, admin: dict = Depends(get_admin_user)):
     return {"message": "User unbanned"}
 
 @api_router.post("/admin/users/{user_id}/role")
-async def admin_set_role(user_id: str, request: Request, admin: dict = Depends(get_admin_user)):
+async def admin_set_role(user_id: str, request: Request, admin: dict = Depends(get_admin_only_user)):
     body = await request.json()
     role = body.get("role")
     if role not in ("user", "moderator", "admin", "verified_partner"):
         raise HTTPException(400, "Invalid role")
-    if admin.get("role") != "admin" and role == "admin":
-        raise HTTPException(403, "Only admins can promote to admin")
     update: dict = {"role": role}
     if role == "verified_partner":
         update["is_verified_partner"] = True
@@ -4540,7 +4580,7 @@ async def admin_set_role(user_id: str, request: Request, admin: dict = Depends(g
     return {"message": f"Role updated to {role}"}
 
 @api_router.post("/admin/users/{user_id}/subscription")
-async def admin_set_subscription(user_id: str, request: Request, admin: dict = Depends(get_admin_user)):
+async def admin_set_subscription(user_id: str, request: Request, admin: dict = Depends(get_admin_only_user)):
     body = await request.json()
     tier = body.get("tier")
     if tier not in ("free", "trial", "premium"):
@@ -5544,8 +5584,11 @@ async def delete_blog_post(blog_id: str, current_user: dict = Depends(get_curren
 # ==================== SEED DATA ====================
 
 @api_router.post("/seed")
-async def seed_data():
-    """Seed initial forum categories and chat rooms"""
+async def seed_data(request: Request):
+    """Seed initial forum categories and chat rooms — protected by X-Seed-Secret header."""
+    seed_secret = request.headers.get("X-Seed-Secret", "")
+    if not ADMIN_PASSWORD or not secrets.compare_digest(seed_secret, ADMIN_PASSWORD):
+        raise HTTPException(status_code=403, detail="Invalid seed secret")
 
     # Auto-create admin account if not exists
     if ADMIN_PASSWORD:
@@ -5642,9 +5685,6 @@ async def seed_data():
 
     # Stripe: create/retrieve products and prices
     await ensure_stripe_products()
-
-    # Start background trial-email loop
-    asyncio.create_task(_trial_email_loop())
 
     # Remove legacy category names that have been renamed to Circles
     LEGACY_CATEGORY_NAMES = [
@@ -5920,7 +5960,10 @@ class StallListingUpdate(BaseModel):
     make_offer: Optional[bool] = None
     swap_for: Optional[str] = None
     condition: Optional[str] = None
+    category: Optional[str] = None
+    age_group: Optional[str] = None
     images: Optional[List[str]] = None
+    suburb: Optional[str] = None
     postage_available: Optional[bool] = None
     status: Optional[str] = None
 
@@ -6136,6 +6179,12 @@ async def delete_stall_listing(listing_id: str, user: dict = Depends(get_current
     if listing["seller_id"] != user["user_id"] and not is_admin:
         raise HTTPException(status_code=403, detail="Not authorised")
     await db.stall_listings.delete_one({"listing_id": listing_id})
+    # Keep donation group item_count accurate
+    if listing.get("donation_group_id"):
+        await db.donation_groups.update_one(
+            {"group_id": listing["donation_group_id"]},
+            {"$inc": {"item_count": -1}}
+        )
     return {"message": "Listing deleted"}
 
 
@@ -6219,6 +6268,16 @@ async def send_stall_message(data: StallMessageCreate, user: dict = Depends(get_
         raise HTTPException(status_code=404, detail="Listing not found")
     if listing.get("status") not in ("active",):
         raise HTTPException(status_code=400, detail="This listing is no longer active")
+
+    # Security: the receiver must be the listing seller, OR the sender must be the seller
+    # (sellers can reply to buyers). Prevents messaging arbitrary users via a listing.
+    seller_id = listing.get("seller_id")
+    if data.receiver_id != seller_id and user["user_id"] != seller_id:
+        raise HTTPException(status_code=403, detail="Invalid recipient for this listing")
+    # Cannot message yourself
+    if data.receiver_id == user["user_id"]:
+        raise HTTPException(status_code=400, detail="Cannot send a message to yourself")
+
     receiver = await db.users.find_one({"user_id": data.receiver_id}, {"_id": 0})
     if not receiver:
         raise HTTPException(status_code=404, detail="User not found")
@@ -6367,6 +6426,20 @@ IS_PRODUCTION = os.environ.get("IS_PRODUCTION", "false").lower() == "true"
 IS_LOCAL_DEV = not IS_PRODUCTION  # kept for backwards-compat references
 COOKIE_SECURE = IS_PRODUCTION
 COOKIE_SAMESITE = "none" if IS_PRODUCTION else "lax"
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Add basic security headers to every response."""
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        response.headers.setdefault(
+            "Permissions-Policy",
+            "geolocation=(self), camera=(), microphone=()"
+        )
+        return response
+
+app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
@@ -6453,6 +6526,9 @@ async def _trial_email_loop():
 @app.on_event("startup")
 async def seed_required_rooms():
     """Upsert required rooms and categories — safe to run on every startup, never creates duplicates."""
+    # Start background trial-email loop (always runs regardless of /seed being called)
+    fire_and_forget(_trial_email_loop())
+
     now = datetime.now(timezone.utc).isoformat()
 
     # ── Chat rooms (upsert by room_id) ────────────────────────────────────────
