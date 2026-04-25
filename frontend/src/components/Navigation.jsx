@@ -411,167 +411,180 @@ export default function Navigation({ user }) {
           </div>
         </div>
 
-        {/* Mobile Menu Dropdown */}
+        {/* Mobile Menu — fixed overlay between top bar and bottom bar */}
         {mobileMenuOpen && (
-          <div className="absolute top-14 left-0 right-0 p-4 space-y-2 animate-fade-in" style={{ background: "var(--paper-2)", borderBottom: "1px solid var(--line)" }}>
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/50">
-              <Avatar className="h-10 w-10">
-                <AvatarImage src={user?.picture} />
-                <AvatarFallback className="bg-primary/20 text-primary">
-                  {(user?.nickname || user?.name || user?.email || 'V')[0].toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <p className="font-medium text-foreground">{user?.name}</p>
-                <p className="text-sm text-muted-foreground truncate">{user?.email}</p>
+          <div
+            className="fixed left-0 right-0 flex flex-col animate-fade-in"
+            style={{
+              top: 56,
+              bottom: 58,
+              background: "var(--paper-2)",
+              zIndex: 49,
+              borderBottom: "1px solid var(--line)",
+            }}
+          >
+            {/* Scrollable content */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/50">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={user?.picture} />
+                  <AvatarFallback className="bg-primary/20 text-primary">
+                    {(user?.nickname || user?.name || user?.email || 'V')[0].toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-medium text-foreground">{user?.name}</p>
+                  <p className="text-sm text-muted-foreground truncate">{user?.email}</p>
+                </div>
               </div>
-            </div>
-            
-            <Link 
-              to="/profile" 
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
-            >
-              <User className="h-5 w-5" />
-              Profile
-            </Link>
-            
-            <Link 
-              to="/friends" 
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
-            >
-              <UserPlus className="h-5 w-5" />
-              Friends
-              {friendRequestCount > 0 && (
-                <span className="ml-auto w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
-                  {friendRequestCount}
-                </span>
-              )}
-            </Link>
-            
-            <Link
-              to={isFree ? "/plus" : "/events"}
-              onClick={() => setMobileMenuOpen(false)}
-              className={`flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 ${isFree ? "text-muted-foreground/60" : "text-foreground"}`}
-            >
-              <Calendar className="h-5 w-5" />
-              Events
-              {isFree && <Lock className="h-3.5 w-3.5 ml-auto opacity-60" />}
-            </Link>
 
-            <Link
-              to={isFree ? "/plus" : "/stall"}
-              onClick={() => setMobileMenuOpen(false)}
-              className={`flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 ${isFree ? "text-muted-foreground/60" : "text-foreground"}`}
-            >
-              <ShoppingBag className="h-5 w-5" />
-              Stall
-              {isFree && <Lock className="h-3.5 w-3.5 ml-auto opacity-60" />}
-            </Link>
+              <Link
+                to="/profile"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
+              >
+                <User className="h-5 w-5" />
+                Profile
+              </Link>
 
-            <Link
-              to="/saved"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
-            >
-              <Bookmark className="h-5 w-5" />
-              Saved
-            </Link>
+              <Link
+                to="/friends"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
+              >
+                <UserPlus className="h-5 w-5" />
+                Friends
+                {friendRequestCount > 0 && (
+                  <span className="ml-auto w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
+                    {friendRequestCount}
+                  </span>
+                )}
+              </Link>
 
-            <Link
-              to="/settings"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
-            >
-              <Settings className="h-5 w-5" />
-              Settings
-            </Link>
+              <Link
+                to={isFree ? "/plus" : "/events"}
+                onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 ${isFree ? "text-muted-foreground/60" : "text-foreground"}`}
+              >
+                <Calendar className="h-5 w-5" />
+                Events
+                {isFree && <Lock className="h-3.5 w-3.5 ml-auto opacity-60" />}
+              </Link>
 
-            <Link
-              to="/plus"
-              onClick={() => setMobileMenuOpen(false)}
-              className={`flex items-center gap-3 p-3 rounded-xl font-medium ${
-                user?.subscription_tier === "premium"
-                  ? "hover:bg-secondary/50 text-foreground"
-                  : "bg-primary/10 border border-primary/20 text-primary"
-              }`}
-            >
-              <Crown className="h-5 w-5" />
-              {user?.subscription_tier === "premium" ? "Manage Village+" : "Village+"}
-            </Link>
+              <Link
+                to={isFree ? "/plus" : "/stall"}
+                onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 ${isFree ? "text-muted-foreground/60" : "text-foreground"}`}
+              >
+                <ShoppingBag className="h-5 w-5" />
+                Stall
+                {isFree && <Lock className="h-3.5 w-3.5 ml-auto opacity-60" />}
+              </Link>
 
-            <Link
-              to="/changelog"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
-            >
-              <ScrollText className="h-5 w-5" />
-              What's New
-            </Link>
+              <Link
+                to="/saved"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
+              >
+                <Bookmark className="h-5 w-5" />
+                Saved
+              </Link>
 
-            {isAdmin && (
-              <>
-                <div className="border-t border-border/30 my-1" />
-                <Link
-                  to="/admin"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
-                >
-                  <Shield className="h-5 w-5 text-blue-500" />
-                  Admin Portal
-                </Link>
-                {user?.role === "moderator" && (
+              <Link
+                to="/settings"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
+              >
+                <Settings className="h-5 w-5" />
+                Settings
+              </Link>
+
+              <Link
+                to="/plus"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center gap-3 p-3 rounded-xl font-medium ${
+                  user?.subscription_tier === "premium"
+                    ? "hover:bg-secondary/50 text-foreground"
+                    : "bg-primary/10 border border-primary/20 text-primary"
+                }`}
+              >
+                <Crown className="h-5 w-5" />
+                {user?.subscription_tier === "premium" ? "Manage Village+" : "Village+"}
+              </Link>
+
+              <Link
+                to="/changelog"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
+              >
+                <ScrollText className="h-5 w-5" />
+                What's New
+              </Link>
+
+              {isAdmin && (
+                <>
+                  <div className="border-t border-border/30 my-1" />
                   <Link
-                    to="/moderator"
+                    to="/admin"
                     onClick={() => setMobileMenuOpen(false)}
                     className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
                   >
-                    <Shield className="h-5 w-5 text-purple-500" />
-                    Moderator Dashboard
+                    <Shield className="h-5 w-5 text-blue-500" />
+                    Admin Portal
                   </Link>
-                )}
-              </>
-            )}
+                  {user?.role === "moderator" && (
+                    <Link
+                      to="/moderator"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
+                    >
+                      <Shield className="h-5 w-5 text-purple-500" />
+                      Moderator Dashboard
+                    </Link>
+                  )}
+                </>
+              )}
 
-            <div className="border-t border-border/30 my-1" />
+              <div className="border-t border-border/30 my-1" />
 
-            <Link
-              to="/community-guidelines"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
-            >
-              <Shield className="h-5 w-5" />
-              Community Guidelines
-            </Link>
+              <Link
+                to="/community-guidelines"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-muted-foreground text-sm"
+              >
+                <Shield className="h-4 w-4" />
+                Community Guidelines
+              </Link>
 
-            <Link
-              to="/privacy"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-muted-foreground text-sm"
-            >
-              <FileText className="h-4 w-4" />
-              Privacy Policy
-            </Link>
+              <Link
+                to="/privacy"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-muted-foreground text-sm"
+              >
+                <FileText className="h-4 w-4" />
+                Privacy Policy
+              </Link>
 
-            <Link
-              to="/terms"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-muted-foreground text-sm"
-            >
-              <FileText className="h-4 w-4" />
-              Terms of Service
-            </Link>
+              <Link
+                to="/terms"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-muted-foreground text-sm"
+              >
+                <FileText className="h-4 w-4" />
+                Terms of Service
+              </Link>
+            </div>
 
-            <div className="border-t border-border/30 my-1" />
-
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-destructive w-full"
-            >
-              <LogOut className="h-5 w-5" />
-              Log out
-            </button>
+            {/* Sign out — always visible, pinned at bottom */}
+            <div className="shrink-0 px-4 py-3" style={{ borderTop: "1px solid var(--line-2)" }}>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-secondary/50 text-destructive"
+              >
+                <LogOut className="h-5 w-5" />
+                Log out
+              </button>
+            </div>
           </div>
         )}
       </nav>

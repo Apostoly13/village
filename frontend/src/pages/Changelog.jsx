@@ -5,6 +5,14 @@ import AppFooter from "../components/AppFooter";
 
 const CHANGELOG = [
   {
+    version: "3.9.1",
+    date: "April 2026",
+    title: "Mobile menu sign-out fix",
+    entries: [
+      { tag: "Fixed", text: "Mobile hamburger menu now fills the full screen between the top and bottom bars. Sign Out is pinned at the bottom and always visible without scrolling — the menu items scroll above it." },
+    ],
+  },
+  {
     version: "3.9.0",
     date: "April 2026",
     title: "Automated Test Harness & Messaging Improvements",
