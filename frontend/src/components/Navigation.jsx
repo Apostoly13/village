@@ -13,8 +13,8 @@ import {
 } from "./ui/dropdown-menu";
 import { ScrollArea } from "./ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
-import { Mail, User, LogOut, Menu, X, Moon, Sun, UserPlus, Bell, Bookmark, Shield, ScrollText, BookOpen, Calendar, Lock, FileText, Settings, Crown, ChevronDown, MessageSquare, Users, Home } from "lucide-react";
-import { IconHome, IconChat, IconMoon, IconCal, IconPeople, IconHeart, IconMail, IconShield, IconCog } from "../icons";
+import { Mail, User, LogOut, Menu, X, Moon, Sun, UserPlus, Bell, Bookmark, Shield, ScrollText, BookOpen, Calendar, Lock, FileText, Settings, Crown, ChevronDown, Home } from "lucide-react";
+import { IconHome, IconChat, IconCal, IconPeople, IconHeart, IconMail, IconShield, IconCog, IconSpaces } from "../icons";
 import { toast } from "sonner";
 import { FEATURES } from "../config/features";
 
@@ -126,7 +126,7 @@ export default function Navigation({ user }) {
   const navItems = [
     { icon: Home, label: "Home", href: "/dashboard", testId: "nav-home" },
     {
-      icon: MessageSquare, label: "Spaces", href: "/forums", testId: "nav-forums",
+      icon: IconSpaces, label: "Spaces", href: "/forums", testId: "nav-forums",
       subItems: [
         { label: "📖 All Spaces", href: "/forums" },
         { label: "🏘️ Communities", href: "/forums?tab=communities" },
@@ -135,10 +135,10 @@ export default function Navigation({ user }) {
       ],
     },
     {
-      icon: Users, label: "Group Chats", href: "/chat", testId: "nav-chat",
+      icon: IconChat, label: "Group Chats", href: "/chat", testId: "nav-chat",
       subItems: [
         { label: "🇦🇺 All Australia", href: "/chat?tab=village" },
-        { label: "📍 Local Circles", href: "/chat?tab=local" },
+        { label: "📍 Local Chats", href: "/chat?tab=local" },
         { label: "👥 Friends", href: "/chat?tab=friends" },
       ],
     },
@@ -151,8 +151,8 @@ export default function Navigation({ user }) {
   // Mobile bottom tab bar — 5 focused tabs including Group Chats for direct access
   const mobileNavItems = [
     { icon: Home,          label: "Home",     href: "/dashboard",                        testId: "nav-home" },
-    { icon: MessageSquare, label: "Spaces",   href: "/forums",                           testId: "nav-forums" },
-    { icon: Users,         label: "Chats",    href: "/chat",                             testId: "nav-chat" },
+    { icon: IconSpaces,    label: "Spaces",   href: "/forums",                           testId: "nav-forums" },
+    { icon: IconChat,      label: "Chats",    href: "/chat",                             testId: "nav-chat" },
     { icon: Mail,          label: "Messages", href: isFree ? "/plus" : "/messages",      testId: "nav-messages",  locked: isFree, badge: isFree ? 0 : unreadMessages },
     { icon: User,          label: "Me",       href: "/profile",                          testId: "nav-me" },
   ];
@@ -194,23 +194,24 @@ export default function Navigation({ user }) {
         <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">
           {[
             { Icon: IconHome,   label: "Home",      href: "/dashboard",                     testId: "nav-home" },
-            { Icon: IconChat,   label: "Spaces",    href: "/forums",                        testId: "nav-forums",   subItems: [
+            { Icon: IconSpaces, label: "Spaces",    href: "/forums",                        testId: "nav-forums",   subItems: [
               { label: "All Spaces",    href: "/forums" },
               { label: "Communities",   href: "/forums?tab=communities" },
               { label: "Create Post",   href: "/create-post" },
               { label: "Saved Posts",   href: "/saved" },
             ]},
-            { Icon: IconMoon,   label: "Chats",     href: "/chat",                          testId: "nav-chat",     subItems: [
+            { Icon: IconChat,   label: "Chats",     href: "/chat",                          testId: "nav-chat",     subItems: [
               { label: "All Australia", href: "/chat?tab=village" },
-              { label: "Local Circles", href: "/chat?tab=local" },
+              { label: "Local Chats", href: "/chat?tab=local" },
               { label: "Friends",       href: "/chat?tab=friends" },
             ]},
             { Icon: IconCal,    label: "Events",    href: isFree ? "/plus" : "/events",     testId: "nav-events",   locked: isFree },
             { Icon: IconMail,   label: "Messages",  href: isFree ? "/plus" : "/messages",   testId: "nav-messages", locked: isFree, badge: isFree ? 0 : unreadMessages },
             { Icon: IconPeople, label: "Friends",   href: "/friends",                        testId: "nav-friends-link", badge: friendRequestCount },
             { Icon: IconHeart,  label: "Saved",     href: "/saved",                         testId: "nav-saved" },
-            ...(FEATURES.BLOG  ? [{ Icon: IconChat, label: "Blog",  href: "/blog",    testId: "nav-blog"  }] : []),
-            ...(isAdmin        ? [{ Icon: IconShield,label:"Admin", href: "/admin",   testId: "nav-admin" }] : []),
+            ...(FEATURES.BLOG  ? [{ Icon: BookOpen,   label: "Blog",      href: "/blog",      testId: "nav-blog"  }] : []),
+            ...(user?.role === "moderator" ? [{ Icon: IconShield, label: "Moderator",  href: "/moderator", testId: "nav-mod"   }] : []),
+            ...(user?.role === "admin"     ? [{ Icon: IconShield, label: "Admin",      href: "/admin",     testId: "nav-admin" }] : []),
           ].map((item) => {
             const active = location.pathname === item.href || (item.href !== "/dashboard" && location.pathname.startsWith(item.href.split("?")[0]));
             const itemStyle = active
@@ -337,12 +338,12 @@ export default function Navigation({ user }) {
               {darkMode ? <Sun style={{ width: 18, height: 18 }} /> : <Moon style={{ width: 18, height: 18 }} />}
             </button>
 
-            {/* Settings */}
+            {/* Settings — use Lucide Settings (gear with teeth) distinct from sun rays */}
             <Link to="/settings" className="p-2 rounded-lg transition-colors block" style={{ color: "var(--ink-2)" }}
               onMouseEnter={e => e.currentTarget.style.background = "var(--paper-2)"}
               onMouseLeave={e => e.currentTarget.style.background = "transparent"}
             >
-              <IconCog size={18} />
+              <Settings style={{ width: 18, height: 18 }} />
             </Link>
           </div>
 
@@ -495,6 +496,30 @@ export default function Navigation({ user }) {
               <ScrollText className="h-5 w-5" />
               What's New
             </Link>
+
+            {isAdmin && (
+              <>
+                <div className="border-t border-border/30 my-1" />
+                <Link
+                  to="/admin"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
+                >
+                  <Shield className="h-5 w-5 text-blue-500" />
+                  Admin Portal
+                </Link>
+                {user?.role === "moderator" && (
+                  <Link
+                    to="/moderator"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
+                  >
+                    <Shield className="h-5 w-5 text-purple-500" />
+                    Moderator Dashboard
+                  </Link>
+                )}
+              </>
+            )}
 
             <div className="border-t border-border/30 my-1" />
 

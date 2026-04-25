@@ -283,10 +283,10 @@ export default function ChatRoom({ user }) {
   }
 
   return (
-    <div className="h-screen bg-background flex flex-col overflow-hidden lg:pl-60">
+    <div className="h-[100dvh] bg-background flex flex-col overflow-hidden lg:pl-60">
       <Navigation user={user} />
 
-      <main className="flex-1 flex flex-col max-w-4xl mx-auto w-full px-4 pt-16 lg:pt-8 pb-20 lg:pb-4 min-h-0">
+      <main className="flex-1 flex flex-col max-w-4xl mx-auto w-full px-4 pt-16 lg:pt-8 pb-[72px] lg:pb-4 min-h-0">
         {/* Room Header */}
         <div className="flex items-center gap-4 mb-4">
           <Link to="/chat" className="text-muted-foreground hover:text-foreground" data-testid="back-link">
@@ -328,7 +328,7 @@ export default function ChatRoom({ user }) {
             <span className="text-2xl">{room.icon}</span>
             <div>
               <p className="font-medium text-foreground text-sm">This space is for {room.gender_restriction === "female" ? "mums" : "dads"} only</p>
-              <p className="text-xs text-muted-foreground">You can read messages but cannot post in this circle.</p>
+              <p className="text-xs text-muted-foreground">You can read messages but cannot post in this space.</p>
             </div>
           </div>
         )}
@@ -412,9 +412,9 @@ export default function ChatRoom({ user }) {
             </div>
           </div>
 
-          {/* Message Input */}
+          {/* Message Input — shrink-0 keeps it pinned to the bottom of the card */}
           {room.room_type !== "friends_only" && subscription?.limits_apply && subscription?.chat_messages && !subscription.chat_messages.allowed ? (
-            <div className="p-4 border-t border-border/50">
+            <div className="shrink-0 p-4 border-t border-border/50">
               <Link to="/plus" className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/15 transition-colors group">
                 <Crown className="h-5 w-5 text-amber-500 flex-shrink-0" />
                 <div className="flex-1">
@@ -425,7 +425,7 @@ export default function ChatRoom({ user }) {
               </Link>
             </div>
           ) : (
-            <form onSubmit={handleSend} className="p-4 border-t border-border/50" data-testid="message-form">
+            <form onSubmit={handleSend} className="shrink-0 p-4 border-t border-border/50" data-testid="message-form">
               {subscription?.limits_apply && subscription?.chat_messages && (
                 <p className="text-xs text-muted-foreground mb-2" data-testid="chat-limit-counter">
                   {subscription.chat_messages.limit - subscription.chat_messages.used}/{subscription.chat_messages.limit} messages today

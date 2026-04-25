@@ -14,7 +14,9 @@ import {
   ChevronLeft, ChevronRight, BarChart3, Eye, UserCheck, Heart,
   HelpCircle, TrendingUp, BookOpen, Check, X, Activity,
   Trophy, RefreshCw, MessageCircle, Repeat2,
+  DollarSign, Building2, Megaphone, Layers, Stethoscope, Trash2, Star, Send,
 } from "lucide-react";
+import { Textarea } from "../components/ui/textarea";
 
 const Chevron = ChevronRight;
 import { timeAgoVerbose } from "../utils/dateHelpers";
@@ -61,6 +63,28 @@ export default function AdminDashboard({ user }) {
   const [users, setUsers] = useState([]);
   const [reports, setReports] = useState([]);
   const [pendingBlogPosts, setPendingBlogPosts] = useState([]);
+
+  // Revenue
+  const [revenue, setRevenue] = useState(null);
+  // Communities management
+  const [adminCommunities, setAdminCommunities] = useState([]);
+  const [communityPage, setCommunityPage] = useState(1);
+  const [communityPages, setCommunityPages] = useState(1);
+  const [communityTotal, setCommunityTotal] = useState(0);
+  const [communitySearch, setCommunitySearch] = useState("");
+  const [communityFilter, setCommunityFilter] = useState("");
+  // Announcements
+  const [announcements, setAnnouncements] = useState({ pinned: [], sent: [] });
+  const [announcementTitle, setAnnouncementTitle] = useState("");
+  const [announcementBody, setAnnouncementBody] = useState("");
+  const [announcementLink, setAnnouncementLink] = useState("");
+  const [announcementTarget, setAnnouncementTarget] = useState("all");
+  const [announcementPinDays, setAnnouncementPinDays] = useState(0);
+  const [sendingAnnouncement, setSendingAnnouncement] = useState(false);
+  // Content health
+  const [contentHealth, setContentHealth] = useState(null);
+  // Professional applications
+  const [professionalApps, setProfessionalApps] = useState([]);
 
   // Drilldown modal
   const [drilldown, setDrilldown] = useState({ open: false, label: "", users: [], posts: [], items: [] });
@@ -211,6 +235,89 @@ export default function AdminDashboard({ user }) {
     } catch (e) { toast.error("Action failed"); }
   };
 
+  const fetchRevenue = async () => {
+    try {
+      const res = await apiFetch("/api/admin/revenue");
+      if (res?.ok) setRevenue(await res.json());
+    } catch (e) { console.error(e); }
+  };
+
+  const fetchAdminCommunities = async (page = 1, search = communitySearch, filter = communityFilter) => {
+    try {
+      const sq = search ? `&search=${encodeURIComponent(search)}` : "";
+      const fq = filter ? `&filter=${encodeURIComponent(filter)}` : "";
+      const res = await apiFetch(`/api/admin/communities?page=${page}&limit=15${sq}${fq}`);
+      if (res?.ok) {
+        const data = await res.json();
+        setAdminCommunities(data.communities); setCommunityPage(data.page);
+        setCommunityPages(data.pages); setCommunityTotal(data.total);
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const handleCommunityAction = async (communityId, action) => {
+    try {
+      const res = await apiFetch(`/api/admin/communities/${communityId}/${action}`, { method: "POST" });
+      if (res?.ok) {
+        const data = await res.json();
+        toast.success(data.message);
+        fetchAdminCommunities(communityPage, communitySearch, communityFilter);
+      }
+    } catch (e) { toast.error("Action failed"); }
+  };
+
+  const fetchAnnouncements = async () => {
+    try {
+      const res = await apiFetch("/api/admin/announcements");
+      if (res?.ok) setAnnouncements(await res.json());
+    } catch (e) { console.error(e); }
+  };
+
+  const sendAnnouncement = async () => {
+    if (!announcementTitle.trim() || !announcementBody.trim()) {
+      toast.error("Title and message are required"); return;
+    }
+    setSendingAnnouncement(true);
+    try {
+      const res = await apiFetch("/api/admin/announcements/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: announcementTitle, message: announcementBody, link: announcementLink, target: announcementTarget, pin_days: announcementPinDays })
+      });
+      if (res?.ok) {
+        const data = await res.json();
+        toast.success(data.message);
+        setAnnouncementTitle(""); setAnnouncementBody(""); setAnnouncementLink(""); setAnnouncementPinDays(0);
+        fetchAnnouncements();
+      }
+    } catch (e) { toast.error("Failed to send"); }
+    finally { setSendingAnnouncement(false); }
+  };
+
+  const fetchContentHealth = async () => {
+    try {
+      const res = await apiFetch("/api/admin/content-health");
+      if (res?.ok) setContentHealth(await res.json());
+    } catch (e) { console.error(e); }
+  };
+
+  const fetchProfessionalApps = async () => {
+    try {
+      const res = await apiFetch("/api/admin/professional-applications");
+      if (res?.ok) setProfessionalApps(await res.json());
+    } catch (e) { console.error(e); }
+  };
+
+  const handleProfessionalAction = async (userId, action) => {
+    try {
+      const res = await apiFetch(`/api/admin/professional-applications/${userId}/${action}`, { method: "POST" });
+      if (res?.ok) {
+        toast.success(action === "approve" ? "Verified ✓" : "Rejected");
+        setProfessionalApps(prev => prev.filter(u => u.user_id !== userId));
+      }
+    } catch (e) { toast.error("Action failed"); }
+  };
+
   const handleBlogAction = async (blogId, action) => {
     try {
       const res = await apiFetch(`/api/blog/${blogId}/${action}`, { method: "POST" });
@@ -228,6 +335,11 @@ export default function AdminDashboard({ user }) {
     if (tab === "blog") fetchPendingBlogPosts();
     if (tab === "engagement" && !retention) fetchRetention();
     if (tab === "leaderboards" && !leaderboards) fetchLeaderboards(leaderboardPeriod);
+    if (tab === "revenue" && !revenue) fetchRevenue();
+    if (tab === "communities" && adminCommunities.length === 0) fetchAdminCommunities();
+    if (tab === "announcements") fetchAnnouncements();
+    if (tab === "content" && !contentHealth) fetchContentHealth();
+    if (tab === "professionals") fetchProfessionalApps();
   };
 
   // ── Helpers ──────────────────────────────────────────────────────────────
@@ -323,12 +435,17 @@ export default function AdminDashboard({ user }) {
           <div className="overflow-x-auto pb-1 mb-6">
             <TabsList className="bg-card border border-border/50 rounded-xl p-1 flex gap-1 min-w-max">
               {[
-                { value: "overview",     icon: BarChart3,      label: "Overview" },
-                { value: "engagement",   icon: Activity,       label: "Engagement" },
-                { value: "leaderboards", icon: Trophy,         label: "Leaderboards" },
-                { value: "users",        icon: Users,          label: "Users" },
-                { value: "moderation",   icon: Flag,           label: "Moderation", badge: analytics?.content?.pending_reports },
-                { value: "blog",         icon: BookOpen,       label: "Blog" },
+                { value: "overview",       icon: BarChart3,      label: "Overview" },
+                { value: "engagement",     icon: Activity,       label: "Engagement" },
+                { value: "leaderboards",   icon: Trophy,         label: "Leaderboards" },
+                { value: "users",          icon: Users,          label: "Users" },
+                { value: "moderation",     icon: Flag,           label: "Moderation", badge: analytics?.content?.pending_reports },
+                { value: "content",        icon: Layers,         label: "Content" },
+                { value: "communities",    icon: Building2,      label: "Communities" },
+                { value: "revenue",        icon: DollarSign,     label: "Revenue" },
+                { value: "professionals",  icon: Stethoscope,    label: "Professionals" },
+                { value: "announcements",  icon: Megaphone,      label: "Announcements" },
+                { value: "blog",           icon: BookOpen,       label: "Blog" },
               ].map(t => (
                 <TabsTrigger key={t.value} value={t.value} className="rounded-lg px-3 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-1.5 whitespace-nowrap text-sm">
                   <t.icon className="h-4 w-4" />
@@ -377,7 +494,7 @@ export default function AdminDashboard({ user }) {
                   </div>
                   <div className="bg-secondary/50 rounded-xl p-4 border border-border/30">
                     <div className="flex items-center gap-2 mb-1"><TrendingUp className="h-4 w-4 text-primary" /><span className="text-xs text-muted-foreground font-medium">New this week</span></div>
-                    <p className="text-2xl font-bold font-heading text-foreground">+{analytics?.moderation?.circle_growth ?? 0}</p>
+                    <p className="text-2xl font-bold font-heading text-foreground">+{analytics?.moderation?.space_growth ?? 0}</p>
                   </div>
                 </div>
               </div>
@@ -949,6 +1066,417 @@ export default function AdminDashboard({ user }) {
                 <Button variant="outline" size="sm" disabled={reportPage >= reportPages} onClick={() => fetchReports(reportStatus, reportPage + 1)} className="rounded-lg"><ChevronRight className="h-4 w-4" /></Button>
               </div>
             )}
+          </TabsContent>
+
+          {/* ══════════ CONTENT HEALTH TAB ══════════ */}
+          <TabsContent value="content" className="mt-0 space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-heading font-bold text-foreground">Content Health</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">Post volume, engagement, and space activity</p>
+              </div>
+              <button onClick={fetchContentHealth} className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors" title="Refresh">
+                <RefreshCw className="h-3.5 w-3.5" />
+              </button>
+            </div>
+
+            {!contentHealth ? (
+              <div className="text-center py-12 text-muted-foreground"><RefreshCw className="h-8 w-8 mx-auto mb-2 animate-spin" />Loading...</div>
+            ) : (
+              <>
+                {/* Quick stats */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  {[
+                    { label: "Posts this week",    value: contentHealth.posts_this_week,    icon: MessageSquare, color: "text-primary" },
+                    { label: "Posts this month",   value: contentHealth.posts_this_month,   icon: MessageSquare, color: "text-blue-500" },
+                    { label: "Replies this week",  value: contentHealth.replies_this_week,  icon: Repeat2,       color: "text-green-500" },
+                    { label: "Unanswered (48h)",   value: contentHealth.unanswered_48h,     icon: HelpCircle,    color: "text-amber-500" },
+                  ].map(s => (
+                    <div key={s.label} className="bg-card rounded-2xl p-5 border border-border/40 card-elevated border-l-2 border-l-primary/20">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs text-muted-foreground">{s.label}</span>
+                        <s.icon className={`h-4 w-4 ${s.color}`} />
+                      </div>
+                      <p className="text-2xl font-bold text-foreground">{s.value ?? "—"}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-6">
+                  {/* Engagement stats */}
+                  <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20">
+                    <h3 className="font-heading font-bold text-foreground mb-4">Engagement Metrics</h3>
+                    <div className="space-y-3">
+                      {[
+                        { label: "Avg replies per post", value: contentHealth.avg_replies_per_post },
+                        { label: "Total likes (all time)", value: contentHealth.total_likes?.toLocaleString() },
+                      ].map(r => (
+                        <div key={r.label} className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">{r.label}</span>
+                          <span className="font-bold text-foreground">{r.value ?? "—"}</span>
+                        </div>
+                      ))}
+                      {contentHealth.top_post_this_week && (
+                        <div className="pt-3 border-t border-border/30">
+                          <p className="text-xs text-muted-foreground mb-1">Top post this week</p>
+                          <a href={`/forums/post/${contentHealth.top_post_this_week.post_id}`} className="text-sm font-medium text-primary hover:underline line-clamp-2">
+                            {contentHealth.top_post_this_week.title}
+                          </a>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {contentHealth.top_post_this_week.like_count} likes · {contentHealth.top_post_this_week.reply_count} replies
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Posts by space */}
+                  <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20">
+                    <h3 className="font-heading font-bold text-foreground mb-4">Posts by Space</h3>
+                    <div className="space-y-2">
+                      {(contentHealth.posts_by_category || []).slice(0, 8).map(cat => {
+                        const max = contentHealth.posts_by_category[0]?.post_count || 1;
+                        return (
+                          <div key={cat.category_id} className="flex items-center gap-2">
+                            <span className="text-base w-6 shrink-0">{cat.icon}</span>
+                            <span className="text-xs text-foreground w-28 truncate shrink-0">{cat.name}</span>
+                            <div className="flex-1 bg-muted rounded-full h-3">
+                              <div className="bg-primary/60 rounded-full h-3 transition-all" style={{ width: `${Math.max((cat.post_count / max) * 100, cat.post_count > 0 ? 5 : 0)}%` }} />
+                            </div>
+                            <span className="text-xs text-muted-foreground w-10 text-right shrink-0">{cat.post_count}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </TabsContent>
+
+          {/* ══════════ COMMUNITIES MANAGEMENT TAB ══════════ */}
+          <TabsContent value="communities" className="mt-0 space-y-4">
+            <div className="flex gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input value={communitySearch} onChange={e => setCommunitySearch(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && fetchAdminCommunities(1, communitySearch, communityFilter)}
+                  placeholder="Search communities..." className="pl-10 rounded-xl" />
+              </div>
+              <Button onClick={() => fetchAdminCommunities(1, communitySearch, communityFilter)} className="rounded-xl">Search</Button>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {[{ label: "All", value: "" }, { label: "Public", value: "public" }, { label: "Private", value: "private" }, { label: "Local", value: "local" }].map(f => (
+                <Button key={f.value} size="sm" variant={communityFilter === f.value ? "default" : "outline"} className="rounded-full text-xs h-7"
+                  onClick={() => { setCommunityFilter(f.value); fetchAdminCommunities(1, communitySearch, f.value); }}>{f.label}</Button>
+              ))}
+            </div>
+            <p className="text-sm text-muted-foreground">{communityTotal} communities total</p>
+            <div className="space-y-3">
+              {adminCommunities.length === 0 ? (
+                <div className="text-center py-12 bg-card rounded-2xl border border-border/40">
+                  <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                  <p className="text-muted-foreground">No communities found</p>
+                </div>
+              ) : adminCommunities.map(c => (
+                <div key={c.category_id} className="bg-card rounded-2xl p-4 border border-border/40 card-elevated border-l-2 border-l-primary/20 flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 text-xl">{c.icon || "🏡"}</div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                        <span className="font-bold text-foreground">{c.name}</span>
+                        {c.is_private && <Badge variant="outline" className="text-xs text-muted-foreground">Private</Badge>}
+                        {c.is_local && <Badge variant="outline" className="text-xs text-blue-500 border-blue-500/30">Local</Badge>}
+                        {c.is_featured && <Badge className="text-xs bg-amber-500/20 text-amber-600 border-amber-500/30"><Star className="h-2.5 w-2.5 mr-1" />Featured</Badge>}
+                      </div>
+                      <p className="text-xs text-muted-foreground line-clamp-1">{c.description}</p>
+                      <p className="text-xs text-muted-foreground">{c.member_count_live ?? c.member_count ?? 0} members · {c.post_count || 0} posts · Created {fmtDate(c.created_at)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap shrink-0">
+                    <Button size="sm" variant="outline" className="h-7 rounded-lg text-xs"
+                      onClick={() => handleCommunityAction(c.category_id, "feature")}>
+                      <Star className="h-3 w-3 mr-1" />{c.is_featured ? "Unfeature" : "Feature"}
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-7 rounded-lg text-xs text-red-600 border-red-500/30 hover:bg-red-500/10"
+                      onClick={() => { if (window.confirm(`Delete "${c.name}"? This cannot be undone.`)) handleCommunityAction(c.category_id, "delete"); }}>
+                      <Trash2 className="h-3 w-3 mr-1" />Delete
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {communityPages > 1 && (
+              <div className="flex items-center justify-center gap-4 pt-4">
+                <Button variant="outline" size="sm" disabled={communityPage <= 1} onClick={() => fetchAdminCommunities(communityPage - 1, communitySearch, communityFilter)} className="rounded-lg"><ChevronLeft className="h-4 w-4" /></Button>
+                <span className="text-sm text-muted-foreground">Page {communityPage} of {communityPages}</span>
+                <Button variant="outline" size="sm" disabled={communityPage >= communityPages} onClick={() => fetchAdminCommunities(communityPage + 1, communitySearch, communityFilter)} className="rounded-lg"><ChevronRight className="h-4 w-4" /></Button>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* ══════════ REVENUE TAB ══════════ */}
+          <TabsContent value="revenue" className="mt-0 space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-heading font-bold text-foreground">Revenue Overview</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">Subscription metrics and growth estimates</p>
+              </div>
+              <button onClick={fetchRevenue} className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground" title="Refresh">
+                <RefreshCw className="h-3.5 w-3.5" />
+              </button>
+            </div>
+
+            {!revenue ? (
+              <div className="text-center py-12 text-muted-foreground"><RefreshCw className="h-8 w-8 mx-auto mb-2 animate-spin" />Loading revenue data...</div>
+            ) : (
+              <>
+                {/* MRR / ARR hero */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-green-500/40">
+                    <p className="text-sm text-muted-foreground mb-1">Est. MRR</p>
+                    <p className="text-3xl font-bold text-foreground">A${revenue.mrr_estimate?.toFixed(2)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">@ A$9.99/mo × {revenue.premium_count} premium</p>
+                  </div>
+                  <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-blue-500/40">
+                    <p className="text-sm text-muted-foreground mb-1">Est. ARR</p>
+                    <p className="text-3xl font-bold text-foreground">A${revenue.arr_estimate?.toFixed(2)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Annualised at current premium count</p>
+                  </div>
+                </div>
+
+                {/* Subscription breakdown */}
+                <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20">
+                  <h3 className="font-heading font-bold text-foreground mb-4">Subscription Tier Breakdown</h3>
+                  <div className="grid grid-cols-3 gap-4">
+                    {[
+                      { label: "Village+", value: revenue.premium_count, cls: "text-amber-500", bg: "bg-amber-500/10 border-amber-500/20" },
+                      { label: "Trial",    value: revenue.trial_count,   cls: "text-green-500", bg: "bg-green-500/10 border-green-500/20" },
+                      { label: "Free",     value: revenue.free_count,    cls: "text-foreground", bg: "bg-secondary/50 border-border/30" },
+                    ].map(t => (
+                      <div key={t.label} className={`rounded-xl p-4 border ${t.bg} text-center`}>
+                        <p className={`text-2xl font-bold ${t.cls}`}>{t.value}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{t.label}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Growth & conversion */}
+                <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20">
+                  <h3 className="font-heading font-bold text-foreground mb-4">Growth & Conversion</h3>
+                  <div className="space-y-3">
+                    {[
+                      { label: "Free → Premium conversion rate", value: `${revenue.conversion_rate}%` },
+                      { label: "Trial → Premium conversion rate", value: `${revenue.trial_conversion_rate}%` },
+                      { label: "New premium this week",           value: `+${revenue.new_premium_this_week}` },
+                      { label: "New premium this month",          value: `+${revenue.new_premium_this_month}` },
+                    ].map(r => (
+                      <div key={r.label} className="flex items-center justify-between py-2 border-b border-border/30 last:border-0">
+                        <span className="text-sm text-muted-foreground">{r.label}</span>
+                        <span className="font-bold text-foreground">{r.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-4 pt-3 border-t border-border/30">
+                    💡 Revenue estimates are based on A$9.99/month per active Village+ subscriber. Actual revenue may differ based on Stripe billing cycles, discounts, and churn.
+                  </p>
+                </div>
+              </>
+            )}
+          </TabsContent>
+
+          {/* ══════════ PROFESSIONALS TAB ══════════ */}
+          <TabsContent value="professionals" className="mt-0 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-heading font-bold text-foreground">Professional Verification Queue</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">Review and approve clinician applications</p>
+              </div>
+              <button onClick={fetchProfessionalApps} className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground" title="Refresh">
+                <RefreshCw className="h-3.5 w-3.5" />
+              </button>
+            </div>
+
+            {professionalApps.length === 0 ? (
+              <div className="text-center py-12 bg-card rounded-2xl border border-border/40 card-elevated">
+                <Stethoscope className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                <h3 className="font-heading text-lg font-bold text-foreground mb-1">No pending applications</h3>
+                <p className="text-sm text-muted-foreground">Professional verification requests will appear here.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {professionalApps.map(u => (
+                  <div key={u.user_id} className="bg-card rounded-2xl p-5 border border-border/40 card-elevated border-l-2 border-l-amber-500/40">
+                    <div className="flex items-start gap-4">
+                      <Avatar className="h-12 w-12 shrink-0">
+                        <AvatarImage src={u.picture} />
+                        <AvatarFallback className="bg-primary/20 text-primary">{u.name?.[0]?.toUpperCase() || "?"}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <span className="font-bold text-foreground">{u.nickname || u.name}</span>
+                          {tierBadge(u.subscription_tier)}
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-1">{u.email}</p>
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-1 mt-2 text-xs">
+                          {u.professional_type && <div><span className="text-muted-foreground">Role: </span><span className="font-medium text-foreground capitalize">{u.professional_type.replace(/_/g, " ")}</span></div>}
+                          {u.professional_workplace && <div><span className="text-muted-foreground">Workplace: </span><span className="font-medium text-foreground">{u.professional_workplace}</span></div>}
+                          {u.professional_applied_at && <div><span className="text-muted-foreground">Applied: </span><span className="font-medium text-foreground">{fmtDate(u.professional_applied_at)}</span></div>}
+                        </div>
+                        {u.professional_credentials && (
+                          <div className="mt-2 p-3 bg-secondary/50 rounded-xl border border-border/30 text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                            {u.professional_credentials}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex gap-2 mt-4 pt-4 border-t border-border/30">
+                      <Button size="sm" className="rounded-lg bg-green-600 hover:bg-green-700 text-white"
+                        onClick={() => handleProfessionalAction(u.user_id, "approve")}>
+                        <Check className="h-3 w-3 mr-1" />Approve
+                      </Button>
+                      <Button size="sm" variant="outline" className="rounded-lg text-red-600 border-red-500/30 hover:bg-red-500/10"
+                        onClick={() => handleProfessionalAction(u.user_id, "reject")}>
+                        <X className="h-3 w-3 mr-1" />Reject
+                      </Button>
+                      <a href={`/profile/${u.user_id}`} target="_blank" rel="noreferrer">
+                        <Button size="sm" variant="outline" className="rounded-lg">
+                          <Eye className="h-3 w-3 mr-1" />View Profile
+                        </Button>
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* ══════════ ANNOUNCEMENTS TAB ══════════ */}
+          <TabsContent value="announcements" className="mt-0 space-y-6">
+            {/* Compose */}
+            <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20">
+              <div className="flex items-center gap-2 mb-4">
+                <Megaphone className="h-5 w-5 text-primary" />
+                <h3 className="font-heading font-bold text-foreground">Send Platform Announcement</h3>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Title</label>
+                  <Input value={announcementTitle} onChange={e => setAnnouncementTitle(e.target.value)} placeholder="Announcement title…" className="rounded-xl" maxLength={80} />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Message</label>
+                  <Textarea value={announcementBody} onChange={e => setAnnouncementBody(e.target.value)} placeholder="Write your message to the community…" className="rounded-xl min-h-[80px]" maxLength={500} />
+                  <p className="text-xs text-muted-foreground text-right mt-1">{announcementBody.length}/500</p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Link (optional)</label>
+                  <Input value={announcementLink} onChange={e => setAnnouncementLink(e.target.value)} placeholder="/changelog or https://…" className="rounded-xl" />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Send to</label>
+                    <Select value={announcementTarget} onValueChange={setAnnouncementTarget}>
+                      <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All users</SelectItem>
+                        <SelectItem value="premium">Village+ only</SelectItem>
+                        <SelectItem value="free">Free users only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">📌 Pin on dashboard</label>
+                    <Select value={String(announcementPinDays)} onValueChange={v => setAnnouncementPinDays(Number(v))}>
+                      <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">No pin (notification only)</SelectItem>
+                        <SelectItem value="1">Pin for 1 day</SelectItem>
+                        <SelectItem value="3">Pin for 3 days</SelectItem>
+                        <SelectItem value="7">Pin for 7 days</SelectItem>
+                        <SelectItem value="14">Pin for 14 days</SelectItem>
+                        <SelectItem value="30">Pin for 30 days</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-end">
+                    <Button
+                      className="w-full rounded-xl"
+                      disabled={sendingAnnouncement || !announcementTitle.trim() || !announcementBody.trim()}
+                      onClick={sendAnnouncement}
+                    >
+                      {sendingAnnouncement ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+                      Send
+                    </Button>
+                  </div>
+                </div>
+                {announcementPinDays > 0 && (
+                  <p className="text-xs text-primary/80 mt-2">📌 This announcement will appear as a banner on the dashboard for all eligible users for {announcementPinDays} day{announcementPinDays !== 1 ? "s" : ""}. Users can dismiss it.</p>
+                )}
+              </div>
+            </div>
+
+            {/* Pinned announcements */}
+            {announcements?.pinned?.length > 0 && (
+              <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-amber-500/40">
+                <h3 className="font-heading font-bold text-foreground mb-4 flex items-center gap-2"><span>📌</span>Pinned on Dashboard</h3>
+                <div className="space-y-3">
+                  {announcements.pinned.map((a) => (
+                    <div key={a.announcement_id} className={`p-4 rounded-xl border ${a.is_active ? "bg-amber-500/5 border-amber-500/20" : "bg-secondary/30 border-border/30 opacity-60"}`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <p className="text-sm font-semibold text-foreground">{a.title}</p>
+                            <span className={`text-xs px-1.5 py-0.5 rounded-full ${a.is_active ? "bg-green-500/15 text-green-600" : "bg-secondary text-muted-foreground"}`}>
+                              {a.is_active ? "Active" : "Expired"}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground line-clamp-1">{a.message}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Target: {a.target} · Expires {fmtDate(a.pinned_until)}
+                          </p>
+                        </div>
+                        {a.is_active && (
+                          <Button size="sm" variant="outline" className="h-7 rounded-lg text-xs text-red-600 border-red-500/30 shrink-0"
+                            onClick={async () => {
+                              await apiFetch(`/api/admin/announcements/${a.announcement_id}/unpin`, { method: "DELETE" });
+                              fetchAnnouncements();
+                              toast.success("Unpinned");
+                            }}>
+                            Unpin
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Sent history */}
+            <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-heading font-bold text-foreground">Sent History</h3>
+                <button onClick={fetchAnnouncements} className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground"><RefreshCw className="h-3.5 w-3.5" /></button>
+              </div>
+              {(!announcements?.sent || announcements.sent.length === 0) ? (
+                <p className="text-sm text-muted-foreground text-center py-6">No announcements sent yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {announcements.sent.map((a, i) => (
+                    <div key={i} className="p-4 rounded-xl bg-secondary/40 border border-border/30">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-semibold text-foreground">{a.title}</p>
+                        <span className="text-xs text-muted-foreground shrink-0">{fmtDate(a.created_at)}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed line-clamp-2">{a.message}</p>
+                      <p className="text-xs text-muted-foreground mt-2">Sent to {a.sent_to} · {a.read_count} read</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </TabsContent>
 
           {/* ══════════ BLOG TAB ══════════ */}

@@ -13,7 +13,7 @@ const PARENTING_STAGES = [
   { id: "expecting",  label: "Expecting",     emoji: "🤰",        desc: "Baby on the way" },
   { id: "newborn",    label: "Newborn",        emoji: "👶",        desc: "0 – 3 months" },
   { id: "infant",     label: "Infant",         emoji: "🧒",        desc: "3 – 12 months" },
-  { id: "toddler",    label: "Toddler",        emoji: "🚶",        desc: "1 – 3 years" },
+  { id: "toddler",    label: "Toddler",        emoji: "🚶",        desc: "1 – 4 years" },
   { id: "school_age", label: "School Age",     emoji: "🎒",        desc: "5 – 12 years" },
   { id: "teenager",   label: "Teenager",       emoji: "🧑",        desc: "13+ years" },
   { id: "multiples",  label: "Twins/Triplets", emoji: "👶👶",     desc: "Two or more!" },

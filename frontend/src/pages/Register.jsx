@@ -36,6 +36,7 @@ export default function Register() {
   const [password, setPassword] = useState("");
   const [dob, setDob] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [isHealthcarePro, setIsHealthcarePro] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -103,6 +104,10 @@ export default function Register() {
 
       if (response.ok) {
         localStorage.setItem("user", JSON.stringify(data));
+        // If they flagged as a healthcare pro, send them to their profile to apply after onboarding
+        if (isHealthcarePro) {
+          localStorage.setItem("village_pending_pro_verify", "1");
+        }
         navigate("/onboarding");
       } else {
         toast.error(parseApiError(data.detail, "Registration failed"));
@@ -345,6 +350,19 @@ export default function Register() {
                   .
                 </label>
               </div>
+            </div>
+
+            {/* Healthcare professional opt-in */}
+            <div className="flex items-start gap-3 rounded-xl border border-border/50 bg-sky-500/5 px-4 py-3.5">
+              <Checkbox
+                id="hcp-check"
+                checked={isHealthcarePro}
+                onCheckedChange={(checked) => setIsHealthcarePro(!!checked)}
+                className="mt-0.5 h-5 w-5 shrink-0"
+              />
+              <label htmlFor="hcp-check" className="text-sm text-muted-foreground leading-relaxed cursor-pointer select-none">
+                I'm a <span className="font-medium text-foreground">healthcare professional</span> — I'd like to apply for a verified badge after joining.
+              </label>
             </div>
 
             <Button

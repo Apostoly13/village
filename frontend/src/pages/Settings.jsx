@@ -7,6 +7,7 @@ import { Label } from "../components/ui/label";
 import { Button } from "../components/ui/button";
 import { ArrowLeft, Moon, Sun, MessageSquare, Bell, Eye, Mail, Users, Heart, Sliders, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
+import { useTheme, ThemeToggle } from "../useTheme";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 const PREFS_KEY = "village_prefs";
@@ -35,7 +36,13 @@ async function syncToBackend(patch) {
   } catch {}
 }
 
+
 export default function Settings({ user }) {
+  const [themeSetting, , themeResolved] = useTheme();
+  const isDark = themeResolved === "night";
+
+  // Seed initial values from user object (server state) then override with localStorage
+
   // Seed initial values from user object (server state) then override with localStorage
   const [prefs, setPrefs] = useState(() => {
     const local = loadPrefs();
@@ -52,10 +59,6 @@ export default function Settings({ user }) {
       ...local,
     };
   });
-  const [darkMode, setDarkMode] = useState(
-    document.documentElement.classList.contains("dark")
-  );
-
   // Persist every change to localStorage
   useEffect(() => {
     savePrefs(prefs);
@@ -78,19 +81,6 @@ export default function Settings({ user }) {
     set(key, value);
     const backendKey = key === "showOnline" ? "show_online" : key === "allowFriendRequests" ? "allow_friend_requests" : null;
     if (backendKey) syncToBackend({ [backendKey]: value });
-  }
-
-  function toggleDark(checked) {
-    setDarkMode(checked);
-    if (checked) {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
-    }
-    set("theme", checked ? "dark" : "light");
-    toast.success(checked ? "Dark mode on" : "Light mode on");
   }
 
   const notif = prefs.notifications || {};
@@ -123,16 +113,16 @@ export default function Settings({ user }) {
           {/* ── Appearance ────────────────────────────── */}
           <section className="bg-card rounded-2xl border border-border/50 p-5 space-y-4">
             <div className="flex items-center gap-2 mb-1">
-              {darkMode ? <Moon className="h-4 w-4 text-primary" /> : <Sun className="h-4 w-4 text-primary" />}
+              {isDark ? <Moon className="h-4 w-4 text-primary" /> : <Sun className="h-4 w-4 text-primary" />}
               <h2 className="font-heading font-semibold text-foreground">Appearance</h2>
             </div>
 
             <div className="flex items-center justify-between gap-4">
               <div>
-                <Label className="text-sm font-medium text-foreground">Dark mode</Label>
-                <p className="text-xs text-muted-foreground mt-0.5">Easier on the eyes — especially at 3am</p>
+                <Label className="text-sm font-medium text-foreground">Theme</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">Day, Night, or follow your device setting</p>
               </div>
-              <Switch checked={darkMode} onCheckedChange={toggleDark} />
+              <ThemeToggle />
             </div>
           </section>
 
@@ -237,7 +227,6 @@ export default function Settings({ user }) {
             </div>
           </section>
 
-          {/* ── Legal ──────────────────────────────────────── */}
           <section className="bg-card rounded-2xl border border-border/50 p-5">
             <div className="flex items-center gap-2 mb-3">
               <Sliders className="h-4 w-4 text-primary" />
@@ -260,8 +249,6 @@ export default function Settings({ user }) {
                 className="text-muted-foreground text-xs rounded-xl"
                 onClick={() => {
                   setPrefs({});
-                  const isDark = document.documentElement.classList.contains("dark");
-                  setDarkMode(isDark);
                   toast.success("Settings reset to defaults");
                 }}
               >

@@ -81,3 +81,6 @@ export const IconCheck = (p) => <SvgIcon {...p}><path d="M5 12.5l4.5 4.5L19 7" /
 
 // Cog — settings
 export const IconCog = (p) => <SvgIcon {...p}><circle cx="12" cy="12" r="2.8" /><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8" /></SvgIcon>;
+
+// Spaces / Forums — panel with header bar and topic rows
+export const IconSpaces = (p) => <SvgIcon {...p}><rect x="3" y="3.5" width="18" height="17" rx="2.5" /><path d="M3 8.5h18" /><path d="M7.5 12.5h9M7.5 16h6" /></SvgIcon>;

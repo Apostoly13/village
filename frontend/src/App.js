@@ -22,6 +22,7 @@ import Friends from "./pages/Friends";
 import Events from "./pages/Events";
 import SavedResources from "./pages/SavedResources";
 import AdminDashboard from "./pages/AdminDashboard";
+import ModeratorDashboard from "./pages/ModeratorDashboard";
 import Changelog from "./pages/Changelog";
 import CreateCommunity from "./pages/CreateCommunity";
 import Community from "./pages/Community";
@@ -288,6 +289,11 @@ const AppRouter = () => {
       <Route path="/admin" element={
         <ProtectedRoute>
           {({ user }) => <AdminDashboard user={user} />}
+        </ProtectedRoute>
+      } />
+      <Route path="/moderator" element={
+        <ProtectedRoute>
+          {({ user }) => <ModeratorDashboard user={user} />}
         </ProtectedRoute>
       } />
       <Route path="/changelog" element={

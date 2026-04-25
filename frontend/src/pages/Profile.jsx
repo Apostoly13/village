@@ -97,6 +97,12 @@ function ProfilePage({ user }) {
   const [showLocationOnProfile, setShowLocationOnProfile] = useState(true);
   const [showFullName, setShowFullName] = useState(false);
   const [picture, setPicture] = useState("");
+
+  // Professional verification
+  const [proType, setProType] = useState("");
+  const [proCredentials, setProCredentials] = useState("");
+  const [proWorkplace, setProWorkplace] = useState("");
+  const [proLoading, setProLoading] = useState(false);
   const [emailPrefs, setEmailPrefs] = useState({
     notify_replies: true,
     notify_dms: true,
@@ -228,6 +234,24 @@ function ProfilePage({ user }) {
       fetch(`${API_URL}/api/users/compute-badges`, { method: "POST", credentials: "include" }).catch(() => {});
     }
   }, [profileUserId, user?.user_id, isOwnProfile]);
+
+  const submitProfessionalApp = async () => {
+    if (!proType) { toast.error("Please select your professional type"); return; }
+    if (!proCredentials.trim()) { toast.error("Please describe your credentials"); return; }
+    setProLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/users/professional-apply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ professional_type: proType, professional_credentials: proCredentials.trim(), professional_workplace: proWorkplace.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok) { toast.success("Application submitted! A moderator will review it shortly."); }
+      else { toast.error(data.detail || "Something went wrong"); }
+    } catch { toast.error("Failed to submit"); }
+    finally { setProLoading(false); }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -1326,6 +1350,98 @@ function ProfilePage({ user }) {
             )}
           </div>
         )}
+        {/* Professional Verification — own profile only */}
+        {isOwnProfile && (
+          <div className="bg-card rounded-2xl border border-border/50 p-5 mb-4 space-y-4">
+            <div className="flex items-center gap-2">
+              <Stethoscope className="h-5 w-5" style={{ color: "hsl(var(--accent))" }} />
+              <h2 className="font-heading font-semibold text-foreground">Professional Verification</h2>
+              {profile?.professional_verification_status === "approved" && (
+                <span className="ml-auto flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400">
+                  ✓ Verified
+                </span>
+              )}
+              {profile?.professional_verification_status === "pending" && (
+                <span className="ml-auto flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400">
+                  ⏳ Under review
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Are you a health professional? Verified professionals get a badge on their profile, helping parents know they're getting advice from a credentialed practitioner.
+            </p>
+            {profile?.professional_verification_status === "approved" ? (
+              <div className="rounded-xl p-4 bg-green-500/10 border border-green-500/20">
+                <p className="text-sm font-medium text-green-700 dark:text-green-400">✓ Your professional status is verified</p>
+                <p className="text-xs text-muted-foreground mt-1">A verified badge appears on your profile and posts.</p>
+              </div>
+            ) : profile?.professional_verification_status === "pending" ? (
+              <div className="rounded-xl p-4 bg-amber-500/10 border border-amber-500/20">
+                <p className="text-sm font-medium text-amber-700 dark:text-amber-400">⏳ Application under review</p>
+                <p className="text-xs text-muted-foreground mt-1">We'll notify you once a moderator has reviewed your credentials.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1.5 block">Professional type</label>
+                  <Select value={proType} onValueChange={setProType}>
+                    <SelectTrigger className="rounded-xl" style={{ height: 40, background: "var(--paper)", border: "1px solid var(--line)" }}>
+                      <SelectValue placeholder="Select your role…" />
+                    </SelectTrigger>
+                    <SelectContent style={{ background: "var(--paper-2)", border: "1px solid var(--line)" }}>
+                      {[
+                        { value: "midwife", label: "Midwife" },
+                        { value: "doctor", label: "Doctor (GP)" },
+                        { value: "obstetrician", label: "Obstetrician" },
+                        { value: "nurse", label: "Nurse" },
+                        { value: "psychologist", label: "Psychologist / Counsellor" },
+                        { value: "lactation_consultant", label: "Lactation Consultant" },
+                        { value: "pediatrician", label: "Paediatrician" },
+                        { value: "social_worker", label: "Social Worker" },
+                        { value: "physiotherapist", label: "Physiotherapist" },
+                        { value: "other", label: "Other Health Professional" },
+                      ].map(t => (
+                        <SelectItem key={t.value} value={t.value} style={{ color: "var(--ink)" }}>{t.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1.5 block">Workplace / Organisation <span className="text-muted-foreground font-normal">(optional)</span></label>
+                  <input
+                    value={proWorkplace}
+                    onChange={e => setProWorkplace(e.target.value)}
+                    placeholder="e.g. Royal Hospital for Women, private practice"
+                    className="w-full rounded-xl px-3 py-2 text-sm"
+                    style={{ height: 40, background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)", outline: "none" }}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1.5 block">Credentials &amp; experience</label>
+                  <Textarea
+                    value={proCredentials}
+                    onChange={e => setProCredentials(e.target.value)}
+                    placeholder="Describe your qualifications, registration number, years of experience, or link to professional profile. This is reviewed by our team."
+                    className="rounded-xl resize-none"
+                    rows={4}
+                    maxLength={2000}
+                    style={{ background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1 text-right">{proCredentials.length}/2000</p>
+                </div>
+                <Button
+                  onClick={submitProfessionalApp}
+                  disabled={proLoading || !proType || !proCredentials.trim()}
+                  className="rounded-full"
+                  style={{ background: "var(--ink)", color: "var(--paper)", height: 40 }}
+                >
+                  {proLoading ? "Submitting…" : "Apply for Verification"}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Danger Zone — own profile only */}
         {isOwnProfile && (
           <div className="bg-card rounded-2xl border-2 border-red-500/40 border-l-4 border-l-red-500 mb-6 overflow-hidden shadow-sm shadow-red-500/5">

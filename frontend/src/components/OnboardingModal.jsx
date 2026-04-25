@@ -13,7 +13,7 @@ const AUSTRALIAN_STATES = ["NSW", "VIC", "QLD", "WA", "SA", "TAS", "ACT", "NT"];
 const PARENTING_STAGES = [
   { id: "expecting", emoji: "🤰", label: "Expecting" },
   { id: "baby", emoji: "👶", label: "Baby (0–1)" },
-  { id: "toddler", emoji: "🧒", label: "Toddler (2–4)" },
+  { id: "toddler", emoji: "🧒", label: "Toddler (1–4)" },
   { id: "school_age", emoji: "👦", label: "School age (5–12)" },
   { id: "teenager", emoji: "🧑", label: "Teenager (13+)" },
   { id: "mixed", emoji: "👪", label: "Mixed ages" },
@@ -350,7 +350,7 @@ export default function OnboardingModal({ user, onComplete, onSkip: onSkipProp }
                   <div className="grid grid-cols-2 gap-1.5">
                     {[
                       { id: "baby", label: "Baby (0–1)", emoji: "👶" },
-                      { id: "toddler", label: "Toddler (2–4)", emoji: "🧒" },
+                      { id: "toddler", label: "Toddler (1–4)", emoji: "🧒" },
                       { id: "school_age", label: "School age (5–12)", emoji: "👦" },
                       { id: "teenager", label: "Teenager (13+)", emoji: "🧑" },
                       { id: "expecting", label: "Expecting another", emoji: "🤰" },

@@ -738,7 +738,7 @@ def get_email_template(template_type: str, data: dict) -> tuple:
                 <p>You've joined a warm, safe space built for Australian parents. You're not alone on this journey.</p>
                 <p>Here's what you can do right now:</p>
                 <ul style="color: #4A4A4A; line-height: 2;">
-                    <li>💬 Join a <strong>Chat Circle</strong> and connect with other parents</li>
+                    <li>💬 Join a <strong>Chat Space</strong> and connect with other parents</li>
                     <li>📝 Post in a <strong>Support Space</strong> — anonymously if you prefer</li>
                     <li>📅 Find or create a <strong>local event</strong> near you</li>
                 </ul>
@@ -1374,36 +1374,36 @@ async def compute_badges(user: dict = Depends(get_current_user)):
     await db.users.update_one({"user_id": user_id}, {"$set": badges})
     return badges
 
-@api_router.get("/users/recommended-circles")
-async def get_recommended_circles(user: dict = Depends(get_current_user)):
-    """Return up to 3 personalised forum circle recommendations"""
+@api_router.get("/users/recommended-spaces")
+async def get_recommended_spaces(user: dict = Depends(get_current_user)):
+    """Return up to 3 personalised forum space recommendations"""
     # Parenting stage → relevant circle names
     stage_map = {
-        "expecting": ["Expecting Circle", "Feeding Circle", "Mental Health Circle"],
-        "newborn": ["Newborn Circle", "Feeding Circle", "Sleep Circle"],
-        "infant": ["Infant Circle", "Feeding Circle", "Sleep Circle"],
-        "baby": ["Newborn Circle", "Feeding Circle", "Sleep Circle"],
-        "toddler": ["Toddler Circle", "Sleep Circle", "Mental Health Circle"],
-        "preschool": ["Toddler Circle", "Development & Milestones", "Mental Health Circle"],
-        "school_age": ["School Age Circle", "Development & Milestones", "Mental Health Circle"],
-        "teenager": ["Teenager Circle", "Mental Health Circle", "Relationships"],
-        "mixed": ["Mental Health Circle", "Relationships", "Development & Milestones"],
+        "expecting": ["Expecting Space", "Feeding Space", "Mental Health Space"],
+        "newborn": ["Newborn Space", "Feeding Space", "Sleep Space"],
+        "infant": ["Infant Space", "Feeding Space", "Sleep Space"],
+        "baby": ["Newborn Space", "Feeding Space", "Sleep Space"],
+        "toddler": ["Toddler Space", "Sleep Space", "Mental Health Space"],
+        "preschool": ["Toddler Space", "Development & Milestones", "Mental Health Space"],
+        "school_age": ["School Age Space", "Development & Milestones", "Mental Health Space"],
+        "teenager": ["Teenager Space", "Mental Health Space", "Relationships"],
+        "mixed": ["Mental Health Space", "Relationships", "Development & Milestones"],
     }
     # Interest → circle name mapping (must match INTEREST_OPTIONS in Profile.jsx)
     interest_map = {
-        "Sleep & Settling": "Sleep Circle",
-        "Feeding": "Feeding Circle",
-        "Breastfeeding": "Feeding Circle",
-        "Sleep Training": "Sleep Circle",
-        "Toddler Activities": "Toddler Circle",
-        "School Age": "School Age Circle",
-        "Mental Health": "Mental Health Circle",
-        "Dad Talk": "Dad Circle",
+        "Sleep & Settling": "Sleep Space",
+        "Feeding": "Feeding Space",
+        "Breastfeeding": "Feeding Space",
+        "Sleep Training": "Sleep Space",
+        "Toddler Activities": "Toddler Space",
+        "School Age": "School Age Space",
+        "Mental Health": "Mental Health Space",
+        "Dad Talk": "Dad Space",
         "Local Events": "Local Meetups",
         "Development Milestones": "Development & Milestones",
         "Buy & Swap": "Local Meetups",
         "Relationships": "Relationships",
-        "Single Parenting": "Single Parent Circle",
+        "Single Parenting": "Single Parents Space",
     }
 
     stage = user.get("parenting_stage", "")
@@ -4095,15 +4095,41 @@ async def get_feed(request: Request, limit: int = Query(default=20, ge=1, le=100
     categories_map = {c["category_id"]: c for c in categories_list}
     liked_set = {d["post_id"] for d in liked_docs}
 
+    # Fetch user's tier + community memberships to gate community posts
+    user_tier = None
+    user_community_ids = set()
+    if current_user_id:
+        cu_doc = await db.users.find_one({"user_id": current_user_id}, {"subscription_tier": 1})
+        user_tier = (cu_doc or {}).get("subscription_tier", "free")
+        membership_docs = await db.community_members.find(
+            {"user_id": current_user_id}, {"_id": 0, "community_id": 1}
+        ).to_list(None)
+        user_community_ids = {m["community_id"] for m in membership_docs}
+
+    is_premium = user_tier in ("premium", "trial")
+
+    result = []
     for post in posts:
         category = categories_map.get(post.get("category_id"))
+        is_community = bool(category and category.get("is_user_created"))
+
+        # Community posts: Village+ only AND must be a member of that community
+        if is_community:
+            if not is_premium:
+                continue
+            if post.get("category_id") not in user_community_ids:
+                continue
+
         post["category_name"] = category["name"] if category else "General"
         post["category_icon"] = category["icon"] if category else "💬"
         post["user_liked"] = post.get("post_id") in liked_set
+        post["is_community_post"] = is_community
+        post["community_id"] = post.get("category_id") if is_community else None
 
         mask_anonymous_post(post)
+        result.append(post)
 
-    return posts
+    return result
 
 @api_router.get("/search")
 async def search_posts(q: str, limit: int = Query(default=20, ge=1, le=100), request: Request = None):
@@ -4405,7 +4431,7 @@ async def admin_get_analytics(admin: dict = Depends(get_admin_user)):
     })
 
     # Circle growth: new users this week
-    circle_growth = new_this_week
+    space_growth = new_this_week
 
     return {
         "users": {
@@ -4424,7 +4450,7 @@ async def admin_get_analytics(admin: dict = Depends(get_admin_user)):
             "kindness_health": kindness_health,
             "unanswered_tonight": unanswered_tonight,
             "reported_issues": pending_reports,
-            "circle_growth": circle_growth
+            "space_growth": space_growth
         },
         "categories": categories,
         "top_chat_rooms": rooms
@@ -4595,7 +4621,62 @@ async def admin_report_action(report_id: str, request: Request, admin: dict = De
             }
             await db.notifications.insert_one(notification)
         await db.reports.update_one({"report_id": report_id}, {"$set": {"status": "resolved"}})
-    elif action == "ban_user":
+    elif action in ("remove", "remove_content"):
+        # alias: "remove" → remove_content (from moderator dashboard)
+        action = "remove_content"
+        content_author_id = None
+        if report.get("content_type") == "post":
+            post = await db.forum_posts.find_one({"post_id": report["content_id"]})
+            if post:
+                content_author_id = post.get("author_id")
+                await db.forum_posts.delete_one({"post_id": report["content_id"]})
+                await db.forum_categories.update_one(
+                    {"category_id": post.get("category_id")},
+                    {"$inc": {"post_count": -1}}
+                )
+        else:
+            reply = await db.forum_replies.find_one({"reply_id": report["content_id"]})
+            if reply:
+                content_author_id = reply.get("author_id")
+                await db.forum_replies.delete_one({"reply_id": report["content_id"]})
+                await db.forum_posts.update_one(
+                    {"post_id": reply.get("post_id")},
+                    {"$inc": {"reply_count": -1}}
+                )
+        if content_author_id:
+            await db.notifications.insert_one({
+                "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+                "user_id": content_author_id,
+                "type": "moderation",
+                "title": "Content Removed",
+                "message": "Your post was removed by a moderator for violating community guidelines.",
+                "link": "/forums",
+                "is_read": False,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            })
+        await db.reports.update_one({"report_id": report_id}, {"$set": {"status": "resolved"}})
+    elif action == "warn":
+        # Warn the content author without removing content
+        content_author_id = None
+        if report.get("content_type") == "post":
+            content = await db.forum_posts.find_one({"post_id": report["content_id"]})
+            if content: content_author_id = content.get("author_id")
+        else:
+            content = await db.forum_replies.find_one({"reply_id": report["content_id"]})
+            if content: content_author_id = content.get("author_id")
+        if content_author_id:
+            await db.notifications.insert_one({
+                "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+                "user_id": content_author_id,
+                "type": "moderation",
+                "title": "Community Guidelines Reminder",
+                "message": "A moderator has reviewed your recent post. Please ensure your content follows our Community Guidelines.",
+                "link": "/community-guidelines",
+                "is_read": False,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            })
+        await db.reports.update_one({"report_id": report_id}, {"$set": {"status": "reviewed"}})
+    elif action in ("ban", "ban_user"):
         if report.get("content_type") == "post":
             content = await db.forum_posts.find_one({"post_id": report["content_id"]})
         else:
@@ -4783,6 +4864,462 @@ async def admin_drilldown(type: str, admin: dict = Depends(get_admin_user)):
         raise HTTPException(400, "Invalid drilldown type")
 
 # ==================== BLOG ====================
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PROFESSIONAL APPLICATION ENDPOINTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+VALID_PROFESSIONAL_TYPES = {
+    "midwife", "doctor", "obstetrician", "nurse", "psychologist",
+    "lactation_consultant", "pediatrician", "social_worker",
+    "physiotherapist", "other"
+}
+
+class ProfessionalApplyRequest(BaseModel):
+    professional_type: str
+    professional_credentials: str = Field(..., max_length=2000)
+    professional_workplace: Optional[str] = Field(None, max_length=200)
+
+@api_router.post("/users/professional-apply")
+async def apply_as_professional(data: ProfessionalApplyRequest, current_user: dict = Depends(get_current_user)):
+    """Submit a professional verification application"""
+    if data.professional_type not in VALID_PROFESSIONAL_TYPES:
+        raise HTTPException(400, f"Invalid professional type. Valid: {', '.join(sorted(VALID_PROFESSIONAL_TYPES))}")
+
+    existing = await db.users.find_one({"user_id": current_user["user_id"]}, {"professional_verification_status": 1})
+    if existing and existing.get("professional_verification_status") == "approved":
+        raise HTTPException(400, "Your professional status is already approved")
+    if existing and existing.get("professional_verification_status") == "pending":
+        raise HTTPException(400, "You already have a pending application")
+
+    await db.users.update_one(
+        {"user_id": current_user["user_id"]},
+        {"$set": {
+            "professional_type": data.professional_type,
+            "professional_credentials": data.professional_credentials,
+            "professional_workplace": data.professional_workplace,
+            "professional_verification_status": "pending",
+            "professional_applied_at": datetime.now(timezone.utc).isoformat(),
+        }}
+    )
+    return {"message": "Application submitted. A moderator will review it shortly."}
+
+@api_router.get("/admin/professional-applications")
+async def get_professional_applications(admin: dict = Depends(get_admin_user)):
+    """Get pending professional verification applications"""
+    apps = await db.users.find(
+        {"professional_verification_status": "pending"},
+        {"_id": 0, "password_hash": 0, "reset_token": 0}
+    ).sort("professional_applied_at", 1).to_list(100)
+    return apps
+
+@api_router.post("/admin/professional-applications/{user_id}/approve")
+async def approve_professional(user_id: str, admin: dict = Depends(get_admin_user)):
+    """Approve a professional verification application"""
+    user = await db.users.find_one({"user_id": user_id})
+    if not user:
+        raise HTTPException(404, "User not found")
+
+    await db.users.update_one(
+        {"user_id": user_id},
+        {"$set": {
+            "professional_verification_status": "approved",
+            "verified_professional": True,
+            "professional_approved_at": datetime.now(timezone.utc).isoformat(),
+            "professional_approved_by": admin["user_id"],
+        }}
+    )
+    # Notify the user
+    await db.notifications.insert_one({
+        "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+        "user_id": user_id,
+        "type": "professional_approved",
+        "title": "Professional Status Approved ✓",
+        "message": f"Your professional verification has been approved. A verified badge will now appear on your profile.",
+        "link": "/profile",
+        "is_read": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+    return {"message": "Professional status approved"}
+
+@api_router.post("/admin/professional-applications/{user_id}/reject")
+async def reject_professional(user_id: str, admin: dict = Depends(get_admin_user)):
+    """Reject a professional verification application"""
+    user = await db.users.find_one({"user_id": user_id})
+    if not user:
+        raise HTTPException(404, "User not found")
+
+    await db.users.update_one(
+        {"user_id": user_id},
+        {"$set": {
+            "professional_verification_status": "rejected",
+            "verified_professional": False,
+        }}
+    )
+    await db.notifications.insert_one({
+        "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+        "user_id": user_id,
+        "type": "professional_rejected",
+        "title": "Professional Application Update",
+        "message": "We weren't able to verify your professional credentials at this time. Please contact us if you have questions.",
+        "link": "/settings",
+        "is_read": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+    return {"message": "Application rejected"}
+
+# ─── Admin: Revenue & Financials ──────────────────────────────────────────────
+
+@api_router.get("/admin/revenue")
+async def admin_get_revenue(admin: dict = Depends(get_admin_user)):
+    """Revenue and subscription analytics"""
+    now = datetime.now(timezone.utc)
+    month_ago = (now - timedelta(days=30)).isoformat()
+    week_ago = (now - timedelta(days=7)).isoformat()
+
+    premium = await db.users.count_documents({"subscription_tier": "premium"})
+    trial = await db.users.count_documents({"subscription_tier": "trial"})
+    free = await db.users.count_documents({"subscription_tier": {"$in": ["free", None]}})
+    total_users = await db.users.count_documents({})
+
+    # MRR estimate at A$9.99/month per premium user
+    mrr_estimate = round(premium * 9.99, 2)
+    arr_estimate = round(premium * 9.99 * 12, 2)
+
+    # Conversion rate: premium / total
+    conversion_rate = round((premium / total_users * 100), 1) if total_users > 0 else 0
+
+    # New premium this month / week
+    new_premium_month = await db.users.count_documents({
+        "subscription_tier": "premium",
+        "subscription_started_at": {"$gte": month_ago}
+    })
+    new_premium_week = await db.users.count_documents({
+        "subscription_tier": "premium",
+        "subscription_started_at": {"$gte": week_ago}
+    })
+
+    # Trial conversion: trials that became premium
+    trial_to_premium = await db.users.count_documents({
+        "subscription_tier": "premium",
+        "previous_tier": "trial"
+    })
+    trial_total = await db.users.count_documents({
+        "$or": [{"subscription_tier": "trial"}, {"previous_tier": "trial"}]
+    })
+    trial_conversion = round(trial_to_premium / trial_total * 100, 1) if trial_total > 0 else 0
+
+    # Subscription tier breakdown over time (last 30 days of signups by tier)
+    pipeline = [
+        {"$match": {"created_at": {"$gte": month_ago}}},
+        {"$group": {"_id": "$subscription_tier", "count": {"$sum": 1}}},
+    ]
+    tier_breakdown = await db.users.aggregate(pipeline).to_list(10)
+    tier_map = {t["_id"] or "free": t["count"] for t in tier_breakdown}
+
+    return {
+        "mrr_estimate": mrr_estimate,
+        "arr_estimate": arr_estimate,
+        "premium_count": premium,
+        "trial_count": trial,
+        "free_count": free,
+        "conversion_rate": conversion_rate,
+        "new_premium_this_month": new_premium_month,
+        "new_premium_this_week": new_premium_week,
+        "trial_conversion_rate": trial_conversion,
+        "tier_breakdown_30d": tier_map,
+    }
+
+# ─── Admin: Communities Management ───────────────────────────────────────────
+
+@api_router.get("/admin/communities")
+async def admin_get_communities(
+    page: int = 1,
+    limit: int = 20,
+    search: str = "",
+    filter: str = "",
+    admin: dict = Depends(get_admin_user)
+):
+    """List all user-created communities with management info"""
+    query: dict = {"is_user_created": True}
+    if search:
+        query["$or"] = [
+            {"name": {"$regex": search, "$options": "i"}},
+            {"description": {"$regex": search, "$options": "i"}},
+        ]
+    if filter == "private":
+        query["is_private"] = True
+    elif filter == "public":
+        query["is_private"] = {"$ne": True}
+    elif filter == "local":
+        query["is_local"] = True
+
+    total = await db.forum_categories.count_documents(query)
+    skip = (page - 1) * limit
+    communities = await db.forum_categories.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+
+    # Enrich with member counts
+    enriched = []
+    for c in communities:
+        member_count = await db.community_members.count_documents({"community_id": c["category_id"]})
+        c["member_count_live"] = member_count
+        enriched.append(c)
+
+    return {"communities": enriched, "total": total, "page": page, "pages": math.ceil(total / limit)}
+
+@api_router.post("/admin/communities/{community_id}/delete")
+async def admin_delete_community(community_id: str, admin: dict = Depends(get_admin_user)):
+    """Remove a community and all its posts"""
+    community = await db.forum_categories.find_one({"category_id": community_id})
+    if not community:
+        raise HTTPException(404, "Community not found")
+
+    # Remove posts, members, and category
+    await db.forum_posts.delete_many({"category_id": community_id})
+    await db.community_members.delete_many({"community_id": community_id})
+    await db.forum_categories.delete_one({"category_id": community_id})
+
+    return {"message": f"Community '{community.get('name')}' deleted"}
+
+@api_router.post("/admin/communities/{community_id}/feature")
+async def admin_feature_community(community_id: str, admin: dict = Depends(get_admin_user)):
+    """Toggle 'featured' flag on a community"""
+    community = await db.forum_categories.find_one({"category_id": community_id})
+    if not community:
+        raise HTTPException(404, "Community not found")
+    new_state = not community.get("is_featured", False)
+    await db.forum_categories.update_one(
+        {"category_id": community_id},
+        {"$set": {"is_featured": new_state}}
+    )
+    return {"message": "Featured" if new_state else "Unfeatured", "is_featured": new_state}
+
+# ─── Admin: Announcements ─────────────────────────────────────────────────────
+
+class AnnouncementRequest(BaseModel):
+    title: str
+    message: str
+    link: str = ""
+    target: str = "all"   # "all" | "premium" | "free"
+    pin_days: int = 0      # 0 = no pin; 1–30 = pin for N days on dashboard
+
+@api_router.post("/admin/announcements/send")
+async def admin_send_announcement(body: AnnouncementRequest, admin: dict = Depends(get_admin_user)):
+    """Send a platform-wide notification and optionally pin it on the dashboard"""
+    now = datetime.now(timezone.utc)
+    now_iso = now.isoformat()
+
+    # 1. If pin_days > 0 — create a pinned banner record
+    if body.pin_days and body.pin_days > 0:
+        pin_days = max(1, min(body.pin_days, 90))
+        pinned_until = (now + timedelta(days=pin_days)).isoformat()
+        await db.pinned_announcements.insert_one({
+            "announcement_id": f"ann_{uuid.uuid4().hex[:12]}",
+            "title": body.title,
+            "message": body.message,
+            "link": body.link or None,
+            "target": body.target,
+            "pinned_until": pinned_until,
+            "created_by": admin["user_id"],
+            "created_at": now_iso,
+        })
+
+    # 2. Send as individual notifications
+    query: dict = {}
+    if body.target == "premium":
+        query["subscription_tier"] = "premium"
+    elif body.target == "free":
+        query["subscription_tier"] = {"$in": ["free", None]}
+
+    user_ids = await db.users.distinct("user_id", query)
+    if not user_ids:
+        return {"message": "Pinned" if body.pin_days else "No matching users", "sent_to": 0}
+
+    notifications = [{
+        "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+        "user_id": uid,
+        "type": "announcement",
+        "title": body.title,
+        "message": body.message,
+        "link": body.link or None,
+        "is_read": False,
+        "created_at": now_iso,
+        "sent_by": admin["user_id"],
+    } for uid in user_ids]
+
+    await db.notifications.insert_many(notifications)
+    pin_msg = f" (pinned for {body.pin_days} day{'s' if body.pin_days != 1 else ''})" if body.pin_days else ""
+    return {"message": f"Announcement sent to {len(user_ids)} users{pin_msg}", "sent_to": len(user_ids)}
+
+@api_router.get("/admin/announcements")
+async def admin_get_announcements(admin: dict = Depends(get_admin_user)):
+    """Get recent admin announcements (sent + pinned)"""
+    # Pinned ones
+    now_iso = datetime.now(timezone.utc).isoformat()
+    pinned = await db.pinned_announcements.find(
+        {}, {"_id": 0}
+    ).sort("created_at", -1).limit(10).to_list(10)
+
+    # Sent (from notifications, grouped)
+    pipeline = [
+        {"$match": {"type": "announcement"}},
+        {"$sort": {"created_at": -1}},
+        {"$limit": 200},
+        {"$group": {
+            "_id": {"title": "$title", "message": "$message", "created_at": "$created_at", "sent_by": "$sent_by"},
+            "count": {"$sum": 1},
+            "read_count": {"$sum": {"$cond": ["$is_read", 1, 0]}}
+        }},
+        {"$sort": {"_id.created_at": -1}},
+        {"$limit": 10},
+    ]
+    sent = await db.notifications.aggregate(pipeline).to_list(10)
+    sent_list = [{"title": a["_id"]["title"], "message": a["_id"]["message"],
+                  "created_at": a["_id"]["created_at"], "sent_to": a["count"],
+                  "read_count": a["read_count"], "type": "sent"}
+                 for a in sent]
+
+    # Enrich pinned with active/expired label
+    pinned_list = [{**p, "type": "pinned", "is_active": p.get("pinned_until", "") > now_iso} for p in pinned]
+
+    return {"pinned": pinned_list, "sent": sent_list}
+
+@api_router.delete("/admin/announcements/{announcement_id}/unpin")
+async def admin_unpin_announcement(announcement_id: str, admin: dict = Depends(get_admin_user)):
+    """Remove a pinned announcement immediately"""
+    result = await db.pinned_announcements.delete_one({"announcement_id": announcement_id})
+    if result.deleted_count == 0:
+        raise HTTPException(404, "Announcement not found")
+    return {"message": "Unpinned"}
+
+# ─── Public: Active pinned announcements ─────────────────────────────────────
+
+@api_router.get("/announcements/active")
+async def get_active_announcements(request: Request):
+    """Return pinned announcements currently active for this user's tier"""
+    now_iso = datetime.now(timezone.utc).isoformat()
+    user_tier = "free"
+    try:
+        cu = await get_current_user(request)
+        user_tier = cu.get("subscription_tier", "free") or "free"
+    except Exception:
+        pass
+
+    # Match announcements that haven't expired and target this user
+    tier_match = {"$or": [
+        {"target": "all"},
+        {"target": "premium", "$expr": {"$in": [user_tier, ["premium", "trial"]]}},
+        {"target": "free", "$expr": {"$in": [user_tier, ["free", None]]}},
+    ]}
+    # Simpler: fetch all active then filter in Python
+    active = await db.pinned_announcements.find(
+        {"pinned_until": {"$gt": now_iso}},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(10)
+
+    is_premium = user_tier in ("premium", "trial")
+    filtered = []
+    for a in active:
+        t = a.get("target", "all")
+        if t == "all":
+            filtered.append(a)
+        elif t == "premium" and is_premium:
+            filtered.append(a)
+        elif t == "free" and not is_premium:
+            filtered.append(a)
+
+    return filtered
+
+# ─── Admin: Spaces (System Chat Rooms) Management ────────────────────────────
+
+@api_router.get("/admin/spaces")
+async def admin_get_spaces(admin: dict = Depends(get_admin_user)):
+    """Get all system spaces with activity stats"""
+    spaces = await db.chat_rooms.find({}, {"_id": 0}).sort("member_count", -1).to_list(50)
+    now = datetime.now(timezone.utc)
+    week_ago = (now - timedelta(days=7)).isoformat()
+    enriched = []
+    for s in spaces:
+        msg_count_7d = await db.chat_messages.count_documents({
+            "room_id": s["room_id"],
+            "created_at": {"$gte": week_ago}
+        })
+        s["messages_7d"] = msg_count_7d
+        enriched.append(s)
+    return enriched
+
+# ─── Admin: Forum Category (Spaces) Post Stats ────────────────────────────────
+
+@api_router.get("/admin/content-health")
+async def admin_get_content_health(admin: dict = Depends(get_admin_user)):
+    """Content health: posts per space, unanswered, engagement rates"""
+    now = datetime.now(timezone.utc)
+    week_ago = (now - timedelta(days=7)).isoformat()
+    month_ago = (now - timedelta(days=30)).isoformat()
+
+    # Posts per forum category (top 15)
+    pipeline = [
+        {"$group": {"_id": "$category_id", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+        {"$limit": 15}
+    ]
+    posts_by_category = await db.forum_posts.aggregate(pipeline).to_list(15)
+    category_ids = [r["_id"] for r in posts_by_category]
+    categories = await db.forum_categories.find(
+        {"category_id": {"$in": category_ids}},
+        {"_id": 0, "category_id": 1, "name": 1, "icon": 1}
+    ).to_list(15)
+    cat_map = {c["category_id"]: c for c in categories}
+    posts_by_cat_enriched = [{
+        "category_id": r["_id"],
+        "name": cat_map.get(r["_id"], {}).get("name", r["_id"]),
+        "icon": cat_map.get(r["_id"], {}).get("icon", "💬"),
+        "post_count": r["count"]
+    } for r in posts_by_category]
+
+    # Posts this week / month
+    posts_week = await db.forum_posts.count_documents({"created_at": {"$gte": week_ago}})
+    posts_month = await db.forum_posts.count_documents({"created_at": {"$gte": month_ago}})
+    replies_week = await db.forum_replies.count_documents({"created_at": {"$gte": week_ago}})
+
+    # Unanswered posts (0 replies, last 48h)
+    two_days_ago = (now - timedelta(hours=48)).isoformat()
+    unanswered = await db.forum_posts.count_documents({
+        "reply_count": 0,
+        "created_at": {"$gte": two_days_ago}
+    })
+
+    # Avg replies per post (all time)
+    total_posts = await db.forum_posts.count_documents({})
+    total_replies = await db.forum_replies.count_documents({})
+    avg_replies = round(total_replies / total_posts, 2) if total_posts > 0 else 0
+
+    # Like engagement
+    pipeline_likes = [
+        {"$group": {"_id": None, "total": {"$sum": "$like_count"}}}
+    ]
+    like_agg = await db.forum_posts.aggregate(pipeline_likes).to_list(1)
+    total_likes = like_agg[0]["total"] if like_agg else 0
+
+    # Top liked post this week
+    top_post = await db.forum_posts.find_one(
+        {"created_at": {"$gte": week_ago}},
+        {"_id": 0},
+        sort=[("like_count", -1)]
+    )
+
+    return {
+        "posts_by_category": posts_by_cat_enriched,
+        "posts_this_week": posts_week,
+        "posts_this_month": posts_month,
+        "replies_this_week": replies_week,
+        "unanswered_48h": unanswered,
+        "avg_replies_per_post": avg_replies,
+        "total_likes": total_likes,
+        "top_post_this_week": top_post,
+    }
+
+# ─────────────────────────────────────────────────────────────────────────────
 
 class BlogSubmit(BaseModel):
     title: str
@@ -5063,20 +5600,20 @@ async def seed_data():
     LEGACY_CATEGORY_NAMES = [
         "Breastfeeding & Feeding", "Sleep & Routines", "Mental Health",
         "Single Parenting", "Newborn (0-3 months)", "Infant (3-12 months)",
-        "Toddler (1-3 years)", "Preschool (3-5 years)", "Expecting Parents",
+        "Toddler (1-4 years)", "Preschool (3-5 years)", "Expecting Parents",
     ]
-    CIRCLE_MIGRATION = {
-        "Breastfeeding & Feeding": "Feeding Circle",
-        "Sleep & Routines": "Sleep Circle",
-        "Mental Health": "Mental Health Circle",
-        "Single Parenting": "Single Parent Circle",
-        "Newborn (0-3 months)": "Newborn Circle",
-        "Infant (3-12 months)": "Infant Circle",
-        "Toddler (1-3 years)": "Toddler Circle",
-        "Preschool (3-5 years)": "Toddler Circle",
-        "Expecting Parents": "Expecting Circle",
+    SPACE_MIGRATION = {
+        "Breastfeeding & Feeding": "Feeding Space",
+        "Sleep & Routines": "Sleep Space",
+        "Mental Health": "Mental Health Space",
+        "Single Parenting": "Single Parents Space",
+        "Newborn (0-3 months)": "Newborn Space",
+        "Infant (3-12 months)": "Infant Space",
+        "Toddler (1-4 years)": "Toddler Space",
+        "Preschool (3-5 years)": "Toddler Space",
+        "Expecting Parents": "Expecting Space",
     }
-    for old_name, new_name in CIRCLE_MIGRATION.items():
+    for old_name, new_name in SPACE_MIGRATION.items():
         old_cat = await db.forum_categories.find_one({"name": old_name})
         if old_cat:
             new_cat = await db.forum_categories.find_one({"name": new_name})
@@ -5089,11 +5626,11 @@ async def seed_data():
 
     # Topic-based categories (Circles)
     topic_categories = [
-        {"name": "Feeding Circle", "description": "Support for breastfeeding, pumping, formula, and feeding challenges", "icon": "🍼", "category_type": "topic"},
-        {"name": "Sleep Circle", "description": "Sleep training, routines, leaps, regressions, and those sleepless nights — share tips and support", "icon": "🌙", "category_type": "topic"},
-        {"name": "Mental Health Circle", "description": "A safe space to discuss postpartum emotions and self-care", "icon": "💚", "category_type": "topic"},
-        {"name": "Dad Circle", "description": "A space just for dads — no judgment, just real talk", "icon": "👨", "category_type": "topic"},
-        {"name": "Single Parent Circle", "description": "Support, tips, and connection for single mums and dads", "icon": "💪", "category_type": "topic"},
+        {"name": "Feeding Space", "description": "Support for breastfeeding, pumping, formula, and feeding challenges", "icon": "🍼", "category_type": "topic"},
+        {"name": "Sleep Space", "description": "Sleep training, routines, leaps, regressions, and those sleepless nights — share tips and support", "icon": "🌙", "category_type": "topic"},
+        {"name": "Mental Health Space", "description": "A safe space to discuss postpartum emotions and self-care", "icon": "💚", "category_type": "topic"},
+        {"name": "Dad Space", "description": "A space just for dads — no judgment, just real talk", "icon": "👨", "category_type": "topic"},
+        {"name": "Single Parents Space", "description": "Support, tips, and connection for single mums and dads", "icon": "💪", "category_type": "topic"},
         {"name": "Relationships", "description": "Navigating partner, family, and friend dynamics", "icon": "💕", "category_type": "topic"},
         {"name": "Development & Milestones", "description": "Tracking growth and celebrating achievements", "icon": "⭐", "category_type": "topic"},
         {"name": "Health & Wellness", "description": "Baby and parent health questions and advice", "icon": "🏥", "category_type": "topic"},
@@ -5104,12 +5641,12 @@ async def seed_data():
     
     # Age-based categories (Circles)
     age_categories = [
-        {"name": "Newborn Circle", "description": "For parents of brand new babies (0–3 months)", "icon": "👶", "category_type": "age_group"},
-        {"name": "Infant Circle", "description": "First year adventures and challenges (3–12 months)", "icon": "🧒", "category_type": "age_group"},
-        {"name": "Toddler Circle", "description": "The wild toddler years (1–3 years)", "icon": "🚶", "category_type": "age_group"},
-        {"name": "School Age Circle", "description": "For parents of school-age kids (5–12 years)", "icon": "🎒", "category_type": "age_group"},
-        {"name": "Teenager Circle", "description": "Navigating the teen years (13+)", "icon": "🧑", "category_type": "age_group"},
-        {"name": "Expecting Circle", "description": "Pregnancy support and preparation", "icon": "🤰", "category_type": "age_group"},
+        {"name": "Newborn Space", "description": "For parents of brand new babies (0–3 months)", "icon": "👶", "category_type": "age_group"},
+        {"name": "Infant Space", "description": "First year adventures and challenges (3–12 months)", "icon": "🧒", "category_type": "age_group"},
+        {"name": "Toddler Space", "description": "The wild toddler years (1–4 years)", "icon": "🚶", "category_type": "age_group"},
+        {"name": "School Age Space", "description": "For parents of school-age kids (5–12 years)", "icon": "🎒", "category_type": "age_group"},
+        {"name": "Teenager Space", "description": "Navigating the teen years (13+)", "icon": "🧑", "category_type": "age_group"},
+        {"name": "Expecting Space", "description": "Pregnancy support and preparation", "icon": "🤰", "category_type": "age_group"},
     ]
     
     all_categories = topic_categories + age_categories
@@ -5460,8 +5997,8 @@ async def seed_required_rooms():
     # ── Forum categories (upsert by category_id) ─────────────────────────────
     cats_to_seed = [
         {
-            "category_id": "mum-circle",
-            "name": "Mum Circle",
+            "category_id": "mum-space",
+            "name": "Mums Space",
             "description": "A dedicated space for mums. Share your experience, ask questions, and support each other.",
             "icon": "👩",
             "category_type": "topic",
@@ -5470,8 +6007,8 @@ async def seed_required_rooms():
             "is_active": True,
         },
         {
-            "category_id": "dad-circle",
-            "name": "Dad Circle",
+            "category_id": "dad-space",
+            "name": "Dad Space",
             "description": "A space for dads — no judgment, just real talk about fatherhood.",
             "icon": "👨",
             "category_type": "topic",

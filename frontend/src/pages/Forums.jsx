@@ -18,10 +18,6 @@ export default function Forums({ user }) {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showGuidelines, setShowGuidelines] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
-  const [searching, setSearching] = useState(false);
-
   // Live gender — starts from prop, updates instantly when profile is saved
   const [liveGender, setLiveGender] = useState(user?.gender);
 
@@ -68,26 +64,6 @@ export default function Forums({ user }) {
     }
   };
 
-  const searchPosts = async (q) => {
-    if (!q || q.trim().length < 2) { setSearchResults([]); return; }
-    setSearching(true);
-    try {
-      const res = await fetch(`${API_URL}/api/forums/posts?search=${encodeURIComponent(q.trim())}&limit=20`, { credentials: "include" });
-      if (res.ok) {
-        const data = await res.json();
-        setSearchResults(Array.isArray(data) ? data : (data.posts || []));
-      }
-    } catch {}
-    finally { setSearching(false); }
-  };
-
-  // Debounced search
-  useEffect(() => {
-    const t = setTimeout(() => { if (searchQuery) searchPosts(searchQuery); else setSearchResults([]); }, 400);
-    return () => clearTimeout(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery]);
-
   const handleJoinLeave = async (e, community) => {
     e.preventDefault();
     e.stopPropagation();
@@ -123,7 +99,7 @@ export default function Forums({ user }) {
   const isPremium = user?.subscription_tier === "premium" || user?.role === "admin";
 
   // Support Spaces differentiator: circular icon container in warm secondary tint
-  // vs Chat Circles: square rounded-xl in primary tint
+  // vs Chat Spaces: square rounded-xl in primary tint
   const CategoryCard = ({ category, index, accent }) => (
     <Link
       to={`/forums/${category.category_id}`}
@@ -132,7 +108,7 @@ export default function Forums({ user }) {
     >
       <div className={`bg-card rounded-2xl p-5 border border-border/50 border-l-2 border-l-primary/20 hover:border-primary/30 hover:border-l-primary/40 transition-all h-full card-hover ${accent ? accent : ""}`}>
         <div className="flex items-start gap-4">
-          {/* Circular icon — key differentiator from Chat Circles (square) */}
+          {/* Circular icon — key differentiator from Chat Spaces (square) */}
           <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center text-2xl flex-shrink-0">
             {category.icon}
           </div>
@@ -272,6 +248,34 @@ export default function Forums({ user }) {
   const isMum = (c) => /\bmum\b/i.test(c.name);
   const isDad = (c) => /\bdad\b/i.test(c.name);
 
+  // Community search + sort state
+  const [communitySearch, setCommunitySearch] = useState("");
+  const [communitySort, setCommunitySort] = useState("popular");   // popular | newest | members | posts
+  const [communityFilter, setCommunityFilter] = useState("all");   // all | local | joined | open | private
+
+  const filteredCommunities = communities
+    .filter(c => {
+      if (communitySearch.trim()) {
+        const q = communitySearch.toLowerCase();
+        return c.name?.toLowerCase().includes(q) || c.description?.toLowerCase().includes(q);
+      }
+      return true;
+    })
+    .filter(c => {
+      if (communityFilter === "local")   return c.community_subtype === "local";
+      if (communityFilter === "joined")  return c.is_member;
+      if (communityFilter === "open")    return !c.is_private;
+      if (communityFilter === "private") return c.is_private;
+      return true;
+    })
+    .sort((a, b) => {
+      if (communitySort === "newest")  return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+      if (communitySort === "members") return (b.member_count || 0) - (a.member_count || 0);
+      if (communitySort === "posts")   return (b.post_count || 0) - (a.post_count || 0);
+      // popular: weighted score
+      return ((b.member_count || 0) * 2 + (b.post_count || 0)) - ((a.member_count || 0) * 2 + (a.post_count || 0));
+    });
+
   return (
     <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
       <Navigation user={user} />
@@ -293,50 +297,6 @@ export default function Forums({ user }) {
             <BookOpen className="h-4 w-4 mr-2" />
             Guidelines
           </Button>
-        </div>
-
-        {/* Search bar */}
-        <div className="relative mb-6">
-          <div className="flex items-center gap-2 bg-card border border-border/50 rounded-2xl px-4 py-3">
-            <Search className="h-4 w-4 text-muted-foreground shrink-0" />
-            <input
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && e.preventDefault()}
-              placeholder="Search posts and topics..."
-              className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
-            />
-            {searchQuery && (
-              <button onClick={() => { setSearchQuery(""); setSearchResults([]); }} className="text-muted-foreground hover:text-foreground">
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-          {/* Search results dropdown */}
-          {searchQuery.length >= 2 && (
-            <div className="absolute top-full left-0 right-0 z-50 mt-2 bg-card border border-border/50 rounded-2xl shadow-lg overflow-hidden">
-              {searching && (
-                <div className="p-4 text-center text-sm text-muted-foreground">Searching...</div>
-              )}
-              {!searching && searchResults.length === 0 && searchQuery.length >= 2 && (
-                <div className="p-4 text-center text-sm text-muted-foreground">No posts found for "{searchQuery}"</div>
-              )}
-              {!searching && searchResults.filter(post => post?.post_id).map(post => (
-                <Link
-                  key={post.post_id}
-                  to={`/forums/post/${post.post_id}`}
-                  onClick={() => { setSearchQuery(""); setSearchResults([]); }}
-                  className="flex items-start gap-3 px-4 py-3 hover:bg-secondary/50 border-b border-border/30 last:border-0 transition-colors"
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground line-clamp-1">{post.title}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{post.body?.substring(0, 80)}</p>
-                  </div>
-                  <span className="text-xs text-muted-foreground shrink-0 mt-0.5">{post.reply_count} replies</span>
-                </Link>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* Group Chats shortcut — visible on mobile only (desktop has nav link) */}
@@ -473,6 +433,55 @@ export default function Forums({ user }) {
               )}
             </div>
 
+            {/* Search + Sort + Filter (only shown when communities are accessible) */}
+            {isPremium && !loading && (
+              <div className="flex flex-col sm:flex-row gap-2 mb-5">
+                {/* Search */}
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <input
+                    value={communitySearch}
+                    onChange={e => setCommunitySearch(e.target.value)}
+                    placeholder="Search communities…"
+                    className="w-full pl-9 pr-3 py-2 text-sm rounded-xl bg-card border border-border/50 text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/40"
+                    style={{ height: 38 }}
+                  />
+                  {communitySearch && (
+                    <button onClick={() => setCommunitySearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+                {/* Filter pills */}
+                <div className="flex gap-1.5 flex-wrap sm:flex-nowrap">
+                  {[
+                    { id: "all",     label: "All" },
+                    { id: "local",   label: "📍 Local" },
+                    { id: "joined",  label: "✓ Joined" },
+                    { id: "open",    label: "Open" },
+                  ].map(f => (
+                    <button key={f.id} onClick={() => setCommunityFilter(f.id)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${communityFilter === f.id ? "bg-primary text-primary-foreground" : "bg-card border border-border/50 text-muted-foreground hover:text-foreground"}`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+                {/* Sort select */}
+                <select
+                  value={communitySort}
+                  onChange={e => setCommunitySort(e.target.value)}
+                  className="px-3 py-1.5 rounded-xl text-xs font-medium bg-card border border-border/50 text-foreground outline-none cursor-pointer"
+                  style={{ height: 38 }}
+                >
+                  <option value="popular">Most popular</option>
+                  <option value="newest">Newest</option>
+                  <option value="members">Most members</option>
+                  <option value="posts">Most active</option>
+                </select>
+              </div>
+            )}
+
             {!isPremium ? (
               /* Village+ upgrade wall */
               <div className="rounded-2xl border border-border/50 bg-card overflow-hidden">
@@ -526,45 +535,29 @@ export default function Forums({ user }) {
                   </Link>
                 )}
               </div>
+            ) : filteredCommunities.length === 0 ? (
+              <div className="text-center py-12 bg-card rounded-2xl border border-border/50">
+                <span className="text-4xl mb-3 block">🔍</span>
+                <h3 className="font-heading font-semibold text-foreground mb-1">No communities match</h3>
+                <p className="text-sm text-muted-foreground">Try a different search or filter.</p>
+                <button onClick={() => { setCommunitySearch(""); setCommunityFilter("all"); }}
+                  className="mt-3 text-xs text-primary underline underline-offset-2">
+                  Clear filters
+                </button>
+              </div>
             ) : (
               <>
-                {/* Local Communities */}
-                {communities.filter(c => c.community_subtype === "local").length > 0 && (
-                  <div className="mb-8">
-                    <div className="flex items-center gap-2 mb-4">
-                      <MapPin className="h-4 w-4 text-primary" />
-                      <h2 className="font-heading font-semibold text-foreground">Local Communities</h2>
-                      <span className="text-xs text-muted-foreground">({communities.filter(c => c.community_subtype === "local").length})</span>
-                    </div>
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {communities
-                        .filter(c => c.community_subtype === "local")
-                        .map((community, idx) => (
-                          <CommunityCard key={community.category_id} community={community} index={`local-${idx}`} />
-                        ))}
-                    </div>
-                  </div>
+                {/* Result count when filters active */}
+                {(communitySearch || communityFilter !== "all") && (
+                  <p className="text-xs text-muted-foreground mb-3">
+                    {filteredCommunities.length} of {communities.length} communities
+                  </p>
                 )}
-
-                {/* General Communities */}
-                {communities.filter(c => c.community_subtype !== "local").length > 0 && (
-                  <div>
-                    {communities.filter(c => c.community_subtype === "local").length > 0 && (
-                      <div className="flex items-center gap-2 mb-4">
-                        <Users className="h-4 w-4 text-primary" />
-                        <h2 className="font-heading font-semibold text-foreground">General Communities</h2>
-                        <span className="text-xs text-muted-foreground">({communities.filter(c => c.community_subtype !== "local").length})</span>
-                      </div>
-                    )}
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {communities
-                        .filter(c => c.community_subtype !== "local")
-                        .map((community, idx) => (
-                          <CommunityCard key={community.category_id} community={community} index={idx} />
-                        ))}
-                    </div>
-                  </div>
-                )}
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredCommunities.map((community, idx) => (
+                    <CommunityCard key={community.category_id} community={community} index={idx} />
+                  ))}
+                </div>
               </>
             )}
           </TabsContent>

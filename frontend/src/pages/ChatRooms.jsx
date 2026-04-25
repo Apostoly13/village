@@ -54,7 +54,7 @@ export default function ChatRooms({ user }) {
   // Live gender — starts from prop, updates instantly when profile is saved
   const [liveGender, setLiveGender] = useState(user?.gender);
 
-  // Local Circles search state (replaces the separate Search tab)
+  // Local Chats search state (replaces the separate Search tab)
   const [localSearch, setLocalSearch] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searchCanCreate, setSearchCanCreate] = useState(false);
@@ -200,7 +200,7 @@ export default function ChatRooms({ user }) {
     }
   };
 
-  // Debounced search within Local Circles tab
+  // Debounced search within Local Chats tab
   useEffect(() => {
     if (activeTab !== "local" || localSearch.length < 2) {
       setSearchResults([]);
@@ -477,9 +477,9 @@ export default function ChatRooms({ user }) {
             )}
           </TabsContent>
 
-          {/* ── Local Circles (My Area + search) ── */}
+          {/* ── Local Chats (My Area + search) ── */}
           <TabsContent value="local" className="mt-0">
-            {/* Search bar always visible in Local Circles */}
+            {/* Search bar always visible in Local Chats */}
             <div className="mb-5">
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />

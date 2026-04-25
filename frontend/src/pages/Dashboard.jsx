@@ -243,6 +243,10 @@ export default function Dashboard({ user }) {
   const [recentActivity, setRecentActivity] = useState([]);
   const [userCommunities, setUserCommunities] = useState([]);
   const [showDowngradeNotice, setShowDowngradeNotice] = useState(false);
+  const [pinnedAnnouncements, setPinnedAnnouncements] = useState([]);
+  const [dismissedAnnouncements, setDismissedAnnouncements] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("village_dismissed_announcements") || "[]"); } catch { return []; }
+  });
   // Live gender — starts from prop, updates instantly when profile is saved
   const [liveGender, setLiveGender] = useState(user?.gender);
 
@@ -343,6 +347,7 @@ export default function Dashboard({ user }) {
       fetchSubscription(),
       fetchBusyChatRooms(),
       fetchRecentActivity(),
+      fetchPinnedAnnouncements(),
     ]);
     // Onboarding is now a standalone page (/onboarding) — ProtectedRoute handles the redirect
 
@@ -512,6 +517,19 @@ export default function Dashboard({ user }) {
     } catch {}
   };
 
+  const fetchPinnedAnnouncements = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/announcements/active`, { credentials: "include" });
+      if (res.ok) setPinnedAnnouncements(await res.json());
+    } catch {}
+  };
+
+  const dismissAnnouncement = (id) => {
+    const updated = [...dismissedAnnouncements, id];
+    setDismissedAnnouncements(updated);
+    try { localStorage.setItem("village_dismissed_announcements", JSON.stringify(updated)); } catch {}
+  };
+
   const markNotificationRead = async (notificationId) => {
     // Optimistically clear it from unread state
     setRecentActivity(prev =>
@@ -564,6 +582,39 @@ export default function Dashboard({ user }) {
       <Navigation user={user} />
 
       <main className="max-w-5xl mx-auto px-4 pt-16 lg:pt-8">
+
+        {/* ── Pinned admin announcements ── */}
+        {pinnedAnnouncements
+          .filter(a => !dismissedAnnouncements.includes(a.announcement_id))
+          .map(a => (
+            <div key={a.announcement_id} className="mb-4 rounded-2xl p-4 bg-primary/8 border border-primary/20 shadow-sm">
+              <div className="flex items-start gap-3">
+                <span className="text-xl shrink-0">📢</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground leading-snug">{a.title}</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed mt-0.5">{a.message}</p>
+                  <div className="flex items-center gap-3 mt-2">
+                    {a.link && (
+                      <a
+                        href={a.link.startsWith("http") ? a.link : a.link}
+                        {...(a.link.startsWith("http") ? { target: "_blank", rel: "noreferrer" } : {})}
+                        className="text-xs text-primary font-medium hover:underline"
+                      >
+                        Learn more →
+                      </a>
+                    )}
+                    <button
+                      onClick={() => dismissAnnouncement(a.announcement_id)}
+                      className="text-xs text-muted-foreground hover:text-foreground transition-colors ml-auto flex items-center gap-1"
+                    >
+                      <X className="h-3 w-3" />Dismiss
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))
+        }
 
         {/* ── Downgrade notice (one-time, shown on first login after trial expires) ── */}
         {showDowngradeNotice && (
@@ -974,6 +1025,11 @@ export default function Dashboard({ user }) {
                                 className="font-mono text-[9px] uppercase tracking-[0.12em] shrink-0 hidden sm:inline"
                                 style={{ color: "var(--ink-3)" }}
                               >
+                                {post.is_community_post && (
+                                  <span className="inline-flex items-center gap-0.5 mr-1.5 px-1.5 py-0.5 rounded-full text-[8px] font-semibold uppercase tracking-wide" style={{ background: "hsl(var(--accent)/0.12)", color: "hsl(var(--accent))" }}>
+                                    Community
+                                  </span>
+                                )}
                                 {post.category_name} · {fmtRelative(post.created_at)}
                               </span>
                             </div>
@@ -1140,7 +1196,7 @@ export default function Dashboard({ user }) {
                   : "You're all caught up ✓"}
               </h3>
 
-              {recentActivity.length === 0 ? (
+              {unreadActivity.length === 0 ? (
                 <div className="py-4 space-y-2">
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     Replies, likes, and friend requests will show up here as you get involved.
@@ -1151,19 +1207,15 @@ export default function Dashboard({ user }) {
                 </div>
               ) : (
                 <div className="space-y-1.5">
-                  {recentActivity.slice(0, 6).map((n, i) => (
+                  {unreadActivity.map((n, i) => (
                     <Link
                       key={n.notification_id || i}
                       to={n.link || "#"}
-                      onClick={() => n.notification_id && !n.is_read && markNotificationRead(n.notification_id)}
-                      className={`flex items-start gap-2.5 p-2.5 rounded-xl transition-colors group ${
-                        !n.is_read
-                          ? "bg-primary/5 border border-primary/10 hover:bg-primary/10"
-                          : "hover:bg-secondary/50"
-                      }`}
+                      onClick={() => n.notification_id && markNotificationRead(n.notification_id)}
+                      className="flex items-start gap-2.5 p-2.5 rounded-xl bg-primary/5 border border-primary/10 hover:bg-primary/10 transition-colors group"
                     >
-                      <span className={`text-sm shrink-0 mt-0.5 ${n.is_read ? "opacity-50" : ""}`}>{typeEmoji(n.type)}</span>
-                      <p className={`text-xs line-clamp-2 flex-1 leading-relaxed group-hover:text-foreground transition-colors ${n.is_read ? "text-foreground/60" : "text-foreground"}`}>
+                      <span className="text-sm shrink-0 mt-0.5">{typeEmoji(n.type)}</span>
+                      <p className="text-xs line-clamp-2 flex-1 leading-relaxed text-foreground group-hover:text-primary transition-colors">
                         {n.message}
                       </p>
                       <span className="text-[10px] text-muted-foreground/60 shrink-0 whitespace-nowrap mt-0.5">{fmtRelative(n.created_at)}</span>
@@ -1238,8 +1290,8 @@ export default function Dashboard({ user }) {
               </div>
             )}
 
-            {/* Communities quick jump */}
-            {userCommunities.length > 0 && (
+            {/* Communities quick jump — Village+ only */}
+            {user?.subscription_tier === "premium" && userCommunities.length > 0 && (
               <div className="bg-card rounded-2xl border border-border/40 p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-heading font-semibold text-sm text-foreground">Your communities</h3>
