@@ -3,13 +3,34 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
+import { Textarea } from "../components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { toast } from "sonner";
-import { ArrowLeft, Eye, EyeOff, Check } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Check, Stethoscope } from "lucide-react";
 import { Checkbox } from "../components/ui/checkbox";
 import { parseApiError } from "../utils/apiError";
 import { Wordmark } from "../components/Wordmark";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
+
+const PROFESSIONAL_TYPES = [
+  "General Practitioner (GP)",
+  "Paediatrician",
+  "Obstetrician / Gynaecologist",
+  "Midwife",
+  "Child & Family Health Nurse",
+  "Lactation Consultant",
+  "Psychologist",
+  "Psychiatrist",
+  "Social Worker",
+  "Occupational Therapist",
+  "Speech Pathologist",
+  "Physiotherapist",
+  "Dietitian / Nutritionist",
+  "Pharmacist",
+  "Nurse Practitioner",
+  "Other Healthcare Professional",
+];
 
 function calculateAge(dobString) {
   if (!dobString) return null;
@@ -40,6 +61,12 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Professional verification fields (shown inline when isHealthcarePro is checked)
+  const [proType, setProType] = useState("");
+  const [proWorkplace, setProWorkplace] = useState("");
+  const [proCredentials, setProCredentials] = useState("");
+  const [proServicesUrl, setProServicesUrl] = useState("");
+
   const passwordRequirements = [
     { label: "At least 8 characters",  met: password.length >= 8 },
     { label: "One uppercase letter",    met: /[A-Z]/.test(password) },
@@ -49,6 +76,10 @@ export default function Register() {
   const passwordValid = passwordRequirements.every((r) => r.met);
   const age = calculateAge(dob);
   const dobValid = age !== null && age >= 18;
+
+  const proFormValid = !isHealthcarePro || (
+    proType && proWorkplace.trim() && proCredentials.trim() && proServicesUrl.trim()
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -81,6 +112,12 @@ export default function Register() {
       toast.error("Please accept the Terms & Conditions and Privacy Policy to continue");
       return;
     }
+    if (isHealthcarePro) {
+      if (!proType) { toast.error("Please select your professional type"); return; }
+      if (!proWorkplace.trim()) { toast.error("Please enter your workplace or organisation"); return; }
+      if (!proCredentials.trim()) { toast.error("Please describe your credentials"); return; }
+      if (!proServicesUrl.trim()) { toast.error("Please provide a link to your professional services page"); return; }
+    }
 
     setLoading(true);
 
@@ -104,10 +141,27 @@ export default function Register() {
 
       if (response.ok) {
         localStorage.setItem("user", JSON.stringify(data));
-        // If they flagged as a healthcare pro, send them to their profile to apply after onboarding
-        if (isHealthcarePro) {
-          localStorage.setItem("village_pending_pro_verify", "1");
+
+        // If they filled out the professional verification form, submit it now
+        if (isHealthcarePro && proType && proWorkplace.trim() && proCredentials.trim() && proServicesUrl.trim()) {
+          try {
+            await fetch(`${API_URL}/api/users/professional-apply`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({
+                professional_type: proType,
+                professional_credentials: proCredentials.trim(),
+                professional_workplace: proWorkplace.trim(),
+                professional_services_url: proServicesUrl.trim(),
+              }),
+            });
+            // Don't block registration even if this fails — user can resubmit from profile
+          } catch {
+            // Silently fail — they can apply from profile
+          }
         }
+
         navigate("/onboarding");
       } else {
         toast.error(parseApiError(data.detail, "Registration failed"));
@@ -124,7 +178,7 @@ export default function Register() {
     toast.error("Google login is not yet configured for local development");
   };
 
-  const canSubmit = !loading && passwordValid && firstName.trim() && lastName.trim() && dobValid && agreedToTerms;
+  const canSubmit = !loading && passwordValid && firstName.trim() && lastName.trim() && dobValid && agreedToTerms && proFormValid;
 
   return (
     <div className="min-h-screen flex" style={{ background: "var(--paper)" }}>
@@ -352,17 +406,84 @@ export default function Register() {
               </div>
             </div>
 
-            {/* Healthcare professional opt-in */}
-            <div className="flex items-start gap-3 rounded-xl border border-border/50 bg-sky-500/5 px-4 py-3.5">
-              <Checkbox
-                id="hcp-check"
-                checked={isHealthcarePro}
-                onCheckedChange={(checked) => setIsHealthcarePro(!!checked)}
-                className="mt-0.5 h-5 w-5 shrink-0"
-              />
-              <label htmlFor="hcp-check" className="text-sm text-muted-foreground leading-relaxed cursor-pointer select-none">
-                I'm a <span className="font-medium text-foreground">healthcare professional</span> — I'd like to apply for a verified badge after joining.
-              </label>
+            {/* Healthcare professional opt-in + inline form */}
+            <div className="rounded-xl border border-sky-500/30 bg-sky-500/5 overflow-hidden">
+              <div className="flex items-start gap-3 px-4 py-3.5">
+                <Checkbox
+                  id="hcp-check"
+                  checked={isHealthcarePro}
+                  onCheckedChange={(checked) => setIsHealthcarePro(!!checked)}
+                  className="mt-0.5 h-5 w-5 shrink-0"
+                />
+                <label htmlFor="hcp-check" className="text-sm text-muted-foreground leading-relaxed cursor-pointer select-none">
+                  I'm a <span className="font-medium text-foreground">healthcare professional</span> — I'd like to apply for a verified badge.
+                </label>
+              </div>
+
+              {isHealthcarePro && (
+                <div className="border-t border-sky-500/20 px-4 pb-4 pt-3 space-y-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Stethoscope className="h-4 w-4 text-sky-500" />
+                    <p className="text-xs font-medium text-sky-600 dark:text-sky-400">Professional verification application</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Your application will be reviewed by our team. Your verified badge will appear once approved.</p>
+
+                  {/* Professional type */}
+                  <div>
+                    <label className="text-xs font-medium text-foreground mb-1.5 block">Professional type</label>
+                    <Select value={proType} onValueChange={setProType}>
+                      <SelectTrigger className="rounded-xl text-sm" style={{ height: 40, background: "var(--paper)", border: "1px solid var(--line)" }}>
+                        <SelectValue placeholder="Select your role…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PROFESSIONAL_TYPES.map(t => (
+                          <SelectItem key={t} value={t}>{t}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Workplace */}
+                  <div>
+                    <label className="text-xs font-medium text-foreground mb-1.5 block">Workplace / Organisation</label>
+                    <Input
+                      value={proWorkplace}
+                      onChange={e => setProWorkplace(e.target.value)}
+                      placeholder="e.g. Royal Hospital for Women, private practice"
+                      className="rounded-xl text-sm"
+                      style={{ height: 40, background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
+                    />
+                  </div>
+
+                  {/* Credentials */}
+                  <div>
+                    <label className="text-xs font-medium text-foreground mb-1.5 block">Credentials &amp; experience</label>
+                    <Textarea
+                      value={proCredentials}
+                      onChange={e => setProCredentials(e.target.value)}
+                      placeholder="Describe your qualifications, registration number, years of experience."
+                      className="rounded-xl resize-none text-sm"
+                      rows={3}
+                      maxLength={2000}
+                      style={{ background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1 text-right">{proCredentials.length}/2000</p>
+                  </div>
+
+                  {/* Services URL */}
+                  <div>
+                    <label className="text-xs font-medium text-foreground mb-1.5 block">Professional services link</label>
+                    <Input
+                      value={proServicesUrl}
+                      onChange={e => setProServicesUrl(e.target.value)}
+                      placeholder="e.g. https://yourwebsite.com.au, hospital profile, LinkedIn"
+                      className="rounded-xl text-sm"
+                      style={{ height: 40, background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Link to your website, clinic profile, or professional directory listing.</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <Button

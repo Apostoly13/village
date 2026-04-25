@@ -102,6 +102,7 @@ function ProfilePage({ user }) {
   const [proType, setProType] = useState("");
   const [proCredentials, setProCredentials] = useState("");
   const [proWorkplace, setProWorkplace] = useState("");
+  const [proServicesUrl, setProServicesUrl] = useState("");
   const [proLoading, setProLoading] = useState(false);
   const [emailPrefs, setEmailPrefs] = useState({
     notify_replies: true,
@@ -237,14 +238,16 @@ function ProfilePage({ user }) {
 
   const submitProfessionalApp = async () => {
     if (!proType) { toast.error("Please select your professional type"); return; }
+    if (!proWorkplace.trim()) { toast.error("Please enter your workplace or organisation"); return; }
     if (!proCredentials.trim()) { toast.error("Please describe your credentials"); return; }
+    if (!proServicesUrl.trim()) { toast.error("Please provide a link to your professional services page"); return; }
     setProLoading(true);
     try {
       const res = await fetch(`${API_URL}/api/users/professional-apply`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ professional_type: proType, professional_credentials: proCredentials.trim(), professional_workplace: proWorkplace.trim() }),
+        body: JSON.stringify({ professional_type: proType, professional_credentials: proCredentials.trim(), professional_workplace: proWorkplace.trim(), professional_services_url: proServicesUrl.trim() }),
       });
       const data = await res.json();
       if (res.ok) { toast.success("Application submitted! A moderator will review it shortly."); }
@@ -1407,7 +1410,7 @@ function ProfilePage({ user }) {
                   </Select>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-foreground mb-1.5 block">Workplace / Organisation <span className="text-muted-foreground font-normal">(optional)</span></label>
+                  <label className="text-sm font-medium text-foreground mb-1.5 block">Workplace / Organisation</label>
                   <input
                     value={proWorkplace}
                     onChange={e => setProWorkplace(e.target.value)}
@@ -1421,7 +1424,7 @@ function ProfilePage({ user }) {
                   <Textarea
                     value={proCredentials}
                     onChange={e => setProCredentials(e.target.value)}
-                    placeholder="Describe your qualifications, registration number, years of experience, or link to professional profile. This is reviewed by our team."
+                    placeholder="Describe your qualifications, registration number, years of experience. This is reviewed by our team."
                     className="rounded-xl resize-none"
                     rows={4}
                     maxLength={2000}
@@ -1429,9 +1432,20 @@ function ProfilePage({ user }) {
                   />
                   <p className="text-xs text-muted-foreground mt-1 text-right">{proCredentials.length}/2000</p>
                 </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1.5 block">Professional services link</label>
+                  <input
+                    value={proServicesUrl}
+                    onChange={e => setProServicesUrl(e.target.value)}
+                    placeholder="e.g. https://yourwebsite.com.au, hospital profile, LinkedIn"
+                    className="w-full rounded-xl px-3 py-2 text-sm"
+                    style={{ height: 40, background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)", outline: "none" }}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Link to your website, hospital/clinic profile, or professional directory listing.</p>
+                </div>
                 <Button
                   onClick={submitProfessionalApp}
-                  disabled={proLoading || !proType || !proCredentials.trim()}
+                  disabled={proLoading || !proType || !proWorkplace.trim() || !proCredentials.trim() || !proServicesUrl.trim()}
                   className="rounded-full"
                   style={{ background: "var(--ink)", color: "var(--paper)", height: 40 }}
                 >

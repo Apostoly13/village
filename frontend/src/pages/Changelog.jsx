@@ -5,6 +5,27 @@ import AppFooter from "../components/AppFooter";
 
 const CHANGELOG = [
   {
+    version: "3.6.0",
+    date: "April 2026",
+    title: "Village Stall, Pro Verification & UX Polish",
+    entries: [
+      { tag: "Added",     text: "Village Stall (marketplace) fully integrated — buy, sell, swap and give away baby gear locally. Available to Village+ and trial subscribers. Accessible from a new dedicated 'Stall' nav item on desktop sidebar and mobile menu." },
+      { tag: "Added",     text: "Stall listing creation: 5-step wizard — photos, item details, pricing/condition, location, and review. Supports selling, swapping, giving away, and 'wanted' listings with up to 4 photos." },
+      { tag: "Added",     text: "Donation Groups: community giving pools for families to share items. Village+ members can create and join groups, post items into a group, and browse groups near them." },
+      { tag: "Added",     text: "Stall listing save/bookmark: save any listing to revisit later. Saved listings visible in the 'Saved' tab within the Stall section." },
+      { tag: "Added",     text: "In-app Stall messaging: enquire about any listing with a direct message to the seller. Enquiry count tracked per listing." },
+      { tag: "Added",     text: "Trial expiry auto-pause: when a trial subscription expires, all active Stall listings are automatically paused with a notice to the seller. Paused listings are permanently deleted after 7 days if not reinstated." },
+      { tag: "Added",     text: "Professional verification form now inline on the registration page — healthcare professionals can fill in their full verification application (type, workplace, credentials, services URL) during sign-up, not just after." },
+      { tag: "Improved",  text: "Professional verification form (on Profile) now requires all four fields — professional type, workplace/organisation, credentials, and professional services URL. All fields are mandatory before submitting." },
+      { tag: "Improved",  text: "Trial banner on Dashboard no longer shows specific counts (posts/messages per week). Now says 'limited functionality' with a 'See what's included' link to the Village+ comparison page." },
+      { tag: "Improved",  text: "Your Communities dashboard widget now always shows for Village+ subscribers — even with 0 communities joined, shows an 'Explore communities' prompt instead of hiding completely." },
+      { tag: "Improved",  text: "Your Communities data is now fetched immediately on dashboard load for premium users, not deferred inside the subscription status callback." },
+      { tag: "Performance", text: "MongoDB indexes added for Stall collections: stall_listings (seller_id, status, listing_type/category), stall_saves (listing_id + user_id unique), stall_messages (thread lookup, unread count), donation_groups (status + date)." },
+      { tag: "Fixed",     text: "Tooltip must be used within TooltipProvider crash — Navigation sidebar locked-item tooltips now wrap each Tooltip in its own TooltipProvider, preventing the runtime error that blocked sign-in." },
+      { tag: "Fixed",     text: "All Stall pages (Stall, listing detail, create listing, donation group detail, create donation group) now have correct lg:pl-60 sidebar offset and pt-16 lg:pt-8 top padding, matching all other pages in the app." },
+    ],
+  },
+  {
     version: "3.5.0",
     date: "April 2026",
     title: "Messaging Improvements, Landing Mobile Experience & UX Fixes",

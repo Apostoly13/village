@@ -13,7 +13,7 @@ import {
 } from "./ui/dropdown-menu";
 import { ScrollArea } from "./ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
-import { Mail, User, LogOut, Menu, X, Moon, Sun, UserPlus, Bell, Bookmark, Shield, ScrollText, BookOpen, Calendar, Lock, FileText, Settings, Crown, ChevronDown, Home } from "lucide-react";
+import { Mail, User, LogOut, Menu, X, Moon, Sun, UserPlus, Bell, Bookmark, Shield, ScrollText, BookOpen, Calendar, Lock, FileText, Settings, Crown, ChevronDown, Home, ShoppingBag } from "lucide-react";
 import { IconHome, IconChat, IconCal, IconPeople, IconHeart, IconMail, IconShield, IconCog, IconSpaces } from "../icons";
 import { toast } from "sonner";
 import { FEATURES } from "../config/features";
@@ -206,6 +206,7 @@ export default function Navigation({ user }) {
               { label: "Friends",       href: "/chat?tab=friends" },
             ]},
             { Icon: IconCal,    label: "Events",    href: isFree ? "/plus" : "/events",     testId: "nav-events",   locked: isFree },
+            { Icon: ShoppingBag, label: "Stall",   href: isFree ? "/plus" : "/stall",      testId: "nav-stall",    locked: isFree },
             { Icon: IconMail,   label: "Messages",  href: isFree ? "/plus" : "/messages",   testId: "nav-messages", locked: isFree, badge: isFree ? 0 : unreadMessages },
             { Icon: IconPeople, label: "Friends",   href: "/friends",                        testId: "nav-friends-link", badge: friendRequestCount },
             { Icon: IconHeart,  label: "Saved",     href: "/saved",                         testId: "nav-saved" },
@@ -257,12 +258,14 @@ export default function Navigation({ user }) {
             }
             if (item.locked) {
               return (
-                <Tooltip key={item.testId}>
-                  <TooltipTrigger asChild>
-                    <Link to={item.href} data-testid={item.testId} className="block">{inner}</Link>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" className="text-xs">Village+ feature</TooltipContent>
-                </Tooltip>
+                <TooltipProvider key={item.testId} delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Link to={item.href} data-testid={item.testId} className="block">{inner}</Link>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="text-xs">Village+ feature</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               );
             }
             return <Link key={item.testId} to={item.href} data-testid={item.testId} className="block">{inner}</Link>;
@@ -454,6 +457,16 @@ export default function Navigation({ user }) {
             >
               <Calendar className="h-5 w-5" />
               Events
+              {isFree && <Lock className="h-3.5 w-3.5 ml-auto opacity-60" />}
+            </Link>
+
+            <Link
+              to={isFree ? "/plus" : "/stall"}
+              onClick={() => setMobileMenuOpen(false)}
+              className={`flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 ${isFree ? "text-muted-foreground/60" : "text-foreground"}`}
+            >
+              <ShoppingBag className="h-5 w-5" />
+              Stall
               {isFree && <Lock className="h-3.5 w-3.5 ml-auto opacity-60" />}
             </Link>
 

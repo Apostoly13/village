@@ -348,6 +348,7 @@ export default function Dashboard({ user }) {
       fetchBusyChatRooms(),
       fetchRecentActivity(),
       fetchPinnedAnnouncements(),
+      ...(user?.subscription_tier === "premium" ? [fetchUserCommunities()] : []),
     ]);
     // Onboarding is now a standalone page (/onboarding) — ProtectedRoute handles the redirect
 
@@ -424,7 +425,6 @@ export default function Dashboard({ user }) {
       if (res.ok) {
         const data = await res.json();
         setSubscription(data);
-        if (data?.tier === "premium") fetchUserCommunities();
       }
     } catch {}
   };
@@ -679,8 +679,9 @@ export default function Dashboard({ user }) {
                   {daysLeft <= 1 ? "Your free trial ends tomorrow" : `${daysLeft} days left on your free trial`}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                  After your trial you'll move to the free tier — 5 posts/week, 5 replies/week, 10 chats/day, no Events, Communities or Direct Messages.{" "}
-                  <Link to="/plus" className="text-primary underline">Upgrade to Village+</Link> to keep full access and support the community.
+                  After your trial you'll have limited functionality.{" "}
+                  <Link to="/plus" className="text-primary underline">See what's included</Link> or{" "}
+                  <Link to="/plus" className="text-primary underline font-medium">upgrade to Village+</Link> to keep full access.
                 </p>
               </div>
             </div>
@@ -1291,23 +1292,30 @@ export default function Dashboard({ user }) {
             )}
 
             {/* Communities quick jump — Village+ only */}
-            {user?.subscription_tier === "premium" && userCommunities.length > 0 && (
+            {user?.subscription_tier === "premium" && (
               <div className="bg-card rounded-2xl border border-border/40 p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-heading font-semibold text-sm text-foreground">Your communities</h3>
                   <Link to="/forums?tab=communities" className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">See all</Link>
                 </div>
-                <div className="space-y-1">
-                  {userCommunities.slice(0, 4).map(c => (
-                    <Link key={c.category_id} to={`/community/${c.category_id}`} className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-secondary/50 transition-colors group">
-                      <span className="text-base w-7 text-center shrink-0">{c.icon || "💬"}</span>
-                      <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors flex-1 truncate">{c.name}</p>
-                      {c.member_count > 0 && (
-                        <span className="text-xs text-muted-foreground shrink-0">{c.member_count} members</span>
-                      )}
-                    </Link>
-                  ))}
-                </div>
+                {userCommunities.length > 0 ? (
+                  <div className="space-y-1">
+                    {userCommunities.slice(0, 4).map(c => (
+                      <Link key={c.category_id} to={`/community/${c.category_id}`} className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-secondary/50 transition-colors group">
+                        <span className="text-base w-7 text-center shrink-0">{c.icon || "💬"}</span>
+                        <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors flex-1 truncate">{c.name}</p>
+                        {c.member_count > 0 && (
+                          <span className="text-xs text-muted-foreground shrink-0">{c.member_count}</span>
+                        )}
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-2 text-center">
+                    <p className="text-xs text-muted-foreground mb-2">You haven't joined any communities yet.</p>
+                    <Link to="/forums?tab=communities" className="text-xs text-primary hover:underline font-medium">Explore communities →</Link>
+                  </div>
+                )}
               </div>
             )}
 

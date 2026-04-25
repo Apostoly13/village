@@ -43,6 +43,11 @@ import SubscriptionCancel from "./pages/SubscriptionCancel";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import ForClinicians from "./pages/ForClinicians";
+import Stall from "./pages/Stall";
+import StallListingDetail from "./pages/StallListingDetail";
+import CreateStallListing from "./pages/CreateStallListing";
+import DonationGroupDetail from "./pages/DonationGroupDetail";
+import CreateDonationGroup from "./pages/CreateDonationGroup";
 import ChatPopout from "./components/ChatPopout";
 import PWAInstallBanner from "./components/PWAInstallBanner";
 
@@ -341,6 +346,31 @@ const AppRouter = () => {
         </ProtectedRoute>
       } />
       <Route path="/community-guidelines" element={<CommunityGuidelines />} />
+      <Route path="/stall" element={
+        <ProtectedRoute>
+          {({ user }) => <Stall user={user} />}
+        </ProtectedRoute>
+      } />
+      <Route path="/stall/new" element={
+        <ProtectedRoute>
+          {({ user }) => <CreateStallListing user={user} />}
+        </ProtectedRoute>
+      } />
+      <Route path="/stall/listing/:listingId" element={
+        <ProtectedRoute>
+          {({ user }) => <StallListingDetail user={user} />}
+        </ProtectedRoute>
+      } />
+      <Route path="/stall/groups/new" element={
+        <ProtectedRoute>
+          {({ user }) => <CreateDonationGroup user={user} />}
+        </ProtectedRoute>
+      } />
+      <Route path="/stall/groups/:groupId" element={
+        <ProtectedRoute>
+          {({ user }) => <DonationGroupDetail user={user} />}
+        </ProtectedRoute>
+      } />
       <Route path="/plus" element={<VillagePlus user={popoutUser} />} />
       <Route path="/subscription/success" element={<SubscriptionSuccess user={popoutUser} />} />
       <Route path="/subscription/cancel" element={<SubscriptionCancel user={popoutUser} />} />

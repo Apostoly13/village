@@ -260,6 +260,7 @@ class ForumPost(BaseModel):
     author_name: str
     author_picture: Optional[str] = None
     author_subscription_tier: str = "free"
+    author_is_verified_partner: bool = False
     is_anonymous: bool = False
     is_pinned: bool = False
     is_edited: bool = False
@@ -312,6 +313,7 @@ class ForumReply(BaseModel):
     author_name: str
     author_picture: Optional[str] = None
     author_subscription_tier: str = "free"
+    author_is_verified_partner: bool = False
     is_anonymous: bool = False
     content: str
     like_count: int = 0
@@ -1791,11 +1793,17 @@ async def get_post(post_id: str, user: dict = Depends(get_current_user)):
     
     post["user_liked"] = bool(user_liked)
     post["user_bookmarked"] = bool(user_bookmarked)
-    
+
     # Store original author_id for edit/delete check
     original_author_id = post["author_id"]
     post["is_own_post"] = original_author_id == user["user_id"]
-    
+
+    # Enrich author_is_verified_partner from live user data (covers pre-existing posts)
+    if not post.get("author_is_verified_partner") and not post.get("is_anonymous"):
+        author_user = await db.users.find_one({"user_id": original_author_id}, {"verified_professional": 1, "is_verified_partner": 1})
+        if author_user:
+            post["author_is_verified_partner"] = bool(author_user.get("verified_professional") or author_user.get("is_verified_partner"))
+
     mask_anonymous_post(post)
 
     return post
@@ -1837,6 +1845,8 @@ async def create_post(post_data: ForumPostCreate, user: dict = Depends(get_curre
         author_picture=user.get("picture"),
         author_subscription_tier=user.get("subscription_tier", "free"),
         is_anonymous=post_data.is_anonymous,
+        # Store verification status on the post so badge renders without extra queries
+        author_is_verified_partner=bool(user.get("verified_professional") or user.get("is_verified_partner")),
         title=post_data.title or "",
         content=post_data.content or "",
         image=post_data.image,
@@ -2164,6 +2174,7 @@ async def create_reply(post_id: str, reply_data: ForumReplyCreate, user: dict = 
         author_name=user.get("nickname") or user["name"],
         author_picture=user.get("picture"),
         author_subscription_tier=user.get("subscription_tier", "free"),
+        author_is_verified_partner=bool(user.get("verified_professional") or user.get("is_verified_partner")),
         is_anonymous=reply_data.is_anonymous,
         content=reply_data.content
     )
@@ -4877,8 +4888,9 @@ VALID_PROFESSIONAL_TYPES = {
 
 class ProfessionalApplyRequest(BaseModel):
     professional_type: str
-    professional_credentials: str = Field(..., max_length=2000)
-    professional_workplace: Optional[str] = Field(None, max_length=200)
+    professional_credentials: str = Field(..., min_length=10, max_length=2000)
+    professional_workplace: str = Field(..., min_length=2, max_length=200)
+    professional_services_url: str = Field(..., min_length=5, max_length=500)
 
 @api_router.post("/users/professional-apply")
 async def apply_as_professional(data: ProfessionalApplyRequest, current_user: dict = Depends(get_current_user)):
@@ -4898,10 +4910,33 @@ async def apply_as_professional(data: ProfessionalApplyRequest, current_user: di
             "professional_type": data.professional_type,
             "professional_credentials": data.professional_credentials,
             "professional_workplace": data.professional_workplace,
+            "professional_services_url": data.professional_services_url,
             "professional_verification_status": "pending",
             "professional_applied_at": datetime.now(timezone.utc).isoformat(),
         }}
     )
+
+    # Send notification email to the professionals review team
+    applicant_name = current_user.get("nickname") or current_user.get("name", "Unknown")
+    applicant_email = current_user.get("email", "")
+    pro_type_label = data.professional_type.replace("_", " ").title()
+    review_html = f"""
+    <h2>New Professional Verification Application</h2>
+    <p><strong>Applicant:</strong> {applicant_name} ({applicant_email})</p>
+    <p><strong>Professional Type:</strong> {pro_type_label}</p>
+    <p><strong>Workplace / Organisation:</strong> {data.professional_workplace}</p>
+    <p><strong>Professional Services URL:</strong> <a href="{data.professional_services_url}">{data.professional_services_url}</a></p>
+    <p><strong>Credentials &amp; Experience:</strong></p>
+    <blockquote style="border-left:3px solid #ccc;padding-left:12px;color:#555">{data.professional_credentials}</blockquote>
+    <hr/>
+    <p><a href="https://ourvillage.com.au/admin">Review in Admin Dashboard →</a></p>
+    """
+    fire_and_forget(send_email_notification(
+        "Professionals@ourliitlevillage.com.au",
+        f"New Professional Application — {pro_type_label}: {applicant_name}",
+        review_html
+    ))
+
     return {"message": "Application submitted. A moderator will review it shortly."}
 
 @api_router.get("/admin/professional-applications")
@@ -4925,9 +4960,15 @@ async def approve_professional(user_id: str, admin: dict = Depends(get_admin_use
         {"$set": {
             "professional_verification_status": "approved",
             "verified_professional": True,
+            "is_verified_partner": True,
             "professional_approved_at": datetime.now(timezone.utc).isoformat(),
             "professional_approved_by": admin["user_id"],
         }}
+    )
+    # Backfill author_is_verified_partner on all existing posts and replies
+    await asyncio.gather(
+        db.forum_posts.update_many({"author_id": user_id}, {"$set": {"author_is_verified_partner": True}}),
+        db.forum_replies.update_many({"author_id": user_id}, {"$set": {"author_is_verified_partner": True}}),
     )
     # Notify the user
     await db.notifications.insert_one({
@@ -5589,6 +5630,15 @@ async def seed_data():
     await db.user_blocks.create_index("blocked_id")
     # Reports — auto-ban threshold check
     await db.reports.create_index([("reported_user_id", 1), ("created_at", 1)])
+    # Village Stall indexes
+    await db.stall_listings.create_index([("seller_id", 1), ("created_at", -1)])
+    await db.stall_listings.create_index([("status", 1), ("created_at", -1)])
+    await db.stall_listings.create_index([("status", 1), ("listing_type", 1), ("category", 1)])
+    await db.stall_saves.create_index([("listing_id", 1), ("user_id", 1)], unique=True, sparse=True)
+    await db.stall_saves.create_index("user_id")
+    await db.stall_messages.create_index([("listing_id", 1), ("sender_id", 1), ("receiver_id", 1), ("created_at", 1)])
+    await db.stall_messages.create_index([("receiver_id", 1), ("is_read", 1)])
+    await db.donation_groups.create_index([("status", 1), ("created_at", -1)])
 
     # Stripe: create/retrieve products and prices
     await ensure_stripe_products()
@@ -5811,6 +5861,505 @@ async def root():
 async def health_check():
     return {"status": "ok", "message": "The Village API is running"}
 
+
+# ==================== VILLAGE STALL ====================
+
+class StallListing(BaseModel):
+    listing_id: str = Field(default_factory=lambda: f"listing_{uuid.uuid4().hex[:12]}")
+    seller_id: str
+    seller_name: str
+    seller_picture: Optional[str] = None
+    title: str
+    description: Optional[str] = None
+    listing_type: str  # "sell" | "swap" | "give_away" | "wanted"
+    price: Optional[float] = None
+    make_offer: bool = False
+    swap_for: Optional[str] = None
+    condition: Optional[str] = None
+    category: str
+    age_group: Optional[str] = None
+    images: List[str] = []
+    suburb: Optional[str] = None
+    postcode: Optional[str] = None
+    state: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    postage_available: bool = False
+    status: str = "active"  # "active" | "sold" | "swapped" | "gone" | "closed" | "paused"
+    paused_reason: Optional[str] = None  # "trial_expired"
+    paused_at: Optional[str] = None
+    donation_group_id: Optional[str] = None
+    views: int = 0
+    enquiry_count: int = 0
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class StallListingCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    listing_type: str
+    price: Optional[float] = None
+    make_offer: bool = False
+    swap_for: Optional[str] = None
+    condition: Optional[str] = None
+    category: str
+    age_group: Optional[str] = None
+    images: List[str] = []
+    suburb: Optional[str] = None
+    postcode: Optional[str] = None
+    state: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    postage_available: bool = False
+    donation_group_id: Optional[str] = None
+
+class StallListingUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    price: Optional[float] = None
+    make_offer: Optional[bool] = None
+    swap_for: Optional[str] = None
+    condition: Optional[str] = None
+    images: Optional[List[str]] = None
+    postage_available: Optional[bool] = None
+    status: Optional[str] = None
+
+class StallMessage(BaseModel):
+    message_id: str = Field(default_factory=lambda: f"sm_{uuid.uuid4().hex[:12]}")
+    listing_id: str
+    listing_title: str = ""
+    listing_image: Optional[str] = None
+    listing_type: str = "sell"
+    sender_id: str
+    receiver_id: str
+    sender_name: str
+    content: str
+    is_read: bool = False
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class StallMessageCreate(BaseModel):
+    listing_id: str
+    receiver_id: str
+    content: str
+
+class DonationGroup(BaseModel):
+    group_id: str = Field(default_factory=lambda: f"dg_{uuid.uuid4().hex[:12]}")
+    organiser_id: str
+    organiser_name: str
+    organiser_picture: Optional[str] = None
+    name: str
+    description: str
+    category: str
+    suburb: Optional[str] = None
+    postcode: Optional[str] = None
+    state: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    cover_image: Optional[str] = None
+    end_date: Optional[str] = None
+    moderator_ids: List[str] = []
+    member_ids: List[str] = []
+    status: str = "active"
+    item_count: int = 0
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class DonationGroupCreate(BaseModel):
+    name: str
+    description: str
+    category: str = "general"
+    suburb: Optional[str] = None
+    postcode: Optional[str] = None
+    state: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    cover_image: Optional[str] = None
+    end_date: Optional[str] = None
+
+
+def _check_stall_access(user: dict):
+    """Allow premium + trial users. Free users are blocked."""
+    tier = user.get("subscription_tier", "free")
+    role = user.get("role", "user")
+    if role in ("admin", "moderator"):
+        return
+    if tier not in ("premium", "trial"):
+        raise HTTPException(status_code=403, detail="The Village Stall is a Village+ feature. Upgrade to access.")
+
+
+@api_router.get("/stall/listings")
+async def browse_stall_listings(
+    request: Request,
+    listing_type: Optional[str] = None,
+    category: Optional[str] = None,
+    age_group: Optional[str] = None,
+    search: Optional[str] = None,
+    donation_group_id: Optional[str] = None,
+    postage: Optional[bool] = None,
+    lat: Optional[float] = None,
+    lon: Optional[float] = None,
+    distance_km: Optional[int] = 25,
+    sort: str = "newest",
+    limit: int = 24,
+    skip: int = 0,
+):
+    query: dict = {"status": "active"}
+    if listing_type:
+        query["listing_type"] = listing_type
+    if category:
+        query["category"] = category
+    if age_group:
+        query["age_group"] = age_group
+    if donation_group_id:
+        query["donation_group_id"] = donation_group_id
+    if postage is True:
+        query["postage_available"] = True
+    if search and len(search.strip()) >= 2:
+        sq = search.strip()
+        query["$or"] = [
+            {"title": {"$regex": re.escape(sq), "$options": "i"}},
+            {"description": {"$regex": re.escape(sq), "$options": "i"}},
+        ]
+
+    if lat is not None and lon is not None:
+        query["latitude"] = {"$exists": True, "$ne": None}
+        all_docs = await db.stall_listings.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
+        filtered = []
+        for doc in all_docs:
+            if doc.get("latitude") and doc.get("longitude"):
+                dist = calculate_distance(lat, lon, doc["latitude"], doc["longitude"])
+                if dist <= distance_km:
+                    doc["distance_km"] = round(dist, 1)
+                    filtered.append(doc)
+            elif doc.get("postage_available"):
+                doc["distance_km"] = None
+                filtered.append(doc)
+        if sort == "nearest":
+            filtered.sort(key=lambda x: x.get("distance_km") or 9999)
+        elif sort == "price_low":
+            filtered.sort(key=lambda x: x.get("price") or 0)
+        elif sort == "price_high":
+            filtered.sort(key=lambda x: x.get("price") or 0, reverse=True)
+        total = len(filtered)
+        return {"listings": filtered[skip:skip + limit], "total": total, "limit": limit, "skip": skip}
+
+    sort_map = {"newest": ("created_at", -1), "oldest": ("created_at", 1), "price_low": ("price", 1), "price_high": ("price", -1)}
+    sf, so = sort_map.get(sort, ("created_at", -1))
+    listings, total = await asyncio.gather(
+        db.stall_listings.find(query, {"_id": 0}).sort(sf, so).skip(skip).limit(limit).to_list(limit),
+        db.stall_listings.count_documents(query)
+    )
+    return {"listings": listings, "total": total, "limit": limit, "skip": skip}
+
+
+@api_router.get("/stall/listings/my")
+async def my_stall_listings(user: dict = Depends(get_current_user)):
+    listings = await db.stall_listings.find(
+        {"seller_id": user["user_id"]}, {"_id": 0}
+    ).sort("created_at", -1).to_list(100)
+    return listings
+
+
+@api_router.get("/stall/listings/saved")
+async def my_saved_listings(user: dict = Depends(get_current_user)):
+    saves = await db.stall_saves.find({"user_id": user["user_id"]}, {"_id": 0, "listing_id": 1}).to_list(200)
+    listing_ids = [s["listing_id"] for s in saves]
+    if not listing_ids:
+        return []
+    listings = await db.stall_listings.find(
+        {"listing_id": {"$in": listing_ids}}, {"_id": 0}
+    ).sort("created_at", -1).to_list(200)
+    return listings
+
+
+@api_router.get("/stall/listings/{listing_id}")
+async def get_stall_listing(listing_id: str, request: Request):
+    doc = await db.stall_listings.find_one({"listing_id": listing_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Listing not found")
+    await db.stall_listings.update_one({"listing_id": listing_id}, {"$inc": {"views": 1}})
+    try:
+        current_user = await get_current_user(request)
+        saved = await db.stall_saves.find_one({"listing_id": listing_id, "user_id": current_user["user_id"]})
+        doc["user_saved"] = bool(saved)
+        doc["is_own_listing"] = current_user["user_id"] == doc.get("seller_id")
+    except Exception:
+        doc["user_saved"] = False
+        doc["is_own_listing"] = False
+    return doc
+
+
+@api_router.post("/stall/listings")
+async def create_stall_listing(data: StallListingCreate, user: dict = Depends(get_current_user)):
+    _check_stall_access(user)
+    listing = StallListing(
+        seller_id=user["user_id"],
+        seller_name=user.get("nickname") or user["name"],
+        seller_picture=user.get("picture"),
+        suburb=data.suburb or user.get("suburb"),
+        postcode=data.postcode or user.get("postcode"),
+        state=data.state or user.get("state"),
+        latitude=data.latitude or user.get("latitude"),
+        longitude=data.longitude or user.get("longitude"),
+        **{k: v for k, v in data.model_dump().items() if k not in ("suburb","postcode","state","latitude","longitude")}
+    )
+    # Trial users: listing stays active but gets paused on trial expiry (handled by background job)
+    doc = listing.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    doc["updated_at"] = doc["updated_at"].isoformat()
+    await db.stall_listings.insert_one(doc)
+    if data.donation_group_id:
+        await db.donation_groups.update_one({"group_id": data.donation_group_id}, {"$inc": {"item_count": 1}})
+    doc.pop("_id", None)
+    return doc
+
+
+@api_router.put("/stall/listings/{listing_id}")
+async def update_stall_listing(listing_id: str, data: StallListingUpdate, user: dict = Depends(get_current_user)):
+    listing = await db.stall_listings.find_one({"listing_id": listing_id}, {"_id": 0})
+    if not listing:
+        raise HTTPException(status_code=404, detail="Listing not found")
+    is_admin = user.get("role") in ("admin", "moderator")
+    if listing["seller_id"] != user["user_id"] and not is_admin:
+        raise HTTPException(status_code=403, detail="Not authorised")
+    updates = {k: v for k, v in data.model_dump().items() if v is not None}
+    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.stall_listings.update_one({"listing_id": listing_id}, {"$set": updates})
+    return {"message": "Listing updated"}
+
+
+@api_router.delete("/stall/listings/{listing_id}")
+async def delete_stall_listing(listing_id: str, user: dict = Depends(get_current_user)):
+    listing = await db.stall_listings.find_one({"listing_id": listing_id}, {"_id": 0})
+    if not listing:
+        raise HTTPException(status_code=404, detail="Listing not found")
+    is_admin = user.get("role") in ("admin", "moderator")
+    if listing["seller_id"] != user["user_id"] and not is_admin:
+        raise HTTPException(status_code=403, detail="Not authorised")
+    await db.stall_listings.delete_one({"listing_id": listing_id})
+    return {"message": "Listing deleted"}
+
+
+@api_router.post("/stall/listings/{listing_id}/save")
+async def toggle_save_listing(listing_id: str, user: dict = Depends(get_current_user)):
+    existing = await db.stall_saves.find_one({"listing_id": listing_id, "user_id": user["user_id"]})
+    if existing:
+        await db.stall_saves.delete_one({"listing_id": listing_id, "user_id": user["user_id"]})
+        return {"saved": False}
+    await db.stall_saves.insert_one({
+        "listing_id": listing_id, "user_id": user["user_id"],
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+    return {"saved": True}
+
+
+@api_router.get("/stall/messages/conversations")
+async def stall_conversations(user: dict = Depends(get_current_user)):
+    pipeline = [
+        {"$match": {"$or": [{"sender_id": user["user_id"]}, {"receiver_id": user["user_id"]}]}},
+        {"$sort": {"created_at": -1}},
+        {"$group": {
+            "_id": {"listing_id": "$listing_id", "other_user": {"$cond": [{"$eq": ["$sender_id", user["user_id"]]}, "$receiver_id", "$sender_id"]}},
+            "last_message": {"$first": "$content"},
+            "last_message_time": {"$first": "$created_at"},
+            "listing_title": {"$first": "$listing_title"},
+            "listing_image": {"$first": "$listing_image"},
+            "listing_type": {"$first": "$listing_type"},
+            "unread_count": {"$sum": {"$cond": [{"$and": [{"$eq": ["$receiver_id", user["user_id"]]}, {"$eq": ["$is_read", False]}]}, 1, 0]}}
+        }},
+        {"$sort": {"last_message_time": -1}},
+        {"$limit": 50}
+    ]
+    raw = await db.stall_messages.aggregate(pipeline).to_list(50)
+    result = []
+    for r in raw:
+        other_id = r["_id"]["other_user"]
+        other = await db.users.find_one({"user_id": other_id}, {"_id": 0, "name": 1, "nickname": 1, "picture": 1})
+        result.append({
+            "listing_id": r["_id"]["listing_id"],
+            "other_user_id": other_id,
+            "other_user_name": (other.get("nickname") or other.get("name") or "Parent") if other else "Parent",
+            "other_user_picture": other.get("picture") if other else None,
+            "listing_title": r.get("listing_title", ""),
+            "listing_image": r.get("listing_image"),
+            "listing_type": r.get("listing_type", "sell"),
+            "last_message": r["last_message"],
+            "last_message_time": r["last_message_time"],
+            "unread_count": r["unread_count"],
+        })
+    return result
+
+
+@api_router.get("/stall/messages/unread-count")
+async def stall_unread_count(user: dict = Depends(get_current_user)):
+    count = await db.stall_messages.count_documents({"receiver_id": user["user_id"], "is_read": False})
+    return {"count": count}
+
+
+@api_router.get("/stall/messages/{listing_id}/{other_user_id}")
+async def get_stall_thread(listing_id: str, other_user_id: str, user: dict = Depends(get_current_user)):
+    messages = await db.stall_messages.find({
+        "listing_id": listing_id,
+        "$or": [
+            {"sender_id": user["user_id"], "receiver_id": other_user_id},
+            {"sender_id": other_user_id, "receiver_id": user["user_id"]},
+        ]
+    }, {"_id": 0}).sort("created_at", 1).to_list(200)
+    await db.stall_messages.update_many(
+        {"listing_id": listing_id, "sender_id": other_user_id, "receiver_id": user["user_id"], "is_read": False},
+        {"$set": {"is_read": True}}
+    )
+    return messages
+
+
+@api_router.post("/stall/messages")
+async def send_stall_message(data: StallMessageCreate, user: dict = Depends(get_current_user)):
+    _check_stall_access(user)
+    listing = await db.stall_listings.find_one({"listing_id": data.listing_id}, {"_id": 0})
+    if not listing:
+        raise HTTPException(status_code=404, detail="Listing not found")
+    if listing.get("status") not in ("active",):
+        raise HTTPException(status_code=400, detail="This listing is no longer active")
+    receiver = await db.users.find_one({"user_id": data.receiver_id}, {"_id": 0})
+    if not receiver:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    msg = StallMessage(
+        listing_id=data.listing_id,
+        listing_title=listing.get("title", ""),
+        listing_image=listing.get("images", [None])[0],
+        listing_type=listing.get("listing_type", "sell"),
+        sender_id=user["user_id"],
+        receiver_id=data.receiver_id,
+        sender_name=user.get("nickname") or user["name"],
+        content=data.content,
+    )
+    doc = msg.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await db.stall_messages.insert_one(doc)
+
+    existing = await db.stall_messages.count_documents({"listing_id": data.listing_id, "sender_id": user["user_id"], "receiver_id": data.receiver_id})
+    if existing <= 1:
+        await db.stall_listings.update_one({"listing_id": data.listing_id}, {"$inc": {"enquiry_count": 1}})
+
+    await db.notifications.insert_one({
+        "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+        "user_id": data.receiver_id,
+        "type": "stall_enquiry",
+        "title": "New enquiry on your Stall listing",
+        "message": f"{user.get('nickname') or user['name']} is interested in your listing: {listing.get('title', '')}",
+        "link": f"/stall/listing/{data.listing_id}",
+        "is_read": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+    doc.pop("_id", None)
+    return doc
+
+
+# ── Donation Groups ───────────────────────────────────────────────────────────
+
+@api_router.get("/stall/groups")
+async def browse_donation_groups(
+    category: Optional[str] = None,
+    search: Optional[str] = None,
+    lat: Optional[float] = None,
+    lon: Optional[float] = None,
+    distance_km: Optional[int] = 50,
+    limit: int = 20,
+    skip: int = 0,
+):
+    query: dict = {"status": "active"}
+    if category:
+        query["category"] = category
+    if search and len(search.strip()) >= 2:
+        query["$or"] = [
+            {"name": {"$regex": re.escape(search.strip()), "$options": "i"}},
+            {"description": {"$regex": re.escape(search.strip()), "$options": "i"}},
+        ]
+    groups = await db.donation_groups.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    if lat is not None and lon is not None:
+        for g in groups:
+            if g.get("latitude") and g.get("longitude"):
+                g["distance_km"] = round(calculate_distance(lat, lon, g["latitude"], g["longitude"]), 1)
+        groups = [g for g in groups if g.get("distance_km", 0) <= distance_km or not g.get("latitude")]
+        groups.sort(key=lambda x: x.get("distance_km") or 9999)
+    total = await db.donation_groups.count_documents(query)
+    return {"groups": groups, "total": total}
+
+
+@api_router.get("/stall/groups/{group_id}")
+async def get_donation_group(group_id: str, request: Request):
+    group = await db.donation_groups.find_one({"group_id": group_id}, {"_id": 0})
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    try:
+        current_user = await get_current_user(request)
+        group["is_member"] = current_user["user_id"] in group.get("member_ids", [])
+        group["is_organiser"] = current_user["user_id"] == group.get("organiser_id")
+    except Exception:
+        group["is_member"] = False
+        group["is_organiser"] = False
+    items = await db.stall_listings.find({"donation_group_id": group_id, "status": "active"}, {"_id": 0}).sort("created_at", -1).to_list(50)
+    group["items"] = items
+    return group
+
+
+@api_router.post("/stall/groups")
+async def create_donation_group(data: DonationGroupCreate, user: dict = Depends(get_current_user)):
+    _check_stall_access(user)
+    group = DonationGroup(
+        organiser_id=user["user_id"],
+        organiser_name=user.get("nickname") or user["name"],
+        organiser_picture=user.get("picture"),
+        suburb=data.suburb or user.get("suburb"),
+        postcode=data.postcode or user.get("postcode"),
+        state=data.state or user.get("state"),
+        latitude=data.latitude or user.get("latitude"),
+        longitude=data.longitude or user.get("longitude"),
+        member_ids=[user["user_id"]],
+        **{k: v for k, v in data.model_dump().items() if k not in ("suburb","postcode","state","latitude","longitude")}
+    )
+    doc = group.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await db.donation_groups.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@api_router.post("/stall/groups/{group_id}/join")
+async def join_donation_group(group_id: str, user: dict = Depends(get_current_user)):
+    group = await db.donation_groups.find_one({"group_id": group_id}, {"_id": 0})
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    if user["user_id"] not in group.get("member_ids", []):
+        await db.donation_groups.update_one({"group_id": group_id}, {"$addToSet": {"member_ids": user["user_id"]}})
+    return {"joined": True, "member_count": len(group.get("member_ids", [])) + 1}
+
+
+@api_router.post("/stall/groups/{group_id}/leave")
+async def leave_donation_group(group_id: str, user: dict = Depends(get_current_user)):
+    group = await db.donation_groups.find_one({"group_id": group_id}, {"_id": 0})
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    if user["user_id"] == group.get("organiser_id"):
+        raise HTTPException(status_code=400, detail="Organiser cannot leave their own group")
+    await db.donation_groups.update_one({"group_id": group_id}, {"$pull": {"member_ids": user["user_id"]}})
+    return {"joined": False}
+
+
+@api_router.put("/stall/groups/{group_id}")
+async def update_donation_group(group_id: str, data: dict, user: dict = Depends(get_current_user)):
+    group = await db.donation_groups.find_one({"group_id": group_id}, {"_id": 0})
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    is_admin = user.get("role") in ("admin", "moderator")
+    if group["organiser_id"] != user["user_id"] and user["user_id"] not in group.get("moderator_ids", []) and not is_admin:
+        raise HTTPException(status_code=403, detail="Not authorised")
+    allowed = {"name", "description", "cover_image", "end_date", "status", "moderator_ids"}
+    updates = {k: v for k, v in data.items() if k in allowed}
+    await db.donation_groups.update_one({"group_id": group_id}, {"$set": updates})
+    return {"message": "Group updated"}
+
+
 _cors_env = os.environ.get('CORS_ORIGINS', '')
 _cors_origins = [o.strip() for o in _cors_env.split(',') if o.strip()] if _cors_env else ["http://localhost:3000"]
 # Cookie flags: use explicit IS_PRODUCTION env var to avoid staging/mixed-origin confusion
@@ -5878,6 +6427,23 @@ async def _trial_email_loop():
                         template_type="trial_expired",
                         data={"first_name": user.get("first_name", "there")}
                     ))
+                # Pause any active Stall listings for this user
+                await db.stall_listings.update_many(
+                    {"seller_id": user["user_id"], "status": "active"},
+                    {"$set": {
+                        "status": "paused",
+                        "paused_reason": "trial_expired",
+                        "paused_at": now.isoformat(),
+                    }}
+                )
+
+            # ── Stall cleanup: delete listings paused >7 days ago ──
+            seven_days_ago = now - timedelta(days=7)
+            await db.stall_listings.delete_many({
+                "status": "paused",
+                "paused_reason": "trial_expired",
+                "paused_at": {"$lt": seven_days_ago.isoformat()},
+            })
 
         except Exception as e:
             logging.error("Trial email loop error: %s", e, exc_info=True)
