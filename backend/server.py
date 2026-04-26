@@ -833,6 +833,48 @@ def mask_anonymous_post(post: dict) -> dict:
         post["author_id"] = "anonymous"
     return post
 
+def _community_requires_membership(category: Optional[dict]) -> bool:
+    return bool(
+        category
+        and category.get("category_type") == "community"
+        and (category.get("is_private") or category.get("invite_only"))
+    )
+
+def _user_can_access_community(category: dict, user: dict) -> bool:
+    if not _community_requires_membership(category):
+        return True
+    if user.get("role") in ("admin", "moderator"):
+        return True
+    user_id = user.get("user_id")
+    return user_id == category.get("created_by") or user_id in category.get("member_ids", [])
+
+async def require_category_access(category_id: str, user: dict) -> Optional[dict]:
+    """Return category or raise 403 when a private/invite-only community is inaccessible."""
+    category = await db.forum_categories.find_one({"category_id": category_id}, {"_id": 0})
+    if category and not _user_can_access_community(category, user):
+        raise HTTPException(status_code=403, detail="This is a private community")
+    return category
+
+async def require_post_access(post: dict, user: dict) -> None:
+    """Enforce private/invite-only community access for a post object."""
+    category_id = post.get("category_id")
+    if category_id:
+        await require_category_access(category_id, user)
+
+async def get_inaccessible_community_ids(user: Optional[dict]) -> List[str]:
+    """IDs for private/invite-only communities the viewer may not read."""
+    if user and user.get("role") in ("admin", "moderator"):
+        return []
+    categories = await db.forum_categories.find(
+        {
+            "category_type": "community",
+            "$or": [{"is_private": True}, {"invite_only": True}],
+        },
+        {"_id": 0, "category_id": 1, "created_by": 1, "member_ids": 1, "is_private": 1, "invite_only": 1, "category_type": 1}
+    ).to_list(None)
+    viewer = user or {}
+    return [c["category_id"] for c in categories if not _user_can_access_community(c, viewer)]
+
 async def create_notification(user_id: str, notif_type: str, title: str, message: str, link: str = "") -> None:
     """Insert a notification document into the notifications collection."""
     await db.notifications.insert_one({
@@ -1654,6 +1696,7 @@ async def get_posts(
     # Get blocked user IDs for the current user (if authenticated)
     blocked_ids = []
     current_user_id = None
+    current_user = None
     try:
         current_user = await get_current_user(request)
         current_user_id = current_user["user_id"]
@@ -1671,18 +1714,18 @@ async def get_posts(
     query = {"$and": [visibility_filter]}
     if blocked_ids:
         query["$and"].append({"author_id": {"$nin": blocked_ids}})
+    inaccessible_communities = await get_inaccessible_community_ids(current_user if current_user_id else None)
+    if inaccessible_communities:
+        query["$and"].append({"category_id": {"$nin": inaccessible_communities}})
     if category_id:
         # Enforce private/invite-only community membership server-side
-        _cat = await db.forum_categories.find_one({"category_id": category_id}, {"_id": 0, "is_private": 1, "invite_only": 1, "member_ids": 1})
-        if _cat and (_cat.get("is_private") or _cat.get("invite_only")):
-            if not current_user_id or current_user_id not in _cat.get("member_ids", []):
-                raise HTTPException(status_code=403, detail="This is a private community")
+        await require_category_access(category_id, current_user or {})
         query["$and"].append({"category_id": category_id})
     if search and len(search.strip()) >= 2:
         sq = search.strip()
         query["$and"].append({"$or": [
             {"title": {"$regex": re.escape(sq), "$options": "i"}},
-            {"body": {"$regex": re.escape(sq), "$options": "i"}},
+            {"content": {"$regex": re.escape(sq), "$options": "i"}},
         ]})
 
     # Apply filters
@@ -1752,13 +1795,22 @@ async def get_posts(
     return {"posts": posts, "total": total, "limit": limit, "skip": skip}
 
 @api_router.get("/forums/posts/trending")
-async def get_trending_posts(limit: int = 5):
+async def get_trending_posts(request: Request, limit: int = 5):
     """Get trending posts based on recent engagement"""
     seven_days_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    current_user = None
+    try:
+        current_user = await get_current_user(request)
+    except Exception:
+        pass
+    inaccessible_communities = await get_inaccessible_community_ids(current_user)
+    match_query = {"created_at": {"$gte": seven_days_ago}}
+    if inaccessible_communities:
+        match_query["category_id"] = {"$nin": inaccessible_communities}
     
     # Calculate trending score: likes + (replies * 2) + (views / 10)
     pipeline = [
-        {"$match": {"created_at": {"$gte": seven_days_ago}}},
+        {"$match": match_query},
         {"$addFields": {
             "trending_score": {
                 "$add": [
@@ -1796,6 +1848,7 @@ async def get_post(post_id: str, user: dict = Depends(get_current_user)):
     post = await db.forum_posts.find_one({"post_id": post_id}, {"_id": 0})
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
+    await require_post_access(post, user)
     
     # Increment views
     await db.forum_posts.update_one({"post_id": post_id}, {"$inc": {"views": 1}})
@@ -1825,6 +1878,8 @@ async def get_post(post_id: str, user: dict = Depends(get_current_user)):
 
 @api_router.post("/forums/posts")
 async def create_post(post_data: ForumPostCreate, user: dict = Depends(get_current_user)):
+    category = await require_category_access(post_data.category_id, user)
+
     # Check freemium limits
     sub = await get_user_subscription_status(user)
     if sub["limits_apply"]:
@@ -1844,7 +1899,6 @@ async def create_post(post_data: ForumPostCreate, user: dict = Depends(get_curre
     post_postcode = post_data.postcode
     post_state = post_data.state
 
-    category = await db.forum_categories.find_one({"category_id": post_data.category_id}, {"_id": 0})
     if category and category.get("is_location_aware") and not post_lat:
         # Auto-populate from user profile if not provided
         post_lat = user.get("latitude")
@@ -2159,6 +2213,11 @@ async def pin_post(post_id: str, user: dict = Depends(get_current_user)):
 
 @api_router.get("/forums/posts/{post_id}/replies")
 async def get_replies(post_id: str, user: dict = Depends(get_current_user)):
+    post = await db.forum_posts.find_one({"post_id": post_id}, {"_id": 0, "category_id": 1})
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    await require_post_access(post, user)
+
     replies = await db.forum_replies.find({"post_id": post_id}, {"_id": 0}).sort("created_at", 1).to_list(200)
 
     if replies:
@@ -2182,6 +2241,12 @@ async def get_replies(post_id: str, user: dict = Depends(get_current_user)):
 
 @api_router.post("/forums/posts/{post_id}/replies")
 async def create_reply(post_id: str, reply_data: ForumReplyCreate, user: dict = Depends(get_current_user)):
+    # Check post exists and is accessible before any quota checks
+    post = await db.forum_posts.find_one({"post_id": post_id}, {"_id": 0})
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    await require_post_access(post, user)
+
     # Check freemium limits
     sub = await get_user_subscription_status(user)
     if sub["limits_apply"]:
@@ -2194,11 +2259,6 @@ async def create_reply(post_id: str, reply_data: ForumReplyCreate, user: dict = 
                 "message": f"You've used all {reply_limit['limit']} replies this week. Upgrade to Village+ for unlimited replies."
             })
 
-    # Check post exists
-    post = await db.forum_posts.find_one({"post_id": post_id}, {"_id": 0})
-    if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
-    
     # If replying to another reply, verify it exists
     if reply_data.parent_reply_id:
         parent_reply = await db.forum_replies.find_one({"reply_id": reply_data.parent_reply_id})
@@ -2311,6 +2371,11 @@ async def delete_reply(reply_id: str, user: dict = Depends(get_current_user)):
 
 @api_router.post("/forums/posts/{post_id}/like")
 async def like_post(post_id: str, user: dict = Depends(get_current_user)):
+    post = await db.forum_posts.find_one({"post_id": post_id}, {"_id": 0})
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    await require_post_access(post, user)
+
     # Toggle like
     existing = await db.post_likes.find_one({"post_id": post_id, "user_id": user["user_id"]})
     if existing:
@@ -2322,7 +2387,6 @@ async def like_post(post_id: str, user: dict = Depends(get_current_user)):
         await db.forum_posts.update_one({"post_id": post_id}, {"$inc": {"like_count": 1}})
         
         # Create notification for post author
-        post = await db.forum_posts.find_one({"post_id": post_id}, {"_id": 0})
         if post and post["author_id"] != user["user_id"] and not post.get("is_anonymous"):
             notification = {
                 "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
@@ -2344,6 +2408,10 @@ async def like_reply(reply_id: str, user: dict = Depends(get_current_user)):
     reply = await db.forum_replies.find_one({"reply_id": reply_id}, {"_id": 0})
     if not reply:
         raise HTTPException(status_code=404, detail="Reply not found")
+    post = await db.forum_posts.find_one({"post_id": reply["post_id"]}, {"_id": 0, "category_id": 1})
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    await require_post_access(post, user)
     
     existing = await db.reply_likes.find_one({"reply_id": reply_id, "user_id": user["user_id"]})
     if existing:
@@ -2401,6 +2469,14 @@ async def get_community_posts(
     current_user: dict = Depends(get_current_user),
 ):
     """Get posts for a community with reaction/poll metadata for the current user."""
+    community = await db.forum_categories.find_one(
+        {"category_id": community_id, "category_type": "community"}, {"_id": 0}
+    )
+    if not community:
+        raise HTTPException(status_code=404, detail="Community not found")
+    if not _user_can_access_community(community, current_user):
+        raise HTTPException(status_code=403, detail="This is a private community")
+
     query: dict = {"category_id": community_id, "is_deleted": {"$ne": True}}
     if post_type and post_type != "all":
         query["post_type"] = post_type
@@ -2495,6 +2571,7 @@ async def react_to_post(
     post = await db.forum_posts.find_one({"post_id": post_id}, {"_id": 0})
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
+    await require_post_access(post, current_user)
 
     uid = current_user["user_id"]
     reactions = post.get("reactions", {})
@@ -2529,6 +2606,7 @@ async def vote_on_poll(
     post = await db.forum_posts.find_one({"post_id": post_id}, {"_id": 0})
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
+    await require_post_access(post, current_user)
     if post.get("post_type") != "poll":
         raise HTTPException(status_code=400, detail="This post is not a poll")
 
@@ -2569,6 +2647,7 @@ async def mark_post_answered(
     post = await db.forum_posts.find_one({"post_id": post_id}, {"_id": 0})
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
+    await require_post_access(post, current_user)
     if post.get("author_id") != current_user["user_id"]:
         raise HTTPException(status_code=403, detail="Only the post author can mark an answer")
     reply_id = payload.get("reply_id")
@@ -2587,6 +2666,7 @@ async def toggle_bookmark(post_id: str, user: dict = Depends(get_current_user)):
     post = await db.forum_posts.find_one({"post_id": post_id}, {"_id": 0})
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
+    await require_post_access(post, user)
     
     existing = await db.bookmarks.find_one({"post_id": post_id, "user_id": user["user_id"]})
     if existing:
@@ -2625,7 +2705,18 @@ async def get_bookmarks(user: dict = Depends(get_current_user), limit: int = 20,
         # Single batch fetch for categories referenced by those posts
         cat_ids = list({p["category_id"] for p in raw_posts if p.get("category_id")})
         raw_cats = await db.forum_categories.find(
-            {"category_id": {"$in": cat_ids}}, {"_id": 0, "category_id": 1, "name": 1, "icon": 1}
+            {"category_id": {"$in": cat_ids}},
+            {
+                "_id": 0,
+                "category_id": 1,
+                "name": 1,
+                "icon": 1,
+                "category_type": 1,
+                "is_private": 1,
+                "invite_only": 1,
+                "created_by": 1,
+                "member_ids": 1,
+            }
         ).to_list(len(cat_ids))
         cat_lookup = {c["category_id"]: c for c in raw_cats}
 
@@ -2635,6 +2726,8 @@ async def get_bookmarks(user: dict = Depends(get_current_user), limit: int = 20,
             if post:
                 post = dict(post)  # don't mutate shared dict
                 cat = cat_lookup.get(post.get("category_id"), {})
+                if cat and not _user_can_access_community(cat, user):
+                    continue
                 post["category_name"] = cat.get("name", "General")
                 post["category_icon"] = cat.get("icon", "💬")
                 post["bookmarked_at"] = bm["created_at"]
@@ -3175,6 +3268,14 @@ async def create_report(report_data: ReportCreate, user: dict = Depends(get_curr
     
     if not content:
         raise HTTPException(status_code=404, detail="Content not found")
+
+    if report_data.content_type == "post":
+        await require_post_access(content, user)
+    else:
+        parent_post = await db.forum_posts.find_one({"post_id": content.get("post_id")}, {"_id": 0, "category_id": 1})
+        if not parent_post:
+            raise HTTPException(status_code=404, detail="Post not found")
+        await require_post_access(parent_post, user)
     
     # Check if already reported by this user
     existing = await db.reports.find_one({
@@ -4093,6 +4194,7 @@ async def get_feed(request: Request, limit: int = Query(default=20, ge=1, le=100
     """Get recent posts for the home feed"""
     # Exclude only_me posts unless the viewer is the author
     current_user_id = None
+    cu = None
     try:
         cu = await get_current_user(request)
         current_user_id = cu["user_id"]
@@ -4100,6 +4202,7 @@ async def get_feed(request: Request, limit: int = Query(default=20, ge=1, le=100
         pass
 
     query = {"$or": [{"visibility": {"$ne": "only_me"}}, {"visibility": None}]}
+    inaccessible_communities = await get_inaccessible_community_ids(cu if current_user_id else None)
     if current_user_id:
         # Exclude posts from users the current user has blocked (or who blocked them)
         blocks_out = await db.user_blocks.find(
@@ -4118,6 +4221,12 @@ async def get_feed(request: Request, limit: int = Query(default=20, ge=1, le=100
             ]},
             *([{"author_id": {"$nin": blocked_ids}}] if blocked_ids else []),
         ]}
+
+    if inaccessible_communities:
+        if "$and" in query:
+            query["$and"].append({"category_id": {"$nin": inaccessible_communities}})
+        else:
+            query = {"$and": [query, {"category_id": {"$nin": inaccessible_communities}}]}
 
     posts = await db.forum_posts.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
 
@@ -4185,11 +4294,21 @@ async def search_posts(q: str, limit: int = Query(default=20, ge=1, le=100), req
     """Search posts by title or content"""
     if request:
         rate_limit(request, max_requests=30, window_seconds=60, endpoint="post-search")
+    current_user = None
+    if request:
+        try:
+            current_user = await get_current_user(request)
+        except Exception:
+            pass
+    inaccessible_communities = await get_inaccessible_community_ids(current_user)
+    query = {"$or": [
+        {"title": {"$regex": re.escape(q), "$options": "i"}},
+        {"content": {"$regex": re.escape(q), "$options": "i"}}
+    ]}
+    if inaccessible_communities:
+        query = {"$and": [query, {"category_id": {"$nin": inaccessible_communities}}]}
     posts = await db.forum_posts.find(
-        {"$or": [
-            {"title": {"$regex": re.escape(q), "$options": "i"}},
-            {"content": {"$regex": re.escape(q), "$options": "i"}}
-        ]},
+        query,
         {"_id": 0}
     ).sort("created_at", -1).limit(limit).to_list(limit)
     

@@ -4,8 +4,9 @@ All tests are safe proof-of-control: no actual exploitation, just boundary check
 """
 import pytest
 import json
+import uuid
 from tests.utils.api_client import fresh_client
-from tests.utils.test_data import post_payload, PREFIX
+from tests.utils.test_data import post_payload, reply_payload, PREFIX
 
 
 @pytest.mark.security
@@ -118,6 +119,96 @@ class TestObjectIdManipulation:
             r = free_client.get(path)
             assert r.status_code in (400, 404, 422), \
                 f"{path} returned {r.status_code} — possible path traversal"
+
+
+@pytest.mark.security
+class TestPrivateCommunityAccess:
+    """Private/invite-only community posts must not be readable or mutable by non-members."""
+
+    @pytest.fixture(scope="class")
+    def private_community_post(self, premium_client):
+        unique = uuid.uuid4().hex[:8]
+        community_payload = {
+            "name": f"{PREFIX} Private Security {unique}",
+            "description": "Private access-control test community.",
+            "icon": "S",
+            "is_private": True,
+            "invite_only": True,
+            "community_subtype": "general",
+            "postcodes": [],
+        }
+        community_res = premium_client.post("/forums/communities", json=community_payload)
+        assert community_res.status_code in (200, 201), community_res.text[:300]
+        community_id = community_res.json()["category_id"]
+
+        post = post_payload(f"private_access_{unique}")
+        post["category_id"] = community_id
+        post["post_type"] = "poll"
+        post["poll_options"] = ["Yes", "No"]
+        post_res = premium_client.post("/forums/posts", json=post)
+        assert post_res.status_code in (200, 201), post_res.text[:300]
+        post_id = post_res.json()["post_id"]
+
+        reply_res = premium_client.post(
+            f"/forums/posts/{post_id}/replies",
+            json=reply_payload(f"{PREFIX} private reply {unique}"),
+        )
+        assert reply_res.status_code in (200, 201), reply_res.text[:300]
+        reply_id = reply_res.json()["reply_id"]
+
+        return {"community_id": community_id, "post_id": post_id, "reply_id": reply_id}
+
+    def test_non_member_cannot_list_private_community_posts(self, free_client, private_community_post):
+        r = free_client.get(f"/communities/{private_community_post['community_id']}/posts")
+        assert r.status_code == 403
+
+    def test_non_member_post_lists_do_not_include_private_post(self, free_client, private_community_post):
+        post_id = private_community_post["post_id"]
+        list_responses = [
+            free_client.get("/forums/posts?limit=100"),
+            free_client.get("/feed?limit=100"),
+            free_client.get("/forums/posts/trending?limit=100"),
+            free_client.get("/search?q=private_access&limit=100"),
+        ]
+        assert all(r.status_code == 200 for r in list_responses), [r.status_code for r in list_responses]
+        assert all(post_id not in r.text for r in list_responses)
+
+    def test_non_member_cannot_read_private_post_detail(self, free_client, private_community_post):
+        r = free_client.get(f"/forums/posts/{private_community_post['post_id']}")
+        assert r.status_code == 403
+
+    def test_non_member_cannot_read_private_post_replies(self, free_client, private_community_post):
+        r = free_client.get(f"/forums/posts/{private_community_post['post_id']}/replies")
+        assert r.status_code == 403
+
+    def test_non_member_cannot_create_private_post_reply(self, free_client, private_community_post):
+        r = free_client.post(
+            f"/forums/posts/{private_community_post['post_id']}/replies",
+            json=reply_payload("blocked private reply"),
+        )
+        assert r.status_code == 403
+
+    def test_non_member_cannot_like_private_post_or_reply(self, free_client, private_community_post):
+        post_like = free_client.post(f"/forums/posts/{private_community_post['post_id']}/like")
+        reply_like = free_client.post(f"/forums/replies/{private_community_post['reply_id']}/like")
+        assert post_like.status_code == 403
+        assert reply_like.status_code == 403
+
+    def test_non_member_cannot_react_vote_answer_or_bookmark_private_post(self, free_client, private_community_post):
+        post_id = private_community_post["post_id"]
+        blocked = [
+            free_client.post(f"/forums/posts/{post_id}/react", json={"emoji": "\u2764\ufe0f"}),
+            free_client.post(f"/forums/posts/{post_id}/poll-vote", json={"option_index": 0}),
+            free_client.post(f"/forums/posts/{post_id}/mark-answered", json={"reply_id": private_community_post["reply_id"]}),
+            free_client.post(f"/forums/posts/{post_id}/bookmark"),
+            free_client.post("/reports", json={"content_type": "post", "content_id": post_id, "reason": "spam"}),
+            free_client.post("/reports", json={"content_type": "reply", "content_id": private_community_post["reply_id"], "reason": "spam"}),
+        ]
+        assert all(r.status_code == 403 for r in blocked), [r.status_code for r in blocked]
+
+    def test_member_can_still_read_private_post(self, premium_client, private_community_post):
+        r = premium_client.get(f"/forums/posts/{private_community_post['post_id']}")
+        assert r.status_code == 200
 
 
 @pytest.mark.security

@@ -37,7 +37,7 @@ export default function RecommendedSpaces({ user }) {
 
   const fetchRecommendations = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/users/recommended-circles`, { credentials: "include" });
+      const res = await fetch(`${API_URL}/api/users/recommended-spaces`, { credentials: "include" });
       if (res.ok) setRecommendations(await res.json());
     } catch {}
     finally { setLoading(false); }
