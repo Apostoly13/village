@@ -83,6 +83,17 @@ export default function ForumCategory({ user }) {
           navigate(`/community/${categoryId}`, { replace: true });
           return;
         }
+        // Gender guard: mum spaces → females only, dad spaces → males only
+        const catNameLower = (catData?.name || "").toLowerCase();
+        const userGender = user?.gender;
+        if (catNameLower.includes("mum") && userGender === "male") {
+          navigate("/forums", { replace: true });
+          return;
+        }
+        if (catNameLower.includes("dad") && userGender === "female") {
+          navigate("/forums", { replace: true });
+          return;
+        }
         setCategory(catData);
         if (catData?.is_user_created) {
           setIsMember(catData.is_member || false);
@@ -140,9 +151,10 @@ export default function ForumCategory({ user }) {
 
   const totalPages = Math.ceil(total / postsPerPage);
 
+  // Only the actual creator of a user-created community can manage it
+  // Admins/mods can manage content but not delete/rename spaces from this UI
   const isCommunityCreator = category?.is_user_created && category?.created_by === user?.user_id;
-  const isAdminOrMod = user?.role === "admin" || user?.role === "moderator";
-  const canManageCommunity = isCommunityCreator || isAdminOrMod;
+  const canManageCommunity = isCommunityCreator;
 
   const openEditDialog = () => {
     setEditName(category.name);

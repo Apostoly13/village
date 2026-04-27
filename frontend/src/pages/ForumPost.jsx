@@ -361,7 +361,7 @@ export default function ForumPost({ user }) {
                     <Link to={`/profile/${reply.author_id}`} className="hover:underline flex items-center gap-1 flex-wrap">
                       <span className="font-medium text-foreground hover:text-primary transition-colors">{reply.author_name}</span>
                       {reply.author_subscription_tier === "premium" && !reply.is_anonymous && <Crown className="h-3 w-3 text-amber-500" />}
-                      {reply.author_is_verified_partner && !reply.is_anonymous && <VerifiedBadge />}
+                      {reply.author_is_verified_partner && !reply.is_anonymous && <VerifiedBadge occupation={reply.author_professional_type} />}
                     </Link>
                   ) : (
                     <span className="font-medium text-foreground">{reply.author_name}</span>
@@ -553,12 +553,12 @@ export default function ForumPost({ user }) {
       
       <main className="max-w-4xl mx-auto px-4 pt-16 lg:pt-8">
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => navigate(post?.category_id ? `/forums/${post.category_id}` : -1)}
           className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors"
           data-testid="back-link"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back
+          {post?.category_name ? `Back to ${post.category_name}` : "Back to Spaces"}
         </button>
 
         {/* ── Crisis support banner (mental-health categories only) ── */}
@@ -616,7 +616,7 @@ export default function ForumPost({ user }) {
                     <p className="font-medium text-foreground hover:text-primary transition-colors flex items-center gap-1 flex-wrap">
                       {post.author_name}
                       {post.author_subscription_tier === "premium" && !post.is_anonymous && <Crown className="h-3 w-3 text-amber-500" />}
-                      {post.author_is_verified_partner && !post.is_anonymous && <VerifiedBadge />}
+                      {post.author_is_verified_partner && !post.is_anonymous && <VerifiedBadge occupation={post.author_professional_type} />}
                     </p>
                   </Link>
                 ) : (

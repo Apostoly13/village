@@ -1866,11 +1866,18 @@ async def get_post(post_id: str, user: dict = Depends(get_current_user)):
     original_author_id = post["author_id"]
     post["is_own_post"] = original_author_id == user["user_id"]
 
-    # Enrich author_is_verified_partner from live user data (covers pre-existing posts)
-    if not post.get("author_is_verified_partner") and not post.get("is_anonymous"):
-        author_user = await db.users.find_one({"user_id": original_author_id}, {"verified_professional": 1, "is_verified_partner": 1})
+    # Enrich author_is_verified_partner + author_professional_type from live user data
+    if not post.get("is_anonymous"):
+        author_user = await db.users.find_one(
+            {"user_id": original_author_id},
+            {"verified_professional": 1, "is_verified_partner": 1, "professional_type": 1}
+        )
         if author_user:
-            post["author_is_verified_partner"] = bool(author_user.get("verified_professional") or author_user.get("is_verified_partner"))
+            if not post.get("author_is_verified_partner"):
+                post["author_is_verified_partner"] = bool(author_user.get("verified_professional") or author_user.get("is_verified_partner"))
+            # Always include professional type so the badge can show occupation
+            if author_user.get("professional_type"):
+                post["author_professional_type"] = author_user["professional_type"]
 
     mask_anonymous_post(post)
 
@@ -2230,10 +2237,27 @@ async def get_replies(post_id: str, user: dict = Depends(get_current_user)):
         ):
             liked_set.add(like["reply_id"])
 
+        # Batch fetch professional_type for all non-anonymous reply authors
+        non_anon_author_ids = list({r["author_id"] for r in replies if not r.get("is_anonymous") and r["author_id"] != "anonymous"})
+        author_prof_map = {}
+        async for au in db.users.find(
+            {"user_id": {"$in": non_anon_author_ids}},
+            {"_id": 0, "user_id": 1, "professional_type": 1, "verified_professional": 1, "is_verified_partner": 1}
+        ):
+            author_prof_map[au["user_id"]] = au
+
         for reply in replies:
             reply["user_liked"] = reply["reply_id"] in liked_set
             original_author_id = reply["author_id"]
             reply["is_own_reply"] = original_author_id == user["user_id"]
+
+            # Enrich professional badge data
+            if not reply.get("is_anonymous") and original_author_id in author_prof_map:
+                au = author_prof_map[original_author_id]
+                if not reply.get("author_is_verified_partner"):
+                    reply["author_is_verified_partner"] = bool(au.get("verified_professional") or au.get("is_verified_partner"))
+                if au.get("professional_type"):
+                    reply["author_professional_type"] = au["professional_type"]
 
             mask_anonymous_post(reply)
 
@@ -2482,9 +2506,13 @@ async def get_community_posts(
         query["post_type"] = post_type
 
     cursor = db.forum_posts.find(query, {"_id": 0}).sort("created_at", -1).skip(offset).limit(limit)
-    posts = []
+    raw_posts = []
     uid = current_user["user_id"]
     async for p in cursor:
+        raw_posts.append(p)
+
+    posts = []
+    for p in raw_posts:
         # Which emojis has this user reacted with?
         user_reactions = [
             emoji for emoji, users in p.get("reactions", {}).items() if uid in users
@@ -2499,9 +2527,90 @@ async def get_community_posts(
                 break
         p["user_poll_vote"] = user_poll_vote
 
+        # For meetup posts: attach RSVP count and current user's RSVP status
+        if p.get("post_type") == "meetup":
+            rsvp_doc = await db.community_meetup_rsvps.find_one({"post_id": p["post_id"]})
+            if rsvp_doc:
+                attendee_ids = rsvp_doc.get("attendee_ids", [])
+                p["rsvp_count"] = len(attendee_ids)
+                p["user_has_rsvp"] = uid in attendee_ids
+                # Include up to 5 attendee avatars for display
+                if attendee_ids[:5]:
+                    avatars = []
+                    async for au in db.users.find(
+                        {"user_id": {"$in": attendee_ids[:5]}},
+                        {"_id": 0, "user_id": 1, "display_name": 1, "nickname": 1, "profile_picture_url": 1}
+                    ):
+                        avatars.append({
+                            "user_id": au["user_id"],
+                            "name": au.get("nickname") or au.get("display_name", ""),
+                            "picture": au.get("profile_picture_url"),
+                        })
+                    p["rsvp_attendees"] = avatars
+            else:
+                p["rsvp_count"] = 0
+                p["user_has_rsvp"] = False
+                p["rsvp_attendees"] = []
+
         mask_anonymous_post(p)
         posts.append(p)
     return posts
+
+
+@api_router.post("/communities/{community_id}/posts/{post_id}/rsvp")
+async def toggle_community_meetup_rsvp(
+    community_id: str,
+    post_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Toggle RSVP for a community meetup post. Returns new RSVP state and count."""
+    community = await db.forum_categories.find_one(
+        {"category_id": community_id, "category_type": "community"}, {"_id": 0}
+    )
+    if not community:
+        raise HTTPException(status_code=404, detail="Community not found")
+    if not _user_can_access_community(community, current_user):
+        raise HTTPException(status_code=403, detail="This is a private community")
+
+    post = await db.forum_posts.find_one({"post_id": post_id, "category_id": community_id}, {"_id": 0, "post_type": 1})
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if post.get("post_type") != "meetup":
+        raise HTTPException(status_code=400, detail="RSVP only available for meetup posts")
+
+    uid = current_user["user_id"]
+    rsvp_doc = await db.community_meetup_rsvps.find_one({"post_id": post_id})
+
+    if rsvp_doc:
+        attendee_ids = rsvp_doc.get("attendee_ids", [])
+        if uid in attendee_ids:
+            # Remove RSVP
+            await db.community_meetup_rsvps.update_one(
+                {"post_id": post_id},
+                {"$pull": {"attendee_ids": uid}}
+            )
+            rsvped = False
+        else:
+            # Add RSVP
+            await db.community_meetup_rsvps.update_one(
+                {"post_id": post_id},
+                {"$addToSet": {"attendee_ids": uid}}
+            )
+            rsvped = True
+    else:
+        # First RSVP for this post
+        await db.community_meetup_rsvps.insert_one({
+            "post_id": post_id,
+            "community_id": community_id,
+            "attendee_ids": [uid],
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+        rsvped = True
+
+    # Return updated count
+    updated_doc = await db.community_meetup_rsvps.find_one({"post_id": post_id})
+    count = len(updated_doc.get("attendee_ids", [])) if updated_doc else 0
+    return {"rsvped": rsvped, "rsvp_count": count}
 
 
 @api_router.get("/communities/{community_id}/members")
@@ -5801,6 +5910,9 @@ async def seed_data(request: Request):
     await db.stall_messages.create_index([("listing_id", 1), ("sender_id", 1), ("receiver_id", 1), ("created_at", 1)])
     await db.stall_messages.create_index([("receiver_id", 1), ("is_read", 1)])
     await db.donation_groups.create_index([("status", 1), ("created_at", -1)])
+    # Community meetup RSVPs
+    await db.community_meetup_rsvps.create_index("post_id", unique=True)
+    await db.community_meetup_rsvps.create_index("community_id")
 
     # Stripe: create/retrieve products and prices
     await ensure_stripe_products()
@@ -6647,6 +6759,8 @@ async def seed_required_rooms():
     """Upsert required rooms and categories — safe to run on every startup, never creates duplicates."""
     # Start background trial-email loop (always runs regardless of /seed being called)
     fire_and_forget(_trial_email_loop())
+    # Start nightly chat-purge loop (7-day rolling window for open rooms)
+    fire_and_forget(_chat_purge_loop())
 
     now = datetime.now(timezone.utc).isoformat()
 
@@ -6791,6 +6905,81 @@ async def seed_required_rooms():
         ).to_list(20)
         for d in dupes:
             await db.forum_categories.delete_one({"_id": d["_id"]})
+
+async def purge_open_chat_messages():
+    """
+    Auto-purge old messages from open group chat rooms to keep them fresh.
+    Rules:
+      - All-Australia / named rooms: delete messages older than 7 days
+        AND if a room has > 500 messages, trim to keep only the latest 400.
+      - Suburb rooms: delete messages older than 14 days.
+      - Direct messages (dm): never purged here.
+      - Community posts: not affected (stored in forum_posts, not chat_messages).
+    Runs at startup and can be scheduled via the nightly loop.
+    """
+    now = datetime.now(timezone.utc)
+    seven_days_ago  = (now - timedelta(days=7)).isoformat()
+    fourteen_days_ago = (now - timedelta(days=14)).isoformat()
+
+    # Get all active rooms so we know their type
+    all_rooms = await db.chat_rooms.find({"is_active": True}, {"_id": 0, "room_id": 1, "room_type": 1}).to_list(1000)
+    room_type_map = {r["room_id"]: r.get("room_type", "all_australia") for r in all_rooms}
+
+    total_deleted = 0
+
+    # 1. Time-based purge per room type
+    for room_id, room_type in room_type_map.items():
+        if room_type == "all_australia":
+            cutoff = seven_days_ago
+        elif room_type == "suburb":
+            cutoff = fourteen_days_ago
+        else:
+            continue  # skip unknown types
+
+        result = await db.chat_messages.delete_many({
+            "room_id": room_id,
+            "created_at": {"$lt": cutoff}
+        })
+        total_deleted += result.deleted_count
+
+    # 2. Volume cap: if a room has > 500 messages, keep only the latest 400
+    VOLUME_CAP = 500
+    KEEP_LATEST = 400
+    for room_id in room_type_map:
+        count = await db.chat_messages.count_documents({"room_id": room_id})
+        if count > VOLUME_CAP:
+            # Find the _id of the 400th newest message (skip the latest 400, delete the rest)
+            oldest_to_keep = await db.chat_messages.find(
+                {"room_id": room_id}, {"_id": 1}
+            ).sort("created_at", -1).skip(KEEP_LATEST).limit(1).to_list(1)
+            if oldest_to_keep:
+                cutoff_id = oldest_to_keep[0]["_id"]
+                result = await db.chat_messages.delete_many({
+                    "room_id": room_id,
+                    "_id": {"$lte": cutoff_id}
+                })
+                total_deleted += result.deleted_count
+
+    if total_deleted:
+        print(f"[chat-purge] Removed {total_deleted} old messages from open chat rooms")
+
+
+async def _chat_purge_loop():
+    """Run chat purge once at startup then nightly at 3am AEST."""
+    import asyncio as _asyncio
+    await _asyncio.sleep(30)  # brief delay after startup
+    while True:
+        try:
+            await purge_open_chat_messages()
+        except Exception as e:
+            print(f"[chat-purge] Error: {e}")
+        # Sleep until next 3am AEST (UTC+10/+11) — approximate as 17:00 UTC
+        now_utc = datetime.now(timezone.utc)
+        next_run = now_utc.replace(hour=17, minute=0, second=0, microsecond=0)
+        if now_utc >= next_run:
+            next_run += timedelta(days=1)
+        await _asyncio.sleep((next_run - now_utc).total_seconds())
+
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

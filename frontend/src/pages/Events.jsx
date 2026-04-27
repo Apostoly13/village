@@ -11,7 +11,7 @@ import { Calendar, MapPin, Clock, Users, Plus, Download, Check, Pencil, UserPlus
 import { toast } from "sonner";
 import { parseApiError } from "../utils/apiError";
 import AppFooter from "../components/AppFooter";
-import { EVENT_CATEGORIES, CATEGORY_STYLES, CATEGORY_LABELS } from "../utils/eventCategories";
+import { EVENT_CATEGORIES, CATEGORY_STYLES, CATEGORY_LABELS, getDateChipStyle } from "../utils/eventCategories";
 import { formatEventDate, timeAgoVerbose } from "../utils/dateHelpers";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -315,8 +315,11 @@ function EventCard({ event, onRsvp, onUpdated, user, onOpenDetail }) {
       className="village-card village-card-hover border-l-2 border-l-primary/20 p-5 flex gap-4 cursor-pointer"
       onClick={() => onOpenDetail && onOpenDetail(event)}
     >
-      {/* Date chip */}
-      <div className="flex-shrink-0 w-14 h-14 rounded-xl bg-primary/15 text-primary flex flex-col items-center justify-center">
+      {/* Date chip — colored by category */}
+      <div
+        className="flex-shrink-0 w-14 h-14 rounded-xl flex flex-col items-center justify-center"
+        style={getDateChipStyle(event.category)}
+      >
         <span className="text-xl font-bold leading-none">{dateInfo.day}</span>
         <span className="text-xs font-medium uppercase">{dateInfo.month}</span>
       </div>
@@ -906,7 +909,7 @@ function EventDetailModal({ event, user, onClose, onRsvp, onUpdated }) {
           <div className="w-full lg:w-[55%] overflow-y-auto p-6 shrink-0 border-r border-border/50">
             {/* Date + Title */}
             <div className="flex gap-4 mb-5">
-              <div className="w-16 h-16 rounded-2xl bg-primary/15 text-primary flex flex-col items-center justify-center shrink-0">
+              <div className="w-16 h-16 rounded-2xl flex flex-col items-center justify-center shrink-0" style={getDateChipStyle(localEvent.category)}>
                 <span className="text-2xl font-bold leading-none">{dateInfo.day}</span>
                 <span className="text-xs font-semibold uppercase tracking-wide">{dateInfo.month}</span>
               </div>

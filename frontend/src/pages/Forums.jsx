@@ -56,7 +56,10 @@ export default function Forums({ user }) {
     try {
       const res = await fetch(`${API_URL}/api/forums/categories`, { credentials: "include" });
       if (res.ok) {
-        const data = await res.json();
+        const raw = await res.json();
+        // Deduplicate by category_id (prevents double-renders from stale cache + fresh data)
+        const seen = new Set();
+        const data = raw.filter(c => { if (seen.has(c.category_id)) return false; seen.add(c.category_id); return true; });
         setCategories(applyGenderFilter(data));
         try { sessionStorage.setItem("village_categories_cache", JSON.stringify(data)); } catch {}
       }
@@ -443,20 +446,49 @@ export default function Forums({ user }) {
                 <button onClick={() => { setCommunitySearch(""); setCommunityFilter("all"); }}
                   className="mt-3 text-xs text-primary underline underline-offset-2">Clear filters</button>
               </div>
-            ) : (
-              <>
-                {(communitySearch || communityFilter !== "all") && (
-                  <p className="text-xs text-muted-foreground mb-3">
-                    {filteredCommunities.length} of {communities.length} communities
-                  </p>
-                )}
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredCommunities.map((community, idx) => (
-                    <CommunityCard key={community.category_id} community={community} index={idx} />
-                  ))}
-                </div>
-              </>
-            )}
+            ) : (() => {
+              const myCommunities = filteredCommunities.filter(c => c.created_by === user?.user_id);
+              const otherCommunities = filteredCommunities.filter(c => c.created_by !== user?.user_id);
+              return (
+                <>
+                  {(communitySearch || communityFilter !== "all") && (
+                    <p className="text-xs text-muted-foreground mb-3">
+                      {filteredCommunities.length} of {communities.length} communities
+                    </p>
+                  )}
+                  {/* Your Communities section */}
+                  {myCommunities.length > 0 && (
+                    <div className="mb-6">
+                      <h3 className="font-heading font-semibold text-sm text-foreground mb-3 flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary inline-block" />
+                        Your Communities
+                      </h3>
+                      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {myCommunities.map((community, idx) => (
+                          <CommunityCard key={community.category_id} community={community} index={idx} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* All other communities */}
+                  {otherCommunities.length > 0 && (
+                    <div>
+                      {myCommunities.length > 0 && (
+                        <h3 className="font-heading font-semibold text-sm text-foreground mb-3 flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 inline-block" />
+                          All Communities
+                        </h3>
+                      )}
+                      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {otherCommunities.map((community, idx) => (
+                          <CommunityCard key={community.category_id} community={community} index={idx} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         ) : (
           /* ── Spaces: By Topic + By Age Group ─────────────────────────── */

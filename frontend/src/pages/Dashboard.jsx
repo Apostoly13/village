@@ -5,7 +5,7 @@ import { Input } from "../components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import Navigation from "../components/Navigation";
 // OnboardingModal removed — onboarding is now a standalone page at /onboarding
-import { Search, Plus, MessageCircle, Heart, Eye, Crown, X, Compass, Bell, HelpingHand } from "lucide-react";
+import { Search, Plus, MessageCircle, Heart, Eye, Crown, X, Compass, Bell, HelpingHand, Users, EyeOff, HelpCircle } from "lucide-react";
 import RecommendedSpaces from "../components/RecommendedSpaces";
 import AppFooter from "../components/AppFooter";
 import { timeAgoVerbose } from "../utils/dateHelpers";
@@ -299,22 +299,22 @@ export default function Dashboard({ user }) {
 
     if (replies.length && nearbyEvents.length) {
       sentence = `${replies.length === 1 ? "Someone replied to your post" : `${replies.length} parents replied to your posts`} and there ${nearbyEvents.length === 1 ? "is" : "are"} ${nearbyEvents.length} ${nearbyEvents.length === 1 ? "event" : "events"} near ${suburb}.`;
-      if (busyChatRooms.length) chips.push({ emoji: "🌿", text: `${busyChatRooms.length} circles active now` });
+      if (busyChatRooms.length) chips.push({ emoji: "🌿", text: `${busyChatRooms.length} spaces active now` });
     } else if (replies.length) {
       sentence = replies.length === 1 ? "Someone replied to your post — check in when you're ready." : `${replies.length} parents replied to your posts. Check in when you're ready.`;
       if (nearbyEvents.length)  chips.push({ emoji: "📅", text: `${nearbyEvents.length} events near ${suburb}` });
-      if (busyChatRooms.length) chips.push({ emoji: "🌿", text: `${busyChatRooms.length} circles active now` });
+      if (busyChatRooms.length) chips.push({ emoji: "🌿", text: `${busyChatRooms.length} spaces active now` });
     } else if (likes.length) {
       sentence = `${likes.length} ${likes.length === 1 ? "parent found" : "parents found"} your posts helpful recently.`;
       if (nearbyEvents.length)  chips.push({ emoji: "📅", text: `${nearbyEvents.length} events near ${suburb}` });
-      if (busyChatRooms.length) chips.push({ emoji: "🌿", text: `${busyChatRooms.length} circles active now` });
+      if (busyChatRooms.length) chips.push({ emoji: "🌿", text: `${busyChatRooms.length} spaces active now` });
     } else if (friends.length) {
       sentence = `You have ${friends.length} friend ${friends.length === 1 ? "request" : "requests"} from the village.`;
-      if (busyChatRooms.length) chips.push({ emoji: "🌿", text: `${busyChatRooms.length} circles active now` });
+      if (busyChatRooms.length) chips.push({ emoji: "🌿", text: `${busyChatRooms.length} spaces active now` });
     } else if (busyChatRooms.length && nearbyEvents.length) {
-      sentence = `${busyChatRooms.length} ${busyChatRooms.length === 1 ? "circle is" : "circles are"} active and ${nearbyEvents.length} ${nearbyEvents.length === 1 ? "event" : "events"} near ${suburb}.`;
+      sentence = `${busyChatRooms.length} ${busyChatRooms.length === 1 ? "space is" : "spaces are"} active and ${nearbyEvents.length} ${nearbyEvents.length === 1 ? "event" : "events"} near ${suburb}.`;
     } else if (busyChatRooms.length) {
-      sentence = `${busyChatRooms.length} ${busyChatRooms.length === 1 ? "circle is" : "circles are"} active right now — good time to join.`;
+      sentence = `${busyChatRooms.length} ${busyChatRooms.length === 1 ? "space is" : "spaces are"} active right now — good time to join.`;
     } else if (nearbyEvents.length) {
       sentence = `There ${nearbyEvents.length === 1 ? "is" : "are"} ${nearbyEvents.length} ${nearbyEvents.length === 1 ? "event" : "events"} near ${suburb} coming up.`;
     }
@@ -765,7 +765,11 @@ export default function Dashboard({ user }) {
                 to="/chat"
                 className="village-card p-5 hover:border-primary/40 hover:bg-primary/5 transition-colors text-center group"
               >
-                <span className="text-3xl block mb-2">💬</span>
+                <div className="flex justify-center mb-2.5">
+                  <span className="w-10 h-10 rounded-full bg-sage-wash flex items-center justify-center text-sage-deep" style={{ background: "var(--sage-wash)", color: "var(--sage-deep)" }}>
+                    <Users className="h-5 w-5" />
+                  </span>
+                </div>
                 <p className="font-heading font-semibold text-sm text-foreground group-hover:text-primary transition-colors">
                   Talk in a Group Chat
                 </p>
@@ -778,7 +782,11 @@ export default function Dashboard({ user }) {
                 to="/create-post"
                 className="village-card p-5 hover:border-primary/40 hover:bg-primary/5 transition-colors text-center group"
               >
-                <span className="text-3xl block mb-2">🙈</span>
+                <div className="flex justify-center mb-2.5">
+                  <span className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "var(--dusk-wash)", color: "var(--dusk)" }}>
+                    <EyeOff className="h-5 w-5" />
+                  </span>
+                </div>
                 <p className="font-heading font-semibold text-sm text-foreground group-hover:text-primary transition-colors">
                   Post anonymously
                 </p>
@@ -791,7 +799,11 @@ export default function Dashboard({ user }) {
                 to="/create-post"
                 className="village-card p-5 hover:border-primary/40 hover:bg-primary/5 transition-colors text-center group"
               >
-                <span className="text-3xl block mb-2">🙋</span>
+                <div className="flex justify-center mb-2.5">
+                  <span className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "var(--clay-wash)", color: "var(--clay-deep)" }}>
+                    <HelpCircle className="h-5 w-5" />
+                  </span>
+                </div>
                 <p className="font-heading font-semibold text-sm text-foreground group-hover:text-primary transition-colors">
                   Ask a question
                 </p>

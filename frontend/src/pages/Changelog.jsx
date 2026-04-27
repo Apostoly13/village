@@ -5,6 +5,26 @@ import AppFooter from "../components/AppFooter";
 
 const CHANGELOG = [
   {
+    version: "3.11.0",
+    date: "April 2026",
+    title: "Bug Fixes, Design Polish & Community Meetup RSVPs",
+    entries: [
+      { tag: "Fixed",    text: "Edit/Delete Community menu no longer appears inside regular Spaces — it is now restricted to community owners only (admins/mods can still moderate content but not rename or delete spaces from this UI)." },
+      { tag: "Fixed",    text: "Gender filter enforced on direct URL access — navigating directly to Mum Circle as a male user (or Dad Circle as a female user) now redirects to the Spaces page." },
+      { tag: "Fixed",    text: "Dashboard stat chips now say 'spaces active' instead of 'circles active' — aligns with the platform's current language." },
+      { tag: "Fixed",    text: "Back button in a Space thread now reads 'Back to [Space Name]' and navigates directly to that space — no more generic 'Back' label." },
+      { tag: "Fixed",    text: "Spaces page: added frontend deduplication guard to prevent duplicate category entries from sessionStorage/API timing edge cases." },
+      { tag: "Fixed",    text: "Night Owl hours: the 3am Club no longer appears three times — the bottom promo card is now hidden when Night Owl mode is active since it's already featured prominently." },
+      { tag: "Improved", text: "Dashboard action cards (Talk in a Group Chat, Post Anonymously, Ask a Question) now use clean icon badges in palette colors instead of emojis." },
+      { tag: "Improved", text: "Verified badge now shows professional occupation — e.g. 'Verified Midwife', 'Verified GP', 'Verified Psychologist' — instead of the generic 'Verified' label." },
+      { tag: "Improved", text: "Event date chips are now colored by event category — Playgroups use sage green, Meetups use clay/terracotta, Workshops use honey amber, Support events use dusk purple, consistent with the V2 palette." },
+      { tag: "Improved", text: "Communities page: 'Your Communities' (communities you own) are now shown in their own section at the top, followed by all other communities." },
+      { tag: "Added",    text: "Community Meetup RSVPs — meetup posts inside communities now have an 'I'll be there' RSVP button. Attendee count and up to 4 avatar previews shown. RSVPs are community-only and separate from the public Events system." },
+      { tag: "Added",    text: "Open chat room auto-purge — group chat rooms now automatically clear messages older than 7 days (national rooms) or 14 days (local suburb rooms). Rooms with more than 500 messages trim to the latest 400. Private DMs and community posts are never affected. Runs nightly at 3am AEST." },
+      { tag: "Improved", text: "Chat Rooms 'How it works' sidebar updated to explain the 7-day / 14-day rolling message window." },
+    ],
+  },
+  {
     version: "3.10.0",
     date: "April 2026",
     title: "V3 Design — Icon Pack, Communities Split & Navigation Polish",

@@ -226,11 +226,34 @@ function ReplySection({ postId, replyCount, currentUser }) {
 
 // ==================== POST CARD ====================
 
-function PostCard({ post, currentUser, onReact, onPollVote }) {
+function PostCard({ post, currentUser, onReact, onPollVote, communityId }) {
   const typeConfig = POST_TYPES.find((t) => t.id === post.post_type) || POST_TYPES[0];
   const isMilestone = post.post_type === "milestone";
   const isPoll = post.post_type === "poll";
   const isMeetup = post.post_type === "meetup";
+
+  // RSVP state for meetup posts
+  const [rsvpCount, setRsvpCount] = useState(post.rsvp_count || 0);
+  const [userHasRsvp, setUserHasRsvp] = useState(post.user_has_rsvp || false);
+  const [rsvpLoading, setRsvpLoading] = useState(false);
+  const [rsvpAttendees, setRsvpAttendees] = useState(post.rsvp_attendees || []);
+
+  const handleRsvp = async () => {
+    if (!currentUser) { return; }
+    setRsvpLoading(true);
+    try {
+      const res = await fetch(
+        `${API_URL}/api/communities/${communityId}/posts/${post.post_id}/rsvp`,
+        { method: "POST", credentials: "include" }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setUserHasRsvp(data.rsvped);
+        setRsvpCount(data.rsvp_count);
+      }
+    } catch { /* silent */ }
+    finally { setRsvpLoading(false); }
+  };
 
   const totalPollVotes = Object.values(post.poll_votes || {}).reduce(
     (acc, arr) => acc + (arr?.length || 0),
@@ -332,6 +355,44 @@ function PostCard({ post, currentUser, onReact, onPollVote }) {
                 className="mt-3 rounded-xl w-full max-h-72 object-cover border border-rose-300/40"
               />
             )}
+
+            {/* RSVP section */}
+            <div className="mt-4 pt-3 border-t border-rose-200/50 dark:border-rose-800/30">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  {/* Attendee avatar stack */}
+                  {rsvpAttendees.length > 0 && (
+                    <div className="flex -space-x-2">
+                      {rsvpAttendees.slice(0, 4).map((a) => (
+                        <div key={a.user_id} className="w-6 h-6 rounded-full border-2 border-white dark:border-rose-950 overflow-hidden shrink-0">
+                          {a.picture ? (
+                            <img src={a.picture} alt={a.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full bg-rose-300 flex items-center justify-center text-[8px] font-bold text-white">
+                              {(a.name || "?")[0].toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <span className="text-xs text-rose-700 dark:text-rose-300 font-medium">
+                    {rsvpCount === 0 ? "No RSVPs yet — be first!" : `${rsvpCount} going`}
+                  </span>
+                </div>
+                <button
+                  onClick={handleRsvp}
+                  disabled={rsvpLoading || !currentUser}
+                  className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                    userHasRsvp
+                      ? "bg-rose-500 text-white hover:bg-rose-600"
+                      : "bg-white dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-700 hover:bg-rose-50 dark:hover:bg-rose-900/40"
+                  }`}
+                >
+                  {rsvpLoading ? "…" : userHasRsvp ? "✓ Going" : "I'll be there"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
         <div className="mt-3 space-y-2">
@@ -1283,6 +1344,7 @@ export default function Community() {
                   currentUser={user}
                   onReact={handleReact}
                   onPollVote={handlePollVote}
+                  communityId={id}
                 />
               ))
             )}

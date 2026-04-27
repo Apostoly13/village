@@ -442,8 +442,8 @@ export default function ChatRooms({ user }) {
                         ))}
                     </div>
 
-                    {/* 3am Club promo — always visible */}
-                    {(() => {
+                    {/* 3am Club promo — hidden during night owl hours (already featured above) */}
+                    {!nightOwl && (() => {
                       const club = allAustraliaRooms.find(r => r.name?.toLowerCase().includes("3am"));
                       const href = club ? `/chat/${club.room_id}` : "/chat";
                       return (
@@ -606,6 +606,11 @@ export default function ChatRooms({ user }) {
                 <p><strong className="text-foreground font-medium">National rooms</strong> are always open — busiest in the evenings.</p>
                 <p><strong className="text-foreground font-medium">Local rooms</strong> are suburb-based — only parents near you.</p>
                 <p><strong className="text-foreground font-medium">Friends chats</strong> can be started from your <Link to="/friends" className="text-primary hover:underline">Friends page</Link>.</p>
+                <div className="pt-2 mt-2 border-t border-border/50">
+                  <p className="text-xs leading-relaxed">
+                    <strong className="text-foreground font-medium">Message history</strong> — open chat rooms automatically clear messages older than 7 days (national) or 14 days (local). This keeps conversations fresh and relevant. Private DMs and community posts are never auto-deleted.
+                  </p>
+                </div>
               </div>
             </div>
             <div className="village-card p-5">
