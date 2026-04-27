@@ -336,7 +336,7 @@ export default function ForumPost({ user }) {
     return (
       <div key={reply.reply_id} className={depth > 0 ? 'ml-4 border-l-2 border-primary/40 pl-3' : 'border-l-2 border-l-primary/20 pl-3 rounded-l-sm'}>
         <div
-          className={`${bgClass} rounded-2xl p-4 border mb-3 ${isEven ? 'border-border/40' : 'border-primary/20'}`}
+          className={`${bgClass} rounded-[18px] p-4 border mb-3 ${isEven ? 'border-border/40' : 'border-primary/20'}`}
           data-testid={`reply-${reply.reply_id}`}
         >
           <div className="flex items-start gap-3">
@@ -454,7 +454,7 @@ export default function ForumPost({ user }) {
         {/* Inline reply form — appears directly below this reply */}
         {replyingTo?.reply_id === reply.reply_id && (
           <div className="mt-1 mb-3 ml-4 pl-3 border-l-2 border-primary/40">
-            <form onSubmit={handleReply} className="bg-card rounded-2xl p-4 border border-border/40 space-y-3">
+            <form onSubmit={handleReply} className="village-card p-4 space-y-3">
               <div className="relative">
                 <Textarea
                   ref={replyTextareaRef}
@@ -512,7 +512,7 @@ export default function ForumPost({ user }) {
         <main className="max-w-4xl mx-auto px-4 pt-16 lg:pt-8">
           <div className="animate-pulse space-y-6">
             <div className="h-6 w-32 bg-muted rounded"></div>
-            <div className="bg-card rounded-2xl p-6 border border-border/50 space-y-4">
+            <div className="village-card p-6 space-y-4">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-muted"></div>
                 <div className="space-y-2">
@@ -534,7 +534,7 @@ export default function ForumPost({ user }) {
       <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
         <Navigation user={user} />
         <main className="max-w-4xl mx-auto px-4 pt-16 lg:pt-8">
-          <div className="text-center py-16 bg-card rounded-2xl border border-border/40 card-elevated">
+          <div className="text-center py-16 village-card">
             <span className="text-4xl mb-4 block">🔍</span>
             <h1 className="font-heading text-xl font-bold text-foreground mb-2">Post not found</h1>
             <p className="text-sm text-muted-foreground mb-6">This post may have been removed or the link is incorrect.</p>
@@ -593,7 +593,7 @@ export default function ForumPost({ user }) {
         })()}
 
         {/* Main Post */}
-        <article className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20 mb-6" data-testid="post-content">
+        <article className="village-card p-6 border-l-2 border-l-primary/20 mb-6" data-testid="post-content">
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
               {post.author_id !== "anonymous" ? (
@@ -754,7 +754,7 @@ export default function ForumPost({ user }) {
           </h2>
           
           {replies.length === 0 ? (
-            <div className="text-center py-10 bg-card rounded-2xl border border-border/40 card-elevated">
+            <div className="text-center py-10 village-card">
               <span className="text-3xl mb-3 block">💬</span>
               <h3 className="font-heading font-semibold text-foreground mb-1">No replies yet</h3>
               <p className="text-sm text-muted-foreground">Be the first to share your thoughts or support.</p>
@@ -766,7 +766,7 @@ export default function ForumPost({ user }) {
 
         {/* Bottom reply form — only for top-level replies (not replying to a specific reply) */}
         {!replyingTo && (
-        <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20 mb-8" data-testid="reply-form">
+        <div className="village-card p-6 border-l-2 border-l-primary/20 mb-8" data-testid="reply-form">
           <h3 className="font-heading font-bold text-lg text-foreground mb-4">Add a Reply</h3>
           <form onSubmit={handleReply} className="space-y-4">
             <div className="relative">

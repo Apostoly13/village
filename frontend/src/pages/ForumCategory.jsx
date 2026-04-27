@@ -504,7 +504,7 @@ export default function ForumCategory({ user }) {
                 ))}
               </div>
             ) : posts.length === 0 ? (
-              <div className="text-center py-12 bg-card rounded-2xl border border-border/50">
+              <div className="text-center py-12 village-card">
                 <span className="text-4xl mb-3 block">💬</span>
                 <h3 className="font-heading font-semibold text-foreground mb-1">
                   {filterType === "unanswered" ? "No unanswered posts" : "No posts yet"}
@@ -585,7 +585,7 @@ export default function ForumCategory({ user }) {
             )}
           </>
         ) : (
-          <div className="text-center py-12 bg-card rounded-2xl border border-border/50">
+          <div className="text-center py-12 village-card">
             <span className="text-4xl mb-3 block">🔍</span>
             <h3 className="font-heading font-semibold text-foreground">Category not found</h3>
             <p className="text-sm text-muted-foreground mt-1 mb-4">This space may have been removed.</p>

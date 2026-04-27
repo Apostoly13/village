@@ -508,7 +508,7 @@ export default function Onboarding({ user }) {
               <p className="text-muted-foreground mb-8">Welcome to The Village. Here's what you have access to.</p>
 
               {/* Free / Trial / Premium explainer — no upsell language, just plain info */}
-              <div className="bg-card rounded-2xl border border-border/50 p-5 mb-6 text-left">
+              <div className="village-card p-5 mb-6 text-left">
                 {isTrial && (
                   <>
                     <div className="flex items-center gap-2 mb-3">

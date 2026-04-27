@@ -210,7 +210,7 @@ export default function EditStallListing({ user }) {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* ── Photos ── */}
-          <section className="bg-card rounded-2xl border border-border/50 p-5">
+          <section className="village-card p-5">
             <h2 className="font-semibold text-foreground mb-1">Photos</h2>
             <p className="text-xs text-muted-foreground mb-4">Up to 4 photos</p>
 
@@ -254,7 +254,7 @@ export default function EditStallListing({ user }) {
           </section>
 
           {/* ── Details ── */}
-          <section className="bg-card rounded-2xl border border-border/50 p-5 space-y-4">
+          <section className="village-card p-5 space-y-4">
             <h2 className="font-semibold text-foreground">Details</h2>
 
             {/* Title */}
@@ -398,7 +398,7 @@ export default function EditStallListing({ user }) {
           </section>
 
           {/* ── Location ── */}
-          <section className="bg-card rounded-2xl border border-border/50 p-5 space-y-4">
+          <section className="village-card p-5 space-y-4">
             <h2 className="font-semibold text-foreground">Location</h2>
 
             <div>
@@ -428,7 +428,7 @@ export default function EditStallListing({ user }) {
           </section>
 
           {/* ── Description ── */}
-          <section className="bg-card rounded-2xl border border-border/50 p-5">
+          <section className="village-card p-5">
             <h2 className="font-semibold text-foreground mb-3">Description</h2>
             <textarea
               value={description}
@@ -441,7 +441,7 @@ export default function EditStallListing({ user }) {
           </section>
 
           {/* ── Listing status ── */}
-          <section className="bg-card rounded-2xl border border-border/50 p-5">
+          <section className="village-card p-5">
             <h2 className="font-semibold text-foreground mb-3">Status</h2>
             <div className="flex gap-2">
               {["active", "paused", "sold"].map(s => (

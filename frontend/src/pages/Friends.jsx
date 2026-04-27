@@ -129,7 +129,7 @@ export default function FriendsPage({ user }) {
   };
 
   const FriendCard = ({ friend, showRemove = false }) => (
-    <div className="bg-card rounded-2xl p-4 border border-border/40 card-elevated border-l-2 border-l-primary/20 hover:border-primary/30 hover:shadow-md hover:border-l-primary/40 transition-all" data-testid={`friend-card-${friend.user_id}`}>
+    <div className="village-card village-card-hover p-4 border-l-2 border-l-primary/20" data-testid={`friend-card-${friend.user_id}`}>
       <div className="flex items-center gap-4">
         <Link to={`/profile/${friend.user_id}`} className="relative shrink-0">
           <Avatar className="h-14 w-14 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
@@ -199,7 +199,7 @@ export default function FriendsPage({ user }) {
   );
 
   const RequestCard = ({ request }) => (
-    <div className="bg-card rounded-2xl p-4 border border-border/40 card-elevated border-l-2 border-l-primary/20 hover:border-primary/30 hover:shadow-md hover:border-l-primary/40 transition-all" data-testid={`request-card-${request.request_id}`}>
+    <div className="village-card village-card-hover p-4 border-l-2 border-l-primary/20" data-testid={`request-card-${request.request_id}`}>
       <div className="flex items-center gap-4">
         <Link to={`/profile/${request.from_user?.user_id}`}>
           <Avatar className="h-14 w-14 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
@@ -279,7 +279,7 @@ export default function FriendsPage({ user }) {
             {loading ? (
               <div className="space-y-4">
                 {[1, 2, 3].map(i => (
-                  <div key={i} className="bg-card rounded-2xl p-4 border border-border/50 animate-pulse">
+                  <div key={i} className="village-card p-4 animate-pulse">
                     <div className="flex items-center gap-4">
                       <div className="w-14 h-14 rounded-full bg-muted"></div>
                       <div className="flex-1 space-y-2">
@@ -291,7 +291,7 @@ export default function FriendsPage({ user }) {
                 ))}
               </div>
             ) : friends.length === 0 ? (
-              <div className="text-center py-12 bg-card rounded-2xl border border-border/50">
+              <div className="text-center py-12 village-card">
                 <span className="text-4xl mb-3 block">👋</span>
                 <h3 className="font-heading font-semibold text-foreground mb-1">Your village is waiting</h3>
                 <p className="text-sm text-muted-foreground mb-4">Add people you meet in the forums or chat rooms.</p>
@@ -314,7 +314,7 @@ export default function FriendsPage({ user }) {
             {loading ? (
               <div className="space-y-4">
                 {[1, 2].map(i => (
-                  <div key={i} className="bg-card rounded-2xl p-4 border border-border/50 animate-pulse">
+                  <div key={i} className="village-card p-4 animate-pulse">
                     <div className="flex items-center gap-4">
                       <div className="w-14 h-14 rounded-full bg-muted"></div>
                       <div className="flex-1 space-y-2">
@@ -326,7 +326,7 @@ export default function FriendsPage({ user }) {
                 ))}
               </div>
             ) : requests.length === 0 ? (
-              <div className="text-center py-12 bg-card rounded-2xl border border-border/50">
+              <div className="text-center py-12 village-card">
                 <span className="text-4xl mb-3 block">📭</span>
                 <h3 className="font-heading font-semibold text-foreground mb-1">No pending requests</h3>
                 <p className="text-sm text-muted-foreground">When someone wants to connect, you'll see it here.</p>
@@ -344,7 +344,7 @@ export default function FriendsPage({ user }) {
             {loading ? (
               <div className="space-y-4">
                 {[1, 2].map(i => (
-                  <div key={i} className="bg-card rounded-2xl p-4 border border-border/50 animate-pulse">
+                  <div key={i} className="village-card p-4 animate-pulse">
                     <div className="flex items-center gap-4">
                       <div className="w-14 h-14 rounded-full bg-muted"></div>
                       <div className="flex-1 space-y-2">
@@ -356,7 +356,7 @@ export default function FriendsPage({ user }) {
                 ))}
               </div>
             ) : sentRequests.length === 0 ? (
-              <div className="text-center py-12 bg-card rounded-2xl border border-border/50">
+              <div className="text-center py-12 village-card">
                 <span className="text-4xl mb-3 block">✉️</span>
                 <h3 className="font-heading font-semibold text-foreground mb-1">No sent requests</h3>
                 <p className="text-sm text-muted-foreground">Friend requests you send will appear here.</p>
@@ -364,7 +364,7 @@ export default function FriendsPage({ user }) {
             ) : (
               <div className="space-y-4">
                 {sentRequests.map(request => (
-                  <div key={request.request_id} className="bg-card rounded-2xl p-4 border border-border/50" data-testid={`sent-${request.request_id}`}>
+                  <div key={request.request_id} className="village-card p-4 border-l-2 border-l-primary/20" data-testid={`sent-${request.request_id}`}>
                     <div className="flex items-center gap-4">
                       <Avatar className="h-14 w-14">
                         <AvatarFallback className="bg-secondary text-muted-foreground">

@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { Button } from "../components/ui/button";
 import Navigation from "../components/Navigation";
 import { MessageCircle, Users, BookOpen, Crown, Plus, Clock, Lock, MapPin, UserCheck, UserPlus, Search, X } from "lucide-react";
+import { Village, Pram } from "../components/village/icons";
 import { toast } from "sonner";
 import { parseApiError } from "../utils/apiError";
 import AppFooter from "../components/AppFooter";
@@ -14,7 +15,9 @@ const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 export default function Forums({ user }) {
   const [searchParams] = useSearchParams();
-  const defaultTab = ["topics", "age", "communities"].includes(searchParams.get("tab")) ? searchParams.get("tab") : "topics";
+  const tabParam = searchParams.get("tab");
+  const showCommunities = tabParam === "communities";
+  const defaultTab = ["topics", "age"].includes(tabParam) ? tabParam : "topics";
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showGuidelines, setShowGuidelines] = useState(false);
@@ -106,7 +109,7 @@ export default function Forums({ user }) {
       className="block"
       data-testid={`category-card-${index}`}
     >
-      <div className={`bg-card rounded-2xl p-5 border border-border/50 border-l-2 border-l-primary/20 hover:border-primary/30 hover:border-l-primary/40 transition-all h-full card-hover ${accent ? accent : ""}`}>
+      <div className={`village-card village-card-hover p-5 h-full border-l-2 border-l-primary/20 hover:border-l-primary/40 ${accent ? accent : ""}`}>
         <div className="flex items-start gap-4">
           {/* Circular icon — key differentiator from Chat Spaces (square) */}
           <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center text-2xl flex-shrink-0">
@@ -133,7 +136,7 @@ export default function Forums({ user }) {
 
   const FeaturedCard = ({ category, colorClass, borderClass, iconBg, label, labelColor, icon }) => (
     <Link to={`/forums/${category.category_id}`} className="block">
-      <div className={`${colorClass} rounded-2xl p-5 border ${borderClass} border-l-4 hover:opacity-90 transition-all h-full card-hover`}>
+      <div className={`${colorClass} rounded-[18px] p-5 border ${borderClass} border-l-4 hover:opacity-90 village-card-hover h-full`}>
         <div className="flex items-start gap-4">
           <div className={`w-12 h-12 rounded-full ${iconBg} flex items-center justify-center text-2xl flex-shrink-0`}>
             {icon}
@@ -166,7 +169,7 @@ export default function Forums({ user }) {
       className="block"
       data-testid={`community-card-${index}`}
     >
-      <div className="bg-card rounded-2xl p-5 border-l-4 border-l-primary/50 border border-border/50 hover:border-primary/30 transition-all h-full card-hover">
+      <div className="village-card village-card-hover p-5 h-full border-l-4 border-l-primary/50">
         <div className="flex items-start gap-4">
           {/* Icon — image or emoji */}
           <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center text-2xl flex-shrink-0 overflow-hidden">
@@ -231,7 +234,7 @@ export default function Forums({ user }) {
   const SkeletonGrid = ({ count = 4 }) => (
     <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="bg-card rounded-2xl p-5 border border-border/50 animate-pulse">
+        <div key={i} className="village-card p-5 animate-pulse">
           <div className="flex items-start gap-4">
             <div className="w-12 h-12 rounded-full bg-muted flex-shrink-0" />
             <div className="flex-1 space-y-2">
@@ -284,8 +287,17 @@ export default function Forums({ user }) {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-1">Spaces</h1>
-            <p className="text-sm text-muted-foreground">Discussion threads by topic and age group — post, reply, and connect</p>
+            {showCommunities ? (
+              <>
+                <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-1">Communities</h1>
+                <p className="text-sm text-muted-foreground">Member-created groups — local, topic-based, open or private</p>
+              </>
+            ) : (
+              <>
+                <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-1">Spaces</h1>
+                <p className="text-sm text-muted-foreground">Discussion threads by topic and age group — post, reply, and connect</p>
+              </>
+            )}
           </div>
           <Button
             variant="outline"
@@ -302,126 +314,24 @@ export default function Forums({ user }) {
         {/* Group Chats shortcut — visible on mobile only (desktop has nav link) */}
         <Link
           to="/chat"
-          className="flex lg:hidden items-center gap-3 bg-card border border-border/50 rounded-2xl px-4 py-3 mb-4 hover:border-primary/30 transition-colors group"
+          className="flex lg:hidden items-center gap-3 village-card village-card-hover px-4 py-3 mb-4 group"
         >
           <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/20 transition-colors">
             <MessageCircle className="h-4.5 w-4.5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-foreground leading-tight">Group Chats</p>
-            <p className="text-xs text-muted-foreground">Live conversations with other parents</p>
+            <p className="text-sm font-semibold text-foreground leading-tight">Chat Rooms</p>
+            <p className="text-xs text-muted-foreground">Drop in. Chat live with other parents.</p>
           </div>
           <span className="text-xs text-primary font-medium shrink-0">Join →</span>
         </Link>
 
-        <Tabs defaultValue={defaultTab} className="w-full">
-          <TabsList className="w-full bg-card border border-border/50 rounded-xl p-1 mb-6">
-            <TabsTrigger
-              value="topics"
-              className="flex-1 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              data-testid="tab-topics"
-            >
-              By Topic
-            </TabsTrigger>
-            <TabsTrigger
-              value="age"
-              className="flex-1 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              data-testid="tab-age"
-            >
-              By Age Group
-            </TabsTrigger>
-            <TabsTrigger
-              value="communities"
-              className="flex-1 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              data-testid="tab-communities"
-            >
-              Communities
-            </TabsTrigger>
-          </TabsList>
-
-          {/* TOPICS */}
-          <TabsContent value="topics" className="mt-0">
-            {loading ? (
-              <SkeletonGrid count={6} />
-            ) : topicCategories.length === 0 ? (
-              <div className="text-center py-12 bg-card rounded-2xl border border-border/50">
-                <span className="text-4xl mb-3 block">📁</span>
-                <h3 className="font-heading font-semibold text-foreground mb-1">No categories yet</h3>
-                <p className="text-sm text-muted-foreground">Check back soon!</p>
-              </div>
-            ) : (
-              <>
-                {/* Featured: Mum Circle / Dad Circle — gender filtered, full-width when only one */}
-                {(() => {
-                  // Only females see Mum Circle; only males see Dad Circle; everyone else sees neither
-                  const mumSpace = liveGender === "female" ? topicCategories.find(isMum) : null;
-                  const dadSpace = liveGender === "male"   ? topicCategories.find(isDad) : null;
-                  if (!mumSpace && !dadSpace) return null;
-                  const isSingle = !mumSpace || !dadSpace;
-                  return (
-                    <div className={`grid gap-4 mb-4 ${isSingle ? "" : "sm:grid-cols-2"}`}>
-                      {mumSpace && (
-                        <FeaturedCard
-                          category={mumSpace}
-                          colorClass="bg-pink-500/8 dark:bg-pink-500/10"
-                          borderClass="border-pink-400/30 hover:border-pink-400/50"
-                          iconBg="bg-pink-500/20"
-                          icon="👩"
-                          label="Featured"
-                          labelColor="text-pink-500"
-                        />
-                      )}
-                      {dadSpace && (
-                        <FeaturedCard
-                          category={dadSpace}
-                          colorClass="bg-blue-500/8 dark:bg-blue-500/10"
-                          borderClass="border-blue-400/30 hover:border-blue-400/50"
-                          iconBg="bg-blue-500/20"
-                          icon="👨"
-                          label="Featured"
-                          labelColor="text-blue-500"
-                        />
-                      )}
-                    </div>
-                  );
-                })()}
-
-                {/* Remaining topics — 3-col grid on large screens */}
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {topicCategories
-                    .filter(c => !isMum(c) && !isDad(c))
-                    .map((category, idx) => (
-                      <CategoryCard key={category.category_id} category={category} index={idx} />
-                    ))}
-                </div>
-              </>
-            )}
-          </TabsContent>
-
-          {/* AGE GROUPS */}
-          <TabsContent value="age" className="mt-0">
-            {loading ? (
-              <SkeletonGrid count={4} />
-            ) : ageCategories.length === 0 ? (
-              <div className="text-center py-12 bg-card rounded-2xl border border-border/50">
-                <span className="text-4xl mb-3 block">👶</span>
-                <h3 className="font-heading font-semibold text-foreground mb-1">No age groups yet</h3>
-                <p className="text-sm text-muted-foreground">Check back soon!</p>
-              </div>
-            ) : (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {ageCategories.map((category, idx) => (
-                  <CategoryCard key={category.category_id} category={category} index={idx} />
-                ))}
-              </div>
-            )}
-          </TabsContent>
-
-          {/* COMMUNITIES */}
-          <TabsContent value="communities" className="mt-0">
+        {showCommunities ? (
+          /* ── Communities standalone section ───────────────────────────── */
+          <div className="w-full">
             <div className="flex items-center justify-between mb-4">
               <p className="text-sm text-muted-foreground">
-                {isPremium ? "Browse and join member-created communities" : "Member communities — Village+ feature"}
+                {isPremium ? "Browse and join member-created communities" : "Village+ members can create and join communities"}
               </p>
               {isPremium && (
                 <Link to="/create-community">
@@ -433,10 +343,9 @@ export default function Forums({ user }) {
               )}
             </div>
 
-            {/* Search + Sort + Filter (only shown when communities are accessible) */}
+            {/* Search + Sort + Filter */}
             {isPremium && !loading && (
               <div className="flex flex-col sm:flex-row gap-2 mb-5">
-                {/* Search */}
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <input
@@ -452,13 +361,12 @@ export default function Forums({ user }) {
                     </button>
                   )}
                 </div>
-                {/* Filter pills */}
                 <div className="flex gap-1.5 flex-wrap sm:flex-nowrap">
                   {[
-                    { id: "all",     label: "All" },
-                    { id: "local",   label: "📍 Local" },
-                    { id: "joined",  label: "✓ Joined" },
-                    { id: "open",    label: "Open" },
+                    { id: "all",    label: "All" },
+                    { id: "local",  label: "📍 Local" },
+                    { id: "joined", label: "✓ Joined" },
+                    { id: "open",   label: "Open" },
                   ].map(f => (
                     <button key={f.id} onClick={() => setCommunityFilter(f.id)}
                       className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${communityFilter === f.id ? "bg-primary text-primary-foreground" : "bg-card border border-border/50 text-muted-foreground hover:text-foreground"}`}
@@ -467,7 +375,6 @@ export default function Forums({ user }) {
                     </button>
                   ))}
                 </div>
-                {/* Sort select */}
                 <select
                   value={communitySort}
                   onChange={e => setCommunitySort(e.target.value)}
@@ -483,9 +390,7 @@ export default function Forums({ user }) {
             )}
 
             {!isPremium ? (
-              /* Village+ upgrade wall */
-              <div className="rounded-2xl border border-border/50 bg-card overflow-hidden">
-                {/* Blurred preview of what's behind the gate */}
+              <div className="village-card overflow-hidden">
                 <div className="relative">
                   <div className="p-6 space-y-3 blur-sm pointer-events-none select-none opacity-60">
                     {[1,2,3].map(i => (
@@ -498,14 +403,13 @@ export default function Forums({ user }) {
                       </div>
                     ))}
                   </div>
-                  {/* Overlay */}
                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/80 backdrop-blur-[2px] p-8 text-center">
                     <div className="w-14 h-14 rounded-full bg-amber-500/10 flex items-center justify-center mb-4">
                       <Crown className="h-7 w-7 text-amber-500" />
                     </div>
                     <h3 className="font-heading font-bold text-xl text-foreground mb-2">Communities are a Village+ feature</h3>
                     <p className="text-sm text-muted-foreground mb-1 max-w-sm">
-                      Create and join member communities — local, topic-based, private or open. Up to 3 communities per Village+ member.
+                      Create and join member communities — local, topic-based, private or open.
                     </p>
                     <p className="text-xs text-muted-foreground mb-6">Free members can browse Spaces and Group Chats.</p>
                     <Link to="/plus">
@@ -520,34 +424,27 @@ export default function Forums({ user }) {
             ) : loading ? (
               <SkeletonGrid count={2} />
             ) : communities.length === 0 ? (
-              <div className="text-center py-12 bg-card rounded-2xl border border-border/50">
-                <span className="text-4xl mb-3 block">🏡</span>
+              <div className="text-center py-12 village-card">
+                <div className="flex justify-center mb-3 text-muted-foreground/40"><Village size={40} /></div>
                 <h3 className="font-heading font-semibold text-foreground mb-1">No communities yet</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Village+ members can create topic or local communities.
-                </p>
-                {isPremium && (
-                  <Link to="/create-community">
-                    <Button className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl" data-testid="empty-create-community-btn">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create First Community
-                    </Button>
-                  </Link>
-                )}
+                <p className="text-sm text-muted-foreground mb-4">Be the first to create one.</p>
+                <Link to="/create-community">
+                  <Button className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl" data-testid="empty-create-community-btn">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create First Community
+                  </Button>
+                </Link>
               </div>
             ) : filteredCommunities.length === 0 ? (
-              <div className="text-center py-12 bg-card rounded-2xl border border-border/50">
-                <span className="text-4xl mb-3 block">🔍</span>
+              <div className="text-center py-12 village-card">
+                <div className="flex justify-center mb-3 text-muted-foreground/40"><Search size={40} /></div>
                 <h3 className="font-heading font-semibold text-foreground mb-1">No communities match</h3>
                 <p className="text-sm text-muted-foreground">Try a different search or filter.</p>
                 <button onClick={() => { setCommunitySearch(""); setCommunityFilter("all"); }}
-                  className="mt-3 text-xs text-primary underline underline-offset-2">
-                  Clear filters
-                </button>
+                  className="mt-3 text-xs text-primary underline underline-offset-2">Clear filters</button>
               </div>
             ) : (
               <>
-                {/* Result count when filters active */}
                 {(communitySearch || communityFilter !== "all") && (
                   <p className="text-xs text-muted-foreground mb-3">
                     {filteredCommunities.length} of {communities.length} communities
@@ -560,8 +457,102 @@ export default function Forums({ user }) {
                 </div>
               </>
             )}
-          </TabsContent>
-        </Tabs>
+          </div>
+        ) : (
+          /* ── Spaces: By Topic + By Age Group ─────────────────────────── */
+          <Tabs defaultValue={defaultTab} className="w-full">
+            <TabsList className="w-full bg-card border border-border/50 rounded-xl p-1 mb-6">
+              <TabsTrigger
+                value="topics"
+                className="flex-1 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                data-testid="tab-topics"
+              >
+                By Topic
+              </TabsTrigger>
+              <TabsTrigger
+                value="age"
+                className="flex-1 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                data-testid="tab-age"
+              >
+                By Age Group
+              </TabsTrigger>
+            </TabsList>
+
+            {/* TOPICS */}
+            <TabsContent value="topics" className="mt-0">
+              {loading ? (
+                <SkeletonGrid count={6} />
+              ) : topicCategories.length === 0 ? (
+                <div className="text-center py-12 village-card">
+                  <div className="flex justify-center mb-3 text-muted-foreground/40"><Search size={40} /></div>
+                  <h3 className="font-heading font-semibold text-foreground mb-1">No categories yet</h3>
+                  <p className="text-sm text-muted-foreground">Check back soon!</p>
+                </div>
+              ) : (
+                <>
+                  {(() => {
+                    const mumSpace = liveGender === "female" ? topicCategories.find(isMum) : null;
+                    const dadSpace = liveGender === "male"   ? topicCategories.find(isDad) : null;
+                    if (!mumSpace && !dadSpace) return null;
+                    const isSingle = !mumSpace || !dadSpace;
+                    return (
+                      <div className={`grid gap-4 mb-4 ${isSingle ? "" : "sm:grid-cols-2"}`}>
+                        {mumSpace && (
+                          <FeaturedCard
+                            category={mumSpace}
+                            colorClass="bg-pink-500/8 dark:bg-pink-500/10"
+                            borderClass="border-pink-400/30 hover:border-pink-400/50"
+                            iconBg="bg-pink-500/20"
+                            icon="👩"
+                            label="Featured"
+                            labelColor="text-pink-500"
+                          />
+                        )}
+                        {dadSpace && (
+                          <FeaturedCard
+                            category={dadSpace}
+                            colorClass="bg-blue-500/8 dark:bg-blue-500/10"
+                            borderClass="border-blue-400/30 hover:border-blue-400/50"
+                            iconBg="bg-blue-500/20"
+                            icon="👨"
+                            label="Featured"
+                            labelColor="text-blue-500"
+                          />
+                        )}
+                      </div>
+                    );
+                  })()}
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {topicCategories
+                      .filter(c => !isMum(c) && !isDad(c))
+                      .map((category, idx) => (
+                        <CategoryCard key={category.category_id} category={category} index={idx} />
+                      ))}
+                  </div>
+                </>
+              )}
+            </TabsContent>
+
+            {/* AGE GROUPS */}
+            <TabsContent value="age" className="mt-0">
+              {loading ? (
+                <SkeletonGrid count={4} />
+              ) : ageCategories.length === 0 ? (
+                <div className="text-center py-12 village-card">
+                  <div className="flex justify-center mb-3 text-muted-foreground/40"><Pram size={40} /></div>
+                  <h3 className="font-heading font-semibold text-foreground mb-1">No age groups yet</h3>
+                  <p className="text-sm text-muted-foreground">Check back soon!</p>
+                </div>
+              ) : (
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {ageCategories.map((category, idx) => (
+                    <CategoryCard key={category.category_id} category={category} index={idx} />
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+        )}
 
         <AppFooter />
       </main>
@@ -569,7 +560,7 @@ export default function Forums({ user }) {
       {/* Community Guidelines Modal */}
       {showGuidelines && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowGuidelines(false)}>
-          <div className="bg-card rounded-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto p-6" onClick={e => e.stopPropagation()}>
+          <div className="village-card max-w-lg w-full max-h-[80vh] overflow-y-auto p-6" onClick={e => e.stopPropagation()}>
             <h2 className="font-heading text-xl font-bold text-foreground mb-4 flex items-center gap-2">
               <BookOpen className="h-5 w-5 text-primary" />
               Community Guidelines

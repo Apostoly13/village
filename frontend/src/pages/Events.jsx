@@ -312,7 +312,7 @@ function EventCard({ event, onRsvp, onUpdated, user, onOpenDetail }) {
 
   return (
     <article
-      className="bg-card border border-border/40 card-elevated border-l-2 border-l-primary/20 rounded-2xl p-5 hover:border-primary/30 hover:shadow-md hover:border-l-primary/40 transition-all flex gap-4 cursor-pointer"
+      className="village-card village-card-hover border-l-2 border-l-primary/20 p-5 flex gap-4 cursor-pointer"
       onClick={() => onOpenDetail && onOpenDetail(event)}
     >
       {/* Date chip */}
@@ -1094,6 +1094,8 @@ export default function Events({ user }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [localMeetupsId, setLocalMeetupsId] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  // Client-side time filter (server handles category/state/distance)
+  const [timeFilter, setTimeFilter] = useState("all");
 
   useEffect(() => {
     fetchEvents();
@@ -1149,6 +1151,31 @@ export default function Events({ user }) {
     setEvents(prev => prev.map(e => e.event_id === updatedEvent.event_id ? { ...e, ...updatedEvent } : e));
   };
 
+  const TIME_FILTERS = [
+    { id: "all",     label: "All upcoming" },
+    { id: "today",   label: "Today" },
+    { id: "week",    label: "This week" },
+    { id: "month",   label: "This month" },
+    { id: "going",   label: "I'm going" },
+  ];
+
+  const filteredByTime = events.filter(e => {
+    if (timeFilter === "going") return e.user_has_rsvp;
+    const d = e.date ? new Date(e.date) : null;
+    if (!d) return false;
+    const now = new Date();
+    if (timeFilter === "today") return d.toDateString() === now.toDateString();
+    if (timeFilter === "week") {
+      const end = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      return d >= now && d <= end;
+    }
+    if (timeFilter === "month") {
+      const end = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      return d >= now && d <= end;
+    }
+    return true;
+  });
+
   if (isFree) {
     return (
       <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
@@ -1176,7 +1203,7 @@ export default function Events({ user }) {
     <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-8">
       <Navigation user={user} />
 
-      <main className="max-w-4xl mx-auto px-4 pt-16 lg:pt-8">
+      <main className="max-w-5xl mx-auto px-4 pt-16 lg:pt-8">
         {/* Header */}
         <div className="flex items-start justify-between mb-6">
           <div>
@@ -1184,11 +1211,14 @@ export default function Events({ user }) {
               className="text-2xl sm:text-3xl font-medium leading-tight mb-1"
               style={{ fontFamily: "var(--serif)", letterSpacing: "-0.025em", color: "var(--ink)" }}
             >
-              What's on ·{" "}
-              <em style={{ fontStyle: "italic", color: "hsl(var(--accent))" }}>near you.</em>
+              {user?.suburb ? (
+                <>Near <em style={{ fontStyle: "italic", color: "hsl(var(--accent))" }}>{user.suburb}.</em></>
+              ) : (
+                <>What's on · <em style={{ fontStyle: "italic", color: "hsl(var(--accent))" }}>near you.</em></>
+              )}
             </h1>
             <p className="text-sm" style={{ color: "var(--ink-2)" }}>
-              Find meetups, playgroups and local events for parents in your area.
+              Real meetups, walks, and play dates in your local area. RSVP to see who else is going.
             </p>
           </div>
 
@@ -1209,114 +1239,196 @@ export default function Events({ user }) {
           </Dialog>
         </div>
 
-        {/* Forum callout */}
-        <div className="mb-6 p-4 rounded-2xl bg-secondary/50 border border-border/30 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">📍</span>
-            <div>
-              <p className="text-sm font-medium text-foreground">Discuss meetups in Spaces</p>
-              <p className="text-xs text-muted-foreground">Share your experience or find others going to the same event</p>
-            </div>
-          </div>
-          <Link
-            to={localMeetupsId ? `/forums/${localMeetupsId}` : "/forums"}
-            className="text-xs text-primary hover:underline whitespace-nowrap"
-          >
-            Open Support Space →
-          </Link>
-        </div>
+        <div className="grid lg:grid-cols-[1fr_272px] gap-8">
 
-        {/* Filters */}
-        <div className="flex items-center gap-3 mb-6 flex-wrap">
-          {/* Category pills */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {CATEGORIES.map(cat => (
-              <button
-                key={cat.id}
-                onClick={() => setActiveCategory(cat.id)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                  activeCategory === cat.id
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                }`}
-              >
-                {cat.label}
-              </button>
-            ))}
-          </div>
+          {/* ── Main content ── */}
+          <div className="min-w-0 space-y-5">
 
-          {/* State + Distance filters */}
-          <div className="ml-auto flex items-center gap-2">
-            <Select value={distanceFilter} onValueChange={setDistanceFilter}>
-              <SelectTrigger className="rounded-xl border-border h-9 text-sm min-w-[120px]">
-                <SelectValue placeholder="Distance" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="any">Any distance</SelectItem>
-                <SelectItem value="5">Within 5km</SelectItem>
-                <SelectItem value="10">Within 10km</SelectItem>
-                <SelectItem value="25">Within 25km</SelectItem>
-                <SelectItem value="50">Within 50km</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={stateFilter} onValueChange={setStateFilter}>
-              <SelectTrigger className="rounded-xl border-border h-9 text-sm min-w-[100px]">
-                <SelectValue placeholder="State" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All States</SelectItem>
-                {AU_STATES.map(s => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* Content */}
-        {loading ? (
-          <div className="space-y-4">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="bg-card border border-border/50 rounded-2xl p-5 animate-pulse flex gap-4">
-                <div className="w-14 h-14 rounded-xl bg-muted flex-shrink-0"></div>
-                <div className="flex-1 space-y-2">
-                  <div className="w-24 h-4 bg-muted rounded"></div>
-                  <div className="w-3/4 h-5 bg-muted rounded"></div>
-                  <div className="w-1/2 h-4 bg-muted rounded"></div>
+            {/* Forum callout */}
+            <div className="p-4 rounded-[18px] bg-secondary/50 border border-border/30 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <span className="text-xl">📍</span>
+                <div>
+                  <p className="text-sm font-medium text-foreground">Discuss events in Spaces</p>
+                  <p className="text-xs text-muted-foreground">Share your experience or find others going</p>
                 </div>
               </div>
-            ))}
+              <Link
+                to={localMeetupsId ? `/forums/${localMeetupsId}` : "/forums"}
+                className="text-xs text-primary hover:underline whitespace-nowrap"
+              >
+                Open →
+              </Link>
+            </div>
+
+            {/* Time filter chips */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {TIME_FILTERS.map(f => (
+                <button
+                  key={f.id}
+                  onClick={() => setTimeFilter(f.id)}
+                  className={`h-8 px-4 rounded-full text-sm font-medium transition-colors ${
+                    timeFilter === f.id
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-card border border-border/50 text-muted-foreground hover:text-foreground hover:border-primary/30"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Category + geographic filters */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+                {CATEGORIES.map(cat => (
+                  <button
+                    key={cat.id}
+                    onClick={() => setActiveCategory(cat.id)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                      activeCategory === cat.id
+                        ? "bg-primary/15 text-primary border border-primary/30"
+                        : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                    }`}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Select value={distanceFilter} onValueChange={setDistanceFilter}>
+                  <SelectTrigger className="rounded-xl border-border h-8 text-xs min-w-[110px]">
+                    <SelectValue placeholder="Distance" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="any">Any distance</SelectItem>
+                    <SelectItem value="5">Within 5km</SelectItem>
+                    <SelectItem value="10">Within 10km</SelectItem>
+                    <SelectItem value="25">Within 25km</SelectItem>
+                    <SelectItem value="50">Within 50km</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={stateFilter} onValueChange={setStateFilter}>
+                  <SelectTrigger className="rounded-xl border-border h-8 text-xs min-w-[90px]">
+                    <SelectValue placeholder="State" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All States</SelectItem>
+                    {AU_STATES.map(s => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Event list */}
+            {loading ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="village-card p-5 animate-pulse flex gap-4">
+                    <div className="w-14 h-14 rounded-xl bg-muted flex-shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <div className="w-24 h-4 bg-muted rounded" />
+                      <div className="w-3/4 h-5 bg-muted rounded" />
+                      <div className="w-1/2 h-4 bg-muted rounded" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredByTime.length === 0 ? (
+              <div className="text-center py-14 village-card">
+                <span className="text-5xl mb-4 block">📅</span>
+                <h3 className="font-heading font-bold text-lg text-foreground mb-2">
+                  {timeFilter === "going" ? "No upcoming RSVPs" : "No events found"}
+                </h3>
+                <p className="text-sm text-muted-foreground mb-6">
+                  {timeFilter === "going"
+                    ? "RSVP to an event to see it here."
+                    : "Be the first to organise something in your area."}
+                </p>
+                {timeFilter !== "going" && (
+                  <Button
+                    onClick={() => setDialogOpen(true)}
+                    className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Event
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredByTime.map(event => (
+                  <EventCard
+                    key={event.event_id}
+                    event={event}
+                    onRsvp={handleRsvp}
+                    onUpdated={handleUpdated}
+                    user={user}
+                    onOpenDetail={setSelectedEvent}
+                  />
+                ))}
+              </div>
+            )}
+
+            <AppFooter />
           </div>
-        ) : events.length === 0 ? (
-          <div className="text-center py-16 bg-card border border-border/50 rounded-2xl">
-            <span className="text-5xl mb-4 block">📅</span>
-            <h3 className="font-heading font-bold text-lg text-foreground mb-2">No events yet</h3>
-            <p className="text-sm text-muted-foreground mb-6">
-              Be the first to organise something in your area
-            </p>
-            <Button
-              onClick={() => setDialogOpen(true)}
-              className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Create Event
-            </Button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {events.map(event => (
-              <EventCard
-                key={event.event_id}
-                event={event}
-                onRsvp={handleRsvp}
-                onUpdated={handleUpdated}
-                user={user}
-                onOpenDetail={setSelectedEvent}
-              />
-            ))}
-          </div>
-        )}
+
+          {/* ── Sidebar ── */}
+          <aside className="hidden lg:block space-y-4 self-start sticky top-8">
+            {/* My RSVPs */}
+            <div className="village-card p-5">
+              <h3 className="font-heading font-semibold text-foreground mb-3">My RSVPs</h3>
+              {events.filter(e => e.user_has_rsvp).length === 0 ? (
+                <p className="text-sm text-muted-foreground italic" style={{ fontFamily: "var(--serif)" }}>
+                  No RSVPs yet. Pick something for this week.
+                </p>
+              ) : (
+                <div className="space-y-1">
+                  {events.filter(e => e.user_has_rsvp).slice(0, 4).map(e => {
+                    const d = e.date ? new Date(e.date) : null;
+                    return (
+                      <button
+                        key={e.event_id}
+                        onClick={() => setSelectedEvent(e)}
+                        className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/50 transition-colors text-left"
+                      >
+                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex flex-col items-center justify-center shrink-0">
+                          <span className="text-sm font-bold text-primary leading-none">{d ? d.getDate() : "?"}</span>
+                          <span className="text-[9px] uppercase tracking-wide text-muted-foreground">{d ? d.toLocaleString("en-AU", { month: "short" }) : ""}</span>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">{e.title}</p>
+                          <p className="text-xs text-muted-foreground truncate">{e.suburb}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Hosting an event? */}
+            <div className="village-card p-5">
+              <h3 className="font-heading font-semibold text-foreground mb-2">Hosting an event?</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed mb-3">
+                Create a local event and invite parents in your area.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-full w-full"
+                onClick={() => setDialogOpen(true)}
+              >
+                <Plus className="h-3.5 w-3.5 mr-1.5" />
+                Create event
+              </Button>
+            </div>
+          </aside>
+
+        </div>
+
         {selectedEvent && (
           <EventDetailModal
             event={selectedEvent}
@@ -1332,7 +1444,6 @@ export default function Events({ user }) {
             }}
           />
         )}
-        <AppFooter />
       </main>
     </div>
   );

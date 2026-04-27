@@ -389,7 +389,7 @@ export default function Landing() {
             </div>
             <div className="space-y-4">
               {/* Free */}
-              <div className="bg-card rounded-2xl border border-border/50 p-5">
+              <div className="village-card p-5">
                 <div className="flex items-baseline justify-between mb-4">
                   <h3 className="font-heading font-bold text-lg text-foreground">Village Free</h3>
                   <div className="text-right"><p className="text-2xl font-bold text-foreground">$0</p><p className="text-xs text-muted-foreground">forever</p></div>
@@ -436,7 +436,7 @@ export default function Landing() {
                 { icon: "🇦🇺", title: "Hosted in Australia", desc: "Your conversations live on Australian servers under Australian law." },
                 { icon: "🗑️", title: "Delete anything, any time", desc: "Your account, your posts, your messages — gone when you say so." },
               ].map((item) => (
-                <div key={item.title} className="bg-card rounded-2xl border border-border/50 p-4 flex gap-3">
+                <div key={item.title} className="village-card p-4 flex gap-3">
                   <span className="text-xl shrink-0">{item.icon}</span>
                   <div><p className="font-medium text-foreground text-sm mb-0.5">{item.title}</p><p className="text-xs text-muted-foreground leading-relaxed">{item.desc}</p></div>
                 </div>
@@ -823,7 +823,7 @@ export default function Landing() {
               <p className="text-muted-foreground max-w-xl mx-auto">Everything that matters is free. Village+ unlocks the extras — honest pricing, cancel any time.</p>
             </div>
             <div className="grid md:grid-cols-2 gap-6">
-              <div className="bg-card rounded-2xl border border-border/50 p-7">
+              <div className="village-card p-7">
                 <div className="flex items-baseline justify-between mb-5"><h3 className="font-heading font-bold text-xl text-foreground">Village Free</h3><div className="text-right"><p className="text-2xl font-bold text-foreground">$0</p><p className="text-xs text-muted-foreground">forever</p></div></div>
                 <ul className="space-y-3 text-sm text-foreground">
                   {["All Spaces & discussions", "Group Chats (national + local)", "Anonymous posting", "RSVP to events", "Verified clinician replies", "Crisis resources"].map(t => (
@@ -861,7 +861,7 @@ export default function Landing() {
                 { icon: "🇦🇺", title: "Hosted in Australia", desc: "Your conversations live on Australian servers under Australian law." },
                 { icon: "🗑️", title: "Delete anything, any time", desc: "Your account, your posts, your messages — gone when you say so." },
               ].map((item) => (
-                <div key={item.title} className="bg-card rounded-2xl border border-border/50 p-5 flex gap-4">
+                <div key={item.title} className="village-card p-5 flex gap-4">
                   <span className="text-2xl shrink-0">{item.icon}</span>
                   <div><p className="font-medium text-foreground text-sm mb-1">{item.title}</p><p className="text-xs text-muted-foreground leading-relaxed">{item.desc}</p></div>
                 </div>

@@ -43,6 +43,19 @@ function ProfileSection({ title, icon, children, defaultOpen = false }) {
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 const AUSTRALIAN_STATES = ["NSW", "VIC", "QLD", "WA", "SA", "TAS", "ACT", "NT"];
+
+const PRO_TYPE_LABELS = {
+  midwife: "Midwife",
+  doctor: "Doctor (GP)",
+  obstetrician: "Obstetrician",
+  nurse: "Nurse",
+  psychologist: "Psychologist / Counsellor",
+  lactation_consultant: "Lactation Consultant",
+  pediatrician: "Paediatrician",
+  social_worker: "Social Worker",
+  physiotherapist: "Physiotherapist",
+  other: "Health Professional",
+};
 const INTEREST_OPTIONS = [
   "Sleep & Settling", "Feeding", "Toddler Activities", "School Age",
   "Mental Health", "Dad Talk", "Mum Talk", "Local Events",
@@ -122,6 +135,10 @@ function ProfilePage({ user }) {
   const [locationSearch, setLocationSearch] = useState("");
   const [locationResults, setLocationResults] = useState([]);
   const [searchingLocation, setSearchingLocation] = useState(false);
+
+  // Posts
+  const [userPosts, setUserPosts] = useState([]);
+  const [postsLoading, setPostsLoading] = useState(false);
 
   const genderOptions = [
     { id: "female", text: "Female" },
@@ -226,10 +243,25 @@ function ProfilePage({ user }) {
       }
     };
     
+    const fetchUserPosts = async () => {
+      const id = profileUserId || user?.user_id;
+      if (!id) return;
+      setPostsLoading(true);
+      try {
+        const res = await fetch(`${API_URL}/api/posts?author_id=${id}&limit=5`, { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          setUserPosts(Array.isArray(data) ? data : (data.posts || []));
+        }
+      } catch {}
+      finally { setPostsLoading(false); }
+    };
+
     fetchProfile();
     fetchFriendStatus();
     fetchBlockStatus();
     fetchFriends();
+    fetchUserPosts();
     // Compute badges for own profile
     if (!profileUserId || profileUserId === user?.user_id) {
       fetch(`${API_URL}/api/users/compute-badges`, { method: "POST", credentials: "include" }).catch(() => {});
@@ -631,7 +663,7 @@ function ProfilePage({ user }) {
 
         {/* Profile Incomplete Banner */}
         {isOwnProfile && !editing && profile && !profile.onboarding_complete && (
-          <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 mb-6 flex items-center gap-4">
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-[18px] p-4 mb-6 flex items-center gap-4">
             <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
               <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
             </div>
@@ -645,7 +677,7 @@ function ProfilePage({ user }) {
           </div>
         )}
 
-        <div className="bg-card rounded-2xl p-6 border border-border/50 shadow-sm border-l-2 border-l-primary/20 mb-6">
+        <div className="village-card p-6 border-l-2 border-l-primary/20 mb-6">
           <div className="flex items-start justify-between mb-6">
             <div className="flex items-center gap-4">
               <div className="relative">
@@ -1197,6 +1229,32 @@ function ProfilePage({ user }) {
                 </div>
               ) : null}
 
+              {/* Verified Professional info — visible to all viewers */}
+              {profile.professional_verification_status === "approved" && (
+                <div className="flex items-start gap-3 p-4 rounded-[18px] bg-green-500/8 border border-green-500/20">
+                  <Stethoscope className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-foreground">
+                      {PRO_TYPE_LABELS[profile.professional_type] || "Verified Professional"}
+                    </p>
+                    {profile.professional_workplace && (
+                      <p className="text-xs text-muted-foreground mt-0.5">{profile.professional_workplace}</p>
+                    )}
+                    {profile.professional_services_url && (
+                      <a
+                        href={profile.professional_services_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary hover:underline mt-1 inline-block"
+                      >
+                        Professional profile →
+                      </a>
+                    )}
+                  </div>
+                  <span className="text-xs text-green-600 dark:text-green-400 font-semibold whitespace-nowrap shrink-0">✓ Verified</span>
+                </div>
+              )}
+
               {/* Quick-info chips */}
               {(() => {
                 const STAGE_LABELS = {
@@ -1235,7 +1293,7 @@ function ProfilePage({ user }) {
         </div>
 
         {/* Trust Badges */}
-        <div className="bg-card rounded-2xl p-6 border border-border/50 shadow-sm border-l-2 border-l-primary/20 mb-6">
+        <div className="village-card p-6 border-l-2 border-l-primary/20 mb-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-heading font-bold text-lg text-foreground flex items-center gap-2">
               <Shield className="h-5 w-5 text-primary" />
@@ -1295,7 +1353,7 @@ function ProfilePage({ user }) {
 
         {/* Friends Section - Only show on own profile */}
         {isOwnProfile && (
-          <div className="bg-card rounded-2xl p-6 border border-border/50 shadow-sm border-l-2 border-l-primary/20">
+          <div className="village-card p-6 border-l-2 border-l-primary/20 mb-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-heading font-bold text-lg text-foreground flex items-center gap-2">
                 <Users className="h-5 w-5 text-primary" />
@@ -1353,9 +1411,49 @@ function ProfilePage({ user }) {
             )}
           </div>
         )}
+        {/* Recent Posts */}
+        {(postsLoading || userPosts.length > 0) && (
+          <div className="village-card p-6 mb-6">
+            <h2 className="font-heading font-bold text-lg text-foreground flex items-center gap-2 mb-4">
+              <MessageCircle className="h-5 w-5 text-primary" />
+              Recent Posts
+            </h2>
+            {postsLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="h-16 rounded-[14px] bg-secondary/40 animate-pulse" />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {userPosts.map(post => (
+                  <Link
+                    key={post.post_id || post.id}
+                    to={`/forums/post/${post.post_id || post.id}`}
+                    className="block p-4 rounded-[14px] bg-secondary/20 border border-border/30 hover:bg-secondary/40 transition-colors"
+                  >
+                    <p className="text-sm font-semibold text-foreground line-clamp-1 mb-1">
+                      {post.title || post.content?.slice(0, 80)}
+                    </p>
+                    {post.title && post.content && (
+                      <p className="text-xs text-muted-foreground line-clamp-2">{post.content}</p>
+                    )}
+                    <p className="text-[11px] text-muted-foreground mt-1.5">
+                      {post.space_name && <span className="mr-2">in {post.space_name}</span>}
+                      {post.created_at && (
+                        <span>{Math.round((Date.now() - new Date(post.created_at)) / (1000 * 60 * 60 * 24))}d ago</span>
+                      )}
+                    </p>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Professional Verification — own profile only */}
         {isOwnProfile && (
-          <div className="bg-card rounded-2xl border border-border/50 p-5 mb-4 space-y-4">
+          <div className="village-card p-5 mb-6 space-y-4">
             <div className="flex items-center gap-2">
               <Stethoscope className="h-5 w-5" style={{ color: "hsl(var(--accent))" }} />
               <h2 className="font-heading font-semibold text-foreground">Professional Verification</h2>
@@ -1458,7 +1556,7 @@ function ProfilePage({ user }) {
 
         {/* Danger Zone — own profile only */}
         {isOwnProfile && (
-          <div className="bg-card rounded-2xl border-2 border-red-500/40 border-l-4 border-l-red-500 mb-6 overflow-hidden shadow-sm shadow-red-500/5">
+          <div className="rounded-[18px] border-2 border-red-500/40 border-l-4 border-l-red-500 mb-6 overflow-hidden shadow-sm shadow-red-500/5" style={{ background: "hsl(var(--card))" }}>
             <div className="px-6 pt-5 pb-4">
               <h2 className="font-heading font-bold text-base text-red-500 mb-1">Danger Zone</h2>
               <p className="text-sm text-muted-foreground">These actions are permanent and cannot be undone.</p>

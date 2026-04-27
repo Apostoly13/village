@@ -1266,7 +1266,7 @@ export default function Community() {
                 <div className="w-6 h-6 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
               </div>
             ) : posts.length === 0 ? (
-              <div className="text-center py-16 bg-card rounded-2xl border border-border/50">
+              <div className="text-center py-16 village-card">
                 <div className="text-5xl mb-4">📭</div>
                 <p className="font-semibold text-foreground">No posts yet</p>
                 <p className="text-sm text-muted-foreground mt-1.5 max-w-xs mx-auto">

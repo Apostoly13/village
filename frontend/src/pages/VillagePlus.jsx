@@ -26,7 +26,7 @@ const PREMIUM_FEATURES = [
   { label: "Unlimited direct messages" },
   { label: "Crown badge on your profile" },
   { label: "Priority support & early feature access" },
-  { label: <>Buy &amp; Swap marketplace — <em>Coming Soon *</em></> },
+  { label: "The Village Stall — buy, sell & swap locally" },
 ];
 
 const COMPARISON = [
@@ -40,7 +40,7 @@ const COMPARISON = [
   { feature: "Anonymous posting",       free: "✓",         plus: "✓" },
   { feature: "Read all posts",          free: "✓",         plus: "✓" },
   { feature: "Crown badge",             free: "—",         plus: "✓" },
-  { feature: "Buy & Swap marketplace",  free: "—",         plus: "Coming Soon" },
+  { feature: "The Village Stall",        free: "—",         plus: "✓" },
 ];
 
 // ── Premium management view ────────────────────────────────────────────────────
@@ -403,17 +403,13 @@ export default function VillagePlus({ user }) {
             >
               <span className="text-foreground font-medium">{row.feature}</span>
               <span className="text-center text-muted-foreground">{row.free}</span>
-              <span className={`text-center font-semibold ${row.plus === "—" ? "text-muted-foreground/50" : row.plus === "Coming Soon" ? "text-muted-foreground italic text-xs" : "text-primary"}`}>
+              <span className={`text-center font-semibold ${row.plus === "—" ? "text-muted-foreground/50" : "text-primary"}`}>
                 {row.plus}
               </span>
             </div>
           ))}
         </div>
 
-        {/* Buy & Swap footnote */}
-        <p className="text-xs text-muted-foreground italic px-1 mb-8">
-          * Buy &amp; Swap marketplace is in development and will be available to Village+ members when it launches.
-        </p>
 
         {/* Trust / FAQ */}
         <div className="text-center py-6 px-6 rounded-2xl bg-secondary/30 border border-border/30 space-y-2 text-sm text-muted-foreground">

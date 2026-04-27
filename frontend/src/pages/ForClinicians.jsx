@@ -120,7 +120,7 @@ export default function ForClinicians({ user }) {
         </div>
 
         {/* What it is */}
-        <div className="mb-8 bg-card rounded-2xl border border-border/50 p-6">
+        <div className="mb-8 village-card p-6">
           <h2 className="font-heading font-bold text-lg text-foreground mb-3">What is The Village?</h2>
           <p className="text-sm text-muted-foreground leading-relaxed mb-4">
             The Village is a judgment-free community for Australian parents — from expectant mothers through to parents of teenagers. Members post questions, share experiences, and support each other around the clock, in topic-based Spaces and live Group Chats.
@@ -145,7 +145,7 @@ export default function ForClinicians({ user }) {
         <h2 className="font-heading font-bold text-lg text-foreground mb-4">Why clinicians recommend it</h2>
         <div className="grid sm:grid-cols-2 gap-4 mb-8">
           {WHY_RECOMMEND.map(({ icon, title, body }) => (
-            <div key={title} className="bg-card rounded-2xl border border-border/50 p-5 flex gap-4">
+            <div key={title} className="village-card p-5 flex gap-4">
               <span className="text-2xl shrink-0">{icon}</span>
               <div>
                 <p className="font-heading font-semibold text-sm text-foreground mb-1">{title}</p>
@@ -183,7 +183,7 @@ export default function ForClinicians({ user }) {
         </div>
 
         {/* How to refer */}
-        <div className="mb-8 bg-card rounded-2xl border border-border/50 p-6">
+        <div className="mb-8 village-card p-6">
           <h2 className="font-heading font-bold text-lg text-foreground mb-3">How to refer a patient</h2>
           <p className="text-sm text-muted-foreground leading-relaxed mb-4">
             No formal referral process needed. Simply share the link or mention it during a consultation:

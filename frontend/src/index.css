@@ -276,3 +276,36 @@ code {
 .avatar-peach { background: hsl(24 70% 70%); }
 .avatar-cream { background: hsl(30 40% 80%); }
 .avatar-rose { background: hsl(350 60% 70%); }
+
+/* ── Village card ─────────────────────────────────────────────────────────
+   Primary content surface. bg-card lifts slightly above the page cream.
+   border uses var(--line) = rgba(42,31,23,0.10) — the handoff's border-line token.
+   shadow-card from the design language doc. */
+.village-card {
+    background: var(--paper-2, hsl(var(--card)));
+    border-radius: 18px;
+    border: 1px solid var(--line, hsl(var(--border) / 0.5));
+    box-shadow: 0 2px 8px rgba(42,31,23,0.05), 0 1px 2px rgba(42,31,23,0.04);
+}
+
+html[data-theme="night"] .village-card,
+[data-theme="night"] .village-card {
+    background: var(--paper-2, hsl(var(--card)));
+    border: 1px solid var(--line, hsl(var(--border) / 0.15));
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25), 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.village-card-hover {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
+}
+
+.village-card-hover:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(42,31,23,0.08), 0 2px 6px rgba(42,31,23,0.05);
+}
+
+html[data-theme="night"] .village-card-hover:hover,
+[data-theme="night"] .village-card-hover:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 2px 6px rgba(0,0,0,0.25);
+}

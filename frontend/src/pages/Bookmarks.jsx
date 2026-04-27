@@ -79,7 +79,7 @@ export default function Bookmarks({ user }) {
             ))}
           </div>
         ) : bookmarks.length === 0 ? (
-          <div className="text-center py-12 bg-card rounded-2xl border border-border/50">
+          <div className="text-center py-12 village-card">
             <span className="text-4xl mb-3 block">🔖</span>
             <h3 className="font-heading font-semibold text-foreground mb-1">Nothing saved yet</h3>
             <p className="text-sm text-muted-foreground mb-4">Tap the bookmark icon on any post to save it here.</p>

@@ -261,7 +261,7 @@ export default function ChatRoom({ user }) {
         <main className="max-w-4xl mx-auto px-4 pt-16 lg:pt-8">
           <div className="animate-pulse space-y-4">
             <div className="h-6 w-32 bg-muted rounded"></div>
-            <div className="bg-card rounded-2xl h-[60vh] border border-border/50"></div>
+            <div className="village-card h-[60vh]"></div>
           </div>
         </main>
       </div>
@@ -324,7 +324,7 @@ export default function ChatRoom({ user }) {
 
         {/* Gender restriction banner */}
         {room.is_gender_restricted && !room.user_can_access && (
-          <div className="mb-4 p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center gap-3">
+          <div className="mb-4 p-4 bg-amber-500/10 border border-amber-500/30 rounded-[18px] flex items-center gap-3">
             <span className="text-2xl">{room.icon}</span>
             <div>
               <p className="font-medium text-foreground text-sm">This space is for {room.gender_restriction === "female" ? "mums" : "dads"} only</p>
@@ -334,7 +334,7 @@ export default function ChatRoom({ user }) {
         )}
 
         {/* Messages Area */}
-        <div className="flex-1 min-h-0 bg-card rounded-2xl border border-border/50 flex flex-col">
+        <div className="village-card flex-1 min-h-0 flex flex-col">
           <div className="flex-1 min-h-0 overflow-y-auto p-4" ref={scrollAreaRef} onScroll={handleScroll}>
             <div className="space-y-4">
               {hasMore && (

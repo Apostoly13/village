@@ -5,7 +5,7 @@ import { Input } from "../components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import Navigation from "../components/Navigation";
 // OnboardingModal removed — onboarding is now a standalone page at /onboarding
-import { Search, Plus, MessageCircle, Heart, Eye, Crown, X } from "lucide-react";
+import { Search, Plus, MessageCircle, Heart, Eye, Crown, X, Compass, Bell, HelpingHand } from "lucide-react";
 import RecommendedSpaces from "../components/RecommendedSpaces";
 import AppFooter from "../components/AppFooter";
 import { timeAgoVerbose } from "../utils/dateHelpers";
@@ -209,9 +209,9 @@ const FEED_FILTERS = [
 // ── Dashboard modes ───────────────────────────────────────────────────────────
 
 const DASH_MODES = [
-  { id: "need-help", emoji: "💙", label: "I need help" },
-  { id: "browse",    emoji: "🏘️", label: "Browse"      },
-  { id: "catch-up",  emoji: "🔔", label: "Catch up"    },
+  { id: "need-help", icon: HelpingHand, label: "I need help" },
+  { id: "browse",    icon: Compass,     label: "Browse"      },
+  { id: "catch-up",  icon: Bell,        label: "Catch up"    },
 ];
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -733,18 +733,18 @@ export default function Dashboard({ user }) {
         )}
 
         {/* ── Mode switcher ── */}
-        <div className="mb-5 flex bg-card rounded-2xl border border-border/50 p-1 gap-1">
-          {DASH_MODES.map(({ id, emoji, label }) => (
+        <div className="mb-5 flex bg-card rounded-full border border-border/50 p-1 gap-1">
+          {DASH_MODES.map(({ id, icon: Icon, label }) => (
             <button
               key={id}
               onClick={() => switchMode(id)}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-full text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
                 dashMode === id
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <span className="text-base leading-none">{emoji}</span>
+              <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
               <span>{label}</span>
             </button>
           ))}
@@ -763,7 +763,7 @@ export default function Dashboard({ user }) {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Link
                 to="/chat"
-                className="bg-card rounded-2xl border border-border/50 p-5 hover:border-primary/40 hover:bg-primary/5 transition-all text-center group"
+                className="village-card p-5 hover:border-primary/40 hover:bg-primary/5 transition-colors text-center group"
               >
                 <span className="text-3xl block mb-2">💬</span>
                 <p className="font-heading font-semibold text-sm text-foreground group-hover:text-primary transition-colors">
@@ -776,7 +776,7 @@ export default function Dashboard({ user }) {
 
               <Link
                 to="/create-post"
-                className="bg-card rounded-2xl border border-border/50 p-5 hover:border-primary/40 hover:bg-primary/5 transition-all text-center group"
+                className="village-card p-5 hover:border-primary/40 hover:bg-primary/5 transition-colors text-center group"
               >
                 <span className="text-3xl block mb-2">🙈</span>
                 <p className="font-heading font-semibold text-sm text-foreground group-hover:text-primary transition-colors">
@@ -789,7 +789,7 @@ export default function Dashboard({ user }) {
 
               <Link
                 to="/create-post"
-                className="bg-card rounded-2xl border border-border/50 p-5 hover:border-primary/40 hover:bg-primary/5 transition-all text-center group"
+                className="village-card p-5 hover:border-primary/40 hover:bg-primary/5 transition-colors text-center group"
               >
                 <span className="text-3xl block mb-2">🙋</span>
                 <p className="font-heading font-semibold text-sm text-foreground group-hover:text-primary transition-colors">
@@ -803,7 +803,7 @@ export default function Dashboard({ user }) {
 
             {/* Active Group Chats */}
             {namedRooms.length > 0 && (
-              <div className="bg-card rounded-2xl border border-border/40 p-4">
+              <div className="village-card p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-heading font-semibold text-sm text-foreground flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse inline-block shrink-0" />
@@ -831,7 +831,7 @@ export default function Dashboard({ user }) {
             )}
 
             {/* Support spaces */}
-            <div className="bg-card rounded-2xl border border-border/40 p-4">
+            <div className="village-card p-4">
               <h3 className="font-heading font-semibold text-sm text-foreground mb-3">Support spaces</h3>
               <RecommendedSpaces user={user} />
               <Link to="/forums" className="block text-center text-xs text-primary font-medium mt-3 hover:underline">
@@ -950,7 +950,7 @@ export default function Dashboard({ user }) {
                     ))}
                   </div>
                 ) : filteredPosts.length === 0 ? (
-                  <div className="text-center py-12 bg-card rounded-2xl border border-border/40 card-elevated">
+                  <div className="text-center py-12 village-card">
                     <span className="text-4xl mb-3 block">📝</span>
                     <h3 className="font-heading font-semibold text-foreground mb-1">
                       {feedFilter !== "latest" ? "Nothing here right now" : "Nothing here yet"}
@@ -1107,7 +1107,7 @@ export default function Dashboard({ user }) {
               <div className="hidden lg:block lg:w-64 shrink-0 space-y-4">
 
                 {/* 1. Notifications */}
-                <div className="bg-card rounded-2xl border border-border/40 p-4 card-elevated">
+                <div className="village-card p-4">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-heading font-semibold text-sm text-foreground">Activity</h3>
                     {unreadActivity.length > 0 && (
@@ -1144,7 +1144,7 @@ export default function Dashboard({ user }) {
                 </div>
 
                 {/* 2. Live now */}
-                <div className="bg-card rounded-2xl border border-border/40 p-4 card-elevated">
+                <div className="village-card p-4">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-heading font-semibold text-sm text-foreground flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse inline-block shrink-0" />
@@ -1170,7 +1170,7 @@ export default function Dashboard({ user }) {
                 </div>
 
                 {/* 3. Suggested spaces */}
-                <div className="bg-card rounded-2xl border border-border/40 p-4 card-elevated">
+                <div className="village-card p-4">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-heading font-semibold text-sm text-foreground">Spaces for you</h3>
                     <Link to="/forums" className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">Browse</Link>
@@ -1190,7 +1190,7 @@ export default function Dashboard({ user }) {
           <div className="space-y-4">
 
             {/* Notifications */}
-            <div className="bg-card rounded-2xl border border-border/40 p-4">
+            <div className="village-card p-4">
               <h3 className="font-heading font-semibold text-sm text-foreground mb-3">
                 {unreadActivity.length > 0
                   ? `${unreadActivity.length} thing${unreadActivity.length === 1 ? "" : "s"} to check`
@@ -1228,7 +1228,7 @@ export default function Dashboard({ user }) {
 
             {/* What parents are talking about */}
             {todaysPosts.length > 0 && (
-              <div className="bg-card rounded-2xl border border-border/40 p-4">
+              <div className="village-card p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-heading font-semibold text-sm text-foreground">What parents are talking about</h3>
                   <Link to="/forums" className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">Browse spaces</Link>
@@ -1255,7 +1255,7 @@ export default function Dashboard({ user }) {
 
             {/* Events */}
             {!isFree && (
-              <div className="bg-card rounded-2xl border border-border/40 p-4">
+              <div className="village-card p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-heading font-semibold text-sm text-foreground">Coming up near you</h3>
                   <Link to="/events" className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">See all</Link>
@@ -1293,7 +1293,7 @@ export default function Dashboard({ user }) {
 
             {/* Communities quick jump — Village+ only */}
             {user?.subscription_tier === "premium" && (
-              <div className="bg-card rounded-2xl border border-border/40 p-4">
+              <div className="village-card p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-heading font-semibold text-sm text-foreground">Your communities</h3>
                   <Link to="/forums?tab=communities" className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">See all</Link>
@@ -1321,7 +1321,7 @@ export default function Dashboard({ user }) {
 
             {/* Active chats */}
             {namedRooms.length > 0 && (
-              <div className="bg-card rounded-2xl border border-border/40 p-4">
+              <div className="village-card p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-heading font-semibold text-sm text-foreground flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse inline-block shrink-0" />
