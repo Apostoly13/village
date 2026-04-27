@@ -5,6 +5,22 @@ import AppFooter from "../components/AppFooter";
 
 const CHANGELOG = [
   {
+    version: "3.10.0",
+    date: "April 2026",
+    title: "V3 Design — Icon Pack, Communities Split & Navigation Polish",
+    entries: [
+      { tag: "Improved", text: "V2 custom icon pack (Village, Stall, Sparkle, Quill, ParentChild, Pram, ThreeAmMoon and more) integrated platform-wide — replacing Lucide placeholders and emoji with handcrafted line-art icons consistent with the Village visual language." },
+      { tag: "Improved", text: "Communities promoted to its own nav section — removed from the Spaces tab strip and given a dedicated sidebar item with the Village icon (three rooftops). Active state is correctly isolated so Spaces and Communities never highlight simultaneously." },
+      { tag: "Improved", text: "The Village Stall is now a full Village+ feature — 'Coming Soon' copy and footnote removed from the Plus page. The Stall row in the comparison table now shows ✓ like all other active features." },
+      { tag: "Improved", text: "Village+ moved from AppFooter into the desktop sidebar bottom section — shown as a nav row with the Sparkle icon, accent-coloured for free users and muted for subscribers. Removed from the footer to reduce clutter." },
+      { tag: "Improved", text: "Spaces tiles now show a green 'Open' indicator alongside the post count — consistent with the Open filter language in Communities." },
+      { tag: "Improved", text: "Nav sub-item labels cleaned up — emoji prefixes (📖 ✏️ 💾 🇦🇺 📍 👥) removed from all Spaces and Chat Rooms dropdown items." },
+      { tag: "Improved", text: "Theme toggle now uses the ThreeAmMoon custom icon (crescent + star) instead of Lucide Moon. Settings icon uses the Lucide Cog (toothed gear) to distinguish from the sun-ray-style custom cog." },
+      { tag: "Improved", text: "Forums empty states replaced — 👶 replaced with Pram icon, 🏡 replaced with Village icon, 🔍 replaced with Search icon." },
+      { tag: "Fixed",    text: "Village+ sidebar Village+ link no longer highlights Spaces when navigating to Communities (/forums?tab=communities)." },
+    ],
+  },
+  {
     version: "3.9.1",
     date: "April 2026",
     title: "Mobile menu sign-out fix",

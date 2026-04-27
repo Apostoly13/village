@@ -224,7 +224,7 @@ export default function Blog({ user }) {
             ))}
           </div>
         ) : posts.length === 0 ? (
-          <div className="text-center py-16 bg-card rounded-2xl border border-border/50">
+          <div className="text-center py-16 village-card">
             <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="font-heading font-semibold text-foreground mb-2">No posts yet</h3>
             <p className="text-sm text-muted-foreground mb-4">
@@ -245,7 +245,7 @@ export default function Blog({ user }) {
               <Link key={post.blog_id || idx} to={`/blog/${post.slug}`} className="block">
                 {idx === 0 ? (
                   /* Featured / hero card for the first post */
-                  <article className="bg-card rounded-2xl border border-border/40 card-elevated border-l-4 border-l-primary/60 hover:shadow-md hover:border-l-primary transition-all overflow-hidden">
+                  <article className="village-card village-card-hover border-l-4 border-l-primary/60 hover:border-l-primary overflow-hidden">
                     <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent px-6 py-5">
                       <div className="flex items-center gap-2 mb-3">
                         <span className="text-xs font-semibold uppercase tracking-widest text-primary/80">Featured</span>

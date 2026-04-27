@@ -13,8 +13,9 @@ import {
 } from "./ui/dropdown-menu";
 import { ScrollArea } from "./ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
-import { Mail, User, LogOut, Menu, X, Moon, Sun, UserPlus, Bell, Bookmark, Shield, ScrollText, BookOpen, Calendar, Lock, FileText, Settings, Crown, ChevronDown, Home, ShoppingBag } from "lucide-react";
-import { IconHome, IconChat, IconCal, IconPeople, IconHeart, IconMail, IconShield, IconCog, IconSpaces } from "../icons";
+import { Mail, User, LogOut, Menu, X, UserPlus, Bell, Shield, ScrollText, Lock, FileText, Settings, ChevronDown } from "lucide-react";
+import { IconHome, IconChat, IconCal, IconHeart, IconMail, IconShield, IconCog, IconSpaces, IconMoon, IconSun } from "../icons";
+import { Village, Stall, Sparkle, Quill, ParentChild, ThreeAmMoon } from "./village/icons";
 import { toast } from "sonner";
 import { FEATURES } from "../config/features";
 
@@ -124,33 +125,32 @@ export default function Navigation({ user }) {
 
   // Desktop nav — full list including Group Chats
   const navItems = [
-    { icon: Home, label: "Home", href: "/dashboard", testId: "nav-home" },
+    { icon: IconHome, label: "Home", href: "/dashboard", testId: "nav-home" },
     {
       icon: IconSpaces, label: "Spaces", href: "/forums", testId: "nav-forums",
       subItems: [
-        { label: "📖 All Spaces", href: "/forums" },
-        { label: "🏘️ Communities", href: "/forums?tab=communities" },
-        { label: "✏️ Create Post", href: "/create-post" },
-        { label: "💾 Saved Posts", href: "/saved" },
+        { label: "All Spaces",  href: "/forums" },
+        { label: "Create Post", href: "/create-post" },
+        { label: "Saved Posts", href: "/saved" },
       ],
     },
     {
       icon: IconChat, label: "Group Chats", href: "/chat", testId: "nav-chat",
       subItems: [
-        { label: "🇦🇺 All Australia", href: "/chat?tab=village" },
-        { label: "📍 Local Chats", href: "/chat?tab=local" },
-        { label: "👥 Friends", href: "/chat?tab=friends" },
+        { label: "All Australia", href: "/chat?tab=village" },
+        { label: "Local Chats",   href: "/chat?tab=local" },
+        { label: "Friends",       href: "/chat?tab=friends" },
       ],
     },
-    { icon: Calendar, label: "Events", href: isFree ? "/plus" : "/events", testId: "nav-events", locked: isFree },
-    { icon: Mail, label: "Messages", href: isFree ? "/plus" : "/messages", testId: "nav-messages", locked: isFree, badge: isFree ? 0 : unreadMessages },
-    ...(FEATURES.BLOG ? [{ icon: BookOpen, label: "Blog", href: "/blog", testId: "nav-blog" }] : []),
-    ...(isAdmin ? [{ icon: Shield, label: "Admin", href: "/admin", testId: "nav-admin" }] : []),
+    { icon: IconCal, label: "Events", href: isFree ? "/plus" : "/events", testId: "nav-events", locked: isFree },
+    { icon: IconMail, label: "Messages", href: isFree ? "/plus" : "/messages", testId: "nav-messages", locked: isFree, badge: isFree ? 0 : unreadMessages },
+    ...(FEATURES.BLOG ? [{ icon: Quill, label: "Blog", href: "/blog", testId: "nav-blog" }] : []),
+    ...(isAdmin ? [{ icon: IconShield, label: "Admin", href: "/admin", testId: "nav-admin" }] : []),
   ];
 
   // Mobile bottom tab bar — 5 focused tabs including Group Chats for direct access
   const mobileNavItems = [
-    { icon: Home,          label: "Home",     href: "/dashboard",                        testId: "nav-home" },
+    { icon: IconHome,      label: "Home",     href: "/dashboard",                        testId: "nav-home" },
     { icon: IconSpaces,    label: "Spaces",   href: "/forums",                           testId: "nav-forums" },
     { icon: IconChat,      label: "Chats",    href: "/chat",                             testId: "nav-chat" },
     { icon: Mail,          label: "Messages", href: isFree ? "/plus" : "/messages",      testId: "nav-messages",  locked: isFree, badge: isFree ? 0 : unreadMessages },
@@ -196,25 +196,34 @@ export default function Navigation({ user }) {
             { Icon: IconHome,   label: "Home",      href: "/dashboard",                     testId: "nav-home" },
             { Icon: IconSpaces, label: "Spaces",    href: "/forums",                        testId: "nav-forums",   subItems: [
               { label: "All Spaces",    href: "/forums" },
-              { label: "Communities",   href: "/forums?tab=communities" },
               { label: "Create Post",   href: "/create-post" },
               { label: "Saved Posts",   href: "/saved" },
             ]},
-            { Icon: IconChat,   label: "Chats",     href: "/chat",                          testId: "nav-chat",     subItems: [
-              { label: "All Australia", href: "/chat?tab=village" },
-              { label: "Local Chats", href: "/chat?tab=local" },
-              { label: "Friends",       href: "/chat?tab=friends" },
+            { Icon: Village,    label: "Communities", href: isFree ? "/plus" : "/forums?tab=communities", testId: "nav-communities", locked: isFree },
+            { Icon: IconChat,   label: "Chat Rooms", href: "/chat",                          testId: "nav-chat",     subItems: [
+              { label: "All Australia", href: "/chat" },
+              { label: "Local Rooms",   href: "/chat?tab=local" },
+              { label: "Live now",      href: "/chat?tab=live" },
             ]},
             { Icon: IconCal,    label: "Events",    href: isFree ? "/plus" : "/events",     testId: "nav-events",   locked: isFree },
-            { Icon: ShoppingBag, label: "Stall",   href: isFree ? "/plus" : "/stall",      testId: "nav-stall",    locked: isFree },
+            { Icon: Stall,      label: "Stall",     href: isFree ? "/plus" : "/stall",      testId: "nav-stall",    locked: isFree },
             { Icon: IconMail,   label: "Messages",  href: isFree ? "/plus" : "/messages",   testId: "nav-messages", locked: isFree, badge: isFree ? 0 : unreadMessages },
-            { Icon: IconPeople, label: "Friends",   href: "/friends",                        testId: "nav-friends-link", badge: friendRequestCount },
+            { Icon: ParentChild, label: "Friends",  href: "/friends",                        testId: "nav-friends-link", badge: friendRequestCount },
             { Icon: IconHeart,  label: "Saved",     href: "/saved",                         testId: "nav-saved" },
-            ...(FEATURES.BLOG  ? [{ Icon: BookOpen,   label: "Blog",      href: "/blog",      testId: "nav-blog"  }] : []),
+            ...(FEATURES.BLOG  ? [{ Icon: Quill,       label: "Blog",      href: "/blog",      testId: "nav-blog"  }] : []),
             ...(user?.role === "moderator" ? [{ Icon: IconShield, label: "Moderator",  href: "/moderator", testId: "nav-mod"   }] : []),
             ...(user?.role === "admin"     ? [{ Icon: IconShield, label: "Admin",      href: "/admin",     testId: "nav-admin" }] : []),
           ].map((item) => {
-            const active = location.pathname === item.href || (item.href !== "/dashboard" && location.pathname.startsWith(item.href.split("?")[0]));
+            const hrefBase  = item.href.split("?")[0];
+            const hrefQuery = item.href.includes("?") ? item.href.split("?")[1] : null;
+            const onCommunities = location.pathname === "/forums" && location.search === "?tab=communities";
+            const active = hrefQuery
+              // Items with a query string (Communities → /forums?tab=communities): exact match only
+              ? location.pathname === hrefBase && location.search === `?${hrefQuery}`
+              // Items without a query string: prefix match, but never activate when a more-specific query-string route owns this path
+              : !onCommunities &&
+                (location.pathname === item.href ||
+                  (item.href !== "/dashboard" && location.pathname.startsWith(hrefBase)));
             const itemStyle = active
               ? { background: "var(--paper-2)", color: "var(--ink)" }
               : { color: "var(--ink-2)" };
@@ -272,20 +281,23 @@ export default function Navigation({ user }) {
           })}
         </nav>
 
-        {/* Village+ promo (free users) */}
-        {isFree && (
-          <Link to="/plus" className="mx-3 mb-3 shrink-0">
-            <div className="px-4 py-3 rounded-xl transition-colors"
-              style={{ background: "var(--paper-2)", border: "1px solid var(--line)" }}
-            >
-              <p className="text-xs font-semibold mb-0.5" style={{ color: "var(--ink)" }}>✦ Village+</p>
-              <p className="text-xs leading-tight" style={{ color: "var(--ink-3)" }}>Unlock 1:1 messaging, host events, ad-free.</p>
-            </div>
-          </Link>
-        )}
-
         {/* Bottom: notifications + theme + user */}
         <div className="shrink-0 px-3 pb-4 pt-2 space-y-1" style={{ borderTop: "1px solid var(--line-2)" }}>
+
+          {/* Village+ nav row */}
+          <Link
+            to="/plus"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors"
+            style={{ color: isFree ? "hsl(var(--accent))" : "var(--ink-2)" }}
+            onMouseEnter={e => e.currentTarget.style.background = "var(--paper-2)"}
+            onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+          >
+            <Sparkle size={18} style={{ color: isFree ? "hsl(var(--accent))" : "var(--ink-3)", flexShrink: 0 }} />
+            <span className="text-sm font-medium flex-1">
+              {isFree ? "Village+" : "Manage Village+"}
+            </span>
+          </Link>
+
           <div className="flex items-center gap-1 px-1">
             {/* Notifications */}
             <DropdownMenu open={notificationsOpen} onOpenChange={handleNotificationsOpen}>
@@ -338,10 +350,10 @@ export default function Navigation({ user }) {
               onMouseEnter={e => e.currentTarget.style.background = "var(--paper-2)"}
               onMouseLeave={e => e.currentTarget.style.background = "transparent"}
             >
-              {darkMode ? <Sun style={{ width: 18, height: 18 }} /> : <Moon style={{ width: 18, height: 18 }} />}
+              {darkMode ? <IconSun size={18} /> : <ThreeAmMoon size={18} />}
             </button>
 
-            {/* Settings — use Lucide Settings (gear with teeth) distinct from sun rays */}
+            {/* Settings */}
             <Link to="/settings" className="p-2 rounded-lg transition-colors block" style={{ color: "var(--ink-2)" }}
               onMouseEnter={e => e.currentTarget.style.background = "var(--paper-2)"}
               onMouseLeave={e => e.currentTarget.style.background = "transparent"}
@@ -374,7 +386,7 @@ export default function Navigation({ user }) {
             <DropdownMenuContent side="right" align="end" className="w-52" style={{ background: "var(--paper-2)", border: "1px solid var(--line)" }}>
               <DropdownMenuItem asChild><Link to="/profile" className="cursor-pointer" data-testid="dropdown-profile"><User className="h-4 w-4 mr-2" />Profile</Link></DropdownMenuItem>
               <DropdownMenuItem asChild><Link to="/settings" className="cursor-pointer"><Settings className="h-4 w-4 mr-2" />Settings</Link></DropdownMenuItem>
-              <DropdownMenuItem asChild><Link to="/plus" className="cursor-pointer"><Crown className="h-4 w-4 mr-2 text-primary" />{user?.subscription_tier === "premium" ? "Manage Village+" : "Village+"}</Link></DropdownMenuItem>
+              <DropdownMenuItem asChild><Link to="/plus" className="cursor-pointer"><Sparkle className="h-4 w-4 mr-2 text-primary" />{user?.subscription_tier === "premium" ? "Manage Village+" : "Village+"}</Link></DropdownMenuItem>
               <DropdownMenuItem asChild><Link to="/changelog" className="cursor-pointer" data-testid="dropdown-changelog"><ScrollText className="h-4 w-4 mr-2" />What's New</Link></DropdownMenuItem>
               <DropdownMenuItem asChild><Link to="/suggestions" className="cursor-pointer"><Mail className="h-4 w-4 mr-2" />Suggestions</Link></DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -398,7 +410,7 @@ export default function Navigation({ user }) {
               onClick={toggleTheme}
               className="rounded-full"
             >
-              {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              {darkMode ? <IconSun size={20} /> : <ThreeAmMoon size={20} />}
             </Button>
             <Button 
               variant="ghost" 
@@ -466,7 +478,7 @@ export default function Navigation({ user }) {
                 onClick={() => setMobileMenuOpen(false)}
                 className={`flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 ${isFree ? "text-muted-foreground/60" : "text-foreground"}`}
               >
-                <Calendar className="h-5 w-5" />
+                <IconCal size={20} />
                 Events
                 {isFree && <Lock className="h-3.5 w-3.5 ml-auto opacity-60" />}
               </Link>
@@ -476,8 +488,18 @@ export default function Navigation({ user }) {
                 onClick={() => setMobileMenuOpen(false)}
                 className={`flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 ${isFree ? "text-muted-foreground/60" : "text-foreground"}`}
               >
-                <ShoppingBag className="h-5 w-5" />
+                <Stall size={20} />
                 Stall
+                {isFree && <Lock className="h-3.5 w-3.5 ml-auto opacity-60" />}
+              </Link>
+
+              <Link
+                to={isFree ? "/plus" : "/forums?tab=communities"}
+                onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 ${isFree ? "text-muted-foreground/60" : "text-foreground"}`}
+              >
+                <Village className="h-5 w-5" />
+                Communities
                 {isFree && <Lock className="h-3.5 w-3.5 ml-auto opacity-60" />}
               </Link>
 
@@ -486,7 +508,7 @@ export default function Navigation({ user }) {
                 onClick={() => setMobileMenuOpen(false)}
                 className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
               >
-                <Bookmark className="h-5 w-5" />
+                <IconHeart size={20} />
                 Saved
               </Link>
 
@@ -508,7 +530,7 @@ export default function Navigation({ user }) {
                     : "bg-primary/10 border border-primary/20 text-primary"
                 }`}
               >
-                <Crown className="h-5 w-5" />
+                <Sparkle className="h-5 w-5" />
                 {user?.subscription_tier === "premium" ? "Manage Village+" : "Village+"}
               </Link>
 

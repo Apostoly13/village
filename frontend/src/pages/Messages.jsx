@@ -539,7 +539,7 @@ export default function Messages({ user }) {
 
           {/* ── Sidebar ─────────────────────────────────────────────────────── */}
           <div className={`${hasActiveChat ? "hidden lg:flex" : "flex"} flex-col w-full lg:w-72 shrink-0`}>
-            <div className="bg-card rounded-2xl border border-border/50 flex flex-col h-full overflow-hidden">
+            <div className="village-card flex flex-col h-full overflow-hidden">
 
               {showSearch ? (
                 <UserSearchPanel onClose={() => setShowSearch(false)} onStartChat={handleSearchStartChat} />
@@ -644,7 +644,7 @@ export default function Messages({ user }) {
 
           {/* ── Chat panel ──────────────────────────────────────────────────── */}
           <div className={`${hasActiveChat ? "flex" : "hidden lg:flex"} flex-1 flex-col min-w-0`}>
-            <div className="bg-card rounded-2xl border border-border/50 flex flex-col h-full overflow-hidden">
+            <div className="village-card flex flex-col h-full overflow-hidden">
               {hasActiveChat && activeUser ? (
                 <>
                   {/* Chat header */}

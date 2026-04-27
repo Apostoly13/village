@@ -157,7 +157,7 @@ export default function CreateDonationGroup({ user }) {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Cover Image */}
-          <div className="bg-card rounded-2xl border border-border/50 p-5">
+          <div className="village-card p-5">
             <h2 className="font-semibold text-foreground mb-1">Cover Image</h2>
             <p className="text-xs text-muted-foreground mb-4">Optional — a photo that represents your group</p>
 
@@ -183,7 +183,7 @@ export default function CreateDonationGroup({ user }) {
           </div>
 
           {/* Group Details */}
-          <div className="bg-card rounded-2xl border border-border/50 p-5 space-y-4">
+          <div className="village-card p-5 space-y-4">
             <h2 className="font-semibold text-foreground">Group Details</h2>
 
             {/* Name */}
@@ -227,7 +227,7 @@ export default function CreateDonationGroup({ user }) {
           </div>
 
           {/* Location & Timing */}
-          <div className="bg-card rounded-2xl border border-border/50 p-5 space-y-4">
+          <div className="village-card p-5 space-y-4">
             <h2 className="font-semibold text-foreground">Location & Timing</h2>
 
             {/* Suburb */}

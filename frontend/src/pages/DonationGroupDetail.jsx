@@ -74,7 +74,7 @@ export default function DonationGroupDetail({ user }) {
         </button>
 
         {/* Hero card */}
-        <div className="bg-card rounded-2xl border border-border/50 overflow-hidden mb-6">
+        <div className="village-card overflow-hidden mb-6">
           {group.cover_image && (
             <img src={group.cover_image} alt={group.name} className="w-full h-40 object-cover" />
           )}
@@ -155,7 +155,7 @@ export default function DonationGroupDetail({ user }) {
             {items.map(item => {
               const firstImage = item.images?.[0];
               return (
-                <Link key={item.listing_id} to={`/stall/listing/${item.listing_id}`} className="bg-card rounded-2xl border border-border/50 overflow-hidden hover:shadow-md transition-all flex flex-col">
+                <Link key={item.listing_id} to={`/stall/listing/${item.listing_id}`} className="village-card village-card-hover overflow-hidden flex flex-col">
                   <div className="aspect-[4/3] bg-secondary/30 relative">
                     {firstImage
                       ? <img src={firstImage} alt={item.title} className="w-full h-full object-cover" />

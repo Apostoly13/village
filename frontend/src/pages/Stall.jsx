@@ -56,7 +56,7 @@ function ListingCard({ listing, onSaveToggle, savedIds }) {
   return (
     <article
       onClick={() => navigate(`/stall/listing/${listing.listing_id}`)}
-      className="bg-card rounded-2xl border border-border/50 overflow-hidden cursor-pointer hover:shadow-md hover:-translate-y-px transition-all duration-200 flex flex-col"
+      className="village-card village-card-hover overflow-hidden flex flex-col"
     >
       <div className="relative aspect-[4/3] bg-secondary/40 shrink-0">
         {firstImage ? (
@@ -331,7 +331,7 @@ export default function Stall({ user }) {
 
             {/* Category filter */}
             {showFilters && (
-              <div className="flex flex-wrap gap-2 mb-4 p-3 bg-card rounded-2xl border border-border/50">
+              <div className="flex flex-wrap gap-2 mb-4 p-3 village-card">
                 <button
                   onClick={() => setActiveCategory("")}
                   className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
@@ -358,7 +358,7 @@ export default function Stall({ user }) {
             {loading ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="bg-card rounded-2xl border border-border/50 overflow-hidden animate-pulse">
+                  <div key={i} className="village-card overflow-hidden animate-pulse">
                     <div className="aspect-[4/3] bg-secondary/50" />
                     <div className="p-3 space-y-2">
                       <div className="h-4 bg-secondary/50 rounded w-3/4" />
@@ -443,7 +443,7 @@ function DonationGroupsTab({ user, navigate }) {
 
   if (loading) return (
     <div className="grid sm:grid-cols-2 gap-4">
-      {[1,2,3,4].map(i => <div key={i} className="h-36 bg-card rounded-2xl border border-border/50 animate-pulse" />)}
+      {[1,2,3,4].map(i => <div key={i} className="h-36 village-card animate-pulse" />)}
     </div>
   );
 
@@ -472,7 +472,7 @@ function DonationGroupsTab({ user, navigate }) {
             <Link
               key={g.group_id}
               to={`/stall/groups/${g.group_id}`}
-              className="bg-card rounded-2xl border border-border/50 p-4 hover:shadow-md transition-all flex flex-col gap-2"
+              className="village-card village-card-hover p-4 flex flex-col gap-2"
             >
               <div className="flex items-start gap-3">
                 {g.cover_image
@@ -608,7 +608,7 @@ function MyListingsTab({ user, navigate }) {
       {listings.map(l => {
         const firstImage = l.images?.[0];
         return (
-          <div key={l.listing_id} className="bg-card rounded-2xl border border-border/50 p-4 flex gap-3 items-start">
+          <div key={l.listing_id} className="village-card p-4 flex gap-3 items-start">
             <div className="w-16 h-16 rounded-xl bg-secondary/40 overflow-hidden shrink-0">
               {firstImage
                 ? <img src={firstImage} alt={l.title} className="w-full h-full object-cover" />
@@ -713,7 +713,7 @@ function MessagesTab({ user, onUnreadChange }) {
         <button
           key={`${conv.listing_id}-${conv.other_user_id}`}
           onClick={() => setActiveConv(conv)}
-          className="w-full bg-card rounded-2xl border border-border/50 p-4 flex items-center gap-3 hover:shadow-md transition-all text-left"
+          className="w-full village-card village-card-hover p-4 flex items-center gap-3 text-left"
         >
           {/* Listing thumbnail */}
           <div className="w-12 h-12 rounded-xl overflow-hidden bg-secondary/40 shrink-0">
@@ -815,7 +815,7 @@ function StallThreadView({ conv, user, onBack }) {
   };
 
   return (
-    <div className="flex flex-col bg-card rounded-2xl border border-border/50 overflow-hidden" style={{ height: "calc(100vh - 260px)", minHeight: "420px" }}>
+    <div className="village-card flex flex-col overflow-hidden" style={{ height: "calc(100vh - 260px)", minHeight: "420px" }}>
       {/* Thread header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border/40 shrink-0">
         <button onClick={onBack} className="p-1 -ml-1 text-muted-foreground hover:text-foreground rounded-lg transition-colors">
