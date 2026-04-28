@@ -25,32 +25,56 @@ import resend
 import stripe
 import time
 from collections import defaultdict
+try:
+    import redis.asyncio as aioredis
+    _aioredis_available = True
+except ImportError:
+    _aioredis_available = False
+from services.local_areas import get_area, get_area_postcode_range, list_all_areas
 
 ROOT_DIR = Path(__file__).parent
 
-# ─── Simple in-memory rate limiter ────────────────────────────────────────────
-# Tracks (IP, endpoint) → list[timestamp]. Thread-safe enough for asyncio
-# (single-threaded event loop). Resets on server restart (acceptable for MVP).
+# ─── Rate limiter — Redis-backed with in-memory fallback ─────────────────────
+# Uses Redis fixed-window counter (INCR + EXPIRE) when REDIS_URL is configured.
+# Falls back to in-memory sliding window when Redis is unavailable or not set.
+# In-memory is reset on server restart (acceptable for single-process MVP deploys).
 _rate_buckets: dict = defaultdict(list)
 
-def _check_rate_limit(key: str, max_requests: int, window_seconds: int):
+async def _check_rate_limit(key: str, max_requests: int, window_seconds: int):
     """Raise HTTP 429 if key has exceeded max_requests within window_seconds."""
+    global _redis_client
+    if _redis_client is not None:
+        try:
+            full_key = f"rl:{key}"
+            count = await _redis_client.incr(full_key)
+            if count == 1:
+                await _redis_client.expire(full_key, window_seconds)
+            if count > max_requests:
+                raise HTTPException(
+                    status_code=429,
+                    detail="Too many requests — please wait a moment and try again."
+                )
+            return
+        except HTTPException:
+            raise
+        except Exception as redis_err:
+            logging.warning("Redis rate limit error (falling back to in-memory): %s", redis_err)
+
+    # In-memory sliding window fallback
     now = time.monotonic()
     cutoff = now - window_seconds
-    bucket = _rate_buckets[key]
-    # Prune old entries
-    _rate_buckets[key] = [t for t in bucket if t > cutoff]
+    _rate_buckets[key] = [t for t in _rate_buckets[key] if t > cutoff]
     if len(_rate_buckets[key]) >= max_requests:
         raise HTTPException(
             status_code=429,
-            detail=f"Too many requests — please wait a moment and try again."
+            detail="Too many requests — please wait a moment and try again."
         )
     _rate_buckets[key].append(now)
 
-def rate_limit(request: Request, max_requests: int = 20, window_seconds: int = 60, endpoint: str = ""):
-    """Dependency: rate-limit by client IP + optional endpoint label."""
+async def rate_limit(request: Request, max_requests: int = 20, window_seconds: int = 60, endpoint: str = ""):
+    """Async rate-limit by client IP + optional endpoint label."""
     ip = request.client.host if request.client else "unknown"
-    _check_rate_limit(f"{ip}:{endpoint}", max_requests, window_seconds)
+    await _check_rate_limit(f"{ip}:{endpoint}", max_requests, window_seconds)
 
 # ─── Fire-and-forget task helper ──────────────────────────────────────────────
 def _log_task_error(task: asyncio.Task) -> None:
@@ -90,6 +114,11 @@ JWT_EXPIRATION_DAYS = 7
 
 # Frontend URL — used in email links. Override in .env for production.
 FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000').rstrip('/')
+
+# Optional Redis URL — for persistent distributed rate limiting.
+# Falls back to in-memory if not configured (fine for single-process deployments).
+REDIS_URL = os.environ.get('REDIS_URL', '')
+_redis_client = None  # initialised at startup
 
 # Resend Email Config
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
@@ -363,7 +392,7 @@ class ChatRoom(BaseModel):
     name: str
     description: str
     icon: str
-    room_type: str = "all_australia"  # all_australia, suburb, overflow, friends_only
+    room_type: str = "all_australia"  # all_australia, suburb, local_area, overflow, friends_only
     region: Optional[str] = None
     parent_room_id: Optional[str] = None  # For overflow rooms
     participant_ids: List[str] = []        # For friends_only rooms
@@ -374,6 +403,8 @@ class ChatRoom(BaseModel):
     postcode: Optional[str] = None
     suburb: Optional[str] = None
     state: Optional[str] = None
+    area_name: Optional[str] = None      # For local_area rooms — the colloquial area name
+    postcode_range: Optional[str] = None  # e.g. "2040–2060" — display blurb for local_area rooms
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     last_activity_at: Optional[str] = None
@@ -737,8 +768,29 @@ def get_email_template(template_type: str, data: dict) -> tuple:
         </div>
         </body></html>
         """
+    elif template_type == "verify_email":
+        verify_link = f"{FRONTEND_URL}/verify-email?token={data.get('verification_token', '')}"
+        subject = "✅ Please verify your email — The Village"
+        html = f"""
+        <html><head>{base_style}</head><body>
+        <div class="container">
+            <div class="header"><h1>🏡 The Village</h1></div>
+            <div class="content">
+                <h2>Verify your email, {data.get('first_name', 'there')}</h2>
+                <p>One quick step — please click the button below to confirm your email address. This helps keep The Village safe for all families.</p>
+                <a href="{verify_link}" class="button">Verify my email</a>
+                <p style="font-size: 12px; color: #aaa; margin-top: 16px;">
+                    If you didn't create an account, you can safely ignore this email.
+                    This link expires in 7 days.
+                </p>
+            </div>
+            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>hello@ourlittlevillage.com.au</div>
+        </div>
+        </body></html>
+        """
     elif template_type == "welcome":
         subject = "👋 Welcome to The Village!"
+        verify_link = f"{FRONTEND_URL}/verify-email?token={data.get('verification_token', '')}"
         html = f"""
         <html><head>{base_style}</head><body>
         <div class="container">
@@ -755,6 +807,10 @@ def get_email_template(template_type: str, data: dict) -> tuple:
                 <a href="{FRONTEND_URL}/dashboard" class="button">Go to Dashboard</a>
                 <p style="font-size: 13px; color: #888; margin-top: 20px;">
                     You have a 7-day free trial of Village+ — unlimited posts, messages and access to every feature.
+                </p>
+                <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+                <p style="font-size: 13px; color: #888;">
+                    <strong>One more step:</strong> please <a href="{verify_link}" style="color: #E5A832;">verify your email address</a> to keep your account secure.
                 </p>
             </div>
             <div class="footer">Our Little Village — Parenting Assistance Platform<br/>hello@ourlittlevillage.com.au</div>
@@ -890,6 +946,14 @@ async def create_notification(user_id: str, notif_type: str, title: str, message
 
 # ==================== LOCATION HELPERS ====================
 
+def _strip_listing_coords(doc: dict) -> dict:
+    """Remove precise lat/lon from a listing doc before sending to the client.
+    Suburb, postcode, and state are sufficient for display; lat/lon are only
+    used server-side for distance filtering and must not be exposed."""
+    doc.pop("latitude", None)
+    doc.pop("longitude", None)
+    return doc
+
 def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Calculate distance between two points using Haversine formula (returns km)"""
     R = 6371  # Earth's radius in km
@@ -964,7 +1028,7 @@ async def get_users_within_distance(user_lat: float, user_lon: float, distance_k
 
 @api_router.post("/auth/register")
 async def register(user_data: UserCreate, response: Response, request: Request):
-    _check_rate_limit(f"{request.client.host if request.client else 'unknown'}:register", 5, 3600)
+    await _check_rate_limit(f"{request.client.host if request.client else 'unknown'}:register", 5, 3600)
     # --- Validate all required fields explicitly (avoids Pydantic 422 noise) ---
     if not user_data.email:
         raise HTTPException(status_code=400, detail="Email is required")
@@ -1037,12 +1101,24 @@ async def register(user_data: UserCreate, response: Response, request: Request):
         },
         "reset_token": None,
         "reset_token_expires": None,
+        # Email verification — generated on signup for email+password accounts
+        "email_verified": False,
+        "email_verification_token": secrets.token_urlsafe(32),
     }
     await db.users.insert_one(user)
 
-    # Send welcome email
-    welcome_subject, welcome_html = get_email_template("welcome", {"first_name": user_data.first_name.strip()})
+    # Send welcome + verification email (combined)
+    welcome_subject, welcome_html = get_email_template("welcome", {
+        "first_name": user_data.first_name.strip(),
+        "verification_token": user["email_verification_token"],
+    })
     fire_and_forget(send_email_notification(user_data.email, welcome_subject, welcome_html))
+    # Also send a dedicated verification email in case welcome email is missed
+    ver_subject, ver_html = get_email_template("verify_email", {
+        "first_name": user_data.first_name.strip(),
+        "verification_token": user["email_verification_token"],
+    })
+    fire_and_forget(send_email_notification(user_data.email, ver_subject, ver_html))
 
     # Create JWT token
     token = create_jwt_token(user_id)
@@ -1091,7 +1167,7 @@ async def check_nickname(name: str, user: dict = Depends(get_current_user)):
 @api_router.post("/auth/login")
 async def login(user_data: UserLogin, response: Response, request: Request):
     # 10 login attempts per minute per IP
-    rate_limit(request, max_requests=10, window_seconds=60, endpoint="login")
+    await rate_limit(request, max_requests=10, window_seconds=60, endpoint="login")
     user = await db.users.find_one({"email": user_data.email}, {"_id": 0})
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -1155,12 +1231,14 @@ async def exchange_session(request: Request, response: Response):
     
     if user:
         user_id = user["user_id"]
-        # Update user info
+        # Update user info — Google-verified email is always trusted
         await db.users.update_one(
             {"user_id": user_id},
             {"$set": {
                 "name": auth_data["name"],
-                "picture": auth_data.get("picture")
+                "picture": auth_data.get("picture"),
+                "email_verified": True,
+                "email_verification_token": None,
             }}
         )
     else:
@@ -1176,7 +1254,9 @@ async def exchange_session(request: Request, response: Response):
             "child_age_ranges": [],
             "interests": [],
             "location": None,
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "email_verified": True,         # Google vouches for this email
+            "email_verification_token": None,
         }
         await db.users.insert_one(user)
     
@@ -1253,6 +1333,7 @@ async def get_me(user: dict = Depends(get_current_user)):
         "gender": user.get("gender"),
         "suburb": user.get("suburb"),
         "just_downgraded": just_downgraded,
+        "email_verified": user.get("email_verified", True),  # True for existing users pre-feature
     }
 
 @api_router.post("/auth/logout")
@@ -1273,7 +1354,7 @@ async def forgot_password(payload: ForgotPasswordRequest, request: Request):
     """Generate a password reset token and email it. Always returns 200 to avoid user enumeration."""
     # Rate-limit: 5 requests per IP per 15 minutes
     ip = request.client.host if request.client else "unknown"
-    _check_rate_limit(f"{ip}:forgot-password", 5, 900)
+    await _check_rate_limit(f"{ip}:forgot-password", 5, 900)
 
     email = payload.email.strip().lower()
     user = await db.users.find_one({"email": email})
@@ -1302,7 +1383,7 @@ class ResetPasswordRequest(BaseModel):
 
 @api_router.post("/auth/reset-password")
 async def reset_password(payload: ResetPasswordRequest, request: Request):
-    _check_rate_limit(f"{request.client.host if request.client else 'unknown'}:reset-password", 10, 3600)
+    await _check_rate_limit(f"{request.client.host if request.client else 'unknown'}:reset-password", 10, 3600)
     """Validate a reset token and update the user's password."""
     if len(payload.password) < 8:
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters.")
@@ -1331,6 +1412,42 @@ async def reset_password(payload: ResetPasswordRequest, request: Request):
         {"$set": {"password_hash": hashed, "reset_token": None, "reset_token_expires": None}}
     )
     return {"message": "Password updated. You can now sign in."}
+
+
+@api_router.get("/auth/verify-email")
+async def verify_email(token: str):
+    """Verify an email address using the token sent on registration."""
+    if not token:
+        raise HTTPException(status_code=400, detail="Verification token is required")
+    user = await db.users.find_one({"email_verification_token": token}, {"_id": 0, "user_id": 1, "email_verified": 1})
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid or expired verification link. You may already be verified.")
+    if user.get("email_verified"):
+        return {"message": "Email already verified — you're all good!"}
+    await db.users.update_one(
+        {"user_id": user["user_id"]},
+        {"$set": {"email_verified": True, "email_verification_token": None}}
+    )
+    return {"message": "Email verified! Welcome to The Village."}
+
+
+@api_router.post("/auth/resend-verification")
+async def resend_verification(request: Request, current_user: dict = Depends(get_current_user)):
+    """Resend the verification email for the currently logged-in user."""
+    await _check_rate_limit(f"{current_user['user_id']}:resend-verify", 3, 3600)  # 3 per hour
+    if current_user.get("email_verified"):
+        return {"message": "Your email is already verified."}
+    token = current_user.get("email_verification_token") or secrets.token_urlsafe(32)
+    await db.users.update_one(
+        {"user_id": current_user["user_id"]},
+        {"$set": {"email_verification_token": token}}
+    )
+    subj, html = get_email_template("verify_email", {
+        "first_name": current_user.get("first_name") or current_user.get("name", "there"),
+        "verification_token": token,
+    })
+    fire_and_forget(send_email_notification(current_user["email"], subj, html))
+    return {"message": "Verification email sent — please check your inbox."}
 
 
 # ==================== USER PROFILE ENDPOINTS ====================
@@ -1510,7 +1627,7 @@ async def get_single_parents(user: dict = Depends(get_current_user)):
 async def search_users(q: str = "", user: dict = Depends(get_current_user), request: Request = None):
     """Search users by name or nickname. Must be defined before /users/{user_id}."""
     if request:
-        rate_limit(request, max_requests=30, window_seconds=60, endpoint="user-search")
+        await rate_limit(request, max_requests=30, window_seconds=60, endpoint="user-search")
     if not q or len(q) < 2:
         return []
     users = await db.users.find(
@@ -1537,6 +1654,7 @@ async def get_blocked_users_early(user: dict = Depends(get_current_user)):
 
 _PROFILE_SENSITIVE_FIELDS = {
     "password_hash", "email", "date_of_birth", "reset_token", "reset_token_expires",
+    "email_verification_token",  # never expose the raw token to clients
     "stripe_customer_id", "stripe_subscription_id", "email_preferences",
     "is_banned", "ban_reason", "trial_warning_sent", "trial_expired_notified",
     "premium_since", "_id",
@@ -1580,9 +1698,18 @@ async def update_profile(profile_data: UserProfileUpdate, user: dict = Depends(g
         if taken:
             raise HTTPException(status_code=400, detail="That display name is already taken — please choose another.")
 
+    # Compute local_area whenever suburb or postcode changes
+    if "suburb" in update_fields or "postcode" in update_fields:
+        area = get_area(
+            suburb=update_fields.get("suburb") or user.get("suburb"),
+            postcode=update_fields.get("postcode") or user.get("postcode"),
+        )
+        if area:
+            update_fields["local_area"] = area
+
     if update_fields:
         await db.users.update_one({"user_id": user["user_id"]}, {"$set": update_fields})
-    
+
     updated = await db.users.find_one({"user_id": user["user_id"]}, {"_id": 0, "password_hash": 0})
     return updated
 
@@ -1849,6 +1976,18 @@ async def get_post(post_id: str, user: dict = Depends(get_current_user)):
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
     await require_post_access(post, user)
+
+    # Block check — hide post if viewer has blocked the author (or author blocked viewer)
+    post_author_id = post.get("author_id")
+    if post_author_id and not post.get("is_anonymous"):
+        block = await db.user_blocks.find_one({
+            "$or": [
+                {"blocker_id": user["user_id"], "blocked_id": post_author_id},
+                {"blocker_id": post_author_id, "blocked_id": user["user_id"]},
+            ]
+        })
+        if block:
+            raise HTTPException(status_code=404, detail="Post not found")
     
     # Increment views
     await db.forum_posts.update_one({"post_id": post_id}, {"$inc": {"views": 1}})
@@ -1885,6 +2024,7 @@ async def get_post(post_id: str, user: dict = Depends(get_current_user)):
 
 @api_router.post("/forums/posts")
 async def create_post(post_data: ForumPostCreate, user: dict = Depends(get_current_user)):
+    await _check_rate_limit(f"{user['user_id']}:post-create", 5, 300)  # 5 posts per 5 minutes
     category = await require_category_access(post_data.category_id, user)
 
     # Check freemium limits
@@ -1977,7 +2117,7 @@ def _detect_image_type(data: bytes) -> str | None:
 @api_router.post("/upload/image")
 async def upload_image(file: UploadFile = File(...), user: dict = Depends(get_current_user), request: Request = None):
     """Upload an image and return base64 encoded string"""
-    _check_rate_limit(f"{user['user_id']}:upload-image", 10, 60)
+    await _check_rate_limit(f"{user['user_id']}:upload-image", 10, 60)
 
     # Read file content first so we can validate magic bytes
     content = await file.read()
@@ -2265,6 +2405,7 @@ async def get_replies(post_id: str, user: dict = Depends(get_current_user)):
 
 @api_router.post("/forums/posts/{post_id}/replies")
 async def create_reply(post_id: str, reply_data: ForumReplyCreate, user: dict = Depends(get_current_user)):
+    await _check_rate_limit(f"{user['user_id']}:reply-create", 10, 300)  # 10 replies per 5 minutes
     # Check post exists and is accessible before any quota checks
     post = await db.forum_posts.find_one({"post_id": post_id}, {"_id": 0})
     if not post:
@@ -3366,26 +3507,50 @@ async def get_block_status(user_id: str, user: dict = Depends(get_current_user))
 
 @api_router.post("/reports")
 async def create_report(report_data: ReportCreate, user: dict = Depends(get_current_user)):
-    """Report a post or reply"""
-    # Verify content exists
+    """Report a post, reply, chat message, direct message, stall listing, or stall message"""
+    # Verify content exists and resolve the reported user
     if report_data.content_type == "post":
         content = await db.forum_posts.find_one({"post_id": report_data.content_id})
+        if not content:
+            raise HTTPException(status_code=404, detail="Content not found")
+        await require_post_access(content, user)
+        reported_user_id = content.get("author_id")
     elif report_data.content_type == "reply":
         content = await db.forum_replies.find_one({"reply_id": report_data.content_id})
-    else:
-        raise HTTPException(status_code=400, detail="Invalid content type")
-    
-    if not content:
-        raise HTTPException(status_code=404, detail="Content not found")
-
-    if report_data.content_type == "post":
-        await require_post_access(content, user)
-    else:
+        if not content:
+            raise HTTPException(status_code=404, detail="Content not found")
         parent_post = await db.forum_posts.find_one({"post_id": content.get("post_id")}, {"_id": 0, "category_id": 1})
         if not parent_post:
             raise HTTPException(status_code=404, detail="Post not found")
         await require_post_access(parent_post, user)
-    
+        reported_user_id = content.get("author_id")
+    elif report_data.content_type == "chat_message":
+        content = await db.chat_messages.find_one({"message_id": report_data.content_id})
+        if not content:
+            raise HTTPException(status_code=404, detail="Content not found")
+        reported_user_id = content.get("author_id")
+    elif report_data.content_type == "direct_message":
+        content = await db.direct_messages.find_one({"message_id": report_data.content_id})
+        if not content:
+            raise HTTPException(status_code=404, detail="Content not found")
+        reported_user_id = content.get("sender_id")
+    elif report_data.content_type == "listing":
+        content = await db.stall_listings.find_one({"listing_id": report_data.content_id})
+        if not content:
+            raise HTTPException(status_code=404, detail="Content not found")
+        reported_user_id = content.get("seller_id")
+    elif report_data.content_type == "stall_message":
+        content = await db.stall_messages.find_one({"message_id": report_data.content_id})
+        if not content:
+            raise HTTPException(status_code=404, detail="Content not found")
+        reported_user_id = content.get("sender_id")
+    else:
+        raise HTTPException(status_code=400, detail="Invalid content type")
+
+    # Prevent self-reporting (avoids auto-ban abuse)
+    if reported_user_id and reported_user_id == user["user_id"]:
+        raise HTTPException(status_code=400, detail="You cannot report your own content")
+
     # Check if already reported by this user
     existing = await db.reports.find_one({
         "reporter_id": user["user_id"],
@@ -3394,9 +3559,6 @@ async def create_report(report_data: ReportCreate, user: dict = Depends(get_curr
     })
     if existing:
         raise HTTPException(status_code=400, detail="You have already reported this content")
-    
-    # Get the content author for auto-ban tracking
-    reported_user_id = content.get("author_id")
 
     report = {
         "report_id": f"report_{uuid.uuid4().hex[:12]}",
@@ -3411,15 +3573,20 @@ async def create_report(report_data: ReportCreate, user: dict = Depends(get_curr
     }
     await db.reports.insert_one(report)
 
-    # Auto-suspend after 5 reports against the same user in 30 days
-    AUTO_BAN_THRESHOLD = 5
+    # Auto-suspend after 10 reports from at least 3 distinct reporters in 30 days
+    AUTO_BAN_THRESHOLD = 10
+    AUTO_BAN_MIN_REPORTERS = 3
     if reported_user_id:
         thirty_days_ago = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
         report_count = await db.reports.count_documents({
             "reported_user_id": reported_user_id,
             "created_at": {"$gte": thirty_days_ago}
         })
-        if report_count >= AUTO_BAN_THRESHOLD:
+        distinct_reporters = await db.reports.distinct("reporter_id", {
+            "reported_user_id": reported_user_id,
+            "created_at": {"$gte": thirty_days_ago}
+        })
+        if report_count >= AUTO_BAN_THRESHOLD and len(distinct_reporters) >= AUTO_BAN_MIN_REPORTERS:
             target = await db.users.find_one({"user_id": reported_user_id})
             if target and not target.get("is_banned"):
                 await db.users.update_one(
@@ -3447,21 +3614,82 @@ async def create_report(report_data: ReportCreate, user: dict = Depends(get_curr
 
 ROOM_MAX_CAPACITY = 50
 
+async def get_or_create_area_room(area_name: str) -> dict:
+    """Upsert a local_area chat room for the given area name. Returns the room doc."""
+    pc_range = get_area_postcode_range(area_name)
+    description = (
+        f"Connect with parents in the {area_name} area · postcodes {pc_range}"
+        if pc_range
+        else f"Connect with parents in the {area_name} area"
+    )
+
+    existing = await db.chat_rooms.find_one(
+        {"area_name": area_name, "room_type": "local_area", "is_active": True},
+        {"_id": 0}
+    )
+    if existing:
+        # Backfill postcode_range onto rooms created before this field existed
+        if not existing.get("postcode_range") and pc_range:
+            await db.chat_rooms.update_one(
+                {"room_id": existing["room_id"]},
+                {"$set": {"postcode_range": pc_range, "description": description}}
+            )
+            existing["postcode_range"] = pc_range
+            existing["description"] = description
+        return existing
+
+    room = ChatRoom(
+        name=f"{area_name} Parents",
+        description=description,
+        icon="📍",
+        room_type="local_area",
+        area_name=area_name,
+        postcode_range=pc_range,
+        last_activity_at=datetime.now(timezone.utc).isoformat(),
+    )
+    doc = room.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await db.chat_rooms.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
 @api_router.get("/chat/rooms")
 async def get_chat_rooms(
     user: dict = Depends(get_current_user),
     preferred_reach: Optional[str] = None
 ):
-    """Get chat rooms: suburb rooms near user + all australia themed rooms"""
+    """Get chat rooms: area room for user + nearby suburb rooms + all australia themed rooms"""
     user_lat = user.get("latitude")
     user_lon = user.get("longitude")
     user_postcode = user.get("postcode")
+    user_local_area = user.get("local_area")
     reach = preferred_reach or user.get("preferred_reach", "25km")
+
+    # Resolve local_area from suburb/postcode if not already stored
+    if not user_local_area and (user.get("suburb") or user_postcode):
+        user_local_area = get_area(suburb=user.get("suburb"), postcode=user_postcode)
+        if user_local_area:
+            # Backfill onto user document for next request
+            await db.users.update_one(
+                {"user_id": user["user_id"]},
+                {"$set": {"local_area": user_local_area}}
+            )
+
+    # Get or create the user's primary area room (from profile)
+    my_area_room = None
+    if user_local_area:
+        my_area_room = await get_or_create_area_room(user_local_area)
+
+    # Get or create any additional area rooms the user has joined
+    joined_area_names = [a for a in user.get("joined_area_rooms", []) if a != user_local_area]
+    joined_area_rooms = []
+    for area_name in joined_area_names:
+        room = await get_or_create_area_room(area_name)
+        joined_area_rooms.append(room)
 
     # Get all active rooms
     all_rooms = await db.chat_rooms.find({"is_active": True}, {"_id": 0}).to_list(500)
 
-    my_suburb_room = None
     nearby_rooms = []
     all_australia_rooms = []
 
@@ -3473,16 +3701,17 @@ async def get_chat_rooms(
 
         if room_type == "all_australia":
             all_australia_rooms.append(room)
+        elif room_type == "local_area":
+            # Skip — area rooms are returned directly via my_area_room
+            pass
         elif room_type == "suburb":
             # Lazy archival: skip stale suburb rooms with no active users
             last_activity = room.get("last_activity_at")
             if last_activity and last_activity < thirty_days_ago and room.get("active_users", 0) == 0:
                 continue
 
-            # Check if this is the user's own suburb room
-            if user_postcode and room.get("postcode") == user_postcode:
-                my_suburb_room = room
-            elif user_lat and user_lon and room.get("latitude") and room.get("longitude"):
+            # Add nearby suburb rooms (for users who want to browse)
+            if user_lat and user_lon and room.get("latitude") and room.get("longitude"):
                 dist = calculate_distance(user_lat, user_lon, room["latitude"], room["longitude"])
                 reach_km = next((d["km"] for d in DISTANCE_OPTIONS if d["id"] == reach), 100)
                 if reach_km and dist <= reach_km:
@@ -3492,7 +3721,7 @@ async def get_chat_rooms(
     # Sort nearby rooms by distance
     nearby_rooms.sort(key=lambda x: x.get("distance_km", 9999))
 
-    # Dedup all_australia_rooms by name (keep first occurrence, canonical room_id wins because upsert used room_id)
+    # Dedup all_australia_rooms by name
     seen_names = set()
     deduped_australia = []
     for r in all_australia_rooms:
@@ -3502,15 +3731,100 @@ async def get_chat_rooms(
     all_australia_rooms = deduped_australia
 
     return {
-        "my_suburb_room": my_suburb_room,
+        "my_area_room": my_area_room,
+        "joined_area_rooms": joined_area_rooms,
+        "my_suburb_room": None,  # Kept for backwards compatibility
         "nearby_rooms": nearby_rooms,
         "all_australia_rooms": all_australia_rooms,
         "user_suburb": user.get("suburb"),
         "user_postcode": user_postcode,
+        "user_local_area": user_local_area,
+        "joined_area_names": user.get("joined_area_rooms", []),
         "preferred_reach": reach,
         "distance_options": DISTANCE_OPTIONS,
-        "has_location": bool(user_lat and user_lon)
+        "has_location": bool(user_lat and user_lon or user_postcode or user_local_area)
     }
+
+@api_router.get("/chat/rooms/areas/search")
+async def search_area_rooms(
+    q: str = "",
+    user: dict = Depends(get_current_user)
+):
+    """Search the 316 SA3 area room names. Returns matching area names + their room docs (if created)."""
+    all_areas = list_all_areas()  # sorted list of all 316 SA3 names
+    q = q.strip().lower()
+    if q:
+        matches = [a for a in all_areas if q in a.lower()][:20]
+    else:
+        matches = all_areas[:20]  # return first 20 alphabetically when no query
+
+    user_local_area = user.get("local_area", "")
+    joined = set(user.get("joined_area_rooms", []))
+
+    results = []
+    for area_name in matches:
+        # Only fetch existing rooms — don't create on search
+        existing = await db.chat_rooms.find_one(
+            {"area_name": area_name, "room_type": "local_area", "is_active": True},
+            {"_id": 0}
+        )
+        results.append({
+            "area_name": area_name,
+            "room": existing,
+            "is_primary": area_name == user_local_area,
+            "is_joined": area_name in joined or area_name == user_local_area,
+            "postcode_range": get_area_postcode_range(area_name),
+        })
+
+    return {"results": results, "total": len(all_areas)}
+
+
+@api_router.post("/chat/rooms/areas/join")
+async def join_area_room(
+    body: dict = Body(...),
+    user: dict = Depends(get_current_user)
+):
+    """Add an area room to the user's joined list and create the room if needed."""
+    area_name = body.get("area_name", "").strip()
+    if not area_name:
+        raise HTTPException(status_code=400, detail="area_name is required")
+
+    all_areas = list_all_areas()
+    if area_name not in all_areas:
+        raise HTTPException(status_code=404, detail="Area not found")
+
+    joined = list(user.get("joined_area_rooms", []))
+    if area_name not in joined:
+        joined.append(area_name)
+        await db.users.update_one(
+            {"user_id": user["user_id"]},
+            {"$set": {"joined_area_rooms": joined}}
+        )
+
+    # Create the room if it doesn't exist yet
+    room = await get_or_create_area_room(area_name)
+    return {"room": room, "joined_area_rooms": joined}
+
+
+@api_router.delete("/chat/rooms/areas/join/{area_name:path}")
+async def leave_area_room(
+    area_name: str,
+    user: dict = Depends(get_current_user)
+):
+    """Remove an area room from the user's joined list. Cannot leave primary area."""
+    area_name = area_name.strip()
+    user_local_area = user.get("local_area", "")
+
+    if area_name == user_local_area:
+        raise HTTPException(status_code=400, detail="Cannot leave your primary area room — update your profile suburb to change it.")
+
+    joined = [a for a in user.get("joined_area_rooms", []) if a != area_name]
+    await db.users.update_one(
+        {"user_id": user["user_id"]},
+        {"$set": {"joined_area_rooms": joined}}
+    )
+    return {"joined_area_rooms": joined}
+
 
 @api_router.get("/chat/rooms/nearby")
 async def get_nearby_chat_rooms(
@@ -3794,16 +4108,23 @@ async def get_room_messages(room_id: str, limit: int = 50, before: Optional[str]
             gender_label = "mums" if gender_restriction == "female" else "dads"
             raise HTTPException(status_code=403, detail=f"This space is only for {gender_label}")
 
+    # Filter out messages from users the current user has blocked (either direction)
+    blocks_i_made = await db.user_blocks.find({"blocker_id": user["user_id"]}, {"_id": 0, "blocked_id": 1}).to_list(200)
+    blocks_on_me  = await db.user_blocks.find({"blocked_id": user["user_id"]}, {"_id": 0, "blocker_id": 1}).to_list(200)
+    blocked_ids   = {b["blocked_id"] for b in blocks_i_made} | {b["blocker_id"] for b in blocks_on_me}
+
     query = {"room_id": room_id}
     if before:
         query["created_at"] = {"$lt": before}
+    if blocked_ids:
+        query["author_id"] = {"$nin": list(blocked_ids)}
 
     messages = await db.chat_messages.find(query, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(limit)
     return list(reversed(messages))
 
 @api_router.post("/chat/rooms/{room_id}/messages")
 async def send_room_message(room_id: str, message_data: ChatMessageCreate, user: dict = Depends(get_current_user), request: Request = None):
-    _check_rate_limit(f"{user['user_id']}:chat-send", 60, 60)
+    await _check_rate_limit(f"{user['user_id']}:chat-send", 60, 60)
     # Verify room exists
     room = await db.chat_rooms.find_one({"room_id": room_id}, {"_id": 0})
     if not room:
@@ -3988,23 +4309,44 @@ async def get_direct_messages(other_user_id: str, user: dict = Depends(get_curre
 
 @api_router.post("/messages")
 async def send_direct_message(message_data: DirectMessageCreate, user: dict = Depends(get_current_user), request: Request = None):
-    _check_rate_limit(f"{user['user_id']}:dm-send", 30, 60)
-    # Check freemium limits
+    await _check_rate_limit(f"{user['user_id']}:dm-send", 30, 60)
     sub = await get_user_subscription_status(user)
     if sub["limits_apply"]:
+        # Free users can only reply to existing conversations, not initiate new ones.
+        # A reply is defined as: the receiver has previously sent a message to this user.
+        existing_thread = await db.direct_messages.find_one({
+            "sender_id": message_data.receiver_id,
+            "receiver_id": user["user_id"]
+        })
+        if not existing_thread:
+            raise HTTPException(status_code=403, detail={
+                "error": "village_plus_required",
+                "message": "Upgrade to Village+ to start new conversations."
+            })
+        # This is a reply — apply daily message limit
         limit_check = await check_chat_message_limit(user["user_id"])
         if not limit_check["allowed"]:
             raise HTTPException(status_code=429, detail={
                 "error": "daily_chat_limit",
                 "used": limit_check["used"],
                 "limit": limit_check["limit"],
-                "message": f"You've used all {limit_check['limit']} messages today. Upgrade to premium for unlimited messaging."
+                "message": f"You've used all {limit_check['limit']} messages today. Upgrade to Village+ for unlimited messaging."
             })
 
     # Verify receiver exists
     receiver = await db.users.find_one({"user_id": message_data.receiver_id}, {"_id": 0})
     if not receiver:
         raise HTTPException(status_code=404, detail="User not found")
+
+    # Block check — reject if receiver has blocked sender (or sender has blocked receiver)
+    block = await db.user_blocks.find_one({
+        "$or": [
+            {"blocker_id": message_data.receiver_id, "blocked_id": user["user_id"]},
+            {"blocker_id": user["user_id"], "blocked_id": message_data.receiver_id},
+        ]
+    })
+    if block:
+        raise HTTPException(status_code=403, detail="Unable to send message")
 
     message = DirectMessage(
         sender_id=user["user_id"],
@@ -4049,7 +4391,7 @@ async def send_direct_message(message_data: DirectMessageCreate, user: dict = De
 @api_router.post("/friends/request")
 async def send_friend_request(request_data: FriendRequestCreate, user: dict = Depends(get_current_user), http_request: Request = None):
     """Send a friend request to another user"""
-    _check_rate_limit(f"{user['user_id']}:friend-request", 20, 3600)
+    await _check_rate_limit(f"{user['user_id']}:friend-request", 20, 3600)
     to_user_id = request_data.to_user_id
     from_user_id = user["user_id"]
     
@@ -4402,7 +4744,7 @@ async def get_feed(request: Request, limit: int = Query(default=20, ge=1, le=100
 async def search_posts(q: str, limit: int = Query(default=20, ge=1, le=100), request: Request = None):
     """Search posts by title or content"""
     if request:
-        rate_limit(request, max_requests=30, window_seconds=60, endpoint="post-search")
+        await rate_limit(request, max_requests=30, window_seconds=60, endpoint="post-search")
     current_user = None
     if request:
         try:
@@ -4831,24 +5173,60 @@ async def admin_get_reports(
     reports = await db.reports.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
 
     # Batch-fetch all related content and reporters (avoids N+1)
-    post_ids = [r["content_id"] for r in reports if r.get("content_type") == "post" and r.get("content_id")]
-    reply_ids = [r["content_id"] for r in reports if r.get("content_type") != "post" and r.get("content_id")]
+    # Separate content IDs by type so we can look them up in the right collections
+    type_to_ids: dict = {}
+    for r in reports:
+        ct = r.get("content_type")
+        cid = r.get("content_id")
+        if ct and cid:
+            type_to_ids.setdefault(ct, []).append(cid)
+
     reporter_ids = list({r["reporter_id"] for r in reports if r.get("reporter_id")})
 
-    posts_map, replies_map, reporters_map = {}, {}, {}
-    if post_ids:
-        async for doc in db.forum_posts.find({"post_id": {"$in": post_ids}}, {"_id": 0}):
+    # Per-collection lookups
+    posts_map, replies_map, chat_map, dm_map, listing_map, stall_msg_map, reporters_map = {}, {}, {}, {}, {}, {}, {}
+
+    if type_to_ids.get("post"):
+        async for doc in db.forum_posts.find({"post_id": {"$in": type_to_ids["post"]}}, {"_id": 0}):
             posts_map[doc["post_id"]] = doc
-    if reply_ids:
-        async for doc in db.forum_replies.find({"reply_id": {"$in": reply_ids}}, {"_id": 0}):
+    if type_to_ids.get("reply"):
+        async for doc in db.forum_replies.find({"reply_id": {"$in": type_to_ids["reply"]}}, {"_id": 0}):
             replies_map[doc["reply_id"]] = doc
+    if type_to_ids.get("chat_message"):
+        async for doc in db.chat_messages.find({"message_id": {"$in": type_to_ids["chat_message"]}}, {"_id": 0}):
+            chat_map[doc["message_id"]] = doc
+    if type_to_ids.get("direct_message"):
+        async for doc in db.direct_messages.find({"message_id": {"$in": type_to_ids["direct_message"]}}, {"_id": 0}):
+            dm_map[doc["message_id"]] = doc
+    if type_to_ids.get("listing"):
+        async for doc in db.stall_listings.find({"listing_id": {"$in": type_to_ids["listing"]}}, {"_id": 0}):
+            listing_map[doc["listing_id"]] = doc
+    if type_to_ids.get("stall_message"):
+        async for doc in db.stall_messages.find({"message_id": {"$in": type_to_ids["stall_message"]}}, {"_id": 0}):
+            stall_msg_map[doc["message_id"]] = doc
     if reporter_ids:
         async for doc in db.users.find({"user_id": {"$in": reporter_ids}}, {"_id": 0, "password_hash": 0}):
             reporters_map[doc["user_id"]] = doc
 
+    _content_lookup = {
+        "post": posts_map,
+        "reply": replies_map,
+        "chat_message": chat_map,
+        "direct_message": dm_map,
+        "listing": listing_map,
+        "stall_message": stall_msg_map,
+    }
+
     for report in reports:
+        ct  = report.get("content_type")
         cid = report.get("content_id")
-        report["content"] = posts_map.get(cid) if report.get("content_type") == "post" else replies_map.get(cid)
+        content = _content_lookup.get(ct, {}).get(cid)
+        # For anonymous posts/replies: admin CAN see the real author_id (needed for moderation),
+        # but we add a flag so the UI can clearly label it as an anonymous post.
+        if content and content.get("is_anonymous"):
+            content = dict(content)           # don't mutate cached doc
+            content["_admin_anonymous"] = True  # UI hint: show as "Anonymous (admin view)"
+        report["content"] = content
         report["reporter"] = reporters_map.get(report.get("reporter_id"))
 
     total = await db.reports.count_documents(query)
@@ -4864,119 +5242,137 @@ async def admin_report_action(report_id: str, request: Request, admin: dict = De
 
     if action == "dismiss":
         await db.reports.update_one({"report_id": report_id}, {"$set": {"status": "dismissed"}})
-    elif action == "remove_content":
+    elif action in ("remove_content", "remove"):
         content_author_id = None
-        if report.get("content_type") == "post":
-            post = await db.forum_posts.find_one({"post_id": report["content_id"]})
+        content_type = report.get("content_type")
+        content_id   = report["content_id"]
+        if content_type == "post":
+            post = await db.forum_posts.find_one({"post_id": content_id})
             if post:
                 content_author_id = post.get("author_id")
-                await db.forum_posts.delete_one({"post_id": report["content_id"]})
-                # Decrement the category post count
+                await db.forum_posts.delete_one({"post_id": content_id})
                 await db.forum_categories.update_one(
                     {"category_id": post.get("category_id")},
                     {"$inc": {"post_count": -1}}
                 )
-        else:
-            reply = await db.forum_replies.find_one({"reply_id": report["content_id"]})
+        elif content_type == "reply":
+            reply = await db.forum_replies.find_one({"reply_id": content_id})
             if reply:
                 content_author_id = reply.get("author_id")
-                await db.forum_replies.delete_one({"reply_id": report["content_id"]})
-                # Decrement the post reply count
+                await db.forum_replies.delete_one({"reply_id": content_id})
                 await db.forum_posts.update_one(
                     {"post_id": reply.get("post_id")},
                     {"$inc": {"reply_count": -1}}
                 )
+        elif content_type == "chat_message":
+            msg = await db.chat_messages.find_one({"message_id": content_id})
+            if msg:
+                content_author_id = msg.get("author_id")
+                await db.chat_messages.delete_one({"message_id": content_id})
+        elif content_type == "direct_message":
+            msg = await db.direct_messages.find_one({"message_id": content_id})
+            if msg:
+                content_author_id = msg.get("sender_id")
+                await db.direct_messages.update_one(
+                    {"message_id": content_id},
+                    {"$set": {"content": "[Message removed by moderator]", "is_removed": True}}
+                )
+        elif content_type == "listing":
+            listing = await db.stall_listings.find_one({"listing_id": content_id})
+            if listing:
+                content_author_id = listing.get("seller_id")
+                await db.stall_listings.update_one(
+                    {"listing_id": content_id},
+                    {"$set": {"status": "removed", "removed_reason": "Community guidelines violation"}}
+                )
+        elif content_type == "stall_message":
+            msg = await db.stall_messages.find_one({"message_id": content_id})
+            if msg:
+                content_author_id = msg.get("sender_id")
+                await db.stall_messages.delete_one({"message_id": content_id})
         # Notify the content author
-        if content_author_id:
-            notification = {
-                "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
-                "user_id": content_author_id,
-                "type": "moderation",
-                "title": "Content Removed",
-                "message": "Your post was removed by a moderator for violating community guidelines.",
-                "link": "/forums",
-                "is_read": False,
-                "created_at": datetime.now(timezone.utc).isoformat()
-            }
-            await db.notifications.insert_one(notification)
-        await db.reports.update_one({"report_id": report_id}, {"$set": {"status": "resolved"}})
-    elif action in ("remove", "remove_content"):
-        # alias: "remove" → remove_content (from moderator dashboard)
-        action = "remove_content"
-        content_author_id = None
-        if report.get("content_type") == "post":
-            post = await db.forum_posts.find_one({"post_id": report["content_id"]})
-            if post:
-                content_author_id = post.get("author_id")
-                await db.forum_posts.delete_one({"post_id": report["content_id"]})
-                await db.forum_categories.update_one(
-                    {"category_id": post.get("category_id")},
-                    {"$inc": {"post_count": -1}}
-                )
-        else:
-            reply = await db.forum_replies.find_one({"reply_id": report["content_id"]})
-            if reply:
-                content_author_id = reply.get("author_id")
-                await db.forum_replies.delete_one({"reply_id": report["content_id"]})
-                await db.forum_posts.update_one(
-                    {"post_id": reply.get("post_id")},
-                    {"$inc": {"reply_count": -1}}
-                )
         if content_author_id:
             await db.notifications.insert_one({
                 "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
                 "user_id": content_author_id,
                 "type": "moderation",
                 "title": "Content Removed",
-                "message": "Your post was removed by a moderator for violating community guidelines.",
-                "link": "/forums",
+                "message": "Your content was removed by a moderator for violating community guidelines.",
+                "link": "/community-guidelines",
                 "is_read": False,
                 "created_at": datetime.now(timezone.utc).isoformat()
             })
         await db.reports.update_one({"report_id": report_id}, {"$set": {"status": "resolved"}})
     elif action == "warn":
         # Warn the content author without removing content
-        content_author_id = None
-        if report.get("content_type") == "post":
-            content = await db.forum_posts.find_one({"post_id": report["content_id"]})
-            if content: content_author_id = content.get("author_id")
-        else:
-            content = await db.forum_replies.find_one({"reply_id": report["content_id"]})
-            if content: content_author_id = content.get("author_id")
+        content_author_id = report.get("reported_user_id")
+        # Fallback: look up author from content if not stored on report
+        if not content_author_id:
+            ct = report.get("content_type")
+            if ct == "post":
+                c = await db.forum_posts.find_one({"post_id": report["content_id"]})
+                if c: content_author_id = c.get("author_id")
+            elif ct == "reply":
+                c = await db.forum_replies.find_one({"reply_id": report["content_id"]})
+                if c: content_author_id = c.get("author_id")
+            elif ct == "chat_message":
+                c = await db.chat_messages.find_one({"message_id": report["content_id"]})
+                if c: content_author_id = c.get("author_id")
+            elif ct in ("direct_message", "stall_message"):
+                coll = db.direct_messages if ct == "direct_message" else db.stall_messages
+                c = await coll.find_one({"message_id": report["content_id"]})
+                if c: content_author_id = c.get("sender_id")
+            elif ct == "listing":
+                c = await db.stall_listings.find_one({"listing_id": report["content_id"]})
+                if c: content_author_id = c.get("seller_id")
         if content_author_id:
             await db.notifications.insert_one({
                 "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
                 "user_id": content_author_id,
                 "type": "moderation",
                 "title": "Community Guidelines Reminder",
-                "message": "A moderator has reviewed your recent post. Please ensure your content follows our Community Guidelines.",
+                "message": "A moderator has reviewed your recent content. Please ensure your content follows our Community Guidelines.",
                 "link": "/community-guidelines",
                 "is_read": False,
                 "created_at": datetime.now(timezone.utc).isoformat()
             })
         await db.reports.update_one({"report_id": report_id}, {"$set": {"status": "reviewed"}})
     elif action in ("ban", "ban_user"):
-        if report.get("content_type") == "post":
-            content = await db.forum_posts.find_one({"post_id": report["content_id"]})
-        else:
-            content = await db.forum_replies.find_one({"reply_id": report["content_id"]})
-        if content:
+        # Prefer stored reported_user_id; fall back to content lookup
+        ban_user_id = report.get("reported_user_id")
+        if not ban_user_id:
+            ct = report.get("content_type")
+            if ct == "post":
+                c = await db.forum_posts.find_one({"post_id": report["content_id"]})
+                if c: ban_user_id = c.get("author_id")
+            elif ct == "reply":
+                c = await db.forum_replies.find_one({"reply_id": report["content_id"]})
+                if c: ban_user_id = c.get("author_id")
+            elif ct == "chat_message":
+                c = await db.chat_messages.find_one({"message_id": report["content_id"]})
+                if c: ban_user_id = c.get("author_id")
+            elif ct in ("direct_message", "stall_message"):
+                coll = db.direct_messages if ct == "direct_message" else db.stall_messages
+                c = await coll.find_one({"message_id": report["content_id"]})
+                if c: ban_user_id = c.get("sender_id")
+            elif ct == "listing":
+                c = await db.stall_listings.find_one({"listing_id": report["content_id"]})
+                if c: ban_user_id = c.get("seller_id")
+        if ban_user_id:
             await db.users.update_one(
-                {"user_id": content["author_id"]},
+                {"user_id": ban_user_id},
                 {"$set": {"is_banned": True, "ban_reason": "Content violation"}}
             )
-            # Notify the banned user
-            notification = {
+            await db.notifications.insert_one({
                 "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
-                "user_id": content["author_id"],
+                "user_id": ban_user_id,
                 "type": "moderation",
                 "title": "Account Suspended",
                 "message": "Your account has been suspended for violating community guidelines.",
                 "link": None,
                 "is_read": False,
                 "created_at": datetime.now(timezone.utc).isoformat()
-            }
-            await db.notifications.insert_one(notification)
+            })
         await db.reports.update_one({"report_id": report_id}, {"$set": {"status": "resolved"}})
     else:
         raise HTTPException(400, "Invalid action")
@@ -5913,6 +6309,9 @@ async def seed_data(request: Request):
     # Community meetup RSVPs
     await db.community_meetup_rsvps.create_index("post_id", unique=True)
     await db.community_meetup_rsvps.create_index("community_id")
+    # Password reset token expiry — sparse index for fast lookup when validating tokens
+    # (TTL deletion would remove user documents, which is wrong — expiry is checked in code at reset time)
+    await db.users.create_index("reset_token_expires", sparse=True)
 
     # Stripe: create/retrieve products and prices
     await ensure_stripe_products()
@@ -6166,19 +6565,19 @@ class StallListing(BaseModel):
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class StallListingCreate(BaseModel):
-    title: str
-    description: Optional[str] = None
+    title: str = Field(..., min_length=3, max_length=120)
+    description: Optional[str] = Field(None, max_length=2000)
     listing_type: str
-    price: Optional[float] = None
+    price: Optional[float] = Field(None, ge=0, le=100000)
     make_offer: bool = False
-    swap_for: Optional[str] = None
+    swap_for: Optional[str] = Field(None, max_length=200)
     condition: Optional[str] = None
     category: str
     age_group: Optional[str] = None
-    images: List[str] = []
-    suburb: Optional[str] = None
-    postcode: Optional[str] = None
-    state: Optional[str] = None
+    images: List[str] = Field(default=[], max_length=10)  # max 10 images
+    suburb: Optional[str] = Field(None, max_length=100)
+    postcode: Optional[str] = Field(None, max_length=10)
+    state: Optional[str] = Field(None, max_length=10)
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     postage_available: bool = False
@@ -6314,7 +6713,7 @@ async def browse_stall_listings(
         elif sort == "price_high":
             filtered.sort(key=lambda x: x.get("price") or 0, reverse=True)
         total = len(filtered)
-        return {"listings": filtered[skip:skip + limit], "total": total, "limit": limit, "skip": skip}
+        return {"listings": [_strip_listing_coords(d) for d in filtered[skip:skip + limit]], "total": total, "limit": limit, "skip": skip}
 
     sort_map = {"newest": ("created_at", -1), "oldest": ("created_at", 1), "price_low": ("price", 1), "price_high": ("price", -1)}
     sf, so = sort_map.get(sort, ("created_at", -1))
@@ -6322,7 +6721,7 @@ async def browse_stall_listings(
         db.stall_listings.find(query, {"_id": 0}).sort(sf, so).skip(skip).limit(limit).to_list(limit),
         db.stall_listings.count_documents(query)
     )
-    return {"listings": listings, "total": total, "limit": limit, "skip": skip}
+    return {"listings": [_strip_listing_coords(d) for d in listings], "total": total, "limit": limit, "skip": skip}
 
 
 @api_router.get("/stall/listings/my")
@@ -6330,7 +6729,7 @@ async def my_stall_listings(user: dict = Depends(get_current_user)):
     listings = await db.stall_listings.find(
         {"seller_id": user["user_id"]}, {"_id": 0}
     ).sort("created_at", -1).to_list(100)
-    return listings
+    return [_strip_listing_coords(d) for d in listings]
 
 
 @api_router.get("/stall/listings/saved")
@@ -6342,7 +6741,7 @@ async def my_saved_listings(user: dict = Depends(get_current_user)):
     listings = await db.stall_listings.find(
         {"listing_id": {"$in": listing_ids}}, {"_id": 0}
     ).sort("created_at", -1).to_list(200)
-    return listings
+    return [_strip_listing_coords(d) for d in listings]
 
 
 @api_router.get("/stall/listings/{listing_id}")
@@ -6359,12 +6758,13 @@ async def get_stall_listing(listing_id: str, request: Request):
     except Exception:
         doc["user_saved"] = False
         doc["is_own_listing"] = False
-    return doc
+    return _strip_listing_coords(doc)
 
 
 @api_router.post("/stall/listings")
 async def create_stall_listing(data: StallListingCreate, user: dict = Depends(get_current_user)):
     _check_stall_access(user)
+    await _check_rate_limit(f"{user['user_id']}:listing-create", 5, 3600)  # 5 listings per hour
     listing = StallListing(
         seller_id=user["user_id"],
         seller_name=user.get("nickname") or user["name"],
@@ -6757,6 +7157,42 @@ async def _trial_email_loop():
 @app.on_event("startup")
 async def seed_required_rooms():
     """Upsert required rooms and categories — safe to run on every startup, never creates duplicates."""
+    # C4 — Validate required environment variables at startup
+    _required_env = {
+        "SECRET_KEY":            os.environ.get("SECRET_KEY", ""),
+        "MONGODB_URL":           os.environ.get("MONGODB_URL", ""),
+        "STRIPE_SECRET_KEY":     os.environ.get("STRIPE_SECRET_KEY", ""),
+        "STRIPE_WEBHOOK_SECRET": os.environ.get("STRIPE_WEBHOOK_SECRET", ""),
+        "STRIPE_MONTHLY_PRICE_ID": os.environ.get("STRIPE_MONTHLY_PRICE_ID", ""),
+        "STRIPE_ANNUAL_PRICE_ID":  os.environ.get("STRIPE_ANNUAL_PRICE_ID", ""),
+    }
+    _missing = [k for k, v in _required_env.items() if not v]
+    if _missing:
+        logging.warning(
+            "⚠️  Missing environment variables — some features will be disabled or insecure: %s",
+            ", ".join(_missing)
+        )
+    else:
+        logging.info("✅ All required environment variables present.")
+
+    # H1 — Initialise optional Redis rate-limiting client
+    global _redis_client
+    if REDIS_URL and _aioredis_available:
+        try:
+            _redis_client = aioredis.from_url(
+                REDIS_URL, decode_responses=True, socket_connect_timeout=3
+            )
+            await _redis_client.ping()
+            logging.info("✅ Redis connected — distributed rate limiting active.")
+        except Exception as _redis_err:
+            logging.warning("⚠️  Redis unavailable — using in-memory rate limiting: %s", _redis_err)
+            _redis_client = None
+    else:
+        if REDIS_URL and not _aioredis_available:
+            logging.warning("⚠️  REDIS_URL set but redis package not installed — pip install 'redis[asyncio]'")
+        else:
+            logging.info("ℹ️  No REDIS_URL — using in-memory rate limiting (fine for single-process).")
+
     # Start background trial-email loop (always runs regardless of /seed being called)
     fire_and_forget(_trial_email_loop())
     # Start nightly chat-purge loop (7-day rolling window for open rooms)

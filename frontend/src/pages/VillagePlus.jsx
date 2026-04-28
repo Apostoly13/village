@@ -14,7 +14,7 @@ const PRICE_ANNUAL_TOTAL = 95.88;  // billed annually
 const FREE_FEATURES = [
   { label: "5 support space posts per week" },
   { label: "5 support space replies per week" },
-  { label: "10 chat circle messages per day" },
+  { label: "10 chat messages per day" },
   { label: "Anonymous posting — always" },
   { label: "Read all posts and comments" },
 ];
@@ -32,7 +32,7 @@ const PREMIUM_FEATURES = [
 const COMPARISON = [
   { feature: "Support space posts",     free: "5/week",    plus: "Unlimited" },
   { feature: "Support space replies",   free: "5/week",    plus: "Unlimited" },
-  { feature: "Chat circle messages",    free: "10/day",    plus: "Unlimited" },
+  { feature: "Chat messages",            free: "10/day",    plus: "Unlimited" },
   { feature: "Direct messages",         free: "—",         plus: "Unlimited" },
   { feature: "View events",             free: "—",         plus: "✓" },
   { feature: "Create events",           free: "—",         plus: "✓" },
@@ -177,10 +177,10 @@ export default function VillagePlus({ user }) {
 
       <main className="max-w-3xl mx-auto px-4 pt-16 lg:pt-8 pb-16">
 
-        {/* Hero */}
+        {/* Hero — always dark regardless of theme, so colours are hardcoded */}
         <div
           className="relative text-center mb-12 rounded-3xl overflow-hidden py-14 px-6"
-          style={{ background: "var(--ink)" }}
+          style={{ background: "#2a1f17" }}
         >
           {/* Honey glow overlay */}
           <div
@@ -192,15 +192,15 @@ export default function VillagePlus({ user }) {
               className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6"
               style={{ background: "rgba(245,197,66,0.15)", border: "1px solid rgba(245,197,66,0.35)" }}
             >
-              <Crown className="h-4 w-4" style={{ color: "var(--honey)" }} />
-              <span className="text-sm font-bold tracking-wide" style={{ color: "var(--honey)" }}>Village+</span>
+              <Crown className="h-4 w-4" style={{ color: "#f5c542" }} />
+              <span className="text-sm font-bold tracking-wide" style={{ color: "#f5c542" }}>Village+</span>
             </div>
             <h1
               className="text-4xl sm:text-5xl font-medium leading-tight mb-4"
-              style={{ fontFamily: "var(--serif)", letterSpacing: "-0.03em", color: "var(--brand-cream)" }}
+              style={{ fontFamily: "var(--serif)", letterSpacing: "-0.03em", color: "#f5e6d0" }}
             >
               Support{" "}
-              <em style={{ fontStyle: "italic", color: "var(--honey)" }}>without limits</em>
+              <em style={{ fontStyle: "italic", color: "#f5c542" }}>without limits</em>
             </h1>
             <p className="text-lg max-w-xl mx-auto leading-relaxed mb-6" style={{ color: "rgba(245,230,208,0.75)" }}>
               The Village is built for parents. Village+ removes every limit so you can connect, post, and support freely — any time of day.
@@ -211,14 +211,14 @@ export default function VillagePlus({ user }) {
             >
               <span className="text-2xl shrink-0">🏡</span>
               <div>
-                <p className="text-sm font-semibold mb-1" style={{ color: "var(--brand-cream)" }}>A family-run platform</p>
+                <p className="text-sm font-semibold mb-1" style={{ color: "#f5e6d0" }}>A family-run platform</p>
                 <p className="text-xs leading-relaxed" style={{ color: "rgba(245,230,208,0.65)" }}>
                   The Village is independent and family-run — not a corporation. Your subscription directly funds the servers, development, and moderation that keep this community safe and growing.
                 </p>
               </div>
             </div>
             {isTrial && (
-              <p className="text-xs font-medium" style={{ color: "var(--honey)" }}>
+              <p className="text-xs font-medium" style={{ color: "#f5c542" }}>
                 You're on a free trial — upgrade now to keep full access when it ends.
               </p>
             )}

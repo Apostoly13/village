@@ -1,0 +1,610 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>The Village UX Direction Mockup</title>
+  <style>
+    :root {
+      --paper: #f7f2e9;
+      --paper-2: #f1eadc;
+      --paper-3: #eadfcc;
+      --ink: #2a1f17;
+      --muted: #6f5f50;
+      --line: rgba(42, 31, 23, 0.12);
+      --brand: #6b3a25;
+      --clay: #c96a4a;
+      --sage: #6e8f6a;
+      --dusk: #8d7aa8;
+      --honey: #d9a15b;
+      --good: #4f6f4c;
+      --danger: #a14f33;
+      --shadow: 0 18px 50px rgba(42,31,23,0.10), 0 2px 8px rgba(42,31,23,0.05);
+      --radius: 8px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: Inter, "DM Sans", Arial, sans-serif;
+      line-height: 1.45;
+    }
+    h1, h2, h3, p { margin: 0; }
+    h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; letter-spacing: 0; }
+    button, input, textarea, select { font: inherit; }
+    .shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 248px 1fr;
+    }
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 22px 16px;
+      border-right: 1px solid var(--line);
+      background: rgba(241,234,220,0.8);
+      backdrop-filter: blur(12px);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 22px;
+      padding: 0 8px;
+    }
+    .mark {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      background: var(--brand);
+      color: var(--paper);
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+    }
+    .brand strong { display: block; font-size: 18px; }
+    .brand span { display: block; color: var(--muted); font-size: 12px; }
+    .nav { display: grid; gap: 4px; }
+    .nav a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      color: var(--ink);
+      text-decoration: none;
+      font-size: 14px;
+    }
+    .nav a.active { background: var(--ink); color: var(--paper); }
+    .nav a .count {
+      margin-left: auto;
+      min-width: 22px;
+      height: 22px;
+      border-radius: 99px;
+      display: grid;
+      place-items: center;
+      background: var(--clay);
+      color: white;
+      font-size: 12px;
+    }
+    .sidebar-note {
+      margin-top: 20px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.35);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    main { padding: 22px clamp(16px, 3vw, 36px) 48px; }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .topbar h1 { font-size: clamp(28px, 4vw, 42px); line-height: 1.05; }
+    .topbar p { color: var(--muted); margin-top: 4px; }
+    .search {
+      width: min(360px, 100%);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.45);
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.55fr) minmax(300px, 0.9fr);
+      gap: 18px;
+      align-items: start;
+    }
+    .section {
+      margin-bottom: 18px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.28);
+      box-shadow: 0 1px 0 rgba(255,255,255,0.35) inset;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .section-header h2 { font-size: 20px; }
+    .section-header span, .eyebrow { color: var(--muted); font-size: 12px; }
+    .intent-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .intent {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper-2);
+      padding: 14px;
+      min-height: 132px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .intent strong { display: block; font-size: 15px; margin-bottom: 6px; }
+    .intent p { color: var(--muted); font-size: 13px; }
+    .intent button, .primary, .secondary {
+      border: 0;
+      border-radius: 8px;
+      padding: 9px 11px;
+      cursor: default;
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .primary { background: var(--ink); color: var(--paper); }
+    .secondary { background: transparent; border: 1px solid var(--line); color: var(--ink); }
+    .feed-card {
+      display: grid;
+      grid-template-columns: 42px 1fr;
+      gap: 12px;
+      padding: 14px 0;
+      border-top: 1px solid var(--line);
+    }
+    .feed-card:first-of-type { border-top: 0; padding-top: 0; }
+    .avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 8px;
+      background: var(--sage);
+      color: white;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+    }
+    .feed-card h3 { font-size: 17px; margin-bottom: 5px; }
+    .feed-card p { color: var(--muted); font-size: 14px; }
+    .meta {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 8px;
+      border-radius: 99px;
+      background: var(--paper-3);
+      color: var(--ink);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .quick-compose {
+      display: grid;
+      gap: 10px;
+    }
+    textarea {
+      width: 100%;
+      min-height: 90px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.5);
+      padding: 12px;
+      color: var(--ink);
+    }
+    .compose-actions { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .side-list { display: grid; gap: 10px; }
+    .side-item {
+      display: grid;
+      grid-template-columns: 32px 1fr auto;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.35);
+    }
+    .mini-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: var(--paper-3);
+    }
+    .side-item strong { display: block; font-size: 13px; }
+    .side-item span { color: var(--muted); font-size: 12px; }
+    .page-map {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .map-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 13px;
+      background: rgba(255,255,255,0.32);
+    }
+    .map-card h3 { font-size: 16px; margin-bottom: 6px; }
+    .map-card p { font-size: 13px; color: var(--muted); }
+    .mock-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+    .phone {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper-2);
+      padding: 12px;
+      min-height: 220px;
+    }
+    .phone-top {
+      height: 8px;
+      width: 58px;
+      margin: 0 auto 12px;
+      border-radius: 99px;
+      background: var(--line);
+    }
+    .bar { height: 10px; border-radius: 99px; background: var(--paper-3); margin: 8px 0; }
+    .bar.short { width: 58%; }
+    .bar.mid { width: 78%; }
+    .block { height: 42px; border-radius: 8px; background: rgba(255,255,255,0.5); border: 1px solid var(--line); margin: 8px 0; }
+    .handover {
+      white-space: pre-wrap;
+      background: #2a1f17;
+      color: #f7f2e9;
+      border-radius: 8px;
+      padding: 16px;
+      overflow: auto;
+      font-size: 13px;
+    }
+    @media (max-width: 1040px) {
+      .shell { grid-template-columns: 1fr; }
+      .sidebar { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+      .nav { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .grid { grid-template-columns: 1fr; }
+      .page-map, .mock-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 680px) {
+      main { padding: 16px 12px 36px; }
+      .topbar { display: grid; }
+      .nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .intent-grid, .page-map, .mock-strip { grid-template-columns: 1fr; }
+      .section { padding: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="mark">V</div>
+        <div>
+          <strong>The Village</strong>
+          <span>Proposed IA mockup</span>
+        </div>
+      </div>
+      <nav class="nav">
+        <a class="active" href="#home">Home <span class="count">3</span></a>
+        <a href="#spaces">Spaces</a>
+        <a href="#chats">Chats</a>
+        <a href="#events">Events</a>
+        <a href="#messages">Messages <span class="count">2</span></a>
+        <a href="#saved">Saved</a>
+        <a href="#stall">Stall</a>
+        <a href="#profile">Profile</a>
+      </nav>
+      <div class="sidebar-note">
+        Direction: make the first screen answer "What do I need right now?" and move feature discovery into predictable sections.
+      </div>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Welcome back, Sam</p>
+          <h1>What kind of support do you need today?</h1>
+          <p>Less feature hunting. More direct paths into support, people, and local plans.</p>
+        </div>
+        <div class="search">Search posts, spaces, people, events</div>
+      </header>
+
+      <section class="grid" id="home">
+        <div>
+          <section class="section">
+            <div class="section-header">
+              <h2>Start Here</h2>
+              <span>Primary dashboard redesign</span>
+            </div>
+            <div class="intent-grid">
+              <article class="intent">
+                <div>
+                  <strong>I need support now</strong>
+                  <p>Fast entry to the 3am Club, Vent Room, Mental Health Space, or crisis resources.</p>
+                </div>
+                <button class="primary">Open support options</button>
+              </article>
+              <article class="intent">
+                <div>
+                  <strong>Ask the village</strong>
+                  <p>One guided composer for questions, milestones, meetups, polls, and anonymous posts.</p>
+                </div>
+                <button class="primary">Create a post</button>
+              </article>
+              <article class="intent">
+                <div>
+                  <strong>Find my people</strong>
+                  <p>Parents near me, same stage, single parents, mums, dads, and private groups.</p>
+                </div>
+                <button class="primary">Explore matches</button>
+              </article>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-header">
+              <h2>Today In Your Village</h2>
+              <span>Unified feed</span>
+            </div>
+            <article class="feed-card">
+              <div class="avatar">A</div>
+              <div>
+                <h3>How did you survive the four month sleep regression?</h3>
+                <p>From Sleep & Settling. Show post type, space, location relevance, and whether a trusted parent or professional answered.</p>
+                <div class="meta">
+                  <span class="pill">12 replies</span>
+                  <span class="pill">Answered by parent</span>
+                  <span class="pill">Newborns</span>
+                </div>
+              </div>
+            </article>
+            <article class="feed-card">
+              <div class="avatar" style="background:var(--dusk)">M</div>
+              <div>
+                <h3>Mums coffee morning near Marrickville</h3>
+                <p>Merge nearby events and local meetup posts into the home feed so local connection is not hidden in a separate tab.</p>
+                <div class="meta">
+                  <span class="pill">2.4 km away</span>
+                  <span class="pill">Sunday 10:00</span>
+                  <span class="pill">6 going</span>
+                </div>
+              </div>
+            </article>
+            <article class="feed-card">
+              <div class="avatar" style="background:var(--clay)">S</div>
+              <div>
+                <h3>Three saved conversations need a reply</h3>
+                <p>Bring continuation tasks forward: unread DMs, replies to my posts, saved items, RSVP reminders.</p>
+                <div class="meta">
+                  <span class="pill">2 messages</span>
+                  <span class="pill">1 reply</span>
+                  <span class="pill">1 RSVP reminder</span>
+                </div>
+              </div>
+            </article>
+          </section>
+        </div>
+
+        <aside>
+          <section class="section">
+            <div class="section-header">
+              <h2>Quick Post</h2>
+              <span>Guided composer</span>
+            </div>
+            <div class="quick-compose">
+              <textarea placeholder="What is happening, or what do you need help with?"></textarea>
+              <div class="chips">
+                <span class="pill">Question</span>
+                <span class="pill">Anonymous</span>
+                <span class="pill">Local</span>
+                <span class="pill">Add image</span>
+              </div>
+              <div class="compose-actions">
+                <button class="secondary">Save draft</button>
+                <button class="primary">Post to best space</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-header">
+              <h2>Right Now</h2>
+              <span>Live + urgent</span>
+            </div>
+            <div class="side-list">
+              <div class="side-item">
+                <div class="mini-icon">3</div>
+                <div><strong>3am Club</strong><span>8 parents active</span></div>
+                <span class="pill">Join</span>
+              </div>
+              <div class="side-item">
+                <div class="mini-icon">!</div>
+                <div><strong>New reply</strong><span>Sleep regression thread</span></div>
+                <span class="pill">View</span>
+              </div>
+              <div class="side-item">
+                <div class="mini-icon">+</div>
+                <div><strong>Village+</strong><span>3 trial days left</span></div>
+                <span class="pill">Manage</span>
+              </div>
+            </div>
+          </section>
+        </aside>
+      </section>
+
+      <section class="section" id="spaces">
+        <div class="section-header">
+          <h2>Page-Level Feedback</h2>
+          <span>Reviewed surfaces from frontend/src/pages</span>
+        </div>
+        <div class="page-map">
+          <article class="map-card">
+            <h3>Dashboard</h3>
+            <p>Make it intent-led. Combine feed, nearby events, unread replies, active chats, and recommended spaces into one prioritised home.</p>
+          </article>
+          <article class="map-card">
+            <h3>Spaces and Communities</h3>
+            <p>Unify naming. Use "Spaces" for platform topics/stages and "Groups" for user-created communities. Add privacy badges and join states everywhere.</p>
+          </article>
+          <article class="map-card">
+            <h3>Forum Post</h3>
+            <p>Improve trust cues: post type, author visibility, professional badge, answer state, report/block controls, and related spaces.</p>
+          </article>
+          <article class="map-card">
+            <h3>Chats and Messages</h3>
+            <p>Merge the mental model: "Chats" for live rooms, "Messages" for private threads. Add connection rules and clearer empty/offline states.</p>
+          </article>
+          <article class="map-card">
+            <h3>Events</h3>
+            <p>Bring local events into home and profiles. Add calendar style filters, RSVP reminders, host trust, and online/local grouping.</p>
+          </article>
+          <article class="map-card">
+            <h3>Stall</h3>
+            <p>Feature-flag honestly. If launched, treat as a marketplace with safety rules, seller trust, location clarity, and message boundaries.</p>
+          </article>
+          <article class="map-card">
+            <h3>Profile and Settings</h3>
+            <p>Split public profile, account settings, privacy, notifications, and professional verification. Current page is carrying too much.</p>
+          </article>
+          <article class="map-card">
+            <h3>Saved</h3>
+            <p>Make it a personal library: posts, messages, events, drafts, and resources with filters and reminders rather than only bookmarks.</p>
+          </article>
+          <article class="map-card">
+            <h3>Admin and Moderator</h3>
+            <p>Keep operational density, but add queues: urgent safety reports, unanswered support posts, professional applications, and community health.</p>
+          </article>
+          <article class="map-card">
+            <h3>Auth and Onboarding</h3>
+            <p>Remove unavailable social login, or finish it. Onboarding should end with three personalised entry points, not just a dashboard redirect.</p>
+          </article>
+          <article class="map-card">
+            <h3>Public Pages</h3>
+            <p>Landing, clinicians, terms, privacy, contact, and guidelines should share one public shell and make safety/trust highly visible.</p>
+          </article>
+          <article class="map-card">
+            <h3>Village+</h3>
+            <p>Clarify what is live versus coming soon. Upgrade moments should appear at limit boundaries, not as broad marketing interruptions.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <h2>Mobile Flow Sketches</h2>
+          <span>Static wireframes</span>
+        </div>
+        <div class="mock-strip">
+          <div class="phone">
+            <div class="phone-top"></div>
+            <strong>Home</strong>
+            <div class="bar mid"></div>
+            <div class="block"></div>
+            <div class="block"></div>
+            <div class="bar short"></div>
+          </div>
+          <div class="phone">
+            <div class="phone-top"></div>
+            <strong>Ask</strong>
+            <div class="block" style="height:84px"></div>
+            <div class="bar"></div>
+            <div class="bar mid"></div>
+            <div class="block"></div>
+          </div>
+          <div class="phone">
+            <div class="phone-top"></div>
+            <strong>Find People</strong>
+            <div class="block"></div>
+            <div class="block"></div>
+            <div class="block"></div>
+            <div class="bar short"></div>
+          </div>
+          <div class="phone">
+            <div class="phone-top"></div>
+            <strong>Safety Queue</strong>
+            <div class="block"></div>
+            <div class="bar mid"></div>
+            <div class="block"></div>
+            <div class="bar"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <h2>Claude Code Handover Prompt</h2>
+          <span>Copy this structure into the implementation agent</span>
+        </div>
+        <div class="handover">You are working in The Village, a React + FastAPI parenting app.
+
+Goal:
+Implement the next approved UX/security/code-quality slice from the review. Make small, reviewable changes only.
+
+Non-negotiables:
+- Do not refactor unrelated areas.
+- Preserve existing design tokens and component conventions.
+- Add or update tests where the changed behaviour is security-sensitive or user-facing.
+- Use server-side enforcement for privacy, roles, subscriptions, limits, and community membership.
+- Do not trust localStorage, route guards, or client visibility as security controls.
+
+Priority order:
+1. Fix private community access checks across post detail, community posts, replies, reactions, poll votes, and answer marking.
+2. Fix broken endpoint/name drift: recommended-circles vs recommended-spaces, body vs content search, Google OAuth visibility or implementation.
+3. Introduce a shared frontend API helper with credentials, safe JSON parsing, 401 handling, and consistent errors.
+4. Redesign Dashboard around user intent: support now, ask the village, find my people, today feed, quick compose, right-now rail.
+5. Split oversized pages only when touching them for a functional reason.
+
+Acceptance criteria:
+- Private community content cannot be read or interacted with by non-members.
+- Existing public spaces and normal forum posts still work.
+- UX changes are responsive on mobile and desktop.
+- Empty, loading, and error states are visible and recoverable.
+- No unavailable features are shown as working actions.
+
+Files likely involved:
+- backend/server.py
+- frontend/src/App.js
+- frontend/src/components/RecommendedSpaces.jsx
+- frontend/src/pages/Dashboard.jsx
+- frontend/src/pages/Forums.jsx
+- frontend/src/pages/Community.jsx
+- frontend/src/pages/ForumPost.jsx
+- frontend/src/utils/apiError.js or a new frontend API utility</div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

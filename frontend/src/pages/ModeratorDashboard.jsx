@@ -272,14 +272,32 @@ export default function ModeratorDashboard({ user }) {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-sm font-semibold" style={{ color: "var(--ink)" }}>
-                            {report.content_type === "post" ? "Post" : report.content_type === "reply" ? "Reply" : "User"} reported
+                            {{
+                              post: "Forum post",
+                              reply: "Forum reply",
+                              chat_message: "Chat message",
+                              direct_message: "Direct message",
+                              listing: "Stall listing",
+                              stall_message: "Stall message",
+                            }[report.content_type] || report.content_type} reported
                           </span>
+                          {report.content?.is_anonymous && (
+                            <Badge variant="outline" className="text-xs">Anonymous post</Badge>
+                          )}
                           <Badge variant="outline" className="text-xs capitalize">{report.reason || "General"}</Badge>
                           <span className="text-xs ml-auto" style={{ color: "var(--ink-3)" }}>{fmtDate(report.created_at)}</span>
                         </div>
                         <p className="text-xs mt-1 line-clamp-2" style={{ color: "var(--ink-2)" }}>
-                          {report.content_preview || report.notes || "No preview available"}
+                          {/* Pull preview from enriched content object */}
+                          {report.content
+                            ? (report.content.title || report.content.content || "—")
+                            : (report.content_preview || report.notes || "Content no longer available")}
                         </p>
+                        {report.details && (
+                          <p className="text-xs mt-0.5 italic" style={{ color: "var(--ink-3)" }}>
+                            Reporter note: {report.details}
+                          </p>
+                        )}
                       </div>
                       <ChevronRight className={`h-4 w-4 shrink-0 transition-transform ${selectedReport?.report_id === report.report_id ? "rotate-90" : ""}`} style={{ color: "var(--ink-3)" }} />
                     </div>

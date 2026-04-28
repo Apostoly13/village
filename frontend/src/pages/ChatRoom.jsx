@@ -5,7 +5,11 @@ import { Input } from "../components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import Navigation from "../components/Navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Send, Users, Crown, Bookmark, ArrowRight } from "lucide-react";
+import { ArrowLeft, Send, Users, Crown, Bookmark, ArrowRight, Flag } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../components/ui/dialog";
+import { Label } from "../components/ui/label";
+import { Textarea } from "../components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { timeAgoVerbose } from "../utils/dateHelpers";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -26,6 +30,11 @@ export default function ChatRoom({ user }) {
   const scrollAreaRef = useRef(null);
   const isAtBottom = useRef(true);
   const MESSAGE_LIMIT = 50;
+
+  // Report state
+  const [reportTarget, setReportTarget]   = useState(null); // { messageId }
+  const [reportReason, setReportReason]   = useState("");
+  const [reportDetails, setReportDetails] = useState("");
 
   useEffect(() => {
     fetchData();
@@ -252,6 +261,34 @@ export default function ChatRoom({ user }) {
     }
   };
 
+  const handleReportMessage = async () => {
+    if (!reportTarget || !reportReason) return;
+    try {
+      const res = await fetch(`${API_URL}/api/reports`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          content_type: "chat_message",
+          content_id: reportTarget.messageId,
+          reason: reportReason,
+          details: reportDetails,
+        }),
+      });
+      if (res.ok) {
+        toast.success("Report submitted. Thank you for helping keep our community safe.");
+      } else {
+        const err = await res.json();
+        toast.error(err.detail || "Failed to submit report");
+      }
+    } catch {
+      toast.error("Something went wrong");
+    }
+    setReportTarget(null);
+    setReportReason("");
+    setReportDetails("");
+  };
+
   const isOwnMessage = (msg) => msg.author_id === user?.user_id;
 
   if (loading) {
@@ -399,6 +436,15 @@ export default function ChatRoom({ user }) {
                           >
                             <Bookmark className={`h-3.5 w-3.5 ${savedMessageIds.has(msg.message_id) ? 'fill-current' : ''}`} />
                           </button>
+                          {!isOwnMessage(msg) && (
+                            <button
+                              onClick={() => setReportTarget({ messageId: msg.message_id })}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg hover:bg-muted flex-shrink-0 text-muted-foreground hover:text-destructive"
+                              title="Report message"
+                            >
+                              <Flag className="h-3.5 w-3.5" />
+                            </button>
+                          )}
                         </div>
                         <p className={`text-xs text-muted-foreground mt-1 ${isOwnMessage(msg) ? 'text-right mr-1' : 'ml-1'}`}>
                           {formatTime(msg.created_at)}
@@ -460,6 +506,49 @@ export default function ChatRoom({ user }) {
           )}
         </div>
       </main>
+
+      {/* Report Message Dialog */}
+      <Dialog open={!!reportTarget} onOpenChange={(open) => { if (!open) { setReportTarget(null); setReportReason(""); setReportDetails(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Report Message</DialogTitle>
+            <DialogDescription>
+              Help us keep The Village safe by reporting content that violates our community guidelines.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Reason for reporting</Label>
+              <Select value={reportReason} onValueChange={setReportReason}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a reason" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="harassment">Harassment or bullying</SelectItem>
+                  <SelectItem value="hate_speech">Hate speech</SelectItem>
+                  <SelectItem value="spam">Spam or misleading</SelectItem>
+                  <SelectItem value="inappropriate">Inappropriate content</SelectItem>
+                  <SelectItem value="unsafe">Unsafe or dangerous</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Additional details <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Textarea
+                value={reportDetails}
+                onChange={(e) => setReportDetails(e.target.value)}
+                placeholder="Provide any additional context..."
+                className="min-h-[80px]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setReportTarget(null); setReportReason(""); setReportDetails(""); }}>Cancel</Button>
+            <Button onClick={handleReportMessage} disabled={!reportReason}>Submit Report</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

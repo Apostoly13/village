@@ -81,6 +81,9 @@ chainlit.md
 .claude/settings.local.json
 .agents/
 .claude/skills/
+# Village project skills are tracked — re-include them
+!.claude/skills/village-*/
+!.claude/skills/village-*/SKILL.md
 skills-lock.json
 
 # Deployment
@@ -124,3 +127,5 @@ frontend/node_modules/.cache/default-development/25.pack
 frontend/node_modules/.cache/default-development/28.pack
 frontend/node_modules/.cache/default-development/19.pack
 frontend/node_modules/.cache/default-development/18.pack
+frontend/node_modules/.cache/default-development/30.pack
+frontend/node_modules/.cache/default-development/32.pack

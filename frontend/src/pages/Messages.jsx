@@ -2,7 +2,11 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import Navigation from "../components/Navigation";
-import { Send, ArrowLeft, MessagesSquare, Search, UserPlus, X, ImageIcon, Users, Lock } from "lucide-react";
+import { Send, ArrowLeft, MessagesSquare, Search, UserPlus, X, ImageIcon, Users, Lock, Flag } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../components/ui/dialog";
+import { Label } from "../components/ui/label";
+import { Textarea } from "../components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Crown } from "lucide-react";
 import { toast } from "sonner";
 import { timeAgoVerbose } from "../utils/dateHelpers";
@@ -30,7 +34,7 @@ function playDing() {
 const formatTime = timeAgoVerbose;
 
 // ── User search panel ─────────────────────────────────────────────────────────
-function UserSearchPanel({ onClose, onStartChat }) {
+function UserSearchPanel({ onClose, onStartChat, isFree }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -107,9 +111,11 @@ function UserSearchPanel({ onClose, onStartChat }) {
               <p className="text-xs text-muted-foreground">{u.is_online ? "Online" : "Parent"}</p>
             </div>
             <div className="flex gap-2 shrink-0">
-              <Button size="sm" variant="outline" className="rounded-full h-8 text-xs px-3" onClick={() => onStartChat(u)}>
-                Message
-              </Button>
+              {!isFree && (
+                <Button size="sm" variant="outline" className="rounded-full h-8 text-xs px-3" onClick={() => onStartChat(u)}>
+                  Message
+                </Button>
+              )}
               <Button
                 size="sm"
                 className="rounded-full h-8 text-xs px-3"
@@ -169,10 +175,10 @@ function DmRow({ conv, active, onClick }) {
 }
 
 // ── Message bubble ─────────────────────────────────────────────────────────────
-function MessageBubble({ msg, isOwn, activeUser }) {
+function MessageBubble({ msg, isOwn, activeUser, onReport }) {
   const isImage = msg.content?.startsWith("data:image/");
   return (
-    <div className={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
+    <div className={`flex group ${isOwn ? "justify-end" : "justify-start"}`}>
       <div className="max-w-[75%] min-w-0 overflow-hidden">
         {!isOwn && (
           <p className="text-xs text-muted-foreground mb-1 ml-1 flex items-center gap-1">
@@ -180,20 +186,31 @@ function MessageBubble({ msg, isOwn, activeUser }) {
             {msg.author_subscription_tier === "premium" && <Crown className="h-2.5 w-2.5 text-amber-500" />}
           </p>
         )}
-        {isImage ? (
-          <div className={`overflow-hidden shadow-sm rounded-2xl`}>
-            <img
-              src={msg.content}
-              alt="Shared photo"
-              className="max-w-full max-h-64 object-contain cursor-pointer"
-              onClick={() => window.open(msg.content, "_blank")}
-            />
-          </div>
-        ) : (
-          <div className={`px-4 py-2.5 text-sm shadow-sm break-words overflow-hidden rounded-2xl ${isOwn ? "bg-primary text-primary-foreground" : "bg-card border border-border/50 text-foreground"}`}>
-            {msg.content}
-          </div>
-        )}
+        <div className={`flex items-end gap-1 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
+          {isImage ? (
+            <div className={`overflow-hidden shadow-sm rounded-2xl`}>
+              <img
+                src={msg.content}
+                alt="Shared photo"
+                className="max-w-full max-h-64 object-contain cursor-pointer"
+                onClick={() => window.open(msg.content, "_blank")}
+              />
+            </div>
+          ) : (
+            <div className={`px-4 py-2.5 text-sm shadow-sm break-words overflow-hidden rounded-2xl ${isOwn ? "bg-primary text-primary-foreground" : "bg-card border border-border/50 text-foreground"}`}>
+              {msg.content}
+            </div>
+          )}
+          {!isOwn && onReport && (
+            <button
+              onClick={() => onReport(msg)}
+              className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mb-1 p-1 rounded text-muted-foreground hover:text-destructive"
+              title="Report message"
+            >
+              <Flag className="h-3 w-3" />
+            </button>
+          )}
+        </div>
         <p className={`text-xs text-muted-foreground mt-1 ${isOwn ? "text-right mr-1" : "ml-1"}`}>
           {formatTime(msg.created_at)}
         </p>
@@ -230,6 +247,12 @@ export default function Messages({ user }) {
   const [uploadingImage, setUploadingImage] = useState(false);
 
   const [loadingMessages, setLoadingMessages] = useState(false);
+
+  // Report flow
+  const [reportTarget, setReportTarget] = useState(null); // { msg, contentType }
+  const [reportReason, setReportReason] = useState("");
+  const [reportDetails, setReportDetails] = useState("");
+  const [reportSubmitting, setReportSubmitting] = useState(false);
 
   const messagesEndRef = useRef(null);
   const scrollContainerRef = useRef(null);
@@ -421,6 +444,43 @@ export default function Messages({ user }) {
     }
   };
 
+  // ── Report message ──────────────────────────────────────────────────────────
+  const handleReportMessage = (msg) => {
+    const contentType = chatMode === "dm" ? "direct_message" : "chat_message";
+    setReportTarget({ msg, contentType });
+    setReportReason("");
+    setReportDetails("");
+  };
+
+  const submitReport = async () => {
+    if (!reportReason || !reportTarget) return;
+    setReportSubmitting(true);
+    try {
+      const res = await fetch(`${API_URL}/api/reports`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          content_type: reportTarget.contentType,
+          content_id: reportTarget.msg.message_id || reportTarget.msg.dm_id,
+          reason: reportReason,
+          details: reportDetails,
+        }),
+      });
+      if (res.ok) {
+        toast.success("Report submitted. Our team will review it.");
+        setReportTarget(null);
+      } else {
+        const d = await res.json();
+        toast.error(d.detail || "Could not submit report");
+      }
+    } catch {
+      toast.error("Could not submit report");
+    } finally {
+      setReportSubmitting(false);
+    }
+  };
+
   // ── Send message ────────────────────────────────────────────────────────────
   const handleSend = async (e) => {
     e.preventDefault();
@@ -487,10 +547,28 @@ export default function Messages({ user }) {
         } else {
           setMessages(prev => prev.filter(m => m.message_id !== tempId));
           setNewMessage(textContent);
+          try {
+            const err = await res.json();
+            const detail = err.detail || {};
+            if (detail.error === "daily_chat_limit") {
+              toast.error(`You've reached your daily message limit. Upgrade to Village+ for unlimited messaging.`, {
+                action: { label: "Upgrade", onClick: () => navigate("/plus") },
+              });
+            } else if (detail.error === "village_plus_required") {
+              toast.error("Village+ is required to start new conversations.", {
+                action: { label: "Upgrade", onClick: () => navigate("/plus") },
+              });
+            } else {
+              toast.error("Message failed to send. Please try again.");
+            }
+          } catch {
+            toast.error("Message failed to send. Please try again.");
+          }
         }
       } catch {
         setMessages(prev => prev.filter(m => m.message_id !== tempId));
         setNewMessage(textContent);
+        toast.error("Message failed to send. Please try again.");
       }
     }
     setSending(false);
@@ -508,6 +586,7 @@ export default function Messages({ user }) {
   const activeUser = chatMode === "friend" ? activeFriend : activeDmUser;
   const hasActiveChat = !!(chatMode && (activeRoomId || activeDmUser));
 
+  const isFree = user?.subscription_tier === "free";
   const friendIds = new Set(friends.map(f => f.user_id));
   const dmFromFriends = conversations.filter(c => friendIds.has(c.other_user_id));
   const dmRequests = conversations.filter(c => !friendIds.has(c.other_user_id));
@@ -542,7 +621,7 @@ export default function Messages({ user }) {
             <div className="village-card flex flex-col h-full overflow-hidden">
 
               {showSearch ? (
-                <UserSearchPanel onClose={() => setShowSearch(false)} onStartChat={handleSearchStartChat} />
+                <UserSearchPanel onClose={() => setShowSearch(false)} onStartChat={handleSearchStartChat} isFree={isFree} />
               ) : (
                 <div className="flex-1 overflow-y-auto">
                   {(loadingFriends && loadingConvs) ? (
@@ -629,10 +708,22 @@ export default function Messages({ user }) {
                       {friends.length === 0 && conversations.length === 0 && (
                         <div className="p-6 text-center">
                           <span className="text-3xl block mb-2">💬</span>
-                          <p className="text-sm text-muted-foreground mb-2">No conversations yet.</p>
-                          <button onClick={() => setShowSearch(true)} className="text-xs text-primary hover:underline">
-                            Find parents to connect with →
-                          </button>
+                          {isFree ? (
+                            <>
+                              <p className="text-sm text-muted-foreground mb-1">No messages yet.</p>
+                              <p className="text-xs text-muted-foreground mb-3">When another parent messages you, you can reply here for free.</p>
+                              <button onClick={() => navigate("/plus")} className="text-xs text-primary hover:underline">
+                                Upgrade to Village+ to message anyone →
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-sm text-muted-foreground mb-2">No conversations yet.</p>
+                              <button onClick={() => setShowSearch(true)} className="text-xs text-primary hover:underline">
+                                Find parents to connect with →
+                              </button>
+                            </>
+                          )}
                         </div>
                       )}
                     </>
@@ -701,6 +792,7 @@ export default function Messages({ user }) {
                               msg={msg}
                               isOwn={isOwn}
                               activeUser={activeUser}
+                              onReport={handleReportMessage}
                             />
                           );
                         })}
@@ -783,6 +875,56 @@ export default function Messages({ user }) {
         </div>
         <AppFooter />
       </main>
+
+      {/* Report Message Dialog */}
+      <Dialog open={!!reportTarget} onOpenChange={(o) => !o && setReportTarget(null)}>
+        <DialogContent className="bg-card border-border/50 max-w-md [&>button]:hidden">
+          <DialogHeader>
+            <DialogTitle>Report Message</DialogTitle>
+            <DialogDescription>
+              This report will be reviewed by our moderation team. Please only report genuine concerns.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Reason</Label>
+              <Select value={reportReason} onValueChange={setReportReason}>
+                <SelectTrigger className="bg-secondary/50 border-border/50">
+                  <SelectValue placeholder="Select a reason…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="harassment">Harassment or bullying</SelectItem>
+                  <SelectItem value="spam">Spam</SelectItem>
+                  <SelectItem value="inappropriate">Inappropriate content</SelectItem>
+                  <SelectItem value="hate_speech">Hate speech or discrimination</SelectItem>
+                  <SelectItem value="unsafe">Unsafe or dangerous content</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Additional details <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Textarea
+                value={reportDetails}
+                onChange={e => setReportDetails(e.target.value.slice(0, 500))}
+                placeholder="Tell us more about what happened…"
+                className="bg-secondary/50 border-border/50 resize-none text-sm"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setReportTarget(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={submitReport}
+              disabled={!reportReason || reportSubmitting}
+            >
+              {reportSubmitting ? "Submitting…" : "Submit Report"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
