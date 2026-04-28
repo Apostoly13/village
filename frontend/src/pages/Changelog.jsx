@@ -5,6 +5,35 @@ import AppFooter from "../components/AppFooter";
 
 const CHANGELOG = [
   {
+    version: "3.13.0",
+    date: "April 2026",
+    title: "Email Verification & Distributed Rate Limiting",
+    entries: [
+      { tag: "Added",    text: "Email verification — new accounts created with email and password receive a verification email. A banner prompts unverified users to confirm their address, with a one-click resend option. Google OAuth accounts are verified automatically." },
+      { tag: "Added",    text: "Verify email page (/verify-email) — clicking the link in the email lands on a dedicated page that confirms verification and redirects to the dashboard." },
+      { tag: "Improved", text: "Rate limiter upgraded to optional Redis backend — when REDIS_URL is configured, rate limits persist across server restarts and work correctly across multiple instances. Falls back to in-memory if Redis is not configured." },
+      { tag: "Confirmed", text: "Dark mode audit — all UI colours use CSS variable tokens from theme.css and respond correctly to light/dark mode. The only hardcoded hex values are intentional (VillagePlus premium hero section, Google/Facebook SVG brand logos)." },
+      { tag: "Confirmed", text: "Mobile bottom nav tap targets — all 5 bottom nav items are 58×75px, well above the 44×44px minimum for thumb accessibility." },
+    ],
+  },
+  {
+    version: "3.12.0",
+    date: "April 2026",
+    title: "Safety, Security & Report Coverage",
+    entries: [
+      { tag: "Added",    text: "Report button on Direct Messages — flag messages from other users directly from your DM thread. Report is reviewed by the moderation team." },
+      { tag: "Added",    text: "Report button on Stall Messages — flag messages from a seller or buyer in a Village Stall conversation." },
+      { tag: "Fixed",    text: "Admin and Moderator report queue now shows content for all report types — chat messages, Stall listings, Stall messages, and direct messages are now enriched and visible alongside forum reports." },
+      { tag: "Improved", text: "Block system extended — messages from blocked users are now hidden in Chat Rooms, and blocked users cannot send you a direct message." },
+      { tag: "Fixed",    text: "Self-reporting prevented — users can no longer report their own content." },
+      { tag: "Improved", text: "Auto-ban threshold raised — now requires 10 reports from at least 3 distinct users in 30 days (was 5 reports from any number of reporters), reducing the risk of coordinated false reports." },
+      { tag: "Improved", text: "Village Stall — precise GPS coordinates (lat/lon) are no longer included in listing API responses. Suburb, postcode, and state are sufficient for display." },
+      { tag: "Improved", text: "Village Stall — listing fields now have server-side length limits: title 3–120 chars, description up to 2,000 chars, price $0–$100,000, max 10 images per listing." },
+      { tag: "Improved", text: "Rate limits added to forum post creation (5 per 5 minutes), forum replies (10 per 5 minutes), and Stall listing creation (5 per hour)." },
+      { tag: "Improved", text: "Startup now logs a warning if required environment variables (Stripe keys, secret key) are missing — prevents silent failures in production." },
+    ],
+  },
+  {
     version: "3.11.0",
     date: "April 2026",
     title: "Bug Fixes, Design Polish & Community Meetup RSVPs",

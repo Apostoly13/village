@@ -51,8 +51,125 @@ import CreateDonationGroup from "./pages/CreateDonationGroup";
 import EditStallListing from "./pages/EditStallListing";
 import ChatPopout from "./components/ChatPopout";
 import PWAInstallBanner from "./components/PWAInstallBanner";
+import { toast } from "./components/ui/sonner";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
+
+// ── Email verification page ────────────────────────────────────────────────────
+function VerifyEmailPage() {
+  const [status, setStatus] = useState("loading"); // loading | success | error
+  const [msg, setMsg]       = useState("");
+  const navigate            = useNavigate();
+  const params              = new URLSearchParams(window.location.search);
+  const token               = params.get("token");
+
+  useEffect(() => {
+    if (!token) { setStatus("error"); setMsg("No verification token found."); return; }
+    fetch(`${API_URL}/api/auth/verify-email?token=${encodeURIComponent(token)}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.message) {
+          setStatus("success");
+          setMsg(d.message);
+          // Update cached user so banner disappears
+          try {
+            const u = JSON.parse(localStorage.getItem("user") || "{}");
+            u.email_verified = true;
+            localStorage.setItem("user", JSON.stringify(u));
+          } catch {}
+        } else {
+          setStatus("error");
+          setMsg(d.detail || "Something went wrong.");
+        }
+      })
+      .catch(() => { setStatus("error"); setMsg("Could not connect — please try again."); });
+  }, [token]);
+
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="bg-card border border-border/50 rounded-2xl p-8 max-w-sm w-full text-center shadow-sm">
+        {status === "loading" && (
+          <>
+            <div className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin mx-auto mb-4" />
+            <p className="text-muted-foreground text-sm">Verifying your email…</p>
+          </>
+        )}
+        {status === "success" && (
+          <>
+            <div className="text-4xl mb-4">✅</div>
+            <h2 className="text-lg font-semibold text-foreground mb-2">Email verified!</h2>
+            <p className="text-muted-foreground text-sm mb-6">{msg}</p>
+            <button
+              onClick={() => navigate("/dashboard")}
+              className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
+            >
+              Go to dashboard
+            </button>
+          </>
+        )}
+        {status === "error" && (
+          <>
+            <div className="text-4xl mb-4">⚠️</div>
+            <h2 className="text-lg font-semibold text-foreground mb-2">Couldn't verify</h2>
+            <p className="text-muted-foreground text-sm mb-6">{msg}</p>
+            <button
+              onClick={() => navigate("/dashboard")}
+              className="w-full py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-secondary/50 transition-colors"
+            >
+              Go to dashboard
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Email verification banner ─────────────────────────────────────────────────
+// Shown inside protected pages when user.email_verified === false
+function VerifyEmailBanner({ user }) {
+  const [dismissed, setDismissed] = useState(false);
+  const [sending, setSending]     = useState(false);
+
+  // Don't show if already verified, dismissed, or no user
+  if (!user || user.email_verified !== false || dismissed) return null;
+
+  const resend = async () => {
+    setSending(true);
+    try {
+      const r = await fetch(`${API_URL}/api/auth/resend-verification`, {
+        method: "POST", credentials: "include",
+      });
+      const d = await r.json();
+      toast.success(d.message || "Verification email sent");
+    } catch {
+      toast.error("Could not send — please try again later");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="fixed top-0 left-0 right-0 z-[60] lg:left-60">
+      <div className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm"
+        style={{ background: "hsl(var(--accent))", color: "#1a1208" }}>
+        <span className="font-medium">
+          📬 Please verify your email address to keep your account secure.
+        </span>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={resend}
+            disabled={sending}
+            className="underline underline-offset-2 text-sm hover:no-underline disabled:opacity-50"
+          >
+            {sending ? "Sending…" : "Resend email"}
+          </button>
+          <button onClick={() => setDismissed(true)} className="opacity-70 hover:opacity-100 ml-1" aria-label="Dismiss">✕</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // Auth Callback - handles Google OAuth redirect
 // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
@@ -193,7 +310,12 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to="/onboarding" replace />;
   }
 
-  return typeof children === 'function' ? children({ user }) : children;
+  return (
+    <>
+      <VerifyEmailBanner user={user} />
+      {typeof children === 'function' ? children({ user }) : children}
+    </>
+  );
 };
 
 // Main App Router
@@ -337,6 +459,7 @@ const AppRouter = () => {
           {({ user }) => <Settings user={user} />}
         </ProtectedRoute>
       } />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/terms" element={<Terms />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/contact" element={<Contact />} />

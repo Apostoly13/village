@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import Navigation from "../components/Navigation";
@@ -756,9 +756,16 @@ function StallThreadView({ conv, user, onBack }) {
   const [newMsg,   setNewMsg]   = useState("");
   const [sending,  setSending]  = useState(false);
   const [loading,  setLoading]  = useState(true);
-  const bottomRef   = useRef(null);
-  const intervalRef = useRef(null);
-  const textareaRef = useRef(null);
+  const scrollAreaRef = useRef(null);
+  const intervalRef   = useRef(null);
+  const textareaRef   = useRef(null);
+  const isAtBottom    = useRef(true);
+
+  // Lock window scroll while thread is open — prevents scrollIntoView leaking to the page
+  useLayoutEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
 
   const fetchMessages = useCallback(async () => {
     try {
@@ -777,8 +784,17 @@ function StallThreadView({ conv, user, onBack }) {
     return () => clearInterval(intervalRef.current);
   }, [fetchMessages]);
 
+  const handleScroll = () => {
+    const el = scrollAreaRef.current;
+    if (!el) return;
+    isAtBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+  };
+
   useEffect(() => {
-    if (!loading) bottomRef.current?.scrollIntoView({ behavior: messages.length <= 1 ? "instant" : "smooth" });
+    if (!loading && isAtBottom.current) {
+      const el = scrollAreaRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    }
   }, [messages, loading]);
 
   const handleSend = async () => {
@@ -840,7 +856,7 @@ function StallThreadView({ conv, user, onBack }) {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 min-h-0">
+      <div ref={scrollAreaRef} onScroll={handleScroll} className="flex-1 overflow-y-auto px-4 py-4 min-h-0" style={{ overscrollBehavior: "contain" }}>
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <div className="w-5 h-5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
@@ -877,7 +893,6 @@ function StallThreadView({ conv, user, onBack }) {
                 </div>
               );
             })}
-            <div ref={bottomRef} />
           </div>
         )}
       </div>

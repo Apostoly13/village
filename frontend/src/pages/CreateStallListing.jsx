@@ -494,8 +494,10 @@ export default function CreateStallListing({ user }) {
               </div>
             </div>
 
-            <div className="text-xs text-muted-foreground leading-relaxed p-3 bg-secondary/30 rounded-xl">
-              By posting you agree to The Village Stall community guidelines: honest descriptions, public meetups, and no on-platform payments.
+            <div className="text-xs text-muted-foreground leading-relaxed p-3.5 bg-secondary/30 rounded-xl space-y-1.5">
+              <p className="font-medium text-foreground/80">🤝 User-to-user listing</p>
+              <p>By posting you confirm your description is accurate and agree to The Village Stall community guidelines. The Village connects buyers and sellers but does not process payments, handle disputes, or take responsibility for transactions.</p>
+              <p>Please meet in a public place and use a secure payment method like PayID or cash.</p>
             </div>
           </div>
         )}

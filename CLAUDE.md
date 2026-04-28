@@ -153,35 +153,9 @@ They should support:
 - usage limits for free users if required
 - Village+ value without making the free product feel broken
 
-Local Chat Rooms need product review.
+Local Chat Rooms need product review before building.
 
-Do not automatically assume postcode-level rooms are best.
-
-Compare:
-- postcode-based rooms
-- suburb-based rooms
-- council/area-based rooms
-- radius-based local rooms
-- parent-created smaller local groups
-
-Review trade-offs around:
-- privacy
-- safety
-- discoverability
-- low population in smaller areas
-- moderation burden
-- user experience
-- local relevance
-- risk of identifying families too precisely
-
-In theory, area-based rooms may be better than individual postcode rooms for launch because they avoid empty rooms and reduce privacy risk.
-
-However, smaller local groups locked by postcode or nearby area may still be useful later, especially for Village+ or verified local communities.
-
-Any recommendation should separate:
-- release version
-- later version
-- what should be avoided for now
+Do not assume postcode-based rooms are the right model. Compare postcode, suburb, area/council, radius, and parent-created approaches across privacy, safety, room population, moderation burden, and local relevance before implementing. See the village-product-manager skill for the full comparison.
 
 ## The Village Stall Direction
 
@@ -231,6 +205,8 @@ Source Control: GitHub
 If the repo shows a different stack, inspect the repo and tell me before changing this section.
 
 ## Development Rules
+
+Default development branch is `dev`. Do not work on `main` directly.
 
 Before making changes:
 1. Inspect the existing repo structure.
@@ -435,4 +411,17 @@ When asked to code:
 When unsure:
 - Make a sensible product-led assumption if risk is low.
 - Document the assumption.
-- Ask only when the risk is high or the decision is genuinely blocking.
+- Ask when the risk is high or the decision is genuinely blocking.
+
+Always ask before:
+- Changing what is free vs Village+ for any feature.
+- Changing anonymous posting behaviour or identity handling.
+- Adding new routes, endpoints, or data collections.
+- Changing who can see whose content or messages.
+- Anything that affects payment, subscription, or access control logic.
+
+Commit and push rules:
+- Never create a git commit unless the user explicitly asks.
+- Never run git push unless the user explicitly says to push.
+- Do not suggest or prompt either — wait for the user.
+- Before every commit, update `frontend/src/pages/Changelog.jsx` with a new version entry covering everything in that commit. Update the ROADMAP section if upcoming plans have changed. Do this before creating the commit, not after.

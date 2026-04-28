@@ -1,0 +1,52 @@
+/* ─────────────────────────────────────────────────────────────
+   The Village — Design Tokens
+   Day = "Paper"   Night = "Candlelight"
+   See DESIGN-LANGUAGE.md §2 for the full table.
+   ───────────────────────────────────────────────────────────── */
+
+:root {
+  /* Day theme — Paper */
+  --paper:         #F6F1E7;
+  --card:          #FFFBF2;
+  --ink:           #2B2418;
+  --ink-muted:     #6E6552;
+  --ink-faint:     #A39A86;
+  --line:          #E7DDC9;
+  --line-soft:     #EFE7D5;
+  --accent:        #B4462B;
+  --accent-soft:   #F3E1D8;
+  --banner:        #F1E4C6;
+  --button:        #1E1812;
+  --button-ink:    #F6F1E7;
+  --support:       #5E7A4C;
+  --warn:          #A87524;
+
+  --shadow-soft:   0 1px 2px rgba(43, 36, 24, 0.04);
+  --shadow-card:   0 2px 8px rgba(43, 36, 24, 0.05), 0 1px 2px rgba(43, 36, 24, 0.04);
+  --shadow-float:  0 12px 32px rgba(43, 36, 24, 0.08), 0 2px 6px rgba(43, 36, 24, 0.04);
+
+  --font-display:  'Fraunces', 'Times New Roman', serif;
+  --font-ui:       'Inter', -apple-system, system-ui, sans-serif;
+  --font-mono:     'JetBrains Mono', 'SF Mono', Menlo, monospace;
+}
+
+.dark {
+  --paper:         #1C1814;
+  --card:          #24201A;
+  --ink:           #EFE6D4;
+  --ink-muted:     #A9A08B;
+  --ink-faint:     #6B6452;
+  --line:          #34302A;
+  --line-soft:     #2B2822;
+  --accent:        #E78A6F;
+  --accent-soft:   #3A241C;
+  --banner:        #3B3220;
+  --button:        #EFE6D4;
+  --button-ink:    #1C1814;
+  --support:       #9CB585;
+  --warn:          #D9A860;
+
+  --shadow-soft:   0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-card:   0 2px 8px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-float:  0 12px 32px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
+}

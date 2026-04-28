@@ -2,11 +2,10 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
 import { toast } from "sonner";
-import { Users, MapPin, Compass, Search, Plus } from "lucide-react";
+import { Users, MapPin, Search, Plus, Check, X } from "lucide-react";
 import LocationButton from "../components/LocationButton";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -41,15 +40,18 @@ export default function ChatRooms({ user }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  const [mySuburbRoom, setMySuburbRoom]       = useState(null);
+  const [myAreaRoom, setMyAreaRoom]           = useState(null);
+  const [joinedAreaRooms, setJoinedAreaRooms] = useState([]);
+  const [joinedAreaNames, setJoinedAreaNames] = useState([]);
+  const [mySuburbRoom, setMySuburbRoom]       = useState(null); // kept for legacy
   const [nearbyRooms, setNearbyRooms]         = useState([]);
   const [allAustraliaRooms, setAllAustraliaRooms] = useState([]);
   const [userSuburb, setUserSuburb]           = useState("");
   const [userPostcode, setUserPostcode]       = useState("");
+  const [userLocalArea, setUserLocalArea]     = useState("");
   const [preferredReach, setPreferredReach]   = useState(user?.preferred_reach || "25km");
   const [hasLocation, setHasLocation]         = useState(false);
   const [loading, setLoading]                 = useState(true);
-  const [creatingRoom, setCreatingRoom]       = useState(false);
 
   // Filter chip state — "all" | "live" | "local"
   const [activeFilter, setActiveFilter] = useState(() => {
@@ -62,12 +64,11 @@ export default function ChatRooms({ user }) {
   // Live gender — updates instantly when profile is saved
   const [liveGender, setLiveGender] = useState(user?.gender);
 
-  // Local search state
-  const [localSearch, setLocalSearch]         = useState("");
-  const [searchResults, setSearchResults]     = useState([]);
-  const [searchCanCreate, setSearchCanCreate] = useState(false);
-  const [searchPostcode, setSearchPostcode]   = useState(null);
-  const [searching, setSearching]             = useState(false);
+  // Area room search state
+  const [areaSearch, setAreaSearch]           = useState("");
+  const [areaSearchResults, setAreaSearchResults] = useState([]);
+  const [areaSearching, setAreaSearching]     = useState(false);
+  const [joiningArea, setJoiningArea]         = useState(null); // area_name currently being joined/left
 
   const nightOwl = isNightOwlTime();
 
@@ -88,7 +89,10 @@ export default function ChatRooms({ user }) {
       const response = await fetch(`${API_URL}/api/chat/rooms${qs}`, { credentials: "include" });
       if (response.ok) {
         const data = await response.json();
-        setMySuburbRoom(data.my_suburb_room);
+        setMyAreaRoom(data.my_area_room || null);
+        setJoinedAreaRooms(data.joined_area_rooms || []);
+        setJoinedAreaNames(data.joined_area_names || []);
+        setMySuburbRoom(data.my_suburb_room || null);
         setNearbyRooms(data.nearby_rooms || []);
         // Deduplicate by name (catches legacy duplicate DB entries)
         const raw = data.all_australia_rooms || [];
@@ -102,6 +106,7 @@ export default function ChatRooms({ user }) {
         setAllAustraliaRooms(deduped);
         setUserSuburb(data.user_suburb || "");
         setUserPostcode(data.user_postcode || "");
+        setUserLocalArea(data.user_local_area || "");
         setPreferredReach(data.preferred_reach || "25km");
         setHasLocation(data.has_location || false);
       }
@@ -118,28 +123,51 @@ export default function ChatRooms({ user }) {
     fetchRooms(newReach);
   };
 
-  const createSuburbRoom = async (postcode, suburb) => {
-    setCreatingRoom(true);
+  const joinAreaRoom = async (areaName) => {
+    setJoiningArea(areaName);
     try {
-      const body = { postcode };
-      if (suburb) body.suburb = suburb;
-      const response = await fetch(`${API_URL}/api/chat/rooms/suburb`, {
+      const response = await fetch(`${API_URL}/api/chat/rooms/areas/join`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(body),
+        body: JSON.stringify({ area_name: areaName }),
       });
       if (response.ok) {
-        const room = await response.json();
-        toast.success(`Room created for ${room.suburb || postcode}!`);
-        navigate(`/chat/${room.room_id}`);
+        const data = await response.json();
+        setJoinedAreaNames(data.joined_area_rooms || []);
+        // Refresh rooms list to get the new room doc
+        fetchRooms();
+        toast.success(`Joined ${areaName} Parents`);
       } else {
-        toast.error("Failed to create room");
+        toast.error("Couldn't join that room — try again.");
       }
     } catch {
       toast.error("Something went wrong");
     } finally {
-      setCreatingRoom(false);
+      setJoiningArea(null);
+    }
+  };
+
+  const leaveAreaRoom = async (areaName) => {
+    setJoiningArea(areaName);
+    try {
+      const response = await fetch(
+        `${API_URL}/api/chat/rooms/areas/join/${encodeURIComponent(areaName)}`,
+        { method: "DELETE", credentials: "include" }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setJoinedAreaNames(data.joined_area_rooms || []);
+        setJoinedAreaRooms(prev => prev.filter(r => r.area_name !== areaName));
+        toast.success(`Left ${areaName} Parents`);
+      } else {
+        const err = await response.json().catch(() => ({}));
+        toast.error(err.detail || "Couldn't leave that room.");
+      }
+    } catch {
+      toast.error("Something went wrong");
+    } finally {
+      setJoiningArea(null);
     }
   };
 
@@ -152,8 +180,10 @@ export default function ChatRooms({ user }) {
         body: JSON.stringify({ suburb, postcode, state, latitude, longitude, location: suburb }),
       });
       if (res.ok) {
+        const updated = await res.json();
         setUserSuburb(suburb);
         setUserPostcode(postcode);
+        setUserLocalArea(updated.local_area || "");
         setHasLocation(true);
         toast.success(`Location set to ${suburb || postcode}!`);
         fetchRooms();
@@ -165,35 +195,31 @@ export default function ChatRooms({ user }) {
     }
   };
 
-  // Debounced search within Local filter
+  // Debounced area room search — only fires when user has typed something
   useEffect(() => {
-    if (activeFilter !== "local" || localSearch.length < 2) {
-      setSearchResults([]);
-      setSearchCanCreate(false);
-      setSearchPostcode(null);
+    if (!areaSearch.trim()) {
+      setAreaSearchResults([]);
       return;
     }
     const timer = setTimeout(async () => {
-      setSearching(true);
+      setAreaSearching(true);
       try {
         const response = await fetch(
-          `${API_URL}/api/chat/rooms/search?q=${encodeURIComponent(localSearch)}`,
+          `${API_URL}/api/chat/rooms/areas/search?q=${encodeURIComponent(areaSearch.trim())}`,
           { credentials: "include" }
         );
         if (response.ok) {
           const data = await response.json();
-          setSearchResults(data.rooms || []);
-          setSearchCanCreate(data.can_create || false);
-          setSearchPostcode(data.search_postcode || null);
+          setAreaSearchResults(data.results || []);
         }
       } catch (error) {
-        console.error("Search error:", error);
+        console.error("Area search error:", error);
       } finally {
-        setSearching(false);
+        setAreaSearching(false);
       }
-    }, 400);
+    }, 300);
     return () => clearTimeout(timer);
-  }, [localSearch, activeFilter]);
+  }, [areaSearch]);
 
   // Rooms with active users — for "Live now" filter
   const liveRooms = [...allAustraliaRooms, ...nearbyRooms]
@@ -219,7 +245,12 @@ export default function ChatRooms({ user }) {
                       <MapPin className="h-2.5 w-2.5" />{room.distance_km}km
                     </span>
                   )}
-                  {room.postcode && (
+                  {room.postcode_range && (
+                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground">
+                      {room.postcode_range}
+                    </span>
+                  )}
+                  {!room.postcode_range && room.postcode && (
                     <span className="text-xs px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground">{room.postcode}</span>
                   )}
                 </div>
@@ -311,7 +342,7 @@ export default function ChatRooms({ user }) {
         {/* Header */}
         <div className="mb-6">
           <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-1">Drop in. Chat live.</h1>
-          <p className="text-sm text-muted-foreground">Real-time chat rooms for parents who need company right now. National rooms, Local rooms.</p>
+          <p className="text-sm text-muted-foreground">Real-time chat rooms for parents who need company right now. National, local area, and friends chat.</p>
         </div>
 
         <div className="grid lg:grid-cols-[1fr_272px] gap-8">
@@ -469,128 +500,141 @@ export default function ChatRooms({ user }) {
               <section>
                 <h2 className="font-heading text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3">Local Rooms</h2>
 
-                {/* Search bar */}
-                <div className="mb-4 relative">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    value={localSearch}
-                    onChange={(e) => setLocalSearch(e.target.value)}
-                    placeholder="Search by postcode or suburb..."
-                    className="h-10 pl-10 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
-                    data-testid="local-search-input"
-                  />
-                </div>
-
-                {localSearch.length >= 2 ? (
-                  /* Search results mode */
-                  searching ? <LoadingSkeleton /> : (
-                    <div className="space-y-4">
-                      {searchResults.length > 0 ? (
-                        <div className="grid sm:grid-cols-2 gap-4">
-                          {searchResults.map((room, idx) => (
-                            <RoomCard key={room.room_id} room={room} idx={`search-${idx}`} showDistance />
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-8 village-card">
-                          <span className="text-4xl mb-3 block">📭</span>
-                          <p className="text-sm text-muted-foreground">No rooms found for "{localSearch}"</p>
-                        </div>
-                      )}
-                      {searchCanCreate && searchPostcode && (
-                        <div className="bg-primary/5 border border-primary/20 rounded-[18px] p-5 text-center">
-                          <p className="text-sm text-foreground mb-3">No room exists for <strong>{searchPostcode}</strong> yet</p>
-                          <Button
-                            onClick={() => createSuburbRoom(searchPostcode)}
-                            disabled={creatingRoom}
-                            className="rounded-full bg-primary text-primary-foreground"
-                            data-testid="create-search-room"
-                          >
-                            <Plus className="h-4 w-4 mr-2" />
-                            {creatingRoom ? "Creating..." : `Create Room for ${searchPostcode}`}
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  )
-                ) : !hasLocation ? (
-                  /* No location set */
-                  <div className="text-center py-10 village-card">
-                    <span className="text-4xl mb-3 block">📍</span>
-                    <h3 className="font-heading font-semibold text-foreground mb-1">Create or Search for a Local room</h3>
-                    <p className="text-sm text-muted-foreground mb-4">Set your location to see nearby rooms, or search above for any suburb or postcode.</p>
-                    <div className="flex flex-wrap gap-2 justify-center">
-                      <LocationButton onLocation={saveLocation} size="default" />
-                      <Link to="/profile">
-                        <Button variant="outline" className="rounded-full border-border/50">Set Manually</Button>
-                      </Link>
-                    </div>
-                  </div>
-                ) : loading ? (
-                  <LoadingSkeleton />
-                ) : (
+                {loading ? <LoadingSkeleton count={2} /> : (
                   <div className="space-y-5">
-                    {/* Distance selector */}
-                    <div className="p-3 rounded-xl bg-secondary/30 border border-border/30 flex items-center justify-between gap-3 flex-wrap">
-                      <p className="text-sm text-muted-foreground flex items-center gap-2">
-                        <Compass className="h-4 w-4" />Showing rooms within
-                      </p>
-                      <Select value={preferredReach} onValueChange={handleReachChange}>
-                        <SelectTrigger className="w-[180px] h-9 rounded-lg bg-card border-border/50">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {DISTANCE_OPTIONS.map((opt) => (
-                            <SelectItem key={opt.id} value={opt.id}>{opt.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
 
-                    {/* My suburb room */}
-                    {mySuburbRoom ? (
+                    {/* Primary room — linked to profile */}
+                    {myAreaRoom ? (
+                      <div>
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Your Local Room</p>
+                        <RoomCard room={myAreaRoom} idx="my-area" />
+                        <p className="text-xs text-muted-foreground mt-1.5 pl-1">
+                          Based on your profile suburb. <Link to="/profile" className="text-primary hover:underline">Change suburb</Link> to update.
+                        </p>
+                      </div>
+                    ) : mySuburbRoom ? (
                       <div>
                         <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Your Suburb</p>
                         <RoomCard room={mySuburbRoom} idx="my-suburb" />
                       </div>
-                    ) : userPostcode ? (
+                    ) : (
                       <div className="village-card p-5 text-center">
-                        <span className="text-4xl mb-3 block">🏘️</span>
-                        <h3 className="font-heading text-base font-bold text-foreground mb-1">
-                          No room for {userSuburb || userPostcode} yet
-                        </h3>
-                        <p className="text-sm text-muted-foreground mb-4">Be the first to start chatting in your area!</p>
-                        <Button
-                          onClick={() => createSuburbRoom(userPostcode, userSuburb)}
-                          disabled={creatingRoom}
-                          className="rounded-full bg-primary text-primary-foreground"
-                          data-testid="create-my-suburb-room"
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          {creatingRoom ? "Creating..." : `Start ${userSuburb || userPostcode} Room`}
-                        </Button>
+                        <span className="text-4xl mb-3 block">📍</span>
+                        <h3 className="font-heading font-semibold text-foreground mb-1">Find your local room</h3>
+                        <p className="text-sm text-muted-foreground mb-4">Add your suburb or postcode in your profile and we'll connect you to your local parents' chat automatically.</p>
+                        <div className="flex flex-wrap gap-2 justify-center">
+                          <LocationButton onLocation={saveLocation} size="default" />
+                          <Link to="/profile">
+                            <Button variant="outline" className="rounded-full border-border/50">Set in Profile</Button>
+                          </Link>
+                        </div>
                       </div>
-                    ) : null}
+                    )}
 
-                    {/* Nearby rooms */}
-                    {nearbyRooms.length > 0 && (
+                    {/* Joined area rooms */}
+                    {joinedAreaRooms.length > 0 && (
                       <div>
-                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Nearby</p>
-                        <div className="grid sm:grid-cols-2 gap-4">
-                          {nearbyRooms.map((room, idx) => (
-                            <RoomCard key={room.room_id} room={room} idx={idx} showDistance />
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Also Following</p>
+                        <div className="space-y-3">
+                          {joinedAreaRooms.map((room, idx) => (
+                            <div key={room.room_id} className="relative group">
+                              <RoomCard room={room} idx={`joined-${idx}`} />
+                              <button
+                                onClick={() => leaveAreaRoom(room.area_name)}
+                                disabled={joiningArea === room.area_name}
+                                className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                title="Leave this room"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
                           ))}
                         </div>
                       </div>
                     )}
 
-                    {!mySuburbRoom && nearbyRooms.length === 0 && !userPostcode && (
-                      <div className="text-center py-10 village-card">
-                        <span className="text-4xl mb-3 block">🔍</span>
-                        <h3 className="font-heading font-semibold text-foreground mb-1">Create or Search for a Local room</h3>
-                        <p className="text-sm text-muted-foreground">Try expanding your reach above, or search for a suburb.</p>
+                    {/* Browse / search other area rooms */}
+                    <div>
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Browse Area Rooms</p>
+                      <div className="mb-3 relative">
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                        <Input
+                          value={areaSearch}
+                          onChange={(e) => setAreaSearch(e.target.value)}
+                          placeholder="Search by area name (e.g. Manly, Yarra, Geelong)..."
+                          className="h-10 pl-10 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
+                          data-testid="area-search-input"
+                        />
                       </div>
-                    )}
+
+                      {!areaSearch.trim() ? null : areaSearching ? (
+                        <LoadingSkeleton count={3} />
+                      ) : areaSearchResults.length > 0 ? (
+                        <div className="space-y-2">
+                          {areaSearchResults.map((result) => {
+                            const isPrimary = result.is_primary;
+                            const isJoined  = result.is_joined;
+                            const isBusy    = joiningArea === result.area_name;
+                            return (
+                              <div
+                                key={result.area_name}
+                                className="village-card p-3 flex items-center gap-3"
+                              >
+                                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-lg shrink-0">📍</div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-sm text-foreground leading-tight">
+                                    {result.area_name} Parents
+                                    {isPrimary && <span className="ml-2 text-xs text-primary font-normal">Your room</span>}
+                                  </p>
+                                  {result.postcode_range && (
+                                    <p className="text-xs text-muted-foreground">postcodes {result.postcode_range}</p>
+                                  )}
+                                </div>
+                                <div className="shrink-0">
+                                  {isPrimary ? (
+                                    <span className="text-xs text-muted-foreground px-2">Default</span>
+                                  ) : isJoined ? (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      disabled={isBusy}
+                                      onClick={() => leaveAreaRoom(result.area_name)}
+                                      className="h-7 px-3 text-xs rounded-full border-border/50 text-muted-foreground hover:border-destructive/50 hover:text-destructive"
+                                    >
+                                      {isBusy ? "..." : <><Check className="h-3 w-3 mr-1" />Following</>}
+                                    </Button>
+                                  ) : result.room ? (
+                                    <Button
+                                      size="sm"
+                                      disabled={isBusy}
+                                      onClick={() => joinAreaRoom(result.area_name)}
+                                      className="h-7 px-3 text-xs rounded-full"
+                                    >
+                                      {isBusy ? "..." : <><Plus className="h-3 w-3 mr-1" />Join</>}
+                                    </Button>
+                                  ) : (
+                                    <Button
+                                      size="sm"
+                                      disabled={isBusy}
+                                      onClick={() => joinAreaRoom(result.area_name)}
+                                      className="h-7 px-3 text-xs rounded-full"
+                                    >
+                                      {isBusy ? "..." : <><Plus className="h-3 w-3 mr-1" />Join</>}
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : areaSearch.trim() ? (
+                        <div className="text-center py-8 village-card">
+                          <span className="text-4xl mb-3 block">📭</span>
+                          <p className="text-sm text-muted-foreground">No areas found for "{areaSearch}"</p>
+                        </div>
+                      ) : null}
+                    </div>
+
                   </div>
                 )}
               </section>
@@ -604,11 +648,11 @@ export default function ChatRooms({ user }) {
               <h3 className="font-heading font-semibold text-foreground mb-3">How chat works</h3>
               <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
                 <p><strong className="text-foreground font-medium">National rooms</strong> are always open — busiest in the evenings.</p>
-                <p><strong className="text-foreground font-medium">Local rooms</strong> are suburb-based — only parents near you.</p>
+                <p><strong className="text-foreground font-medium">Local rooms</strong> are area-based — connecting parents across your broader neighbourhood (e.g. Inner West, Northern Beaches). Add your suburb in your <Link to="/profile" className="text-primary hover:underline">profile</Link> to find yours.</p>
                 <p><strong className="text-foreground font-medium">Friends chats</strong> can be started from your <Link to="/friends" className="text-primary hover:underline">Friends page</Link>.</p>
                 <div className="pt-2 mt-2 border-t border-border/50">
                   <p className="text-xs leading-relaxed">
-                    <strong className="text-foreground font-medium">Message history</strong> — open chat rooms automatically clear messages older than 7 days (national) or 14 days (local). This keeps conversations fresh and relevant. Private DMs and community posts are never auto-deleted.
+                    <strong className="text-foreground font-medium">Message history</strong> — open chat rooms automatically clear messages older than 7 days (national) or 14 days (local). This keeps conversations fresh and relevant. Private DMs are never auto-deleted.
                   </p>
                 </div>
               </div>

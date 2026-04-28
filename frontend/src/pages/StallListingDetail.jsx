@@ -1,9 +1,13 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
-import { ArrowLeft, MapPin, Clock, Bookmark, BookmarkCheck, Tag, ArrowLeftRight, Heart, Search, MessageCircle, Crown, ChevronLeft, ChevronRight, Send, X, ShoppingBag, Check } from "lucide-react";
+import { ArrowLeft, MapPin, Clock, Bookmark, BookmarkCheck, Tag, ArrowLeftRight, Heart, Search, MessageCircle, Crown, ChevronLeft, ChevronRight, Send, X, ShoppingBag, Check, Flag } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../components/ui/dialog";
+import { Label } from "../components/ui/label";
+import { Textarea } from "../components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { parseApiError } from "../utils/apiError";
@@ -32,9 +36,46 @@ function StallChatPanel({ listing, user, onClose }) {
   const [newMsg, setNewMsg]     = useState("");
   const [sending, setSending]   = useState(false);
   const [loading, setLoading]   = useState(true);
-  const bottomRef   = useRef(null);
-  const intervalRef = useRef(null);
-  const textareaRef = useRef(null);
+  const bottomRef      = useRef(null);
+  const scrollAreaRef  = useRef(null);
+  const intervalRef    = useRef(null);
+  const textareaRef    = useRef(null);
+  const isAtBottom     = useRef(true);
+
+  // Report state
+  const [reportMsg, setReportMsg]         = useState(null);
+  const [reportReason, setReportReason]   = useState("");
+  const [reportDetails, setReportDetails] = useState("");
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+
+  const submitReport = async () => {
+    if (!reportReason || !reportMsg) return;
+    setReportSubmitting(true);
+    try {
+      const res = await fetch(`${API_URL}/api/reports`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          content_type: "stall_message",
+          content_id: reportMsg.message_id,
+          reason: reportReason,
+          details: reportDetails,
+        }),
+      });
+      if (res.ok) {
+        toast.success("Report submitted. Our team will review it.");
+        setReportMsg(null);
+      } else {
+        const d = await res.json();
+        toast.error(d.detail || "Could not submit report");
+      }
+    } catch {
+      toast.error("Could not submit report");
+    } finally {
+      setReportSubmitting(false);
+    }
+  };
 
   const otherUserId = listing.seller_id;
 
@@ -49,19 +90,36 @@ function StallChatPanel({ listing, user, onClose }) {
     finally { setLoading(false); }
   }, [listing.listing_id, otherUserId]);
 
+  // Lock body scroll synchronously before first paint — prevents window scroll gap
+  useLayoutEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
+
   useEffect(() => {
     fetchMessages();
     intervalRef.current = setInterval(fetchMessages, 3000);
-    document.body.style.overflow = "hidden";
-    return () => {
-      clearInterval(intervalRef.current);
-      document.body.style.overflow = "";
-    };
+    return () => { clearInterval(intervalRef.current); };
   }, [fetchMessages]);
 
+  const handleScroll = () => {
+    const el = scrollAreaRef.current;
+    if (!el) return;
+    isAtBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+  };
+
+  const scrollToBottom = useCallback(() => {
+    const el = scrollAreaRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, []);
+
+  // Auto-scroll only when user is already at the bottom, or on initial load
   useEffect(() => {
-    if (!loading) bottomRef.current?.scrollIntoView({ behavior: messages.length <= 1 ? "instant" : "smooth" });
-  }, [messages, loading]);
+    if (!loading && isAtBottom.current) {
+      scrollToBottom();
+    }
+  }, [messages, loading, scrollToBottom]);
 
   const handleSend = async () => {
     const text = newMsg.trim();
@@ -125,7 +183,7 @@ function StallChatPanel({ listing, user, onClose }) {
       </div>
 
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto px-4 py-4">
+      <div ref={scrollAreaRef} onScroll={handleScroll} className="flex-1 overflow-y-auto px-4 py-4" style={{ overscrollBehavior: "contain" }}>
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <div className="w-5 h-5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
@@ -149,13 +207,13 @@ function StallChatPanel({ listing, user, onClose }) {
                 (prev && new Date(msg.created_at) - new Date(prev.created_at) > 10 * 60 * 1000);
 
               return (
-                <div key={msg.message_id || i}>
+                <div key={msg.message_id || i} className="group">
                   {showTimestamp && i > 0 && (
                     <p className="text-center text-[10px] text-muted-foreground/50 py-2">
                       {fmtTime(msg.created_at)}
                     </p>
                   )}
-                  <div className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+                  <div className={`flex items-end gap-1 ${isMe ? "justify-end" : "justify-start"}`}>
                     <div className={`max-w-[78%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed break-words ${
                       isMe
                         ? "bg-primary text-primary-foreground rounded-br-md"
@@ -163,6 +221,15 @@ function StallChatPanel({ listing, user, onClose }) {
                     }`}>
                       {msg.content}
                     </div>
+                    {!isMe && (
+                      <button
+                        onClick={() => { setReportMsg(msg); setReportReason(""); setReportDetails(""); }}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mb-1 p-1 rounded text-muted-foreground hover:text-destructive"
+                        title="Report message"
+                      >
+                        <Flag className="h-3 w-3" />
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -194,6 +261,56 @@ function StallChatPanel({ listing, user, onClose }) {
           }
         </button>
       </div>
+
+      {/* Report Stall Message Dialog */}
+      <Dialog open={!!reportMsg} onOpenChange={(o) => !o && setReportMsg(null)}>
+        <DialogContent className="bg-card border-border/50 max-w-md [&>button]:hidden">
+          <DialogHeader>
+            <DialogTitle>Report Message</DialogTitle>
+            <DialogDescription>
+              This report will be reviewed by our moderation team. Please only report genuine concerns.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Reason</Label>
+              <Select value={reportReason} onValueChange={setReportReason}>
+                <SelectTrigger className="bg-secondary/50 border-border/50">
+                  <SelectValue placeholder="Select a reason…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="harassment">Harassment or bullying</SelectItem>
+                  <SelectItem value="spam">Spam</SelectItem>
+                  <SelectItem value="inappropriate">Inappropriate content</SelectItem>
+                  <SelectItem value="hate_speech">Hate speech or discrimination</SelectItem>
+                  <SelectItem value="unsafe">Unsafe or dangerous content</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Additional details <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Textarea
+                value={reportDetails}
+                onChange={e => setReportDetails(e.target.value.slice(0, 500))}
+                placeholder="Tell us more about what happened…"
+                className="bg-secondary/50 border-border/50 resize-none text-sm"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setReportMsg(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={submitReport}
+              disabled={!reportReason || reportSubmitting}
+            >
+              {reportSubmitting ? "Submitting…" : "Submit Report"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -203,11 +320,14 @@ function StallChatPanel({ listing, user, onClose }) {
 export default function StallListingDetail({ user }) {
   const { listingId } = useParams();
   const navigate = useNavigate();
-  const [listing, setListing]   = useState(null);
-  const [loading, setLoading]   = useState(true);
-  const [photoIdx, setPhotoIdx] = useState(0);
-  const [saved, setSaved]       = useState(false);
-  const [showChat, setShowChat] = useState(false);
+  const [listing, setListing]       = useState(null);
+  const [loading, setLoading]       = useState(true);
+  const [photoIdx, setPhotoIdx]     = useState(0);
+  const [saved, setSaved]           = useState(false);
+  const [showChat, setShowChat]     = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason]   = useState("");
+  const [reportDetails, setReportDetails] = useState("");
 
   const isAdmin   = user?.role === "admin" || user?.role === "moderator";
   const isPremium = user?.subscription_tier === "premium" || user?.subscription_tier === "trial" || isAdmin;
@@ -239,6 +359,34 @@ export default function StallListingDetail({ user }) {
         toast.success(data.saved ? "Saved!" : "Removed from saved");
       }
     } catch {}
+  };
+
+  const handleReportListing = async () => {
+    if (!reportReason || !listing) return;
+    try {
+      const res = await fetch(`${API_URL}/api/reports`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          content_type: "listing",
+          content_id: listing.listing_id,
+          reason: reportReason,
+          details: reportDetails,
+        }),
+      });
+      if (res.ok) {
+        toast.success("Listing reported. Our team will review it shortly.");
+      } else {
+        const err = await res.json();
+        toast.error(err.detail || "Failed to submit report");
+      }
+    } catch {
+      toast.error("Something went wrong");
+    }
+    setReportOpen(false);
+    setReportReason("");
+    setReportDetails("");
   };
 
   if (loading) return (
@@ -427,10 +575,23 @@ export default function StallListingDetail({ user }) {
               </Link>
             </div>
 
-            {/* Safety tip */}
-            <div className="text-xs text-muted-foreground bg-secondary/30 rounded-xl p-3 leading-relaxed">
-              💡 Meet in a public place. Cash or PayID only — The Village doesn't handle payments.
+            {/* Safety + payment disclaimer */}
+            <div className="text-xs text-muted-foreground bg-secondary/30 rounded-xl p-3.5 leading-relaxed space-y-1.5">
+              <p className="font-medium text-foreground/80">🤝 User-to-user transaction</p>
+              <p>The Village Stall connects buyers and sellers — we don't process payments, handle disputes, or take responsibility for transactions. All deals are between you and the other party.</p>
+              <p>💡 Meet in a public place · Use PayID, cash or bank transfer · Never pay in advance for postage without verification.</p>
             </div>
+
+            {/* Report listing link — not own listing */}
+            {!isOwn && (
+              <button
+                onClick={() => setReportOpen(true)}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive transition-colors"
+              >
+                <Flag className="h-3.5 w-3.5" />
+                Report this listing
+              </button>
+            )}
           </div>
         </div>
       </main>
@@ -488,6 +649,49 @@ export default function StallListingDetail({ user }) {
       )}
 
       <AppFooter />
+
+      {/* Report Listing Dialog */}
+      <Dialog open={reportOpen} onOpenChange={(open) => { if (!open) { setReportOpen(false); setReportReason(""); setReportDetails(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Report Listing</DialogTitle>
+            <DialogDescription>
+              Help us keep The Village Stall safe. Our moderation team will review this report.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Reason for reporting</Label>
+              <Select value={reportReason} onValueChange={setReportReason}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a reason" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="misleading">Misleading or inaccurate description</SelectItem>
+                  <SelectItem value="scam">Suspected scam</SelectItem>
+                  <SelectItem value="prohibited">Prohibited or unsafe item</SelectItem>
+                  <SelectItem value="spam">Spam or duplicate listing</SelectItem>
+                  <SelectItem value="inappropriate">Inappropriate content</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Additional details <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Textarea
+                value={reportDetails}
+                onChange={(e) => setReportDetails(e.target.value)}
+                placeholder="Provide any additional context..."
+                className="min-h-[80px]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setReportOpen(false); setReportReason(""); setReportDetails(""); }}>Cancel</Button>
+            <Button onClick={handleReportListing} disabled={!reportReason}>Submit Report</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

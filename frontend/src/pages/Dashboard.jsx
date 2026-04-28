@@ -437,6 +437,7 @@ export default function Dashboard({ user }) {
         const allRooms = [
           ...(data.all_australia_rooms || []),
           ...(data.nearby_rooms || []),
+          ...(data.my_area_room ? [data.my_area_room] : []),
           ...(data.my_suburb_room ? [data.my_suburb_room] : []),
         ];
 
