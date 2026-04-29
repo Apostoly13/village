@@ -85,6 +85,10 @@ export default function AdminDashboard({ user }) {
   const [contentHealth, setContentHealth] = useState(null);
   // Professional applications
   const [professionalApps, setProfessionalApps] = useState([]);
+  const [proTab, setProTab] = useState("pending");
+  const [approvedProfessionals, setApprovedProfessionals] = useState([]);
+  const [approvedProPage, setApprovedProPage] = useState(1);
+  const [approvedProPages, setApprovedProPages] = useState(1);
 
   // Drilldown modal
   const [drilldown, setDrilldown] = useState({ open: false, label: "", users: [], posts: [], items: [] });
@@ -308,6 +312,18 @@ export default function AdminDashboard({ user }) {
     } catch (e) { console.error(e); }
   };
 
+  const fetchApprovedProfessionals = async (page = 1) => {
+    try {
+      const res = await apiFetch(`/api/admin/professionals?page=${page}&limit=15`);
+      if (res?.ok) {
+        const data = await res.json();
+        setApprovedProfessionals(data.professionals || []);
+        setApprovedProPage(data.page || 1);
+        setApprovedProPages(data.pages || 1);
+      }
+    } catch (e) { console.error(e); }
+  };
+
   const handleProfessionalAction = async (userId, action) => {
     try {
       const res = await apiFetch(`/api/admin/professional-applications/${userId}/${action}`, { method: "POST" });
@@ -429,23 +445,57 @@ export default function AdminDashboard({ user }) {
       <Navigation user={user} />
 
       <main className="max-w-6xl mx-auto px-4 pt-16 lg:pt-8">
+
+        {/* Page header */}
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "hsl(var(--accent)/0.12)" }}>
+              <Shield className="h-5 w-5" style={{ color: "hsl(var(--accent))" }} />
+            </div>
+            <div>
+              <h1 className="text-2xl font-medium" style={{ fontFamily: "var(--serif)", color: "var(--ink)" }}>Admin Portal</h1>
+              <p className="text-xs" style={{ color: "var(--ink-3)" }}>Insights are read-only · Actions affect users and content</p>
+            </div>
+          </div>
+        </div>
+
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
 
-          {/* Tab bar — scrollable on mobile */}
+          {/* Tab bar — scrollable on mobile, sectioned into Insights and Actions */}
           <div className="overflow-x-auto pb-1 mb-6">
-            <TabsList className="bg-card border border-border/50 rounded-xl p-1 flex gap-1 min-w-max">
+            <TabsList className="bg-card border border-border/50 rounded-xl p-1 flex gap-1 min-w-max items-center">
+
+              {/* ── Insights (read-only) ── */}
+              <span className="text-[10px] font-semibold uppercase tracking-widest px-2 select-none" style={{ color: "var(--ink-3)" }}>
+                Insights
+              </span>
               {[
-                { value: "overview",       icon: BarChart3,      label: "Overview" },
-                { value: "engagement",     icon: Activity,       label: "Engagement" },
-                { value: "leaderboards",   icon: Trophy,         label: "Leaderboards" },
-                { value: "users",          icon: Users,          label: "Users" },
-                { value: "moderation",     icon: Flag,           label: "Moderation", badge: analytics?.content?.pending_reports },
-                { value: "content",        icon: Layers,         label: "Content" },
-                { value: "communities",    icon: Building2,      label: "Communities" },
-                { value: "revenue",        icon: DollarSign,     label: "Revenue" },
-                { value: "professionals",  icon: Stethoscope,    label: "Professionals" },
-                { value: "announcements",  icon: Megaphone,      label: "Announcements" },
-                { value: "blog",           icon: BookOpen,       label: "Blog" },
+                { value: "overview",     icon: BarChart3,  label: "Overview" },
+                { value: "engagement",   icon: Activity,   label: "Engagement" },
+                { value: "leaderboards", icon: Trophy,     label: "Leaderboards" },
+                { value: "revenue",      icon: DollarSign, label: "Revenue" },
+                { value: "content",      icon: Layers,     label: "Content" },
+              ].map(t => (
+                <TabsTrigger key={t.value} value={t.value} className="rounded-lg px-3 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-1.5 whitespace-nowrap text-sm">
+                  <t.icon className="h-4 w-4" />
+                  {t.label}
+                </TabsTrigger>
+              ))}
+
+              {/* ── Divider ── */}
+              <div className="w-px h-5 mx-1 shrink-0" style={{ background: "var(--line)" }} />
+
+              {/* ── Actions (consequential) ── */}
+              <span className="text-[10px] font-semibold uppercase tracking-widest px-2 select-none" style={{ color: "var(--ink-3)" }}>
+                Actions
+              </span>
+              {[
+                { value: "users",         icon: Users,      label: "Users" },
+                { value: "moderation",    icon: Flag,       label: "Moderation", badge: analytics?.content?.pending_reports },
+                { value: "communities",   icon: Building2,  label: "Communities" },
+                { value: "professionals", icon: Stethoscope,label: "Professionals" },
+                { value: "announcements", icon: Megaphone,  label: "Announcements" },
+                { value: "blog",          icon: BookOpen,   label: "Blog" },
               ].map(t => (
                 <TabsTrigger key={t.value} value={t.value} className="rounded-lg px-3 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-1.5 whitespace-nowrap text-sm">
                   <t.icon className="h-4 w-4" />
@@ -891,9 +941,15 @@ export default function AdminDashboard({ user }) {
 
             <div className="flex gap-2 flex-wrap">
               {[
-                { label: "All", value: "" },
+                { label: "All",            value: "" },
+                { label: "Free",           value: "tier:free" },
+                { label: "Trial",          value: "tier:trial" },
+                { label: "Village+",       value: "tier:premium" },
+                { label: "Moderators",     value: "role:moderator" },
+                { label: "Admins",         value: "role:admin" },
+                { label: "Professionals",  value: "role:professional" },
                 { label: "Auto-suspended", value: "auto_suspended" },
-                { label: "Banned", value: "banned" },
+                { label: "Banned",         value: "banned" },
               ].map(f => (
                 <Button key={f.value} size="sm" variant={userFilter === f.value ? "default" : "outline"} className="rounded-full text-xs h-7"
                   onClick={() => { setUserFilter(f.value); fetchUsers(1, userSearch, f.value); }}>{f.label}</Button>
@@ -1290,65 +1346,145 @@ export default function AdminDashboard({ user }) {
           <TabsContent value="professionals" className="mt-0 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="font-heading font-bold text-foreground">Professional Verification Queue</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Review and approve clinician applications</p>
+                <h2 className="font-heading font-bold text-foreground">Professionals</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">Manage professional verification applications and approved clinicians</p>
               </div>
-              <button onClick={fetchProfessionalApps} className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground" title="Refresh">
+              <button onClick={() => proTab === "pending" ? fetchProfessionalApps() : fetchApprovedProfessionals(approvedProPage)}
+                className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground" title="Refresh">
                 <RefreshCw className="h-3.5 w-3.5" />
               </button>
             </div>
 
-            {professionalApps.length === 0 ? (
-              <div className="text-center py-12 bg-card rounded-2xl border border-border/40 card-elevated">
-                <Stethoscope className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                <h3 className="font-heading text-lg font-bold text-foreground mb-1">No pending applications</h3>
-                <p className="text-sm text-muted-foreground">Professional verification requests will appear here.</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {professionalApps.map(u => (
-                  <div key={u.user_id} className="bg-card rounded-2xl p-5 border border-border/40 card-elevated border-l-2 border-l-amber-500/40">
-                    <div className="flex items-start gap-4">
-                      <Avatar className="h-12 w-12 shrink-0">
-                        <AvatarImage src={u.picture} />
-                        <AvatarFallback className="bg-primary/20 text-primary">{u.name?.[0]?.toUpperCase() || "?"}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <span className="font-bold text-foreground">{u.nickname || u.name}</span>
-                          {tierBadge(u.subscription_tier)}
-                        </div>
-                        <p className="text-xs text-muted-foreground mb-1">{u.email}</p>
-                        <div className="grid grid-cols-2 gap-x-6 gap-y-1 mt-2 text-xs">
-                          {u.professional_type && <div><span className="text-muted-foreground">Role: </span><span className="font-medium text-foreground capitalize">{u.professional_type.replace(/_/g, " ")}</span></div>}
-                          {u.professional_workplace && <div><span className="text-muted-foreground">Workplace: </span><span className="font-medium text-foreground">{u.professional_workplace}</span></div>}
-                          {u.professional_applied_at && <div><span className="text-muted-foreground">Applied: </span><span className="font-medium text-foreground">{fmtDate(u.professional_applied_at)}</span></div>}
-                        </div>
-                        {u.professional_credentials && (
-                          <div className="mt-2 p-3 bg-secondary/50 rounded-xl border border-border/30 text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                            {u.professional_credentials}
+            {/* Sub-tab switcher */}
+            <div className="flex gap-2">
+              <Button size="sm" variant={proTab === "pending" ? "default" : "outline"} className="rounded-full h-8 text-xs"
+                onClick={() => setProTab("pending")}>
+                Pending {professionalApps.length > 0 && `(${professionalApps.length})`}
+              </Button>
+              <Button size="sm" variant={proTab === "approved" ? "default" : "outline"} className="rounded-full h-8 text-xs"
+                onClick={() => { setProTab("approved"); if (approvedProfessionals.length === 0) fetchApprovedProfessionals(); }}>
+                Approved
+              </Button>
+            </div>
+
+            {/* ── Pending applications ── */}
+            {proTab === "pending" && (
+              professionalApps.length === 0 ? (
+                <div className="text-center py-12 bg-card rounded-2xl border border-border/40 card-elevated">
+                  <Stethoscope className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                  <h3 className="font-heading text-lg font-bold text-foreground mb-1">No pending applications</h3>
+                  <p className="text-sm text-muted-foreground">Professional verification requests will appear here.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {professionalApps.map(u => (
+                    <div key={u.user_id} className="bg-card rounded-2xl p-5 border border-border/40 card-elevated border-l-2 border-l-amber-500/40">
+                      <div className="flex items-start gap-4">
+                        <Avatar className="h-12 w-12 shrink-0">
+                          <AvatarImage src={u.picture} />
+                          <AvatarFallback className="bg-primary/20 text-primary">{u.name?.[0]?.toUpperCase() || "?"}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <span className="font-bold text-foreground">{u.nickname || u.name}</span>
+                            {tierBadge(u.subscription_tier)}
                           </div>
-                        )}
+                          <p className="text-xs text-muted-foreground mb-1">{u.email}</p>
+                          <div className="grid grid-cols-2 gap-x-6 gap-y-1 mt-2 text-xs">
+                            {u.professional_type && <div><span className="text-muted-foreground">Role: </span><span className="font-medium text-foreground capitalize">{u.professional_type.replace(/_/g, " ")}</span></div>}
+                            {u.professional_workplace && <div><span className="text-muted-foreground">Workplace: </span><span className="font-medium text-foreground">{u.professional_workplace}</span></div>}
+                            {u.professional_applied_at && <div><span className="text-muted-foreground">Applied: </span><span className="font-medium text-foreground">{fmtDate(u.professional_applied_at)}</span></div>}
+                          </div>
+                          {u.professional_credentials && (
+                            <div className="mt-2 p-3 bg-secondary/50 rounded-xl border border-border/30 text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                              {u.professional_credentials}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex gap-2 mt-4 pt-4 border-t border-border/30">
+                        <Button size="sm" className="rounded-lg bg-green-600 hover:bg-green-700 text-white"
+                          onClick={() => handleProfessionalAction(u.user_id, "approve")}>
+                          <Check className="h-3 w-3 mr-1" />Approve
+                        </Button>
+                        <Button size="sm" variant="outline" className="rounded-lg text-red-600 border-red-500/30 hover:bg-red-500/10"
+                          onClick={() => handleProfessionalAction(u.user_id, "reject")}>
+                          <X className="h-3 w-3 mr-1" />Reject
+                        </Button>
+                        <a href={`/profile/${u.user_id}`} target="_blank" rel="noreferrer">
+                          <Button size="sm" variant="outline" className="rounded-lg">
+                            <Eye className="h-3 w-3 mr-1" />View Profile
+                          </Button>
+                        </a>
                       </div>
                     </div>
-                    <div className="flex gap-2 mt-4 pt-4 border-t border-border/30">
-                      <Button size="sm" className="rounded-lg bg-green-600 hover:bg-green-700 text-white"
-                        onClick={() => handleProfessionalAction(u.user_id, "approve")}>
-                        <Check className="h-3 w-3 mr-1" />Approve
-                      </Button>
-                      <Button size="sm" variant="outline" className="rounded-lg text-red-600 border-red-500/30 hover:bg-red-500/10"
-                        onClick={() => handleProfessionalAction(u.user_id, "reject")}>
-                        <X className="h-3 w-3 mr-1" />Reject
-                      </Button>
-                      <a href={`/profile/${u.user_id}`} target="_blank" rel="noreferrer">
-                        <Button size="sm" variant="outline" className="rounded-lg">
-                          <Eye className="h-3 w-3 mr-1" />View Profile
-                        </Button>
-                      </a>
+                  ))}
+                </div>
+              )
+            )}
+
+            {/* ── Approved professionals ── */}
+            {proTab === "approved" && (
+              approvedProfessionals.length === 0 ? (
+                <div className="text-center py-12 bg-card rounded-2xl border border-border/40 card-elevated">
+                  <Stethoscope className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                  <h3 className="font-heading text-lg font-bold text-foreground mb-1">No approved professionals yet</h3>
+                  <p className="text-sm text-muted-foreground">Approved clinicians will appear here.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {approvedProfessionals.map(u => (
+                    <div key={u.user_id} className="bg-card rounded-2xl p-4 border border-border/40 card-elevated flex flex-col sm:flex-row gap-3 sm:items-center">
+                      <Avatar className="h-10 w-10 shrink-0">
+                        <AvatarImage src={u.picture} />
+                        <AvatarFallback className="bg-primary/20 text-primary text-sm">{u.name?.[0]?.toUpperCase() || "?"}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                          <span className="font-bold text-foreground">{u.nickname || u.name}</span>
+                          <Badge className="text-xs bg-green-500/20 text-green-700 border-green-500/30">
+                            <Check className="h-3 w-3 mr-1" />Verified
+                          </Badge>
+                          {u.professional_type && (
+                            <Badge variant="outline" className="text-xs capitalize">
+                              {u.professional_type.replace(/_/g, " ")}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">{u.email}</p>
+                        {u.professional_workplace && (
+                          <p className="text-xs text-muted-foreground">{u.professional_workplace}</p>
+                        )}
+                      </div>
+                      <div className="flex gap-2 shrink-0">
+                        {u.professional_services_url && (
+                          <a href={u.professional_services_url} target="_blank" rel="noopener noreferrer">
+                            <Button size="sm" variant="outline" className="h-8 rounded-lg text-xs">
+                              <Eye className="h-3 w-3 mr-1" />Credentials
+                            </Button>
+                          </a>
+                        )}
+                        <Link to={`/profile/${u.user_id}`}>
+                          <Button size="sm" variant="ghost" className="h-8 rounded-lg text-xs">Profile</Button>
+                        </Link>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                  {approvedProPages > 1 && (
+                    <div className="flex items-center justify-center gap-4 pt-2">
+                      <Button variant="outline" size="sm" className="rounded-lg" disabled={approvedProPage <= 1}
+                        onClick={() => fetchApprovedProfessionals(approvedProPage - 1)}>
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <span className="text-sm text-muted-foreground">Page {approvedProPage} of {approvedProPages}</span>
+                      <Button variant="outline" size="sm" className="rounded-lg" disabled={approvedProPage >= approvedProPages}
+                        onClick={() => fetchApprovedProfessionals(approvedProPage + 1)}>
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )
             )}
           </TabsContent>
 

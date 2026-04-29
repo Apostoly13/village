@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import {
   Flag, Shield, Search, Eye, Check, X, MessageSquare,
   AlertTriangle, Clock, Users, EyeOff, Ban, ChevronRight,
-  ExternalLink, RefreshCw, Stethoscope,
+  ExternalLink, RefreshCw, Stethoscope, ShoppingBag, Trash2,
 } from "lucide-react";
 import { timeAgoVerbose } from "../utils/dateHelpers";
 
@@ -19,7 +19,7 @@ const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 export default function ModeratorDashboard({ user }) {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("reports");
+  const [activeTab, setActiveTab] = useState("unanswered");
 
   const [reports, setReports] = useState([]);
   const [reportStatus, setReportStatus] = useState("pending");
@@ -36,6 +36,10 @@ export default function ModeratorDashboard({ user }) {
   const [professionalApplications, setProfessionalApplications] = useState([]);
   const [proLoading, setProLoading] = useState(false);
 
+  const [stallListings, setStallListings] = useState([]);
+  const [stallSearch, setStallSearch] = useState("");
+  const [stallLoading, setStallLoading] = useState(false);
+
   const [overview, setOverview] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -44,6 +48,7 @@ export default function ModeratorDashboard({ user }) {
   useEffect(() => {
     if (!isMod) { navigate("/dashboard"); return; }
     fetchOverview();
+    fetchUnanswered();
     fetchReports();
   }, [user, navigate]);
 
@@ -102,6 +107,38 @@ export default function ModeratorDashboard({ user }) {
     finally { setPostsLoading(false); }
   };
 
+  const fetchStallListings = async (q = "") => {
+    setStallLoading(true);
+    try {
+      const url = q
+        ? `/api/admin/stall/listings?search=${encodeURIComponent(q)}&limit=30`
+        : `/api/admin/stall/listings?limit=30`;
+      const res = await apiFetch(url);
+      if (res?.ok) {
+        const data = await res.json();
+        setStallListings(data.listings || []);
+      }
+    } catch (e) { console.error(e); }
+    finally { setStallLoading(false); }
+  };
+
+  const removeStallListing = async (listingId) => {
+    try {
+      const res = await apiFetch(`/api/admin/stall/listings/${listingId}/remove`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (res?.ok) {
+        toast.success("Listing removed");
+        setStallListings(prev => prev.map(l =>
+          l.listing_id === listingId ? { ...l, status: "removed" } : l
+        ));
+      } else {
+        toast.error("Failed to remove listing");
+      }
+    } catch { toast.error("Action failed"); }
+  };
+
   const fetchProfessionalApps = async () => {
     setProLoading(true);
     try {
@@ -144,6 +181,7 @@ export default function ModeratorDashboard({ user }) {
     setActiveTab(tab);
     if (tab === "unanswered") fetchUnanswered();
     if (tab === "posts") fetchRecentPosts();
+    if (tab === "stall") fetchStallListings();
     if (tab === "professionals") fetchProfessionalApps();
   };
 
@@ -210,11 +248,36 @@ export default function ModeratorDashboard({ user }) {
 
         <Tabs value={activeTab} onValueChange={handleTabChange}>
           <div className="overflow-x-auto pb-1 mb-5">
-            <TabsList className="bg-card border border-border/50 rounded-xl p-1 flex gap-1 min-w-max">
+            <TabsList className="bg-card border border-border/50 rounded-xl p-1 flex gap-1 min-w-max items-center">
+              {/* ── Information section ── */}
+              <span className="text-[10px] font-semibold uppercase tracking-widest px-2 select-none" style={{ color: "var(--ink-3)" }}>
+                Information
+              </span>
               {[
-                { value: "reports",       icon: Flag,          label: "Reports",     badge: overview?.reported_issues },
-                { value: "unanswered",    icon: Clock,         label: "Unanswered",  badge: overview?.unanswered_tonight },
+                { value: "unanswered", icon: Clock, label: "Unanswered", badge: overview?.unanswered_tonight },
+              ].map(t => (
+                <TabsTrigger key={t.value} value={t.value}
+                  className="rounded-lg px-3 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-1.5 whitespace-nowrap text-sm"
+                >
+                  <t.icon className="h-4 w-4" />
+                  {t.label}
+                  {t.badge > 0 && (
+                    <span className="ml-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[18px] text-center leading-none">{t.badge}</span>
+                  )}
+                </TabsTrigger>
+              ))}
+
+              {/* ── Divider ── */}
+              <div className="w-px h-5 mx-1 shrink-0" style={{ background: "var(--line)" }} />
+
+              {/* ── Actions section ── */}
+              <span className="text-[10px] font-semibold uppercase tracking-widest px-2 select-none" style={{ color: "var(--ink-3)" }}>
+                Actions
+              </span>
+              {[
+                { value: "reports",       icon: Flag,          label: "Reports",      badge: overview?.reported_issues },
                 { value: "posts",         icon: MessageSquare, label: "Browse Posts" },
+                { value: "stall",         icon: ShoppingBag,   label: "Stall" },
                 { value: "professionals", icon: Stethoscope,   label: "Professionals" },
               ].map(t => (
                 <TabsTrigger key={t.value} value={t.value}
@@ -450,6 +513,86 @@ export default function ModeratorDashboard({ user }) {
                             <Eye className="h-3 w-3 mr-1" />View
                           </Button>
                         </Link>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* ── STALL LISTINGS TAB ── */}
+          <TabsContent value="stall" className="mt-0">
+            <div className="flex gap-2 mb-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={stallSearch}
+                  onChange={e => setStallSearch(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && fetchStallListings(stallSearch)}
+                  placeholder="Search listings..."
+                  className="pl-9 rounded-xl"
+                  style={{ height: 40, background: "var(--paper)", border: "1px solid var(--line)" }}
+                />
+              </div>
+              <Button size="sm" onClick={() => fetchStallListings(stallSearch)} className="rounded-xl">Search</Button>
+            </div>
+
+            {stallLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="w-5 h-5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+              </div>
+            ) : stallListings.length === 0 ? (
+              <div className="text-center py-12 rounded-2xl border" style={{ background: "var(--paper-2)", borderColor: "var(--line)" }}>
+                <ShoppingBag className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                <p className="font-medium" style={{ color: "var(--ink)" }}>No listings found</p>
+                <p className="text-sm mt-1" style={{ color: "var(--ink-3)" }}>Stall listings will appear here.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {stallListings.map(listing => (
+                  <div key={listing.listing_id} className="rounded-2xl border p-4" style={{ background: "var(--paper-2)", borderColor: "var(--line)" }}>
+                    <div className="flex items-start gap-3">
+                      {listing.images?.[0] && (
+                        <img src={listing.images[0]} alt="" className="w-14 h-14 rounded-xl object-cover shrink-0" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="font-mono text-[9px] uppercase tracking-[0.12em]" style={{ color: "var(--ink-3)" }}>
+                            {listing.listing_type} · {fmtDate(listing.created_at)}
+                          </span>
+                          {listing.status === "removed" && (
+                            <Badge variant="outline" className="text-xs border-red-500/30 text-red-500">Removed</Badge>
+                          )}
+                          {listing.status === "active" && (
+                            <Badge variant="outline" className="text-xs border-green-500/30 text-green-600">Active</Badge>
+                          )}
+                        </div>
+                        <h3 className="font-medium leading-snug line-clamp-1 mb-0.5" style={{ color: "var(--ink)" }}>{listing.title}</h3>
+                        {listing.description && (
+                          <p className="text-xs line-clamp-2" style={{ color: "var(--ink-2)" }}>{listing.description}</p>
+                        )}
+                        {listing.price != null && (
+                          <p className="text-xs mt-1 font-medium" style={{ color: "hsl(var(--accent))" }}>
+                            {listing.listing_type === "donate" ? "Free" : `$${listing.price}`}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex flex-col gap-1 shrink-0">
+                        <Link to={`/stall/listing/${listing.listing_id}`} onClick={e => e.stopPropagation()}>
+                          <Button size="sm" variant="outline" className="h-7 text-xs rounded-lg w-full">
+                            <Eye className="h-3 w-3 mr-1" />View
+                          </Button>
+                        </Link>
+                        {listing.status !== "removed" && (
+                          <Button
+                            size="sm" variant="outline"
+                            className="h-7 text-xs rounded-lg border-red-500/30 text-red-500 hover:bg-red-500/10"
+                            onClick={() => removeStallListing(listing.listing_id)}
+                          >
+                            <Trash2 className="h-3 w-3 mr-1" />Remove
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>

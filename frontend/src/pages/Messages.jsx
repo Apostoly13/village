@@ -614,7 +614,7 @@ export default function Messages({ user }) {
           </Button>
         </div>
 
-        <div className="flex gap-4 h-[calc(100vh-200px)]">
+        <div className="flex gap-4 h-[calc(100dvh-200px)]">
 
           {/* ── Sidebar ─────────────────────────────────────────────────────── */}
           <div className={`${hasActiveChat ? "hidden lg:flex" : "flex"} flex-col w-full lg:w-72 shrink-0`}>

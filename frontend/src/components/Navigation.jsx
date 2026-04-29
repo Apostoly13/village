@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Wordmark } from "./Wordmark";
 import { useTheme } from "../useTheme";
@@ -32,6 +32,31 @@ export default function Navigation({ user }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const prevUnreadCountRef = useRef(null);
+
+  const showNewNotificationToast = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/notifications?limit=1`, { credentials: "include" });
+      if (!res.ok) return;
+      const [notif] = await res.json();
+      if (!notif || notif.is_read) return;
+      const MAP = {
+        reply:          { msg: "New reply to your post",      link: notif.link },
+        like:           { msg: "Someone liked your post",     link: null },
+        dm:             { msg: "New message",                 link: "/messages" },
+        friend_request: { msg: "New friend request",          link: "/friends" },
+        stall_enquiry:  { msg: "New enquiry on your listing", link: notif.link },
+      };
+      const entry = MAP[notif.type];
+      if (!entry) return;
+      const label = notif.title || entry.msg;
+      if (entry.link) {
+        toast(label, { action: { label: "View", onClick: () => navigate(entry.link) } });
+      } else {
+        toast(label);
+      }
+    } catch {}
+  };
 
   useEffect(() => {
     // Single polling loop: badge counts every 20s + heartbeat piggybacked every 6th tick (120s)
@@ -53,7 +78,12 @@ export default function Navigation({ user }) {
         }
         if (notifCountRes.ok) {
           const data = await notifCountRes.json();
-          setUnreadCount(data.count);
+          const newCount = data.count;
+          setUnreadCount(newCount);
+          if (prevUnreadCountRef.current !== null && newCount > prevUnreadCountRef.current) {
+            showNewNotificationToast();
+          }
+          prevUnreadCountRef.current = newCount;
         }
         if (msgRes.ok) {
           const data = await msgRes.json();
@@ -199,16 +229,40 @@ export default function Navigation({ user }) {
               { label: "Create Post",   href: "/create-post" },
               { label: "Saved Posts",   href: "/saved" },
             ]},
-            { Icon: Village,    label: "Communities", href: isFree ? "/plus" : "/forums?tab=communities", testId: "nav-communities", locked: isFree },
             { Icon: IconChat,   label: "Chat Rooms", href: "/chat",                          testId: "nav-chat",     subItems: [
               { label: "All Australia", href: "/chat" },
               { label: "Local Rooms",   href: "/chat?tab=local" },
               { label: "Live now",      href: "/chat?tab=live" },
             ]},
-            { Icon: IconCal,    label: "Events",    href: isFree ? "/plus" : "/events",     testId: "nav-events",   locked: isFree },
-            { Icon: Stall,      label: "Stall",     href: isFree ? "/plus" : "/stall",      testId: "nav-stall",    locked: isFree },
+            { Icon: Village,    label: "Communities", href: isFree ? "/plus" : "/forums?tab=communities", testId: "nav-communities", locked: isFree,
+              ...(!isFree ? { subItems: [
+                { label: "Browse Communities", href: "/forums?tab=communities" },
+                { label: "Create Community",   href: "/create-community" },
+              ]} : {}),
+            },
+            { Icon: IconCal,    label: "Events",    href: isFree ? "/plus" : "/events",     testId: "nav-events",   locked: isFree,
+              ...(!isFree ? { subItems: [
+                { label: "Browse Events", href: "/events" },
+                { label: "Create Event",  href: "/events?action=create" },
+                { label: "My RSVPs",      href: "/events?tab=rsvp" },
+              ]} : {}),
+            },
+            { Icon: Stall,      label: "Stall",     href: isFree ? "/plus" : "/stall",      testId: "nav-stall",    locked: isFree,
+              ...(!isFree ? { subItems: [
+                { label: "Browse Stall",    href: "/stall" },
+                { label: "Sell Something",  href: "/stall/new" },
+                { label: "My Listings",     href: "/stall?tab=my" },
+                { label: "Donation Groups", href: "/stall?tab=groups" },
+              ]} : {}),
+            },
             { Icon: IconMail,   label: "Messages",  href: isFree ? "/plus" : "/messages",   testId: "nav-messages", locked: isFree, badge: isFree ? 0 : unreadMessages },
-            { Icon: ParentChild, label: "Friends",  href: "/friends",                        testId: "nav-friends-link", badge: friendRequestCount },
+            { Icon: ParentChild, label: "Friends",  href: "/friends",                        testId: "nav-friends-link", badge: friendRequestCount,
+              subItems: [
+                { label: "My Friends",      href: "/friends" },
+                { label: "Friend Requests", href: "/friends?tab=requests", badge: friendRequestCount },
+                { label: "Sent Requests",   href: "/friends?tab=sent" },
+              ],
+            },
             { Icon: IconHeart,  label: "Saved",     href: "/saved",                         testId: "nav-saved" },
             ...(FEATURES.BLOG  ? [{ Icon: Quill,       label: "Blog",      href: "/blog",      testId: "nav-blog"  }] : []),
             ...(user?.role === "moderator" ? [{ Icon: IconShield, label: "Moderator",  href: "/moderator", testId: "nav-mod"   }] : []),
@@ -255,10 +309,18 @@ export default function Navigation({ user }) {
                       </button>
                     </DropdownMenuTrigger>
                   </div>
-                  <DropdownMenuContent side="right" align="start" className="w-44" style={{ background: "var(--paper-2)", border: "1px solid var(--line)" }}>
+                  <DropdownMenuContent side="right" align="start" className="w-48" style={{ background: "var(--paper-2)", border: "1px solid var(--line)" }}>
                     {item.subItems.map(sub => (
                       <DropdownMenuItem key={sub.href} asChild>
-                        <Link to={sub.href} className="cursor-pointer text-sm" style={{ color: "var(--ink)" }}>{sub.label}</Link>
+                        <Link to={sub.href} className="cursor-pointer text-sm flex items-center gap-2 w-full" style={{ color: "var(--ink)" }}>
+                          <span className="flex-1">{sub.label}</span>
+                          {sub.locked && <Lock className="h-3 w-3 opacity-40 shrink-0" />}
+                          {sub.badge > 0 && !sub.locked && (
+                            <span className="min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center px-1 font-medium shrink-0">
+                              {sub.badge > 9 ? "9+" : sub.badge}
+                            </span>
+                          )}
+                        </Link>
                       </DropdownMenuItem>
                     ))}
                   </DropdownMenuContent>

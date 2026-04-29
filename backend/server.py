@@ -1216,75 +1216,115 @@ async def login(user_data: UserLogin, response: Response, request: Request):
 
 @api_router.post("/auth/session")
 async def exchange_session(request: Request, response: Response):
-    """Exchange Google OAuth session_id for session data"""
+    """Verify a Google Identity Services credential (JWT) and create or update a user session."""
+    from google.oauth2 import id_token as google_id_token
+    from google.auth.transport import requests as google_requests
+
     body = await request.json()
-    session_id = body.get("session_id")
-    
-    if not session_id:
-        raise HTTPException(status_code=400, detail="session_id required")
-    
-    # TODO: Implement local Google OAuth session exchange
-    raise HTTPException(status_code=501, detail="Google OAuth not yet configured for local development")
-    
-    # Check if user exists, create if not
-    user = await db.users.find_one({"email": auth_data["email"]}, {"_id": 0})
-    
+    credential = body.get("credential")
+
+    if not credential:
+        raise HTTPException(status_code=400, detail="Google credential is required")
+
+    google_client_id = os.environ.get("GOOGLE_CLIENT_ID")
+    if not google_client_id:
+        raise HTTPException(status_code=500, detail="Google OAuth is not configured on the server")
+
+    # Verify the Google-signed JWT — raises ValueError if invalid/expired
+    try:
+        idinfo = google_id_token.verify_oauth2_token(
+            credential, google_requests.Request(), google_client_id
+        )
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Invalid or expired Google token")
+
+    email   = idinfo.get("email")
+    name    = idinfo.get("name") or (email.split("@")[0] if email else "Village Member")
+    picture = idinfo.get("picture")
+
+    if not email:
+        raise HTTPException(status_code=400, detail="Your Google account has no verified email address")
+
+    now = datetime.now(timezone.utc)
+
+    # Find existing user or create a new one
+    user = await db.users.find_one({"email": email}, {"_id": 0})
+
     if user:
-        user_id = user["user_id"]
-        # Update user info — Google-verified email is always trusted
+        # Returning user — refresh Google-provided fields
         await db.users.update_one(
-            {"user_id": user_id},
+            {"user_id": user["user_id"]},
             {"$set": {
-                "name": auth_data["name"],
-                "picture": auth_data.get("picture"),
+                "name": name,
+                "picture": picture,
                 "email_verified": True,
                 "email_verification_token": None,
             }}
         )
+        user = await db.users.find_one({"user_id": user["user_id"]}, {"_id": 0})
     else:
+        # New user — create with trial subscription (same as email registration)
         user_id = f"user_{uuid.uuid4().hex[:12]}"
         user = {
             "user_id": user_id,
-            "email": auth_data["email"],
-            "name": auth_data["name"],
-            "picture": auth_data.get("picture"),
-            "nickname": auth_data["name"],
+            "email": email,
+            "name": name,
+            "picture": picture,
+            "nickname": name,
             "bio": None,
             "parenting_stage": None,
             "child_age_ranges": [],
             "interests": [],
             "location": None,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "email_verified": True,         # Google vouches for this email
+            "suburb": None,
+            "state": None,
+            "gender": None,
+            "created_at": now.isoformat(),
+            "email_verified": True,             # Google vouches for this
             "email_verification_token": None,
+            "subscription_tier": "trial",
+            "trial_ends_at": (now + timedelta(days=7)).isoformat(),
+            "role": "user",
+            "onboarding_complete": False,
+            "is_banned": False,
         }
         await db.users.insert_one(user)
-    
-    # Store session
-    session_token = auth_data["session_token"]
-    await db.user_sessions.insert_one({
-        "user_id": user_id,
-        "session_token": session_token,
-        "expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat(),
-        "created_at": datetime.now(timezone.utc).isoformat()
-    })
-    
+
+    # Generate a JWT session token using the same mechanism as email login
+    token = create_jwt_token(user["user_id"])
+
     response.set_cookie(
         key="session_token",
-        value=session_token,
+        value=token,
         httponly=True,
         secure=COOKIE_SECURE,
         samesite=COOKIE_SAMESITE,
         path="/",
-        max_age=7 * 24 * 60 * 60
+        max_age=JWT_EXPIRATION_DAYS * 24 * 60 * 60
     )
-    
+
     return {
-        "user_id": user_id,
-        "email": auth_data["email"],
-        "name": auth_data["name"],
-        "picture": auth_data.get("picture"),
-        "session_token": session_token
+        "user_id": user["user_id"],
+        "email": email,
+        "name": name,
+        "picture": picture,
+        "token": token,
+        "nickname": user.get("nickname"),
+        "bio": user.get("bio"),
+        "parenting_stage": user.get("parenting_stage"),
+        "child_age_ranges": user.get("child_age_ranges", []),
+        "interests": user.get("interests", []),
+        "location": user.get("location"),
+        "role": user.get("role", "user"),
+        "subscription_tier": user.get("subscription_tier", "trial"),
+        "trial_ends_at": user.get("trial_ends_at"),
+        "is_banned": user.get("is_banned", False),
+        "state": user.get("state"),
+        "onboarding_complete": user.get("onboarding_complete", False),
+        "preferred_reach": user.get("preferred_reach"),
+        "is_single_parent": user.get("is_single_parent", False),
+        "gender": user.get("gender"),
+        "suburb": user.get("suburb"),
     }
 
 @api_router.get("/auth/me")
@@ -3508,6 +3548,9 @@ async def get_block_status(user_id: str, user: dict = Depends(get_current_user))
 @api_router.post("/reports")
 async def create_report(report_data: ReportCreate, user: dict = Depends(get_current_user)):
     """Report a post, reply, chat message, direct message, stall listing, or stall message"""
+    # Rate limit: 5 reports per 10 minutes per user
+    await _check_rate_limit(user["user_id"], "report", limit=5, window=600)
+
     # Verify content exists and resolve the reported user
     if report_data.content_type == "post":
         content = await db.forum_posts.find_one({"post_id": report_data.content_id})
@@ -5109,6 +5152,14 @@ async def admin_get_users(
     elif filter == "banned":
         query["is_banned"] = True
         query["auto_suspended"] = {"$ne": True}
+    elif filter and filter.startswith("tier:"):
+        query["subscription_tier"] = filter.split(":", 1)[1]
+    elif filter and filter.startswith("role:"):
+        role_val = filter.split(":", 1)[1]
+        if role_val == "professional":
+            query["verified_professional"] = True
+        else:
+            query["role"] = role_val
     skip = (page - 1) * limit
     users = await db.users.find(
         query,
@@ -5228,6 +5279,15 @@ async def admin_get_reports(
             content["_admin_anonymous"] = True  # UI hint: show as "Anonymous (admin view)"
         report["content"] = content
         report["reporter"] = reporters_map.get(report.get("reporter_id"))
+
+        # Generate a frontend URL to the reported content where possible
+        if ct == "post" and content:
+            report["content_url"] = f"/forums/post/{cid}"
+        elif ct == "reply" and content:
+            report["content_url"] = f"/forums/post/{content.get('post_id', '')}"
+        elif ct == "listing" and content:
+            report["content_url"] = f"/stall/listing/{cid}"
+        # chat_message, direct_message, stall_message cannot be linked directly
 
     total = await db.reports.count_documents(query)
     return {"reports": reports, "total": total, "page": page, "pages": math.ceil(total / limit) if total > 0 else 1}
@@ -5673,6 +5733,27 @@ async def reject_professional(user_id: str, admin: dict = Depends(get_admin_user
     })
     return {"message": "Application rejected"}
 
+@api_router.get("/admin/professionals")
+async def get_approved_professionals(
+    page: int = 1, limit: int = 20,
+    admin: dict = Depends(get_admin_user)
+):
+    """Get all approved (verified) professionals for admin review"""
+    query = {"verified_professional": True}
+    skip = (page - 1) * limit
+    pros = await db.users.find(
+        query,
+        {"_id": 0, "password_hash": 0, "reset_token": 0, "reset_token_expires": 0,
+         "stripe_customer_id": 0, "stripe_subscription_id": 0, "email_verification_token": 0}
+    ).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    total = await db.users.count_documents(query)
+    return {
+        "professionals": pros,
+        "total": total,
+        "page": page,
+        "pages": math.ceil(total / limit) if total > 0 else 1
+    }
+
 # ─── Admin: Revenue & Financials ──────────────────────────────────────────────
 
 @api_router.get("/admin/revenue")
@@ -6023,6 +6104,57 @@ async def admin_get_content_health(admin: dict = Depends(get_admin_user)):
         "total_likes": total_likes,
         "top_post_this_week": top_post,
     }
+
+# ─── Admin: Stall Moderation ──────────────────────────────────────────────────
+
+@api_router.get("/admin/stall/listings")
+async def admin_browse_stall_listings(
+    search: Optional[str] = None,
+    status: Optional[str] = None,
+    limit: int = 30,
+    skip: int = 0,
+    admin: dict = Depends(get_admin_user),
+):
+    """Browse all Stall listings for moderation — not filtered to active only."""
+    query: dict = {}
+    if status:
+        query["status"] = status
+    if search and len(search.strip()) >= 2:
+        sq = search.strip()
+        query["$or"] = [
+            {"title": {"$regex": re.escape(sq), "$options": "i"}},
+            {"description": {"$regex": re.escape(sq), "$options": "i"}},
+        ]
+    listings, total = await asyncio.gather(
+        db.stall_listings.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit),
+        db.stall_listings.count_documents(query),
+    )
+    return {"listings": [_strip_listing_coords(d) for d in listings], "total": total, "limit": limit, "skip": skip}
+
+
+@api_router.post("/admin/stall/listings/{listing_id}/remove")
+async def admin_remove_stall_listing(listing_id: str, admin: dict = Depends(get_admin_user)):
+    """Remove a Stall listing — sets status to removed and notifies the seller."""
+    listing = await db.stall_listings.find_one({"listing_id": listing_id})
+    if not listing:
+        raise HTTPException(status_code=404, detail="Listing not found")
+    await db.stall_listings.update_one(
+        {"listing_id": listing_id},
+        {"$set": {"status": "removed", "removed_reason": "Community guidelines violation"}}
+    )
+    seller_id = listing.get("seller_id")
+    if seller_id:
+        await db.notifications.insert_one({
+            "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+            "user_id": seller_id,
+            "type": "moderation",
+            "title": "Listing Removed",
+            "message": "Your Stall listing was removed by a moderator for violating community guidelines.",
+            "link": "/community-guidelines",
+            "is_read": False,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        })
+    return {"message": "Listing removed"}
 
 # ─────────────────────────────────────────────────────────────────────────────
 

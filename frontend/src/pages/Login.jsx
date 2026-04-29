@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -9,6 +9,7 @@ import { parseApiError } from "../utils/apiError";
 import { Wordmark } from "../components/Wordmark";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
+const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
 export default function Login() {
   const navigate = useNavigate();
@@ -16,6 +17,8 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const googleReady = useRef(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -45,8 +48,54 @@ export default function Login() {
     }
   };
 
+  useEffect(() => {
+    const initGoogle = () => {
+      if (googleReady.current || !window.google?.accounts?.id || !GOOGLE_CLIENT_ID) return;
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        auto_select: false,
+        callback: async ({ credential }) => {
+          setGoogleLoading(true);
+          try {
+            const res = await fetch(`${API_URL}/api/auth/session`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({ credential }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+              localStorage.setItem("user", JSON.stringify(data));
+              toast.success("Welcome back!");
+              navigate(data.onboarding_complete ? "/dashboard" : "/onboarding");
+            } else {
+              toast.error(data.detail || "Google sign-in failed. Please try again.");
+            }
+          } catch {
+            toast.error("Something went wrong. Please try again.");
+          } finally {
+            setGoogleLoading(false);
+          }
+        },
+      });
+      googleReady.current = true;
+    };
+    initGoogle();
+    const script = document.querySelector('script[src*="accounts.google.com/gsi/client"]');
+    script?.addEventListener("load", initGoogle);
+    return () => script?.removeEventListener("load", initGoogle);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleGoogleLogin = () => {
-    toast.error("Google login is not yet configured for local development");
+    if (!googleReady.current || !window.google?.accounts?.id) {
+      toast.error("Google sign-in is loading — please try again in a moment.");
+      return;
+    }
+    window.google.accounts.id.prompt((notification) => {
+      if (notification.isNotDisplayed()) {
+        toast.error("Google sign-in couldn't open. Try disabling any pop-up blockers.");
+      }
+    });
   };
 
   const handleFacebookLogin = () => {
@@ -132,6 +181,7 @@ export default function Login() {
               className="w-full rounded-full border-[var(--line)] hover:bg-[var(--paper)]"
               style={{ height: 44, color: "var(--ink)", background: "var(--paper)" }}
               onClick={handleGoogleLogin}
+              disabled={googleLoading}
               data-testid="google-login-btn"
             >
               <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
@@ -140,7 +190,7 @@ export default function Login() {
                 <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
               </svg>
-              Continue with Google
+              {googleLoading ? "Signing in…" : "Continue with Google"}
             </Button>
             <Button
               type="button"

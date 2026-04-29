@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
@@ -1089,6 +1089,7 @@ function EventDetailModal({ event, user, onClose, onRsvp, onUpdated }) {
 
 export default function Events({ user }) {
   const isFree = user?.subscription_tier === "free";
+  const [searchParams] = useSearchParams();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("all");
@@ -1099,6 +1100,13 @@ export default function Events({ user }) {
   const [selectedEvent, setSelectedEvent] = useState(null);
   // Client-side time filter (server handles category/state/distance)
   const [timeFilter, setTimeFilter] = useState("all");
+
+  // Handle nav deep-links: ?action=create opens the create dialog,
+  // ?tab=rsvp shows only events the user is going to
+  useEffect(() => {
+    if (searchParams.get("action") === "create" && !isFree) setDialogOpen(true);
+    if (searchParams.get("tab") === "rsvp") setTimeFilter("going");
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     fetchEvents();

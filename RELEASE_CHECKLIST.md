@@ -40,10 +40,10 @@ Living document. Check items off as they are implemented. Reviewed before each r
 - [x] Startup env var validation — logs missing Stripe/secret keys ✅ *implemented this session*
 - [x] Password reset token index ✅ *confirmed present*
 - [x] Block check on direct post URL access ✅ *implemented this session*
-- [ ] Content moderation for The Village Stall — moderator can see and action reported listings
-- [ ] Mobile responsiveness audit — test all core flows on iOS Safari and Android Chrome
-- [ ] Rate limiting on report submission endpoint (prevent report flooding)
-- [ ] Terms of Service and Privacy Policy pages linked from onboarding
+- [x] Content moderation for The Village Stall — Stall Listings tab in Moderator Dashboard; admin browse + remove endpoints ✅ *implemented this session*
+- [x] Rate limiting on report submission endpoint (5 reports per 10 min) ✅ *implemented this session*
+- [x] Mobile responsiveness audit — Messages chat area fixed for iOS keyboard (100dvh); core pages use responsive Tailwind breakpoints; bottom nav confirmed compliant ✅ *audited this session*
+- [ ] Terms of Service and Privacy Policy pages linked from onboarding — *parked (not yet reviewed by legal)*
 
 ### Should have before closed beta exits
 
@@ -88,7 +88,7 @@ Living document. Check items off as they are implemented. Reviewed before each r
 - [x] Report on Stall messages ✅ *implemented this session*
 - [x] Location privacy — lat/lon stripped from API responses ✅ *implemented this session*
 - [x] Content length validation on listing fields ✅ *implemented this session*
-- [ ] Listing moderation visible in admin/moderator dashboard
+- [x] Listing moderation visible in admin/moderator dashboard ✅ *implemented this session*
 - [ ] Stall access model confirmed — Village+ to create and message; free to browse
 - [ ] Postage available flag works correctly
 

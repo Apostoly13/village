@@ -1,9 +1,51 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import Navigation from "../components/Navigation";
-import { ArrowLeft, ScrollText } from "lucide-react";
+import { ArrowLeft, ScrollText, Search, X } from "lucide-react";
 import AppFooter from "../components/AppFooter";
 
+// ── Full technical changelog (admin-only view) ────────────────────────────────
 const CHANGELOG = [
+  {
+    version: "3.16.0",
+    date: "April 2026",
+    title: "Google OAuth, Nav Dropdown Fixes & Changelog Overhaul",
+    entries: [
+      { tag: "Added",    text: "Google Sign-In — 'Continue with Google' on Login and Register now works end-to-end. Frontend uses Google Identity Services (GIS) to obtain a credential token; backend verifies it with google.oauth2.id_token.verify_oauth2_token(), then creates or updates the user and issues a JWT session cookie. New Google users receive the standard 7-day trial." },
+      { tag: "Added",    text: "GOOGLE_CLIENT_ID env var added to backend .env and .env.example. REACT_APP_GOOGLE_CLIENT_ID added to frontend .env. Google Identity Services script loaded via index.html async defer." },
+      { tag: "Fixed",    text: "All nav dropdown sub-item hrefs now navigate to real destinations — Events ?action=create opens the create dialog on load, Events ?tab=rsvp activates the Going filter, Friends ?tab=requests and ?tab=sent open the correct tab via URL param, Stall ?tab=mine corrected to ?tab=my." },
+      { tag: "Improved", text: "What's New page now shows two different views: admins see the full technical changelog with a live search bar and tag filter pills (All, Added, Fixed, Security, Design, etc.); all other users see a curated plain-English release history with no implementation detail." },
+      { tag: "Improved", text: "TAG_STYLES expanded — Security, Performance, Architecture, Confirmed, Legal, Updated, Redesign all now have distinct colour chips in the admin changelog view." },
+    ],
+  },
+  {
+    version: "3.15.0",
+    date: "April 2026",
+    title: "Admin & Mod Portal Overhaul, Navigation Restructure, Contextual Notifications",
+    entries: [
+      { tag: "Improved", text: "Admin Portal — tab bar now sectioned into Insights (read-only analytics: Overview, Engagement, Leaderboards, Revenue, Content) and Actions (Users, Moderation, Communities, Professionals, Announcements, Blog). Clearer at a glance what is information vs what causes consequences." },
+      { tag: "Improved", text: "Admin Users tab — filter bar expanded from 3 to 9 options: All, Free, Trial, Village+, Moderators, Admins, Professionals, Auto-suspended, Banned." },
+      { tag: "Added",    text: "Admin Professionals tab — new Approved sub-tab lists all verified clinicians with their type badge, workplace, a Credentials link (to their submitted URL), and a Profile link. Pending applications are unchanged." },
+      { tag: "Improved", text: "Moderator Dashboard — tabs sectioned into Information (Unanswered posts) and Actions (Reports, Browse Posts, Stall, Professionals). Dashboard now lands on Unanswered so moderators see what needs attention first." },
+      { tag: "Improved", text: "Navigation — Communities is now a standalone sidebar item between Chat Rooms and Events, with its own dropdown (Browse, Create). Events, Stall, Friends all have working sub-item dropdowns." },
+      { tag: "Added",    text: "Navigation dropdowns for Events (Browse, Create Event, My RSVPs), Stall (Browse, Sell Something, My Listings, Donation Groups), Friends (My Friends, Friend Requests with badge, Sent Requests), and Communities (Browse, Create)." },
+      { tag: "Fixed",    text: "All nav dropdown hrefs now point to real routes. Stall ?tab=mine corrected to ?tab=my. Events ?action=create and ?tab=rsvp now handled by Events page. Friends ?tab=requests and ?tab=sent now handled by Friends page." },
+      { tag: "Added",    text: "Contextual toast notifications — when new notifications arrive, a toast shows what it's about (new reply, new message, friend request, stall enquiry) with a View action that navigates directly to the relevant page." },
+    ],
+  },
+  {
+    version: "3.14.0",
+    date: "April 2026",
+    title: "Stage 1 Closed Beta — Moderation & Mobile Readiness",
+    entries: [
+      { tag: "Added",    text: "Stall Listings tab in Moderator Dashboard — moderators can now browse all listings (including removed ones), search by keyword, view any listing, and remove it with one click. Removed listings notify the seller." },
+      { tag: "Added",    text: "Admin browse endpoint for Stall — GET /admin/stall/listings returns all listings regardless of status, for moderator review only." },
+      { tag: "Added",    text: "Admin remove endpoint for Stall — POST /admin/stall/listings/:id/remove lets admins and moderators remove a listing directly, with seller notification." },
+      { tag: "Improved", text: "Report queue — 'View reported content' link now appears for forum posts, replies, and Stall listings. Link navigates directly to the content so moderators can review in context before acting." },
+      { tag: "Improved", text: "Rate limit added to report submission — users can submit at most 5 reports per 10 minutes, preventing report flooding and auto-ban abuse." },
+      { tag: "Fixed",    text: "Messages chat area now uses dynamic viewport height (100dvh) — on iOS Safari, the composer input is no longer hidden behind the keyboard when typing." },
+    ],
+  },
   {
     version: "3.13.0",
     date: "April 2026",
@@ -190,7 +232,7 @@ const CHANGELOG = [
       { tag: "Design",   text: "Login and Register pages: warm split-screen layout — 40% left panel with watercolour blob SVG, Wordmark, and italic testimonial quote; 60% right panel form on paper-2 background. All inputs 44px height with var(--line) borders." },
       { tag: "Design",   text: "Landing page: paper-cream hero with noise overlay, Fraunces heading with italic accent on 'your village', single dark-ink CTA, custom icon feature cards on paper-2, proverb block in serif italic, dark-ink footer with inverted Wordmark." },
       { tag: "Design",   text: "Dashboard greeting: mono eyebrow (weekday · time in 10px uppercase), serif h1 with italic accent on first name, replacing old gradient card header." },
-      { tag: "Design",   text: "Events page header: 'What\u2019s on · near you.' with serif italic accent." },
+      { tag: "Design",   text: "Events page header: 'What's on · near you.' with serif italic accent." },
       { tag: "Design",   text: "CSS cascade fix: html[data-theme='day/night'] selector specificity raised to (0,1,1) — prevents any .dark class or :root block from overriding the warm palette. All colour tokens moved exclusively to theme.css." },
       { tag: "Fixed",    text: "index.js import order fixed: theme.css loaded before index.css so design tokens are always available on first paint." },
       { tag: "Fixed",    text: "index.css stripped of all colour token definitions (:root colour block and .dark block removed) — eliminates warm/cold palette conflict in dark mode." },
@@ -287,7 +329,7 @@ const CHANGELOG = [
       { tag: "Fixed",     text: "Registration checkbox click area — replaced broken custom implementation (sr-only input + separate onClick div with misaligned hit areas) with shadcn Checkbox + htmlFor label. Links inside label use stopPropagation so clicking them opens the doc without toggling the checkbox." },
       { tag: "Fixed",     text: "Gender filtering — Mum Space/Chat now only visible to users with gender=female; Dad Space/Chat only visible to gender=male. Users who select 'Prefer not to say', 'Other', or have not disclosed gender see neither. Applies to Forums (featured cards + applyGenderFilter), ChatRooms (featured cards + grid filter), and Dashboard (room list)." },
       { tag: "Fixed",     text: "Landing page demo content was showing Mum Chat and Dad Chat to all visitors before sign-up. Replaced with gender-neutral rooms (Mental Health, Sleep & Settling) and neutral events (Parents Coffee Morning, Toddler Playgroup)." },
-      { tag: "Improved",  text: "Gender change in Profile Settings now instantly unlocks Mum/Dad spaces and chats across the platform without page reload. Profile dispatches a village:profileUpdated CustomEvent; ChatRooms, Forums, and Dashboard listen for it and update liveGender state immediately — no re-login, no refresh required." },
+      { tag: "Improved",  text: "Gender change in Profile Settings now instantly unlocks Mum/Dad spaces and chats across the platform without page reload." },
       { tag: "Improved",  text: "Anonymous posting description updated to accurate legal framing — 'Your name and avatar are hidden from other members. Anonymous posts are not linked to your account by design.' (removed 'truly anonymous' claim)." },
       { tag: "Improved",  text: "Event creation form now shows a safety notice — 'For in-person meetups, always meet in a public place and trust your instincts.' Event detail modal shows the notice when the event has a physical venue." },
       { tag: "Improved",  text: "Settings page now has a Legal section — direct links to Terms, Privacy Policy, and Community Guidelines, plus an account deletion reminder with 30-day data removal notice." },
@@ -299,7 +341,7 @@ const CHANGELOG = [
     date: "April 2026",
     title: "Design System, Security Hardening & Platform-Wide Polish",
     entries: [
-      { tag: "Design",   text: "CSS design tokens added to index.css — typography scale (--text-xs through --text-4xl), spacing scale (--space-1 through --space-12), border radius scale, and animation duration variables. All body/heading font references now use token variables." },
+      { tag: "Design",   text: "CSS design tokens added to index.css — typography scale (--text-xs through --text-4xl), spacing scale (--space-1 through --space-12), border radius scale, and animation duration variables." },
       { tag: "Improved", text: "Profile edit form on mobile now collapses into accordion sections (About You, Parenting Stage, Location, Preferences, Interests, Notifications, Appearance) — no more endless scroll on small screens." },
       { tag: "Improved", text: "Locked nav items (Events, Messages for free users) now show a tooltip on hover — 'Village+ feature — upgrade to unlock' — with a link to the upgrade page." },
       { tag: "Improved", text: "Error toasts on Events, Community posts, and Messages conversations now include a Retry button that re-runs the failed fetch." },
@@ -308,45 +350,9 @@ const CHANGELOG = [
       { tag: "Security", text: "In-memory rate limiter added (no external deps) — login limited to 10 requests/min per IP, search endpoints to 30 requests/min per IP. Returns HTTP 429 with friendly message." },
       { tag: "Security", text: "CORS configuration tightened — explicit method whitelist (GET/POST/PUT/PATCH/DELETE/OPTIONS) and header whitelist instead of allow_methods='*' / allow_headers='*'. Preflight cache set to 10 minutes." },
       { tag: "Improved", text: "All email notification links now use FRONTEND_URL env var instead of hardcoded 'http://localhost:3000' — set FRONTEND_URL=https://app.ourlittlevillage.com.au in production .env." },
-      { tag: "Performance", text: "Admin reports endpoint N+1 eliminated — reporter and content now fetched in batch queries (one query each for posts, replies, reporters) instead of one DB call per report." },
+      { tag: "Performance", text: "Admin reports endpoint N+1 eliminated — reporter and content now fetched in batch queries instead of one DB call per report." },
       { tag: "Performance", text: "Location-based post filtering now uses a lat/lon bounding box pre-filter in MongoDB before Haversine exact check — reduces documents loaded from up to 500 to only those within the geographic window." },
-      { tag: "Improved", text: "Pagination parameters on /forums/posts and /feed now validated with Query(ge=1, le=100) — prevents clients requesting unlimited results in a single call." },
-      { tag: "Improved", text: "Anonymous post masking extracted to reusable mask_anonymous_post() helper — replaced 7 identical 3-line blocks across the codebase." },
-      { tag: "Improved", text: "Background email tasks now use fire_and_forget() wrapper with done-callback error logging — exceptions no longer swallowed silently, appear in server logs as ERROR entries." },
       { tag: "Architecture", text: "services/ package created in backend — geo.py (calculate_distance, bounding_box, geocode_address), rate_limiter.py, and tasks.py (fire_and_forget) extracted as reusable modules." },
-    ],
-  },
-  {
-    version: "2.8.3",
-    date: "April 2026",
-    title: "Scroll Fix — Messages No Longer Hijacks the Page",
-    entries: [
-      { tag: "Fixed", text: "Messages page and chat popout were scrolling the entire browser page to the bottom when new messages arrived. Switched from scrollIntoView() (which bubbles up to the page) to direct scrollTop assignment on the messages container — only the chat scrolls now." },
-    ],
-  },
-  {
-    version: "2.8.2",
-    date: "April 2026",
-    title: "Infrastructure Tuning, Seed Data & Test Suite",
-    entries: [
-      { tag: "Improved", text: "MongoDB connection pool tuned — maxPoolSize 50, minPoolSize 5, idle timeout 30s, connect timeout 5s. Reduces latency spikes under concurrent load on the hosted DB." },
-      { tag: "Improved", text: "uvicorn now runs with 4 workers and uvloop event loop on Railway — meaningfully higher throughput for concurrent API requests" },
-      { tag: "Added",    text: "Seed endpoint now seeds 4 sample events (Morning Playgroup, Mums Coffee Morning, Dad & Toddler Catch-up, Online Q&A Webinar) and 3 communities (Bondi Beach Mums, Sydney Dads Network, NICU & Premmie Parents) if collections are empty" },
-      { tag: "Fixed",    text: "Events modal had two close buttons — shadcn DialogContent auto-renders its own X plus the header had a custom one. Suppressed the shadcn auto-X via [&>button]:hidden." },
-      { tag: "Improved", text: "Comprehensive test suite now accepts --url flag so it can run against any environment: python test_comprehensive.py --url https://backend.railway.app/api" },
-      { tag: "Improved", text: "Test suite events and communities creation now uses the premium user session — avoids false 403 failures from tier-gating in those sections" },
-      { tag: "Added",    text: "MongoDB indexes added for notifications and direct_messages collections — (user_id, is_read), (user_id, created_at), (receiver_id, sender_id, created_at) — dramatically faster queries on hosted DB" },
-    ],
-  },
-  {
-    version: "2.8.1",
-    date: "April 2026",
-    title: "Backend Fixes & Live Online Count",
-    entries: [
-      { tag: "Fixed",   text: "verified_partner role now accepted by admin endpoint — admins can assign clinician badge to healthcare professionals" },
-      { tag: "Fixed",   text: "GET /users/blocked returning 404 — route was shadowed by the wildcard /users/{user_id} pattern. Moved to correct position." },
-      { tag: "Added",   text: "GET /stats/online — new public endpoint returning live online_now count (users active in last 5 min) and active_rooms (rooms with messages in last hour)" },
-      { tag: "Improved", text: "Landing page hero badge now shows live count — '12 Australian parents online right now'. Refreshes every 60s. Shows 0 if empty, falls back to static label if API unreachable." },
     ],
   },
   {
@@ -354,14 +360,11 @@ const CHANGELOG = [
     date: "April 2026",
     title: "Homepage Redesign, Scroll Fixes & Clinician Page",
     entries: [
-      { tag: "Redesign",  text: "Landing page rebuilt end-to-end — new hero headline focused on Australian mums in need, crisis support band (PANDA/Lifeline/Beyond Blue) above the fold, 9-feature grid, Verified Partner section, Village+ pricing comparison, For Clinicians strip, Privacy TL;DR cards, and updated footer with Made in Australia" },
-      { tag: "Added",     text: "Crisis resources band on landing page — PANDA 1300 726 306, Lifeline 13 11 14, Beyond Blue 1300 22 4636 with tap-to-call links, visible before logging in" },
-      { tag: "Added",     text: "Village+ pricing section on landing page — transparent free vs. Village+ comparison with feature checklist" },
-      { tag: "Added",     text: "Verified Partners section on landing page — badge explainer, midwife image, link to /for-clinicians" },
-      { tag: "Improved",  text: "/for-clinicians page now has its own standalone public nav and footer — no longer loads the internal app navigation when accessed pre-login" },
+      { tag: "Redesign",  text: "Landing page rebuilt — new hero headline, crisis support band (PANDA/Lifeline/Beyond Blue) above the fold, 9-feature grid, Verified Partner section, Village+ pricing comparison, For Clinicians strip, Privacy TL;DR cards, and updated footer." },
+      { tag: "Added",     text: "Crisis resources band on landing page — PANDA 1300 726 306, Lifeline 13 11 14, Beyond Blue 1300 22 4636 with tap-to-call links, visible before logging in." },
+      { tag: "Added",     text: "Village+ pricing section on landing page — transparent free vs. Village+ comparison with feature checklist." },
       { tag: "Fixed",     text: "Chat popout auto-scroll to bottom — was scrolling to bottom on every 5s poll even when user had scrolled up to read history. Now respects scroll position." },
-      { tag: "Fixed",     text: "Messages page auto-scroll — swapped non-standard behavior: instant for behavior: auto so conversation-switch jump works correctly across all browsers" },
-      { tag: "Added",     text: "For Clinicians link in landing page nav (desktop) and both hero CTAs" },
+      { tag: "Fixed",     text: "Messages page auto-scroll — swapped non-standard behavior: instant for behavior: auto so conversation-switch jump works correctly across all browsers." },
     ],
   },
   {
@@ -369,22 +372,12 @@ const CHANGELOG = [
     date: "April 2026",
     title: "Simplified UX, PWA, Health-Sector Readiness & Dashboard Modes",
     entries: [
-      { tag: "Design",   text: "Dashboard now has three intent-driven modes — 💙 I need help, 🏘️ Browse, 🔔 Catch up — so the first thing you see matches why you opened the app" },
-      { tag: "Improved", text: "Browse mode right rail trimmed to 3 focused widgets (Activity, Live now, Spaces for you) — the rest is in Catch up where it belongs" },
-      { tag: "Changed",  text: "Dashboard always opens on Browse on every visit — no more remembering your last mode" },
-      { tag: "Changed",  text: "New posts now default to Anonymous — you choose to attach your name, not the other way around" },
-      { tag: "Changed",  text: "\"Support Spaces\" renamed to \"Spaces\" everywhere, \"Chat Spaces\" renamed to \"Group Chats\", Friend Chats + Private Messages unified into one Direct Messages list" },
-      { tag: "Added",    text: "PWA support — install The Village to your home screen on any device. iOS: Tap Share → Add to Home Screen. Android/Chrome: tap Install when prompted" },
-      { tag: "Added",    text: "\"Add to Home Screen\" nudge appears after your second visit on supported browsers" },
-      { tag: "Added",    text: "Group Chats shortcut on the Spaces page for mobile users" },
-      { tag: "Added",    text: "Mobile bottom nav redesigned with labels and a Me tab — Home, Spaces, Events, Messages, Me" },
-      { tag: "Improved", text: "Onboarding rebuilt as 5 focused steps: Welcome → About You → Location → What brings you here? → You're in! Interests are now auto-set from your parenting stage" },
-      { tag: "Added",    text: "\"What brings you here?\" step in onboarding routes you directly to the right part of the app — vent, ask a question, or just browse" },
-      { tag: "Added",    text: "Crisis support banner in mental health Spaces — PANDA, Lifeline, and Beyond Blue numbers surface automatically with tap-to-call links" },
-      { tag: "Added",    text: "Verified Partner badge — healthcare professionals (midwives, GPs, psychologists) can receive a verified badge shown on their posts and profile" },
-      { tag: "Added",    text: "/for-clinicians page — referral resource for healthcare professionals to recommend The Village to patients" },
-      { tag: "Added",    text: "Privacy Policy now has a plain-language TL;DR card — six bullet points covering what actually matters, before the legal detail" },
-      { tag: "Added",    text: "\"For Clinicians\" link in the app footer" },
+      { tag: "Design",   text: "Dashboard now has three intent-driven modes — I need help, Browse, Catch up — so the first thing you see matches why you opened the app." },
+      { tag: "Added",    text: "PWA support — install The Village to your home screen on any device. iOS: Tap Share → Add to Home Screen. Android/Chrome: tap Install when prompted." },
+      { tag: "Added",    text: "Mobile bottom nav redesigned with labels and a Me tab — Home, Spaces, Events, Messages, Me." },
+      { tag: "Improved", text: "Onboarding rebuilt as 5 focused steps: Welcome → About You → Location → What brings you here? → You're in! Interests are now auto-set from your parenting stage." },
+      { tag: "Added",    text: "Crisis support banner in mental health Spaces — PANDA, Lifeline, and Beyond Blue numbers surface automatically with tap-to-call links." },
+      { tag: "Added",    text: "Verified Partner badge — healthcare professionals (midwives, GPs, psychologists) can receive a verified badge shown on their posts and profile." },
     ],
   },
   {
@@ -392,32 +385,10 @@ const CHANGELOG = [
     date: "April 2026",
     title: "Village+ Tiers, Feature Gates & Onboarding Polish",
     entries: [
-      { tag: "Changed", text: "Free tier limits updated — 5 support space posts per week, 5 replies per week, 10 chat messages per day (previously mixed daily/monthly caps)" },
-      { tag: "Changed", text: "Events are now a Village+ feature — free users see a clear upgrade path from the dashboard and nav. Trial users retain full access during their 7 days" },
-      { tag: "Changed", text: "Direct messages are now Village+ only — free users see the upgrade prompt in the chat popout and Messages nav item" },
-      { tag: "Changed", text: "Community Spaces are now Village+ only — free users see a consistent upgrade tile on the dashboard" },
-      { tag: "Added", text: "Trial countdown on the dashboard now changes day-by-day at midnight rather than anchoring to the hour of sign-up" },
-      { tag: "Added", text: "One-time downgrade notice — on first login after your trial expires, a card explains exactly what you've retained and what's now locked, with an upgrade option" },
-      { tag: "Added", text: "Lock indicators on nav items (Events, Messages) for free users — small lock icon so it's clear before clicking" },
-      { tag: "Added", text: "\"Twins or more\" option added to both the main parenting stage selector and the mixed age sub-selection in onboarding" },
-      { tag: "Improved", text: "Support Spaces tour icon replaced with The Village logo; Chat Spaces icon updated to a chat bubble — more accurate and on-brand" },
-      { tag: "Fixed", text: "\"Start exploring\" at the end of onboarding now correctly navigates to the dashboard instead of looping back to step 1" },
-      { tag: "Fixed", text: "Password requirements (8+ characters, uppercase, number) now enforced at registration with live visual feedback" },
-      { tag: "Improved", text: "Village+ page updated with accurate tier descriptions, weekly limits, and Coming Soon marker on Buy & Swap" },
-    ],
-  },
-  {
-    version: "2.5.0",
-    date: "April 2026",
-    title: "Visual Redesign & UX Polish",
-    entries: [
-      { tag: "Design", text: "Chat bubbles fully rounded on all sides across Chat Spaces, Messages, and the chat popout — cleaner and more modern" },
-      { tag: "Design", text: "Mobile bottom navigation simplified to icon-only with an active-tab pill indicator — less visual noise, more thumb space" },
-      { tag: "Design", text: "Threaded replies in Support Spaces now use a warm sage left border and subtle tint — easier to follow conversations at a glance" },
-      { tag: "Design", text: "Feature cards on the landing page have a subtle radial gradient accent for depth" },
-      { tag: "Design", text: "Support Spaces page narrowed to a focused reading width — long posts are easier to read" },
-      { tag: "Improved", text: "Reply box in Support Spaces now auto-expands as you type — no more text spilling outside the input" },
-      { tag: "Fixed", text: "Messages page bubble colours now consistent with Chat Spaces" },
+      { tag: "Changed", text: "Events, Direct Messages, and Community Spaces are now Village+ features — free users see a clear upgrade path from the dashboard and nav. Trial users retain full access during their 7 days." },
+      { tag: "Added",   text: "Trial countdown on the dashboard now changes day-by-day at midnight rather than anchoring to the hour of sign-up." },
+      { tag: "Added",   text: "One-time downgrade notice — on first login after your trial expires, a card explains exactly what you've retained and what's now locked, with an upgrade option." },
+      { tag: "Added",   text: "Lock indicators on nav items (Events, Messages) for free users — small lock icon so it's clear before clicking." },
     ],
   },
   {
@@ -425,38 +396,11 @@ const CHANGELOG = [
     date: "April 2026",
     title: "Mum & Dad Circles, Chat Overhaul, Dark Mode & Private Posts",
     entries: [
-      { tag: "Added", text: "Mum Circle — a dedicated Support Space for mums, featured prominently in both Chat Spaces and Support Spaces" },
-      { tag: "Added", text: "Dad Circle — a dedicated space for dads alongside Mum Circle, both featured at the top of Village Circles" },
-      { tag: "Added", text: "Village Circles tab — browse all themed, national chat circles (Mum, Dad, 3am Club, mental health, and more) from one place" },
-      { tag: "Added", text: "Local Spaces tab — search integrated directly into your local area; no separate search needed" },
-      { tag: "Added", text: "3am Club auto-featured — the 3am Club card moves to the top of Village Circles automatically between 10pm and 4am AEST" },
-      { tag: "Added", text: "Private posts — choose 'Only me' when posting to save a private draft. Edit and change visibility before sharing with the community" },
-      { tag: "Added", text: "Messages page — full-screen private chat with friends, unified with the chat popout system. Same rooms, same history" },
-      { tag: "Added", text: "Terms & Conditions, Privacy Policy, Community Guidelines, Contact, and Suggestions pages — accessible from the profile menu and app footer" },
-      { tag: "Added", text: "App footer — quick links to Terms, Privacy, Community Guidelines, Contact, and Suggestions on all informational pages" },
-      { tag: "Changed", text: "Dark mode is now the default for new users — The Village looks great at night, and most parents are up at night" },
-      { tag: "Changed", text: "'Buy & Swap' removed from interests — replaced with 'Mum Talk' in onboarding and profile settings" },
-      { tag: "Improved", text: "Onboarding no longer loses focus when typing your name or suburb — a persistent bug is now fixed" },
-      { tag: "Improved", text: "Suburb search in onboarding now uses a dropdown with real Australian locations — no more free-text guessing" },
-      { tag: "Improved", text: "Returning users resume onboarding from where they left off rather than starting from scratch" },
-      { tag: "Improved", text: "Homepage feed capped at 7 posts for a less overwhelming first view" },
-    ],
-  },
-  {
-    version: "2.3.0",
-    date: "April 2026",
-    title: "Events Overhaul, Homepage Near You & Blog Submissions",
-    entries: [
-      { tag: "Added", text: "Venue search in events — find parks, cafés, libraries, community centres via address autocomplete (powered by OpenStreetMap)" },
-      { tag: "Added", text: "Homepage 'Near You' now shows upcoming local events and suburb chat circles instead of user profiles" },
-      { tag: "Added", text: "Saved Resources hub shortcut added to homepage quick links (desktop and mobile)" },
-      { tag: "Added", text: "Anyone can now submit blog articles — moderators and admins approve before publishing" },
-      { tag: "Added", text: "Blog moderation queue in Admin dashboard — approve or reject submissions with one tap" },
-      { tag: "Added", text: "Post visibility — choose who sees your post: Everyone, Friends only, or This circle only" },
-      { tag: "Added", text: "Private events — mark events as private, only visible to the organiser until invites are sent" },
-      { tag: "Added", text: "Distance filter on Events page — filter by 5km, 10km, 25km or 50km from your suburb" },
-      { tag: "Improved", text: "Event date and time pickers now work correctly in dark mode" },
-      { tag: "Removed", text: "Removed 'Single Parents in The Village' section from homepage — it was surfacing user profiles without consent" },
+      { tag: "Added", text: "Mum Circle and Dad Circle — dedicated spaces for mums and dads, featured prominently at the top of Village Circles." },
+      { tag: "Added", text: "Private posts — choose 'Only me' when posting to save a private draft. Edit and change visibility before sharing with the community." },
+      { tag: "Added", text: "Messages page — full-screen private chat with friends, unified with the chat popout system." },
+      { tag: "Added", text: "Terms & Conditions, Privacy Policy, Community Guidelines, Contact, and Suggestions pages." },
+      { tag: "Changed", text: "Dark mode is now the default for new users." },
     ],
   },
   {
@@ -464,23 +408,10 @@ const CHANGELOG = [
     date: "April 2026",
     title: "Events & Saved Resources",
     entries: [
-      { tag: "Added", text: "Events page — browse and create local meetups, playgroups, workshops and support events near you" },
-      { tag: "Added", text: "RSVP to events with one tap — see who's going and how many spots are left" },
-      { tag: "Added", text: "Add to Calendar — download any event as an .ics file for Apple Calendar, Google Calendar, or Outlook" },
-      { tag: "Added", text: "Saved Resources hub — one place for your saved posts, chat messages, and RSVPd events" },
-      { tag: "Added", text: "Save chat messages — tap the bookmark icon on any chat message to save it for later" },
-      { tag: "Changed", text: "Bookmarks renamed to Saved — old bookmarks link redirects automatically" },
-    ],
-  },
-  {
-    version: "2.1.0",
-    date: "April 2026",
-    title: "Onboarding, Today in your Village & Mixed Age Groups",
-    entries: [
-      { tag: "Added", text: "\"Today in your village\" panel on the homepage — shows trending posts from the past 7 days at a glance" },
-      { tag: "Added", text: "Mixed age group sub-selection in onboarding — parents with kids across multiple stages can now specify each age group they have" },
-      { tag: "Improved", text: "Homepage right column now surfaces what's happening today, replacing the second Recommended panel" },
-      { tag: "Improved", text: "Onboarding flow now saves mixed_age_groups alongside parenting stage for more accurate circle recommendations" },
+      { tag: "Added", text: "Events page — browse and create local meetups, playgroups, workshops and support events near you." },
+      { tag: "Added", text: "RSVP to events with one tap — see who's going and how many spots are left." },
+      { tag: "Added", text: "Add to Calendar — download any event as an .ics file for Apple Calendar, Google Calendar, or Outlook." },
+      { tag: "Added", text: "Saved Resources hub — one place for your saved posts, chat messages, and RSVPd events." },
     ],
   },
   {
@@ -488,51 +419,10 @@ const CHANGELOG = [
     date: "May 2026",
     title: "Circles, Support Spaces & Visual Overhaul",
     entries: [
-      { tag: "Changed", text: "Forums renamed to Support Spaces — a warmer, more intentional name for the discussion areas" },
-      { tag: "Changed", text: "Chat Rooms renamed to Circles — local and themed chat spaces now have a consistent identity" },
-      { tag: "Added", text: "Dad Circle — a dedicated space just for dads. No judgment, just real talk." },
-      { tag: "Added", text: "New Circle categories: Sleep Circle, Feeding Circle, Toddler Circle, Newborn Circle, School Age Circle, Teenager Circle, Single Parent Circle, Mental Health Circle" },
-      { tag: "Added", text: "Homepage three-column layout — identity card, activity feed, and local/nearby parents panel" },
-      { tag: "Added", text: "Parent Identity widget — see and edit your interest tags from the dashboard" },
-      { tag: "Added", text: "Recommended Circles — personalised circle suggestions based on your parenting stage and interests" },
-      { tag: "Added", text: "Trust badges — Trusted Parent, Night Owl, Local Parent, and Verified Professional earned by community activity" },
-      { tag: "Design", text: "Admin/Moderator dashboard redesigned with Kindness Health metric, unanswered support posts, and Moderator principles" },
-    ],
-  },
-  {
-    version: "1.3.0",
-    date: "April 2026",
-    title: "UI Polish & Design System",
-    entries: [
-      { tag: "Design", text: "Consistent card surfaces and spacing rhythm across every page" },
-      { tag: "Design", text: "Warm, helpful empty states with emoji, heading, and a clear next step — no more dead ends" },
-      { tag: "Design", text: "New onboarding flow — tappable parenting-stage cards and a proper welcome moment" },
-      { tag: "Fixed", text: "Chat popout now hides when you're already inside a chat room" },
-      { tag: "Design", text: "Unified form style — consistent focus rings and character counters on all text inputs" },
-      { tag: "Design", text: "Admin dashboard now shares the same card system as the rest of the app" },
-    ],
-  },
-  {
-    version: "1.2.0",
-    date: "April 2026",
-    title: "Friends Chat, Online Status & Chat Popout",
-    entries: [
-      { tag: "Added", text: "Private 1-on-1 chat rooms for friends — no daily message limit" },
-      { tag: "Added", text: "Online presence indicator — green dot on friend avatars when they're active" },
-      { tag: "Added", text: "Friends tab in Chat Rooms — see who's online and jump straight into a private chat" },
-      { tag: "Added", text: "Private Chat button on the Friends page" },
-      { tag: "Added", text: "Floating chat popout — stays open while you browse, remembers your last conversation" },
-    ],
-  },
-  {
-    version: "1.1.0",
-    date: "April 2026",
-    title: "Communities & Premium Perks",
-    entries: [
-      { tag: "Added", text: "Reddit-style user communities — premium members can create up to 3 sub-communities" },
-      { tag: "Added", text: "Crown badge next to premium member names in posts, replies, and chat messages" },
-      { tag: "Added", text: "Community creator tools — edit community details, delete community, and pin posts" },
-      { tag: "Added", text: "This changelog & roadmap page" },
+      { tag: "Changed", text: "Forums renamed to Support Spaces — a warmer, more intentional name for the discussion areas." },
+      { tag: "Added",   text: "New Circle categories: Sleep, Feeding, Toddler, Newborn, School Age, Teenager, Single Parent, Mental Health." },
+      { tag: "Added",   text: "Homepage three-column layout — identity card, activity feed, and local/nearby parents panel." },
+      { tag: "Added",   text: "Trust badges — Trusted Parent, Night Owl, Local Parent, and Verified Professional earned by community activity." },
     ],
   },
   {
@@ -540,18 +430,230 @@ const CHANGELOG = [
     date: "March 2026",
     title: "Foundation Launch",
     entries: [
-      { tag: "Added", text: "Core forum with topic and age-group categories, threaded replies, likes, bookmarks" },
-      { tag: "Added", text: "Suburb & postcode chat rooms — created on-demand, lazily archived when idle" },
-      { tag: "Added", text: "Local Meetups forum category with distance filtering" },
-      { tag: "Added", text: "Freemium model: 5 forum posts per week and 20 chat messages per day for free accounts" },
-      { tag: "Added", text: "7-day free trial for new members with full access" },
-      { tag: "Added", text: "Admin dashboard with user analytics, moderation queue, and content removal tools" },
-      { tag: "Added", text: "Admin can ban users, remove posts/replies, and send notifications to affected members" },
-      { tag: "Added", text: "Google OAuth and email/password sign-in" },
-      { tag: "Added", text: "Profile pages with parenting stage, interests, location, and avatar upload" },
-      { tag: "Added", text: "Friend requests, direct messages, and online-friend list" },
-      { tag: "Added", text: "Anonymous posting option in all forum categories" },
-      { tag: "Added", text: "Image attachments on forum posts (JPEG, PNG, GIF, WebP up to 5 MB)" },
+      { tag: "Added", text: "Core forum with topic and age-group categories, threaded replies, likes, bookmarks." },
+      { tag: "Added", text: "Suburb & postcode chat rooms — created on-demand, lazily archived when idle." },
+      { tag: "Added", text: "Freemium model: 5 forum posts per week and 20 chat messages per day for free accounts." },
+      { tag: "Added", text: "7-day free trial for new members with full access." },
+      { tag: "Added", text: "Admin dashboard with user analytics, moderation queue, and content removal tools." },
+      { tag: "Added", text: "Google OAuth and email/password sign-in." },
+      { tag: "Added", text: "Profile pages with parenting stage, interests, location, and avatar upload." },
+      { tag: "Added", text: "Friend requests, direct messages, and online-friend list." },
+      { tag: "Added", text: "Anonymous posting option in all forum categories." },
+    ],
+  },
+];
+
+// ── Curated user-facing changelog (non-admin view) ────────────────────────────
+// Plain readable summaries — no technical tags or implementation details.
+const USER_CHANGELOG = [
+  {
+    version: "3.16.0",
+    date: "April 2026",
+    title: "Sign in with Google",
+    entries: [
+      "You can now sign in or join with your Google account — just tap 'Continue with Google' on the login or sign-up page.",
+      "New Google sign-ups get the same 7-day free trial as email registrations.",
+    ],
+  },
+  {
+    version: "3.15.0",
+    date: "April 2026",
+    title: "Navigation & Notifications",
+    entries: [
+      "Dropdown menus added to Events, Stall, Friends, and Communities in the sidebar — jump straight to Browse, Create, My Listings, and more without extra clicks.",
+      "Notification alerts now tell you exactly what arrived — a reply, message, friend request, or Stall enquiry — and take you straight there when you tap.",
+    ],
+  },
+  {
+    version: "3.14.0",
+    date: "April 2026",
+    title: "Platform Safety & Reliability",
+    entries: [
+      "Moderation tools improved — Stall listings can now be reviewed and removed by the mod team if needed, with sellers notified.",
+      "Fixed an issue on iOS where the message composer was hidden behind the keyboard when typing.",
+    ],
+  },
+  {
+    version: "3.13.0",
+    date: "April 2026",
+    title: "Email Verification",
+    entries: [
+      "New accounts now receive a verification email — click the link to confirm your address and you're good to go.",
+      "Google sign-in accounts are verified automatically. No email needed.",
+    ],
+  },
+  {
+    version: "3.12.0",
+    date: "April 2026",
+    title: "Safety & Reporting",
+    entries: [
+      "You can now report messages in Direct Messages and Village Stall conversations — tap the flag icon in any conversation.",
+      "Blocking a user now hides their messages in Group Chats too, not just direct messages.",
+    ],
+  },
+  {
+    version: "3.11.0",
+    date: "April 2026",
+    title: "Community Meetups & Improvements",
+    entries: [
+      "RSVP to meetups posted inside your communities — see who else is going with attendee previews.",
+      "Verified professional badges now show the person's role — Verified Midwife, Verified GP, Verified Psychologist, and so on.",
+      "Various fixes and polish across Spaces, Events, and Group Chats.",
+    ],
+  },
+  {
+    version: "3.10.0",
+    date: "April 2026",
+    title: "Design Refresh & Communities Navigation",
+    entries: [
+      "Communities now has its own dedicated spot in the sidebar with a custom icon — easier to find and separate from Spaces.",
+      "New handcrafted icons across the platform for a more polished, consistent look.",
+    ],
+  },
+  {
+    version: "3.9.0",
+    date: "April 2026",
+    title: "Faster Messages & Smarter Notifications",
+    entries: [
+      "New direct messages appear faster — less waiting for replies to show up.",
+      "A soft sound plays when a new message arrives from another user.",
+      "Unread message count badge added to the Messages icon on desktop and mobile.",
+    ],
+  },
+  {
+    version: "3.8.0",
+    date: "April 2026",
+    title: "Edit Your Stall Listings",
+    entries: [
+      "You can now edit your Village Stall listings after posting — update photos, price, description, and availability at any time from the listing page.",
+    ],
+  },
+  {
+    version: "3.7.0",
+    date: "April 2026",
+    title: "Village Stall Conversations",
+    entries: [
+      "Stall enquiries are now full message threads — see your complete conversation history with buyers and sellers in one place.",
+      "A new Messages tab inside the Stall shows all your Stall conversations in one inbox, with unread badges.",
+    ],
+  },
+  {
+    version: "3.6.0",
+    date: "April 2026",
+    title: "Village Stall & Professional Verification",
+    entries: [
+      "The Village Stall is now live — list items for sale, swap, or donation, or browse baby gear from parents nearby.",
+      "Donation Groups let your community pool and share items together.",
+      "Healthcare professionals can now apply for their verified badge directly during sign-up.",
+    ],
+  },
+  {
+    version: "3.5.0",
+    date: "April 2026",
+    title: "Mobile & Messaging",
+    entries: [
+      "Improved mobile experience on the landing page with a full-screen guided tour for new visitors.",
+      "Messages and notifications are faster and more reliable throughout the app.",
+    ],
+  },
+  {
+    version: "3.4.0",
+    date: "April 2026",
+    title: "New Desktop Layout",
+    entries: [
+      "Redesigned desktop navigation — a fixed sidebar on the left makes it easier to move between sections at a glance.",
+    ],
+  },
+  {
+    version: "3.3.0",
+    date: "April 2026",
+    title: "Warmer Design & Typography",
+    entries: [
+      "Warmer colour palette in both day and night mode — softer, calmer, more like a community and less like a tech app.",
+      "New serif headings for a cleaner, more refined feel throughout.",
+    ],
+  },
+  {
+    version: "3.2.0",
+    date: "April 2026",
+    title: "Location & Profile Improvements",
+    entries: [
+      "'Use My Location' is now available when browsing Group Chats, creating events, and updating your profile.",
+      "Profile view mode now shows your parenting stage, interests, and connection preferences as readable chips.",
+    ],
+  },
+  {
+    version: "3.1.0",
+    date: "April 2026",
+    title: "Village+ Subscriptions",
+    entries: [
+      "Village+ subscriptions are now available — subscribe monthly or annually through secure checkout.",
+      "Manage, update, or cancel your subscription at any time from the Village+ page.",
+    ],
+  },
+  {
+    version: "3.0.0",
+    date: "April 2026",
+    title: "Legal, Privacy & Age Verification",
+    entries: [
+      "Updated Terms & Conditions and Privacy Policy aligned with Australian privacy law.",
+      "18+ age verification now required at sign-up.",
+      "Mum and Dad Spaces now correctly show only to the right audience based on your profile.",
+    ],
+  },
+  {
+    version: "2.7.0",
+    date: "April 2026",
+    title: "Home Screen App & Dashboard",
+    entries: [
+      "Install The Village on your home screen — works like a native app on iOS and Android.",
+      "Dashboard now has focused modes: get help, browse, or catch up on what's happened since you last visited.",
+    ],
+  },
+  {
+    version: "2.6.0",
+    date: "April 2026",
+    title: "Village+ Features",
+    entries: [
+      "Events, Direct Messages, and Communities are Village+ features. New members get a 7-day free trial with full access.",
+      "Lock icons on nav items make it clear what's included before you click.",
+    ],
+  },
+  {
+    version: "2.4.0",
+    date: "April 2026",
+    title: "Mum & Dad Circles, Private Posts",
+    entries: [
+      "Mum Circle and Dad Circle — dedicated safe spaces for mums and dads.",
+      "Private posts — save a draft visible only to you before deciding whether to share.",
+    ],
+  },
+  {
+    version: "2.2.0",
+    date: "April 2026",
+    title: "Events & Saved Resources",
+    entries: [
+      "Browse and RSVP to local events — playgroups, meetups, workshops, and support events near you.",
+      "Saved Resources — all your saved posts and RSVPs in one place.",
+    ],
+  },
+  {
+    version: "2.0.0",
+    date: "April 2026",
+    title: "The Village Takes Shape",
+    entries: [
+      "Support Spaces and Circles launched — the heart of the Village community.",
+      "New themed chat rooms: Sleep, Feeding, Toddler, Mental Health, Single Parent, and more.",
+      "Trust badges introduced — Night Owl, Local Parent, Trusted Parent, Verified Professional.",
+    ],
+  },
+  {
+    version: "1.0.0",
+    date: "March 2026",
+    title: "Welcome to The Village",
+    entries: [
+      "The Village opened — forums, group chat rooms, friend connections, local events, and profiles all live.",
+      "Anonymous posting, free trial, and Village+ premium all available from day one.",
     ],
   },
 ];
@@ -568,14 +670,6 @@ const ROADMAP = [
   },
   {
     version: "Soon",
-    title: "Payments & Subscriptions",
-    entries: [
-      { tag: "Planned", text: "Stripe-powered Village+ checkout — subscribe directly in-app, no redirect to external page" },
-      { tag: "Planned", text: "Automatic tier changes on subscription events — upgrade, downgrade, and cancellation handled seamlessly" },
-    ],
-  },
-  {
-    version: "Soon",
     title: "Verified Partner Portal",
     entries: [
       { tag: "Planned", text: "Clinicians can apply for Verified status from the For Clinicians page — name, profession, AHPRA number, clinic" },
@@ -588,30 +682,31 @@ const ROADMAP = [
     entries: [
       { tag: "Planned", text: "Co-branded onboarding for referring hospitals and clinics — patients join with a direct link from their provider" },
       { tag: "Planned", text: "Anonymous aggregate reporting for partners — engagement stats, active users, Space activity (no personal data)" },
-      { tag: "Planned", text: "Bulk referral materials and co-branded one-pagers for hospital waiting rooms" },
-    ],
-  },
-  {
-    version: "Future",
-    title: "Buy & Swap Marketplace",
-    entries: [
-      { tag: "Planned", text: "List baby gear, clothing, and equipment for sale or swap — browse-only for free members, listing for Village+" },
-      { tag: "Planned", text: "Contact sellers via private DM — no in-platform payments, just genuine community connections" },
-      { tag: "Planned", text: "Category filters: clothing, gear, toys, feeding, nursery & more" },
     ],
   },
 ];
 
+// ── Tag styles ────────────────────────────────────────────────────────────────
 const TAG_STYLES = {
-  Added:    "bg-green-500/15 text-green-600 dark:text-green-400",
-  Changed:  "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-  Improved: "bg-primary/15 text-primary",
-  Fixed:    "bg-blue-500/15 text-blue-500 dark:text-blue-400",
-  Design:   "bg-purple-500/15 text-purple-600 dark:text-purple-400",
-  Removed:  "bg-red-500/15 text-red-600 dark:text-red-400",
-  Planned:  "bg-muted text-muted-foreground",
+  Added:        "bg-green-500/15 text-green-600 dark:text-green-400",
+  Changed:      "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+  Updated:      "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+  Improved:     "bg-primary/15 text-primary",
+  Fixed:        "bg-blue-500/15 text-blue-500 dark:text-blue-400",
+  Design:       "bg-purple-500/15 text-purple-600 dark:text-purple-400",
+  Redesign:     "bg-purple-500/15 text-purple-600 dark:text-purple-400",
+  Removed:      "bg-red-500/15 text-red-600 dark:text-red-400",
+  Security:     "bg-red-500/15 text-red-700 dark:text-red-400",
+  Performance:  "bg-orange-500/15 text-orange-600 dark:text-orange-400",
+  Architecture: "bg-slate-500/15 text-slate-600 dark:text-slate-400",
+  Confirmed:    "bg-teal-500/15 text-teal-600 dark:text-teal-400",
+  Legal:        "bg-violet-500/15 text-violet-600 dark:text-violet-400",
+  Planned:      "bg-muted text-muted-foreground",
 };
 
+const ALL_TAGS = ["All", "Added", "Improved", "Fixed", "Security", "Design", "Performance", "Changed", "Legal", "Removed"];
+
+// ── Admin version card (full technical detail) ────────────────────────────────
 function VersionCard({ version, date, title, entries, muted }) {
   return (
     <div className={`bg-card rounded-2xl border shadow-sm p-6 transition-all ${
@@ -644,7 +739,52 @@ function VersionCard({ version, date, title, entries, muted }) {
   );
 }
 
+// ── User-facing version card (clean, no tags) ─────────────────────────────────
+function UserVersionCard({ version, date, title, entries }) {
+  return (
+    <div className="bg-card rounded-2xl border border-border/50 border-l-4 border-l-primary/40 shadow-sm p-6 hover:shadow hover:border-l-primary/70 transition-all">
+      <div className="flex flex-wrap items-center gap-2.5 mb-3">
+        <span className="text-xs font-mono px-2.5 py-1 rounded-lg font-bold tracking-tight bg-primary/15 text-primary">
+          v{version}
+        </span>
+        {date && (
+          <span className="text-xs text-muted-foreground bg-secondary/60 px-2 py-0.5 rounded-md">
+            {date}
+          </span>
+        )}
+        <h3 className="font-heading font-semibold text-foreground leading-snug">{title}</h3>
+      </div>
+      <ul className="space-y-1.5">
+        {entries.map((text, i) => (
+          <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground leading-relaxed">
+            <span className="mt-1.5 w-1 h-1 rounded-full bg-primary/50 shrink-0" />
+            {text}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 export default function Changelog({ user }) {
+  const isAdmin = user?.role === "admin";
+  const [search, setSearch] = useState("");
+  const [tagFilter, setTagFilter] = useState("All");
+
+  // Admin: filter changelog by search text + tag
+  const searchQ = search.toLowerCase().trim();
+  const filteredChangelog = CHANGELOG.map(v => {
+    let entries = tagFilter === "All" ? v.entries : v.entries.filter(e => e.tag === tagFilter);
+    if (searchQ) {
+      const titleMatch = v.title.toLowerCase().includes(searchQ) || v.version.includes(searchQ) || (v.date || "").toLowerCase().includes(searchQ);
+      if (!titleMatch) {
+        entries = entries.filter(e => e.text.toLowerCase().includes(searchQ) || e.tag.toLowerCase().includes(searchQ));
+      }
+    }
+    return entries.length > 0 ? { ...v, entries } : null;
+  }).filter(Boolean);
+
   return (
     <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
       <Navigation user={user} />
@@ -665,24 +805,87 @@ export default function Changelog({ user }) {
           <h1 className="font-heading text-3xl font-bold text-foreground">What's New</h1>
         </div>
         <p className="text-muted-foreground mb-8">
-          Release history and upcoming features for The Village.
+          {isAdmin ? "Full release history and technical changelog." : "Feature updates and improvements to The Village."}
         </p>
 
-        {/* Release history */}
+        {/* ── Admin: search + tag filter ── */}
+        {isAdmin && (
+          <div className="space-y-3 mb-6">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search releases, features, fixes…"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full pl-9 pr-9 py-2.5 rounded-xl text-sm border bg-card"
+                style={{ borderColor: "var(--line)", color: "var(--ink)", outline: "none" }}
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+            {/* Tag filter pills */}
+            <div className="flex flex-wrap gap-1.5">
+              {ALL_TAGS.map(tag => (
+                <button
+                  key={tag}
+                  onClick={() => setTagFilter(tag)}
+                  className={`text-xs px-3 py-1 rounded-full font-medium transition-all ${
+                    tagFilter === tag
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-card border text-muted-foreground hover:text-foreground"
+                  }`}
+                  style={tagFilter !== tag ? { borderColor: "var(--line)" } : {}}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Release history ── */}
         <section className="space-y-4 mb-12">
-          <p className="font-heading font-semibold text-xs uppercase tracking-widest text-muted-foreground">Release History</p>
-          {CHANGELOG.map((v) => (
-            <VersionCard key={v.version} {...v} />
-          ))}
+          <p className="font-heading font-semibold text-xs uppercase tracking-widest text-muted-foreground">
+            Release History
+            {isAdmin && (searchQ || tagFilter !== "All") && (
+              <span className="ml-2 normal-case font-normal text-muted-foreground/70">
+                — {filteredChangelog.length} {filteredChangelog.length === 1 ? "release" : "releases"} shown
+              </span>
+            )}
+          </p>
+
+          {isAdmin ? (
+            filteredChangelog.length > 0 ? (
+              filteredChangelog.map(v => <VersionCard key={v.version} {...v} />)
+            ) : (
+              <div className="text-center py-12 text-muted-foreground text-sm">
+                No releases match your search.{" "}
+                <button onClick={() => { setSearch(""); setTagFilter("All"); }} className="underline">
+                  Clear filters
+                </button>
+              </div>
+            )
+          ) : (
+            USER_CHANGELOG.map(v => <UserVersionCard key={v.version} {...v} />)
+          )}
         </section>
 
-        {/* Roadmap */}
+        {/* ── Roadmap ── */}
         <section className="space-y-4">
           <p className="font-heading font-semibold text-xs uppercase tracking-widest text-muted-foreground">Coming Up</p>
-          {ROADMAP.map((v) => (
+          {ROADMAP.map(v => (
             <VersionCard key={v.version} {...v} muted />
           ))}
         </section>
+
         <AppFooter />
       </main>
     </div>
