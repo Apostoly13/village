@@ -3816,6 +3816,89 @@ async def delete_blog_post(blog_id: str, current_user: dict = Depends(get_curren
         raise HTTPException(status_code=404, detail="Post not found")
     return {"message": "Deleted"}
 
+# ==================== PLATFORM REMOTE CONTROL ====================
+
+PLATFORM_SETTINGS_ID = "platform_singleton"
+
+async def get_platform_settings() -> dict:
+    doc = await db.platform_settings.find_one({"_id": PLATFORM_SETTINGS_ID})
+    if not doc:
+        return {
+            "announcement_enabled": False,
+            "announcement_text": "",
+            "announcement_type": "info",
+            "maintenance_mode": False,
+            "maintenance_message": "We're doing some maintenance. Back shortly!",
+            "monthly_post_limit_free": MONTHLY_POST_LIMIT_FREE,
+            "daily_reply_limit_free": DAILY_REPLY_LIMIT_FREE,
+            "daily_chat_limit_free": DAILY_CHAT_LIMIT_FREE,
+        }
+    doc.pop("_id", None)
+    return doc
+
+@api_router.get("/platform/settings")
+async def public_platform_settings():
+    """Public endpoint — frontend reads this to show announcement banners and maintenance mode."""
+    settings = await get_platform_settings()
+    return {
+        "announcement_enabled": settings.get("announcement_enabled", False),
+        "announcement_text": settings.get("announcement_text", ""),
+        "announcement_type": settings.get("announcement_type", "info"),
+        "maintenance_mode": settings.get("maintenance_mode", False),
+        "maintenance_message": settings.get("maintenance_message", ""),
+    }
+
+@api_router.get("/admin/platform")
+async def admin_get_platform(admin: dict = Depends(get_admin_user)):
+    return await get_platform_settings()
+
+@api_router.put("/admin/platform")
+async def admin_update_platform(request: Request, admin: dict = Depends(get_admin_user)):
+    body = await request.json()
+    allowed = {
+        "announcement_enabled", "announcement_text", "announcement_type",
+        "maintenance_mode", "maintenance_message",
+        "monthly_post_limit_free", "daily_reply_limit_free", "daily_chat_limit_free",
+    }
+    update = {k: v for k, v in body.items() if k in allowed}
+    if not update:
+        raise HTTPException(400, "No valid fields provided")
+    update["updated_at"] = datetime.now(timezone.utc).isoformat()
+    update["updated_by"] = admin.get("user_id")
+    await db.platform_settings.update_one(
+        {"_id": PLATFORM_SETTINGS_ID},
+        {"$set": update},
+        upsert=True,
+    )
+    return {"message": "Platform settings updated", "settings": await get_platform_settings()}
+
+@api_router.post("/admin/broadcast")
+async def admin_broadcast(request: Request, admin: dict = Depends(get_admin_user)):
+    """Send a notification to all non-banned users."""
+    body = await request.json()
+    message = body.get("message", "").strip()
+    if not message:
+        raise HTTPException(400, "Message is required")
+    all_users = await db.users.find(
+        {"is_banned": {"$ne": True}}, {"user_id": 1}
+    ).to_list(10000)
+    now = datetime.now(timezone.utc).isoformat()
+    notifications = [
+        {
+            "notification_id": f"notif_{uuid.uuid4().hex[:16]}",
+            "user_id": u["user_id"],
+            "type": "broadcast",
+            "title": "Message from The Village",
+            "message": message,
+            "is_read": False,
+            "created_at": now,
+        }
+        for u in all_users
+    ]
+    if notifications:
+        await db.notifications.insert_many(notifications)
+    return {"message": f"Broadcast sent to {len(notifications)} users"}
+
 # ==================== SEED DATA ====================
 
 @api_router.post("/seed")

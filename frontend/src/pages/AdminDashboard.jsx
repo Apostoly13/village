@@ -14,6 +14,7 @@ import {
   ChevronLeft, ChevronRight, BarChart3, Eye, UserCheck, Heart,
   HelpCircle, TrendingUp, BookOpen, Check, X, Activity,
   Trophy, RefreshCw, MessageCircle, Repeat2,
+  Radio, Megaphone, Sliders, AlertTriangle, BellRing, ToggleLeft, ToggleRight,
 } from "lucide-react";
 
 const Chevron = ChevronRight;
@@ -82,6 +83,12 @@ export default function AdminDashboard({ user }) {
   // Period toggles
   const [leaderboardPeriod, setLeaderboardPeriod] = useState("all");
   const [overviewPeriod, setOverviewPeriod] = useState("all");
+
+  // Platform remote-control state
+  const [platform, setPlatform] = useState(null);
+  const [platformSaving, setPlatformSaving] = useState(false);
+  const [broadcastMsg, setBroadcastMsg] = useState("");
+  const [broadcastSending, setBroadcastSending] = useState(false);
 
   const [loading, setLoading] = useState(true);
 
@@ -167,6 +174,48 @@ export default function AdminDashboard({ user }) {
     } catch (e) { console.error(e); }
   };
 
+  const fetchPlatform = async () => {
+    try {
+      const res = await apiFetch("/api/admin/platform");
+      if (res?.ok) setPlatform(await res.json());
+    } catch (e) { console.error(e); }
+  };
+
+  const savePlatform = async (patch) => {
+    setPlatformSaving(true);
+    try {
+      const res = await apiFetch("/api/admin/platform", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      if (res?.ok) {
+        const data = await res.json();
+        setPlatform(data.settings);
+        toast.success("Settings saved");
+      }
+    } catch (e) { toast.error("Failed to save"); }
+    finally { setPlatformSaving(false); }
+  };
+
+  const sendBroadcast = async () => {
+    if (!broadcastMsg.trim()) return;
+    setBroadcastSending(true);
+    try {
+      const res = await apiFetch("/api/admin/broadcast", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: broadcastMsg }),
+      });
+      if (res?.ok) {
+        const data = await res.json();
+        toast.success(data.message);
+        setBroadcastMsg("");
+      }
+    } catch (e) { toast.error("Failed to send broadcast"); }
+    finally { setBroadcastSending(false); }
+  };
+
   const openDrilldown = async (type) => {
     setDrilldown({ open: true, label: "Loading...", users: [], posts: [], items: [] });
     setDrilldownLoading(true);
@@ -228,6 +277,7 @@ export default function AdminDashboard({ user }) {
     if (tab === "blog") fetchPendingBlogPosts();
     if (tab === "engagement" && !retention) fetchRetention();
     if (tab === "leaderboards" && !leaderboards) fetchLeaderboards(leaderboardPeriod);
+    if (tab === "controls" && !platform) fetchPlatform();
   };
 
   // ── Helpers ──────────────────────────────────────────────────────────────
@@ -331,6 +381,7 @@ export default function AdminDashboard({ user }) {
                 { value: "users",        icon: Users,          label: "Users" },
                 { value: "moderation",   icon: Flag,           label: "Moderation", badge: analytics?.content?.pending_reports },
                 { value: "blog",         icon: BookOpen,       label: "Blog" },
+                ...(user?.role === "admin" ? [{ value: "controls", icon: Radio, label: "Controls" }] : []),
               ].map(t => (
                 <TabsTrigger key={t.value} value={t.value} className="rounded-lg px-3 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-1.5 whitespace-nowrap text-sm">
                   <t.icon className="h-4 w-4" />
@@ -984,6 +1035,192 @@ export default function AdminDashboard({ user }) {
               </div>
             )}
           </TabsContent>
+          {/* ══════════ CONTROLS TAB ══════════ */}
+          <TabsContent value="controls" className="mt-0 space-y-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+                <Radio className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h1 className="font-heading text-xl font-bold text-foreground">Remote Control</h1>
+                <p className="text-sm text-muted-foreground">Manage platform-wide settings in real time.</p>
+              </div>
+            </div>
+
+            {!platform ? (
+              <div className="flex items-center justify-center py-20">
+                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : (
+              <>
+                {/* ── Announcement Banner ── */}
+                <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Megaphone className="h-5 w-5 text-primary" />
+                      <h2 className="font-heading font-bold text-foreground">Platform Announcement</h2>
+                    </div>
+                    <button
+                      onClick={() => savePlatform({ announcement_enabled: !platform.announcement_enabled })}
+                      className="flex items-center gap-2 text-sm font-medium transition-colors"
+                      disabled={platformSaving}
+                    >
+                      {platform.announcement_enabled
+                        ? <ToggleRight className="h-7 w-7 text-primary" />
+                        : <ToggleLeft className="h-7 w-7 text-muted-foreground" />}
+                      <span className={platform.announcement_enabled ? "text-primary" : "text-muted-foreground"}>
+                        {platform.announcement_enabled ? "Live" : "Hidden"}
+                      </span>
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">This banner appears at the top of every page for all logged-in users.</p>
+
+                  <div className="flex gap-2 flex-wrap">
+                    {["info", "warning", "success"].map(t => (
+                      <button
+                        key={t}
+                        onClick={() => savePlatform({ announcement_type: t })}
+                        className={`px-3 py-1 rounded-full text-xs font-medium capitalize transition-colors ${
+                          platform.announcement_type === t
+                            ? t === "info" ? "bg-blue-500/20 text-blue-400 border border-blue-500/40"
+                              : t === "warning" ? "bg-amber-500/20 text-amber-400 border border-amber-500/40"
+                              : "bg-green-500/20 text-green-400 border border-green-500/40"
+                            : "bg-secondary text-muted-foreground border border-border/40"
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+
+                  <textarea
+                    className="w-full bg-secondary/60 border border-border/40 rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-1 focus:ring-primary/50"
+                    rows={3}
+                    placeholder="Announcement text shown to all users..."
+                    value={platform.announcement_text || ""}
+                    onChange={e => setPlatform(p => ({ ...p, announcement_text: e.target.value }))}
+                  />
+                  <Button
+                    size="sm"
+                    className="rounded-xl"
+                    disabled={platformSaving}
+                    onClick={() => savePlatform({ announcement_text: platform.announcement_text, announcement_type: platform.announcement_type })}
+                  >
+                    Save Announcement
+                  </Button>
+                </div>
+
+                {/* ── Maintenance Mode ── */}
+                <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-amber-500/30 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="h-5 w-5 text-amber-500" />
+                      <h2 className="font-heading font-bold text-foreground">Maintenance Mode</h2>
+                    </div>
+                    <button
+                      onClick={() => savePlatform({ maintenance_mode: !platform.maintenance_mode })}
+                      className="flex items-center gap-2 text-sm font-medium transition-colors"
+                      disabled={platformSaving}
+                    >
+                      {platform.maintenance_mode
+                        ? <ToggleRight className="h-7 w-7 text-amber-500" />
+                        : <ToggleLeft className="h-7 w-7 text-muted-foreground" />}
+                      <span className={platform.maintenance_mode ? "text-amber-500" : "text-muted-foreground"}>
+                        {platform.maintenance_mode ? "Active" : "Off"}
+                      </span>
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">When active, non-admin users see the maintenance message instead of the app.</p>
+                  <textarea
+                    className="w-full bg-secondary/60 border border-border/40 rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-1 focus:ring-primary/50"
+                    rows={2}
+                    placeholder="Maintenance message..."
+                    value={platform.maintenance_message || ""}
+                    onChange={e => setPlatform(p => ({ ...p, maintenance_message: e.target.value }))}
+                  />
+                  <Button
+                    size="sm"
+                    className="rounded-xl"
+                    disabled={platformSaving}
+                    onClick={() => savePlatform({ maintenance_message: platform.maintenance_message })}
+                  >
+                    Save Message
+                  </Button>
+                </div>
+
+                {/* ── Freemium Limits ── */}
+                <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20 space-y-5">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Sliders className="h-5 w-5 text-primary" />
+                    <h2 className="font-heading font-bold text-foreground">Freemium Limits</h2>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Adjust the usage caps for free-tier users. Changes take effect immediately.</p>
+
+                  {[
+                    { label: "Monthly post limit (free)", key: "monthly_post_limit_free", min: 1, max: 50 },
+                    { label: "Daily reply limit (free)", key: "daily_reply_limit_free", min: 1, max: 100 },
+                    { label: "Daily chat limit (free)", key: "daily_chat_limit_free", min: 1, max: 100 },
+                  ].map(({ label, key, min, max }) => (
+                    <div key={key} className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-foreground font-medium">{label}</span>
+                        <span className="font-bold text-primary w-8 text-right">{platform[key] ?? "—"}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={min}
+                        max={max}
+                        value={platform[key] ?? min}
+                        onChange={e => setPlatform(p => ({ ...p, [key]: Number(e.target.value) }))}
+                        className="w-full accent-primary"
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>{min}</span><span>{max}</span>
+                      </div>
+                    </div>
+                  ))}
+
+                  <Button
+                    size="sm"
+                    className="rounded-xl"
+                    disabled={platformSaving}
+                    onClick={() => savePlatform({
+                      monthly_post_limit_free: platform.monthly_post_limit_free,
+                      daily_reply_limit_free: platform.daily_reply_limit_free,
+                      daily_chat_limit_free: platform.daily_chat_limit_free,
+                    })}
+                  >
+                    Save Limits
+                  </Button>
+                </div>
+
+                {/* ── Broadcast Notification ── */}
+                <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20 space-y-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <BellRing className="h-5 w-5 text-primary" />
+                    <h2 className="font-heading font-bold text-foreground">Broadcast Notification</h2>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Send an in-app notification to every non-banned user immediately.</p>
+                  <textarea
+                    className="w-full bg-secondary/60 border border-border/40 rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-1 focus:ring-primary/50"
+                    rows={3}
+                    placeholder="Write your message to all users..."
+                    value={broadcastMsg}
+                    onChange={e => setBroadcastMsg(e.target.value)}
+                  />
+                  <Button
+                    size="sm"
+                    className="rounded-xl"
+                    disabled={broadcastSending || !broadcastMsg.trim()}
+                    onClick={sendBroadcast}
+                  >
+                    {broadcastSending ? "Sending..." : "Send to All Users"}
+                  </Button>
+                </div>
+              </>
+            )}
+          </TabsContent>
+
         </Tabs>
       </main>
 

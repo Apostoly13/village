@@ -25,6 +25,15 @@ export default function Navigation({ user }) {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [announcement, setAnnouncement] = useState(null);
+  const [announcementDismissed, setAnnouncementDismissed] = useState(false);
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/platform/settings`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.announcement_enabled && data?.announcement_text) setAnnouncement(data); })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     // Single polling loop: badge counts every 45s + heartbeat piggybacked every 3rd tick (135s)
@@ -135,10 +144,24 @@ export default function Navigation({ user }) {
     navigate("/");
   };
 
+  const announcementColors = {
+    info: "bg-blue-500/15 border-blue-500/30 text-blue-300",
+    warning: "bg-amber-500/15 border-amber-500/30 text-amber-300",
+    success: "bg-green-500/15 border-green-500/30 text-green-300",
+  };
+
   return (
     <>
+      {/* Platform Announcement Banner */}
+      {announcement && !announcementDismissed && (
+        <div className={`fixed top-0 left-0 right-0 z-[60] flex items-center justify-center gap-3 px-4 py-2 text-sm border-b ${announcementColors[announcement.announcement_type] || announcementColors.info}`}>
+          <span className="flex-1 text-center">{announcement.announcement_text}</span>
+          <button onClick={() => setAnnouncementDismissed(true)} className="shrink-0 opacity-70 hover:opacity-100 transition-opacity text-lg leading-none">&times;</button>
+        </div>
+      )}
+
       {/* Desktop Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/30 hidden lg:block">
+      <nav className={`fixed left-0 right-0 z-50 glass border-b border-border/30 hidden lg:block ${announcement && !announcementDismissed ? "top-9" : "top-0"}`}>
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center">
           {/* Left spacer to balance right icons */}
           <div className="flex-1" />
@@ -348,7 +371,7 @@ export default function Navigation({ user }) {
       </nav>
 
       {/* Mobile Navigation - Top Bar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/30 lg:hidden">
+      <nav className={`fixed left-0 right-0 z-50 glass border-b border-border/30 lg:hidden ${announcement && !announcementDismissed ? "top-9" : "top-0"}`}>
         <div className="px-4 h-14 flex items-center justify-between">
           <Link to="/dashboard" className="flex items-center">
             <img src="/BG Removed- Main Logo.png" alt="The Village" className="h-14 w-auto" />
