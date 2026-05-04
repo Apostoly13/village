@@ -8,6 +8,7 @@ import { Checkbox } from "../components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
+import MarkdownToolbar from "../components/MarkdownToolbar";
 import { toast } from "sonner";
 import { ArrowLeft, Image, X, Upload, Crown, MapPin, ArrowRight } from "lucide-react";
 import { parseApiError } from "../utils/apiError";
@@ -20,6 +21,7 @@ export default function CreatePost({ user }) {
   const [searchParams] = useSearchParams();
   const preselectedCategory = searchParams.get('category');
   const fileInputRef = useRef(null);
+  const contentRef = useRef(null);
 
   const [categories, setCategories] = useState([]);
   const [title, setTitle] = useState("");
@@ -276,14 +278,18 @@ export default function CreatePost({ user }) {
 
             <div className="space-y-2">
               <Label htmlFor="content" className="text-foreground">Content <span className="text-destructive">*</span></Label>
-              <Textarea
-                id="content"
-                value={content}
-                onChange={(e) => { setContent(e.target.value.slice(0, MAX_CONTENT_LENGTH)); setTouched(t => ({ ...t, content: true })); }}
-                placeholder="Share your thoughts, questions, or experiences..."
-                className={`min-h-[200px] rounded-xl bg-secondary/50 border-transparent focus:border-primary resize-none ${touched.content && !content.trim() ? "border-destructive/50 focus:border-destructive" : ""}`}
-                data-testid="content-input"
-              />
+              <div className={`rounded-xl overflow-hidden border bg-secondary/50 focus-within:border-primary transition-colors ${touched.content && !content.trim() ? "border-destructive/50" : "border-transparent"}`}>
+                <MarkdownToolbar textareaRef={contentRef} value={content} onChange={(v) => { setContent(v.slice(0, MAX_CONTENT_LENGTH)); setTouched(t => ({ ...t, content: true })); }} />
+                <Textarea
+                  ref={contentRef}
+                  id="content"
+                  value={content}
+                  onChange={(e) => { setContent(e.target.value.slice(0, MAX_CONTENT_LENGTH)); setTouched(t => ({ ...t, content: true })); }}
+                  placeholder="Share your thoughts, questions, or experiences..."
+                  className="min-h-[200px] border-0 bg-transparent focus:ring-0 shadow-none resize-none rounded-none"
+                  data-testid="content-input"
+                />
+              </div>
               <div className="flex items-center justify-between">
                 {touched.content && !content.trim() ? (
                   <p className="text-xs text-destructive">Content is required</p>

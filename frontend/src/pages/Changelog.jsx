@@ -7,6 +7,21 @@ import AppFooter from "../components/AppFooter";
 // ── Full technical changelog (admin-only view) ────────────────────────────────
 const CHANGELOG = [
   {
+    version: "3.18.0",
+    date: "May 2026",
+    title: "Bug Fixes, Markdown Formatting & Message Photo Lightbox",
+    entries: [
+      { tag: "Fixed",       text: "Report a post was broken — _check_rate_limit was called with wrong keyword arguments (limit=, window=) causing a TypeError on every report attempt. Fixed to use correct positional args." },
+      { tag: "Fixed",       text: "Sending a photo in DMs failed with 'message failed to send' — DirectMessageCreate had max_length=2000 which rejected base64 image data URLs (which can exceed 100k characters). Raised to 2,000,000 to accommodate encoded images." },
+      { tag: "Fixed",       text: "Clicking a photo in Spaces went to about:blank — window.open() with a data URL is blocked by browsers. Replaced with an inline lightbox overlay in ForumPost.jsx." },
+      { tag: "Fixed",       text: "Same lightbox fix applied to photo messages in Messages.jsx." },
+      { tag: "Added",       text: "Markdown formatting in Spaces — posts and replies now render full markdown: bold, italic, strikethrough, inline code, code blocks, blockquotes, bullet and numbered lists, links, tables (GFM). Shared MarkdownContent component with Village-scoped styles." },
+      { tag: "Added",       text: "Markdown toolbar in post composer (CreatePost) and reply composer (ForumPost) — Bold, Italic, Strikethrough, Inline Code, Quote, List, Link buttons. Wraps selected text or inserts at cursor. Uses onMouseDown to avoid blur." },
+      { tag: "Improved",    text: "Messages popout minimised button made larger — increased padding, icon size (h-5 w-5), text size (text-sm font-semibold), badge size, and corner radius for better visibility on web." },
+      { tag: "Fixed",       text: "Live Now threshold reduced from 4 hours → 45 minutes. Rooms only appear as live if a message was sent in the last 45 minutes. Both backend endpoint and frontend card indicators use the same threshold." },
+    ],
+  },
+  {
     version: "3.17.0",
     date: "May 2026",
     title: "Chat Rooms Live Fix, Performance, Mobile Landing & Privacy Copy",
@@ -465,6 +480,19 @@ const CHANGELOG = [
 // ── Curated user-facing changelog (non-admin view) ────────────────────────────
 // Plain readable summaries — no technical tags or implementation details.
 const USER_CHANGELOG = [
+  {
+    version: "3.18.0",
+    date: "May 2026",
+    title: "Markdown Formatting, Bug Fixes & Photo Improvements",
+    entries: [
+      "Spaces posts and replies now support markdown formatting — bold, italic, code, quotes, lists, links and more.",
+      "A formatting toolbar now appears above the post and reply composer — tap Bold, Italic, Quote etc to format selected text.",
+      "Tapping a photo in Spaces now opens it full-screen in an overlay instead of navigating away.",
+      "Sending photos in messages is now fixed.",
+      "Reporting a post is now fixed.",
+      "The Messages button in the bottom-right corner is larger and easier to tap.",
+    ],
+  },
   {
     version: "3.17.0",
     date: "May 2026",

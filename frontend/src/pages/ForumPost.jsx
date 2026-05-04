@@ -24,6 +24,8 @@ import {
 } from "../components/ui/dropdown-menu";
 import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
+import MarkdownContent from "../components/MarkdownContent";
+import MarkdownToolbar from "../components/MarkdownToolbar";
 import { toast } from "sonner";
 import { ArrowLeft, Heart, MessageCircle, Eye, Clock, Send, Bookmark, BookmarkCheck, MoreVertical, Edit2, Trash2, Flag, Reply, MapPin, Crown, X } from "lucide-react";
 import VerifiedBadge from "../components/VerifiedBadge";
@@ -59,6 +61,7 @@ export default function ForumPost({ user }) {
   // Modal states
   const [deletePostModal, setDeletePostModal] = useState(false);
   const [deleteReplyId, setDeleteReplyId] = useState(null);
+  const [lightboxImage, setLightboxImage] = useState(null);
   const [reportModal, setReportModal] = useState(false);
   const [reportTarget, setReportTarget] = useState(null);
   const [reportReason, setReportReason] = useState("");
@@ -415,7 +418,7 @@ export default function ForumPost({ user }) {
                   </div>
                 </div>
               ) : (
-                <p className="text-foreground whitespace-pre-wrap break-words overflow-hidden">{reply.content}</p>
+                <MarkdownContent content={reply.content} className="text-sm" />
               )}
               
               <div className="flex items-center gap-3 mt-3">
@@ -454,8 +457,9 @@ export default function ForumPost({ user }) {
         {/* Inline reply form — appears directly below this reply */}
         {replyingTo?.reply_id === reply.reply_id && (
           <div className="mt-1 mb-3 ml-4 pl-3 border-l-2 border-primary/40">
-            <form onSubmit={handleReply} className="village-card p-4 space-y-3">
-              <div className="relative">
+            <form onSubmit={handleReply} className="village-card overflow-hidden p-0 space-y-0">
+              <MarkdownToolbar textareaRef={replyTextareaRef} value={replyContent} onChange={(v) => setReplyContent(v.slice(0, MAX_CONTENT_LENGTH))} />
+              <div className="relative p-4 pb-3">
                 <Textarea
                   ref={replyTextareaRef}
                   value={replyContent}
@@ -466,11 +470,11 @@ export default function ForumPost({ user }) {
                     el.style.height = el.scrollHeight + 'px';
                   }}
                   placeholder={`Reply to ${reply.author_name}...`}
-                  className="min-h-[44px] bg-secondary/50 border-transparent focus:border-primary rounded-xl text-sm"
+                  className="min-h-[44px] bg-transparent border-transparent focus:border-transparent shadow-none text-sm resize-none"
                   style={{ overflow: 'hidden', resize: 'none' }}
                   autoFocus
                 />
-                <span className="absolute bottom-2 right-2 text-xs text-muted-foreground">{replyContent.length}/{MAX_CONTENT_LENGTH}</span>
+                <span className="absolute bottom-2 right-4 text-xs text-muted-foreground">{replyContent.length}/{MAX_CONTENT_LENGTH}</span>
               </div>
               {subscription?.limits_apply && subscription?.forum_replies && (
                 <Link to="/plus" className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors mb-1">
@@ -478,7 +482,7 @@ export default function ForumPost({ user }) {
                   {subscription.forum_replies.limit - subscription.forum_replies.used}/{subscription.forum_replies.limit} replies today
                 </Link>
               )}
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between px-4 pb-4">
                 <div className="flex items-center gap-2">
                   <Checkbox
                     id={`anon-inline-${reply.reply_id}`}
@@ -702,14 +706,14 @@ export default function ForumPost({ user }) {
                   {post.state && <span className="text-xs">({post.state})</span>}
                 </div>
               )}
-              <p className="text-foreground whitespace-pre-wrap break-words overflow-hidden mb-4">{post.content}</p>
+              <MarkdownContent content={post.content} className="mb-4" />
               {post.image && (
                 <div className="mb-6 rounded-xl overflow-hidden border border-border/50">
                   <img 
                     src={post.image} 
                     alt="Post attachment" 
-                    className="w-full max-h-96 object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                    onClick={() => window.open(post.image, '_blank')}
+                    className="w-full max-h-96 object-cover cursor-zoom-in hover:opacity-90 transition-opacity"
+                    onClick={() => setLightboxImage(post.image)}
                   />
                 </div>
               )}
@@ -900,6 +904,21 @@ export default function ForumPost({ user }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Lightbox */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center cursor-zoom-out p-4"
+          onClick={() => setLightboxImage(null)}
+        >
+          <img
+            src={lightboxImage}
+            alt="Full size"
+            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }

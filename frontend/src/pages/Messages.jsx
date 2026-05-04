@@ -192,8 +192,8 @@ function MessageBubble({ msg, isOwn, activeUser, onReport }) {
               <img
                 src={msg.content}
                 alt="Shared photo"
-                className="max-w-full max-h-64 object-contain cursor-pointer"
-                onClick={() => window.open(msg.content, "_blank")}
+                className="max-w-full max-h-64 object-contain cursor-zoom-in"
+                onClick={() => setLightboxImage(msg.content)}
               />
             </div>
           ) : (
@@ -245,6 +245,7 @@ export default function Messages({ user }) {
   const [imagePreview, setImagePreview] = useState(null); // data URL
   const [imageFile, setImageFile] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState(null);
 
   const [loadingMessages, setLoadingMessages] = useState(false);
 
@@ -925,6 +926,21 @@ export default function Messages({ user }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Image lightbox */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center cursor-zoom-out p-4"
+          onClick={() => setLightboxImage(null)}
+        >
+          <img
+            src={lightboxImage}
+            alt="Full size"
+            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }

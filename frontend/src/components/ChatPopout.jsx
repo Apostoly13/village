@@ -571,13 +571,13 @@ export default function ChatPopout({ user }) {
         <button
           onClick={handleOpen}
           aria-label={totalUnread > 0 ? `Messages — ${totalUnread} unread` : "Messages"}
-          className="flex items-center gap-2 pl-3 pr-4 py-2 bg-card border border-border/40 border-r-0 rounded-l-xl text-muted-foreground shadow-md hover:text-foreground hover:border-border/70 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          className="flex items-center gap-2.5 pl-4 pr-5 py-3 bg-card border border-border/40 border-r-0 rounded-l-2xl text-muted-foreground shadow-lg hover:text-foreground hover:border-border/70 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
           data-testid="chat-popout-bubble"
         >
-          <MessagesSquare className="h-4 w-4 shrink-0" />
-          <span className="text-xs font-medium">Messages</span>
+          <MessagesSquare className="h-5 w-5 shrink-0" />
+          <span className="text-sm font-semibold">Messages</span>
           {totalUnread > 0 && (
-            <span className="min-w-[16px] h-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-bold px-1">
+            <span className="min-w-[20px] h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold px-1.5">
               {totalUnread > 9 ? "9+" : totalUnread}
             </span>
           )}

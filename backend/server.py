@@ -460,7 +460,7 @@ class FriendRequestCreate(BaseModel):
 
 class DirectMessageCreate(BaseModel):
     receiver_id: str
-    content: str = Field(..., max_length=2000)
+    content: str = Field(..., max_length=2_000_000)  # large to allow base64 image data URLs (~1.3MB for a 1MB image)
 
 class Conversation(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -3549,7 +3549,7 @@ async def get_block_status(user_id: str, user: dict = Depends(get_current_user))
 async def create_report(report_data: ReportCreate, user: dict = Depends(get_current_user)):
     """Report a post, reply, chat message, direct message, stall listing, or stall message"""
     # Rate limit: 5 reports per 10 minutes per user
-    await _check_rate_limit(user["user_id"], "report", limit=5, window=600)
+    await _check_rate_limit(f"{user['user_id']}:report", 5, 600)
 
     # Verify content exists and resolve the reported user
     if report_data.content_type == "post":
