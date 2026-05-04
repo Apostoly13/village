@@ -9,7 +9,7 @@ const TLDR = [
   "Anonymous posts are designed to hide your identity from other members. We do not log a link between you and anonymous posts.",
   "Your location is used only to suggest local events and nearby circles.",
   "You can access, correct, or delete your data at any time. Account deletion triggers full removal within 30 days.",
-  "We aim to store data in Australia where reasonably available. We comply with the Australian Privacy Principles.",
+  "Your data is stored in Australia. We comply with the Australian Privacy Principles.",
 ];
 
 const SECTIONS = [
@@ -71,7 +71,7 @@ const SECTIONS = [
   {
     title: "6. Data Storage & Security",
     content: [
-      "We aim to store your personal information on servers located in Australia where reasonably available. Some third-party service providers may store or process data outside Australia — where this occurs, we take reasonable steps to ensure those providers protect your information to a standard comparable to the APPs.",
+      "Your data is stored in Australia. Some third-party service providers — including those used for backend processing and content delivery — may operate servers in other regions. Where this occurs, we take reasonable steps to ensure those providers protect your information to a standard comparable to the Australian Privacy Principles.",
       "We implement industry-standard security measures including encrypted storage, secure HTTPS connections, and access controls to protect your personal information from unauthorised access, disclosure, or loss.",
       "No method of transmission over the internet is completely secure. While we take reasonable precautions, we cannot guarantee absolute security.",
     ],

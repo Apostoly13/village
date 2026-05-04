@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useTheme } from "./useTheme";
 import { FEATURES } from "./config/features";
 import { Toaster } from "./components/ui/sonner";
 
-// Pages
+// Core pages — loaded immediately (on the critical path)
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -14,44 +14,46 @@ import ForumCategory from "./pages/ForumCategory";
 import ForumPost from "./pages/ForumPost";
 import ChatRooms from "./pages/ChatRooms";
 import ChatRoom from "./pages/ChatRoom";
-import Messages from "./pages/Messages";
-import Conversation from "./pages/Conversation";
-import Profile from "./pages/Profile";
-import CreatePost from "./pages/CreatePost";
-import Friends from "./pages/Friends";
-import Events from "./pages/Events";
-import SavedResources from "./pages/SavedResources";
-import AdminDashboard from "./pages/AdminDashboard";
-import ModeratorDashboard from "./pages/ModeratorDashboard";
-import Changelog from "./pages/Changelog";
-import CreateCommunity from "./pages/CreateCommunity";
-import Community from "./pages/Community";
-import Blog from "./pages/Blog";
-import BlogPost from "./pages/BlogPost";
 import Onboarding from "./pages/Onboarding";
-import Settings from "./pages/Settings";
-import Terms from "./pages/Terms";
-import Privacy from "./pages/Privacy";
-import Contact from "./pages/Contact";
-import ComingSoon from "./pages/ComingSoon";
-import Suggestions from "./pages/Suggestions";
-import CommunityGuidelines from "./pages/CommunityGuidelines";
 import NotFound from "./pages/NotFound";
-import VillagePlus from "./pages/VillagePlus";
-import SubscriptionSuccess from "./pages/SubscriptionSuccess";
-import SubscriptionCancel from "./pages/SubscriptionCancel";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
-import ForClinicians from "./pages/ForClinicians";
-import Stall from "./pages/Stall";
-import StallListingDetail from "./pages/StallListingDetail";
-import CreateStallListing from "./pages/CreateStallListing";
-import DonationGroupDetail from "./pages/DonationGroupDetail";
-import CreateDonationGroup from "./pages/CreateDonationGroup";
-import EditStallListing from "./pages/EditStallListing";
 import ChatPopout from "./components/ChatPopout";
 import PWAInstallBanner from "./components/PWAInstallBanner";
 import { toast } from "./components/ui/sonner";
+
+// Non-critical pages — lazy loaded (split into separate chunks)
+const Messages            = lazy(() => import("./pages/Messages"));
+const Conversation        = lazy(() => import("./pages/Conversation"));
+const Profile             = lazy(() => import("./pages/Profile"));
+const CreatePost          = lazy(() => import("./pages/CreatePost"));
+const Friends             = lazy(() => import("./pages/Friends"));
+const Events              = lazy(() => import("./pages/Events"));
+const SavedResources      = lazy(() => import("./pages/SavedResources"));
+const AdminDashboard      = lazy(() => import("./pages/AdminDashboard"));
+const ModeratorDashboard  = lazy(() => import("./pages/ModeratorDashboard"));
+const Changelog           = lazy(() => import("./pages/Changelog"));
+const CreateCommunity     = lazy(() => import("./pages/CreateCommunity"));
+const Community           = lazy(() => import("./pages/Community"));
+const Blog                = lazy(() => import("./pages/Blog"));
+const BlogPost            = lazy(() => import("./pages/BlogPost"));
+const Settings            = lazy(() => import("./pages/Settings"));
+const Terms               = lazy(() => import("./pages/Terms"));
+const Privacy             = lazy(() => import("./pages/Privacy"));
+const Contact             = lazy(() => import("./pages/Contact"));
+const ComingSoon          = lazy(() => import("./pages/ComingSoon"));
+const Suggestions         = lazy(() => import("./pages/Suggestions"));
+const CommunityGuidelines = lazy(() => import("./pages/CommunityGuidelines"));
+const VillagePlus         = lazy(() => import("./pages/VillagePlus"));
+const SubscriptionSuccess = lazy(() => import("./pages/SubscriptionSuccess"));
+const SubscriptionCancel  = lazy(() => import("./pages/SubscriptionCancel"));
+const ForClinicians       = lazy(() => import("./pages/ForClinicians"));
+const Stall               = lazy(() => import("./pages/Stall"));
+const StallListingDetail  = lazy(() => import("./pages/StallListingDetail"));
+const CreateStallListing  = lazy(() => import("./pages/CreateStallListing"));
+const DonationGroupDetail = lazy(() => import("./pages/DonationGroupDetail"));
+const CreateDonationGroup = lazy(() => import("./pages/CreateDonationGroup"));
+const EditStallListing    = lazy(() => import("./pages/EditStallListing"));
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -337,6 +339,7 @@ const AppRouter = () => {
 
   return (
     <>
+    <Suspense fallback={null}>
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
@@ -506,6 +509,7 @@ const AppRouter = () => {
       <Route path="/for-clinicians" element={<ForClinicians user={popoutUser} />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
+    </Suspense>
     {popoutUser &&
       location.pathname !== "/" &&
       location.pathname !== "/login" &&

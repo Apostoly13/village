@@ -237,6 +237,7 @@ export default function Navigation({ user }) {
             { Icon: Village,    label: "Communities", href: isFree ? "/plus" : "/forums?tab=communities", testId: "nav-communities", locked: isFree,
               ...(!isFree ? { subItems: [
                 { label: "Browse Communities", href: "/forums?tab=communities" },
+                { label: "My Communities",     href: "/forums?tab=communities&filter=joined" },
                 { label: "Create Community",   href: "/create-community" },
               ]} : {}),
             },

@@ -52,6 +52,8 @@ export default function ChatRooms({ user }) {
   const [preferredReach, setPreferredReach]   = useState(user?.preferred_reach || "25km");
   const [hasLocation, setHasLocation]         = useState(false);
   const [loading, setLoading]                 = useState(true);
+  const [liveRoomsFetched, setLiveRoomsFetched] = useState([]);
+  const [liveLoading, setLiveLoading]         = useState(true);
 
   // Filter chip state — "all" | "live" | "local"
   const [activeFilter, setActiveFilter] = useState(() => {
@@ -74,12 +76,28 @@ export default function ChatRooms({ user }) {
 
   useEffect(() => {
     fetchRooms();
+    fetchLiveRooms();
     const handleProfileUpdate = (e) => {
       if (e.detail?.gender !== undefined) setLiveGender(e.detail.gender);
     };
     window.addEventListener("village:profileUpdated", handleProfileUpdate);
     return () => window.removeEventListener("village:profileUpdated", handleProfileUpdate);
   }, []);
+
+  const fetchLiveRooms = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/chat/rooms/live`, { credentials: "include" });
+      if (res.ok) {
+        setLiveRoomsFetched(await res.json());
+      } else {
+        console.warn("Live rooms fetch failed:", res.status);
+      }
+    } catch (e) {
+      console.warn("Live rooms fetch error:", e);
+    } finally {
+      setLiveLoading(false);
+    }
+  };
 
   const fetchRooms = async (reachOverride) => {
     try {
@@ -221,10 +239,11 @@ export default function ChatRooms({ user }) {
     return () => clearTimeout(timer);
   }, [areaSearch]);
 
-  // Rooms with active users — for "Live now" filter
-  const liveRooms = [...allAustraliaRooms, ...nearbyRooms]
-    .filter(r => (r.active_users || 0) > 0)
-    .sort((a, b) => (b.active_users || 0) - (a.active_users || 0));
+  // Live rooms come from the dedicated /chat/rooms/live endpoint (all room types, last 45 min)
+  const fortyFiveMinAgo = new Date(Date.now() - 45 * 60 * 1000).toISOString();
+  const liveRooms = liveRoomsFetched;
+  // Set of room_ids in Live now — used to deduplicate All Australia section
+  const liveRoomIds = new Set(liveRooms.map(r => r.room_id));
 
   // ── Sub-components ────────────────────────────────────────────
 
@@ -255,16 +274,23 @@ export default function ChatRooms({ user }) {
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{room.description}</p>
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Users className="h-3.5 w-3.5" />{room.active_users || 0} online
-                </span>
+                {room.last_activity_at && room.last_activity_at >= fortyFiveMinAgo ? (
+                  <span className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse inline-block" />
+                    Active now
+                  </span>
+                ) : room.member_count > 0 ? (
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Users className="h-3.5 w-3.5" />{room.member_count} members
+                  </span>
+                ) : null}
               </div>
               <span className={`shrink-0 text-xs font-medium px-2.5 py-1 rounded-full whitespace-nowrap mt-0.5 ${
-                (room.active_users || 0) > 0
+                room.last_activity_at && room.last_activity_at >= fortyFiveMinAgo
                   ? "bg-green-500/15 text-green-700 dark:text-green-400"
                   : "bg-primary/10 text-primary"
               }`}>
-                {(room.active_users || 0) > 0 ? "Drop in" : "Open"}
+                {room.last_activity_at && room.last_activity_at >= fortyFiveMinAgo ? "Drop in" : "Open"}
               </span>
             </div>
           </div>
@@ -384,7 +410,7 @@ export default function ChatRooms({ user }) {
 
             {/* ── Live now ── */}
             {(activeFilter === "all" || activeFilter === "live") && (
-              loading ? <LoadingSkeleton count={2} /> :
+              liveLoading ? <LoadingSkeleton count={2} /> :
               liveRooms.length > 0 ? (
                 <section>
                   <h2 className="font-heading text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
@@ -409,7 +435,9 @@ export default function ChatRooms({ user }) {
             {/* ── All Australia ── */}
             {activeFilter === "all" && (
               <section>
-                <h2 className="font-heading text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3">All Australia</h2>
+                <h2 className="font-heading text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3">
+                  {liveRooms.length > 0 ? "Quiet right now — drop in anytime" : "All Australia"}
+                </h2>
                 {loading ? (
                   <LoadingSkeleton count={4} />
                 ) : allAustraliaRooms.length === 0 ? (
@@ -420,7 +448,7 @@ export default function ChatRooms({ user }) {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {/* Featured gender-specific rooms */}
+                    {/* Featured gender-specific rooms — always shown when gender matches */}
                     {(() => {
                       const mumChat = liveGender === "female"
                         ? allAustraliaRooms.find(r => r.name === "Mum Chat" || r.name === "Mum Circle")
@@ -456,10 +484,11 @@ export default function ChatRooms({ user }) {
                       ) : null;
                     })()}
 
-                    {/* Main grid — filter gender-restricted + featured rooms */}
+                    {/* Main grid — filter gender-restricted + featured rooms + anything already in Live now */}
                     <div className="grid sm:grid-cols-2 gap-4">
                       {allAustraliaRooms
                         .filter(r => {
+                          if (liveRoomIds.has(r.room_id)) return false;
                           if (["Mum Chat", "Mum Circle", "Dad Chat", "Dad Circle"].includes(r.name)) return false;
                           if (nightOwl && r.name?.toLowerCase().includes("3am")) return false;
                           if (r.gender_restriction) {

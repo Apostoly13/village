@@ -7,6 +7,25 @@ import AppFooter from "../components/AppFooter";
 // ── Full technical changelog (admin-only view) ────────────────────────────────
 const CHANGELOG = [
   {
+    version: "3.17.0",
+    date: "May 2026",
+    title: "Chat Rooms Live Fix, Performance, Mobile Landing & Privacy Copy",
+    entries: [
+      { tag: "Fixed",       text: "Live Now tab — was always empty because it relied on the active_users counter, which was never updated by real usage. Replaced with last_activity_at signal: rooms are live if a message was sent in the last 45 minutes. Threshold reduced from 4 hours → 45 minutes on both backend and frontend card indicators." },
+      { tag: "Fixed",       text: "All Australia section — rooms that appear in Live Now are now hidden from the All Australia grid to prevent duplicates. Section heading changes to 'Quiet right now — drop in anytime' when rooms are live elsewhere." },
+      { tag: "Fixed",       text: "Live Now only showed 2 rooms even when others were active — frontend was limited to rooms already fetched for the user's area. New /api/chat/rooms/live endpoint queries all room types by last_activity_at regardless of area, returning the full live set." },
+      { tag: "Fixed",       text: "Dashboard 'X Live' badge and 'X spaces active' greeting were always hardcoded to 5. Now fetches real counts from /api/stats/online — shows genuine online user count and active room count." },
+      { tag: "Added",       text: "Room cards show a pulsing 'Active now' dot and 'Drop in' badge when last_activity_at is within 45 minutes. Quiet rooms show member count and 'Open' as before." },
+      { tag: "Improved",    text: "Admin Dashboard tab bar replaced single horizontal scrolling row with two stacked rows: Insights (Overview, Engagement, Leaderboards, Revenue, Content) and Actions (Users, Moderation, Communities, Professionals, Announcements, Blog). No more horizontal scroll on smaller screens." },
+      { tag: "Improved",    text: "Mobile landing page — removed section-by-section pagination (Next/Back buttons and dots). All sections now scroll naturally like desktop, matching expected mobile behaviour." },
+      { tag: "Fixed",       text: "Navigation — 'My Communities' link now correctly opens the Communities tab with the joined filter applied (/forums?tab=communities&filter=joined). Forums page reads the ?filter= URL param and initialises communityFilter state from it." },
+      { tag: "Performance", text: "Route-based code splitting with React.lazy — 30 non-critical pages now load on demand. Core routes (Landing, Login, Register, Dashboard, Forums, ChatRooms) remain static. Reduces initial bundle size significantly." },
+      { tag: "Performance", text: "Backend feed query parallelised with asyncio.gather — inaccessible communities, blocked users (out/in), categories, likes, and memberships now fetched concurrently instead of sequentially." },
+      { tag: "Performance", text: "Area room lookup converted from per-area find_one loop to a single batch find query, eliminating N+1 pattern." },
+      { tag: "Legal",       text: "Removed false 'Hosted in Australia' and 'Australian servers' claims from Landing page and Privacy policy. Accurate copy: data is stored in Australia (MongoDB Atlas, AWS Sydney); backend processing and CDN use overseas providers. All covered by Australian Privacy Principles compliance." },
+    ],
+  },
+  {
     version: "3.16.0",
     date: "April 2026",
     title: "Google OAuth, Nav Dropdown Fixes & Changelog Overhaul",

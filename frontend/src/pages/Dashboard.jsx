@@ -239,6 +239,8 @@ export default function Dashboard({ user }) {
   const [postLikes, setPostLikes]       = useState({});
   const [busyChatRooms, setBusyChatRooms] = useState([]);
   const [namedRooms, setNamedRooms] = useState([]);
+  const [onlineCount, setOnlineCount] = useState(null);
+  const [activeRoomsCount, setActiveRoomsCount] = useState(null);
   const [nightOwl3amRoom, setNightOwl3amRoom] = useState(null);
   const [recentActivity, setRecentActivity] = useState([]);
   const [userCommunities, setUserCommunities] = useState([]);
@@ -297,30 +299,31 @@ export default function Dashboard({ user }) {
     let sentence = "";
     const chips  = [];
 
+    const activeRooms = activeRoomsCount || 0;
     if (replies.length && nearbyEvents.length) {
       sentence = `${replies.length === 1 ? "Someone replied to your post" : `${replies.length} parents replied to your posts`} and there ${nearbyEvents.length === 1 ? "is" : "are"} ${nearbyEvents.length} ${nearbyEvents.length === 1 ? "event" : "events"} near ${suburb}.`;
-      if (busyChatRooms.length) chips.push({ emoji: "🌿", text: `${busyChatRooms.length} spaces active now` });
+      if (activeRooms) chips.push({ emoji: "🌿", text: `${activeRooms} chat ${activeRooms === 1 ? "room" : "rooms"} active now` });
     } else if (replies.length) {
       sentence = replies.length === 1 ? "Someone replied to your post — check in when you're ready." : `${replies.length} parents replied to your posts. Check in when you're ready.`;
-      if (nearbyEvents.length)  chips.push({ emoji: "📅", text: `${nearbyEvents.length} events near ${suburb}` });
-      if (busyChatRooms.length) chips.push({ emoji: "🌿", text: `${busyChatRooms.length} spaces active now` });
+      if (nearbyEvents.length) chips.push({ emoji: "📅", text: `${nearbyEvents.length} events near ${suburb}` });
+      if (activeRooms) chips.push({ emoji: "🌿", text: `${activeRooms} chat ${activeRooms === 1 ? "room" : "rooms"} active now` });
     } else if (likes.length) {
       sentence = `${likes.length} ${likes.length === 1 ? "parent found" : "parents found"} your posts helpful recently.`;
-      if (nearbyEvents.length)  chips.push({ emoji: "📅", text: `${nearbyEvents.length} events near ${suburb}` });
-      if (busyChatRooms.length) chips.push({ emoji: "🌿", text: `${busyChatRooms.length} spaces active now` });
+      if (nearbyEvents.length) chips.push({ emoji: "📅", text: `${nearbyEvents.length} events near ${suburb}` });
+      if (activeRooms) chips.push({ emoji: "🌿", text: `${activeRooms} chat ${activeRooms === 1 ? "room" : "rooms"} active now` });
     } else if (friends.length) {
       sentence = `You have ${friends.length} friend ${friends.length === 1 ? "request" : "requests"} from the village.`;
-      if (busyChatRooms.length) chips.push({ emoji: "🌿", text: `${busyChatRooms.length} spaces active now` });
-    } else if (busyChatRooms.length && nearbyEvents.length) {
-      sentence = `${busyChatRooms.length} ${busyChatRooms.length === 1 ? "space is" : "spaces are"} active and ${nearbyEvents.length} ${nearbyEvents.length === 1 ? "event" : "events"} near ${suburb}.`;
-    } else if (busyChatRooms.length) {
-      sentence = `${busyChatRooms.length} ${busyChatRooms.length === 1 ? "space is" : "spaces are"} active right now — good time to join.`;
+      if (activeRooms) chips.push({ emoji: "🌿", text: `${activeRooms} chat ${activeRooms === 1 ? "room" : "rooms"} active now` });
+    } else if (activeRooms && nearbyEvents.length) {
+      sentence = `${activeRooms} chat ${activeRooms === 1 ? "room is" : "rooms are"} active and ${nearbyEvents.length} ${nearbyEvents.length === 1 ? "event" : "events"} near ${suburb}.`;
+    } else if (activeRooms) {
+      sentence = `${activeRooms} chat ${activeRooms === 1 ? "room is" : "rooms are"} active right now — good time to join.`;
     } else if (nearbyEvents.length) {
       sentence = `There ${nearbyEvents.length === 1 ? "is" : "are"} ${nearbyEvents.length} ${nearbyEvents.length === 1 ? "event" : "events"} near ${suburb} coming up.`;
     }
 
     return { sentence, chips: chips.slice(0, 2) };
-  }, [recentActivity, nearbyEvents, busyChatRooms, user]);
+  }, [recentActivity, nearbyEvents, busyChatRooms, activeRoomsCount, user]);
 
   // ── Post badges (max 1 per card) ───────────────────────────────────────────
   const getTopBadge = (post) => {
@@ -348,6 +351,7 @@ export default function Dashboard({ user }) {
       fetchBusyChatRooms(),
       fetchRecentActivity(),
       fetchPinnedAnnouncements(),
+      fetchOnlineCount(),
       ...(user?.subscription_tier === "premium" ? [fetchUserCommunities()] : []),
     ]);
     // Onboarding is now a standalone page (/onboarding) — ProtectedRoute handles the redirect
@@ -522,6 +526,17 @@ export default function Dashboard({ user }) {
     try {
       const res = await fetch(`${API_URL}/api/announcements/active`, { credentials: "include" });
       if (res.ok) setPinnedAnnouncements(await res.json());
+    } catch {}
+  };
+
+  const fetchOnlineCount = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/stats/online`);
+      if (res.ok) {
+        const data = await res.json();
+        setOnlineCount(data.online_now ?? null);
+        setActiveRoomsCount(data.active_rooms ?? null);
+      }
     } catch {}
   };
 
@@ -898,15 +913,12 @@ export default function Dashboard({ user }) {
                     {f.label}
                   </button>
                 ))}
-                {/* Live shortcut — navigates to Group Chats */}
-                {namedRooms.length > 0 && (
-                  <Link
-                    to="/chat"
-                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap shrink-0 bg-green-500/10 border border-green-500/30 text-green-700 dark:text-green-400 hover:bg-green-500/20 transition-colors"
-                  >
+                {/* Online count — real platform presence via heartbeat */}
+                {onlineCount !== null && onlineCount > 0 && (
+                  <span className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap shrink-0 bg-green-500/10 border border-green-500/30 text-green-700 dark:text-green-400">
                     <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse inline-block" />
-                    {namedRooms.length} Live
-                  </Link>
+                    {onlineCount} online
+                  </span>
                 )}
               </div>
             </div>

@@ -461,12 +461,12 @@ export default function AdminDashboard({ user }) {
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
 
-          {/* Tab bar — scrollable on mobile, sectioned into Insights and Actions */}
-          <div className="overflow-x-auto pb-1 mb-6">
-            <TabsList className="bg-card border border-border/50 rounded-xl p-1 flex gap-1 min-w-max items-center">
+          {/* Tab bar — two rows, no horizontal scroll */}
+          <TabsList className="mb-6 bg-transparent border-0 p-0 flex flex-col gap-2 h-auto items-stretch">
 
-              {/* ── Insights (read-only) ── */}
-              <span className="text-[10px] font-semibold uppercase tracking-widest px-2 select-none" style={{ color: "var(--ink-3)" }}>
+            {/* ── Row 1: Insights ── */}
+            <div className="flex items-center gap-1 flex-wrap bg-card border border-border/50 rounded-xl p-1">
+              <span className="text-[10px] font-semibold uppercase tracking-widest px-2 select-none shrink-0" style={{ color: "var(--ink-3)" }}>
                 Insights
               </span>
               {[
@@ -481,21 +481,20 @@ export default function AdminDashboard({ user }) {
                   {t.label}
                 </TabsTrigger>
               ))}
+            </div>
 
-              {/* ── Divider ── */}
-              <div className="w-px h-5 mx-1 shrink-0" style={{ background: "var(--line)" }} />
-
-              {/* ── Actions (consequential) ── */}
-              <span className="text-[10px] font-semibold uppercase tracking-widest px-2 select-none" style={{ color: "var(--ink-3)" }}>
+            {/* ── Row 2: Actions ── */}
+            <div className="flex items-center gap-1 flex-wrap bg-card border border-border/50 rounded-xl p-1">
+              <span className="text-[10px] font-semibold uppercase tracking-widest px-2 select-none shrink-0" style={{ color: "var(--ink-3)" }}>
                 Actions
               </span>
               {[
-                { value: "users",         icon: Users,      label: "Users" },
-                { value: "moderation",    icon: Flag,       label: "Moderation", badge: analytics?.content?.pending_reports },
-                { value: "communities",   icon: Building2,  label: "Communities" },
-                { value: "professionals", icon: Stethoscope,label: "Professionals" },
-                { value: "announcements", icon: Megaphone,  label: "Announcements" },
-                { value: "blog",          icon: BookOpen,   label: "Blog" },
+                { value: "users",         icon: Users,       label: "Users" },
+                { value: "moderation",    icon: Flag,        label: "Moderation", badge: analytics?.content?.pending_reports },
+                { value: "communities",   icon: Building2,   label: "Communities" },
+                { value: "professionals", icon: Stethoscope, label: "Professionals" },
+                { value: "announcements", icon: Megaphone,   label: "Announcements" },
+                { value: "blog",          icon: BookOpen,    label: "Blog" },
               ].map(t => (
                 <TabsTrigger key={t.value} value={t.value} className="rounded-lg px-3 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-1.5 whitespace-nowrap text-sm">
                   <t.icon className="h-4 w-4" />
@@ -505,8 +504,9 @@ export default function AdminDashboard({ user }) {
                   )}
                 </TabsTrigger>
               ))}
-            </TabsList>
-          </div>
+            </div>
+
+          </TabsList>
 
           {/* ══════════ OVERVIEW TAB ══════════ */}
           <TabsContent value="overview" className="mt-0 space-y-6">

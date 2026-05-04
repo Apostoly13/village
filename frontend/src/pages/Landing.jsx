@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import {
-  Heart, ArrowRight, ChevronRight, ChevronLeft, ShieldCheck, Stethoscope,
+  Heart, ArrowRight, ChevronRight, ShieldCheck, Stethoscope,
   Lock, Phone, Sparkles, Check, Moon, Sun
 } from "lucide-react";
 import { Wordmark } from "../components/Wordmark";
@@ -158,7 +158,6 @@ export default function Landing() {
   const toggleTheme = () => setThemeSetting(isDark ? "day" : "night");
   const [demoTab, setDemoTab] = useState("spaces");
   const [onlineStats, setOnlineStats] = useState({ online_now: null, active_rooms: 0 });
-  const [mobileSection, setMobileSection] = useState(0);
 
   useEffect(() => {
     fetch(`${API_URL}/api/seed`, { method: "POST" }).catch(() => {});
@@ -185,7 +184,7 @@ export default function Landing() {
     { Icon: IconCal,    title: "Events & playgroups",       description: "Browse and RSVP to local playgroups, coffee mornings, and dad meetups. Host your own in one tap." },
     { Icon: IconPeople, title: "Private messaging",         description: "Build real friendships and message privately. End-to-end private between you and the parent you're chatting with." },
     { Icon: IconPhone,  title: "Crisis support, built in",  description: "PANDA, Lifeline, and Beyond Blue surfaced on every sensitive space. Help is never more than a tap away." },
-    { Icon: IconSun,    title: "Built in Australia",        description: "Australian parents, Australian moderation, Australian data. Made for the way we actually do parenting here." },
+    { Icon: IconSun,    title: "Built in Australia",        description: "Australian parents, Australian moderation, Australian community. Made for the way we actually do parenting here." },
   ];
 
   const DEMO_TABS = [
@@ -204,8 +203,6 @@ export default function Landing() {
     { id: "join",     label: "Join"         },
   ];
 
-  const goNext = useCallback(() => setMobileSection(s => Math.min(s + 1, MOBILE_SECTIONS.length - 1)), [MOBILE_SECTIONS.length]);
-  const goPrev = useCallback(() => setMobileSection(s => Math.max(s - 1, 0)), []);
 
   // ── Shared nav bar ──────────────────────────────────────────────────────────
   const NavBar = () => (
@@ -433,7 +430,7 @@ export default function Landing() {
               {[
                 { icon: "🙈", title: "Anonymous when you want", desc: "Flip any post to anonymous — no name, no avatar, no trace back to you." },
                 { icon: "🚫", title: "We don't sell your data", desc: "Not to advertisers, not to brokers, not to anyone. Ever." },
-                { icon: "🇦🇺", title: "Hosted in Australia", desc: "Your conversations live on Australian servers under Australian law." },
+                { icon: "🇦🇺", title: "Stored in Australia", desc: "Your data is stored on Australian servers, protected by Australian privacy law." },
                 { icon: "🗑️", title: "Delete anything, any time", desc: "Your account, your posts, your messages — gone when you say so." },
               ].map((item) => (
                 <div key={item.title} className="village-card p-4 flex gap-3">
@@ -504,76 +501,13 @@ export default function Landing() {
         <NavBar />
       </div>
 
-      {/* ══════════ MOBILE LAYOUT (< lg) ═══════════════════════════════════════ */}
-      <div className="lg:hidden flex flex-col" style={{ height: "100dvh", paddingTop: "53px", paddingBottom: "64px" }}>
-
-        {/* Section content — fills remaining space, scrollable within section */}
-        <div className="flex-1 overflow-hidden relative" style={{ background: "var(--paper)" }}>
-          {/* Animated section content */}
-          <div
-            key={mobileSection}
-            className="h-full overflow-y-auto"
-            style={{ animation: "fadeSlideIn 0.22s ease-out" }}
-          >
-            {renderMobileSection(MOBILE_SECTIONS[mobileSection].id)}
+      {/* ══════════ MOBILE LAYOUT (< lg) — simple scroll ═══════════════════════ */}
+      <div className="lg:hidden" style={{ paddingTop: "53px" }}>
+        {MOBILE_SECTIONS.map(s => (
+          <div key={s.id}>
+            {renderMobileSection(s.id)}
           </div>
-        </div>
-
-        {/* Fixed bottom nav bar */}
-        <div
-          className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-between px-5 py-3"
-          style={{ background: "var(--paper)", borderTop: "1px solid var(--line-2)", height: 64 }}
-        >
-          {/* Prev */}
-          <button
-            onClick={goPrev}
-            disabled={mobileSection === 0}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors disabled:opacity-30 disabled:pointer-events-none"
-            style={{ color: "var(--ink-2)" }}
-          >
-            <ChevronLeft className="h-4 w-4" />
-            Back
-          </button>
-
-          {/* Section dots */}
-          <div className="flex items-center gap-1.5">
-            {MOBILE_SECTIONS.map((s, i) => (
-              <button
-                key={s.id}
-                onClick={() => setMobileSection(i)}
-                className="transition-all rounded-full"
-                style={{
-                  width: i === mobileSection ? 20 : 6,
-                  height: 6,
-                  background: i === mobileSection ? "hsl(var(--accent))" : "var(--line)",
-                }}
-                aria-label={s.label}
-              />
-            ))}
-          </div>
-
-          {/* Next / Join */}
-          {mobileSection < MOBILE_SECTIONS.length - 1 ? (
-            <button
-              onClick={goNext}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-colors"
-              style={{ background: "var(--ink)", color: "var(--paper)" }}
-            >
-              Next
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          ) : (
-            <Link to="/register">
-              <button
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold"
-                style={{ background: "hsl(var(--accent))", color: "var(--paper)" }}
-              >
-                Join Free
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            </Link>
-          )}
-        </div>
+        ))}
       </div>
 
       {/* ══════════ DESKTOP LAYOUT (≥ lg) ════════════════════════════════════════ */}
@@ -858,7 +792,7 @@ export default function Landing() {
               {[
                 { icon: "🙈", title: "Anonymous when you want", desc: "Flip any post to anonymous — no name, no avatar, no trace back to you." },
                 { icon: "🚫", title: "We don't sell your data", desc: "Not to advertisers, not to brokers, not to anyone. Ever." },
-                { icon: "🇦🇺", title: "Hosted in Australia", desc: "Your conversations live on Australian servers under Australian law." },
+                { icon: "🇦🇺", title: "Stored in Australia", desc: "Your data is stored on Australian servers, protected by Australian privacy law." },
                 { icon: "🗑️", title: "Delete anything, any time", desc: "Your account, your posts, your messages — gone when you say so." },
               ].map((item) => (
                 <div key={item.title} className="village-card p-5 flex gap-4">

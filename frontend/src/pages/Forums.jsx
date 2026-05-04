@@ -257,7 +257,10 @@ export default function Forums({ user }) {
   // Community search + sort state
   const [communitySearch, setCommunitySearch] = useState("");
   const [communitySort, setCommunitySort] = useState("popular");   // popular | newest | members | posts
-  const [communityFilter, setCommunityFilter] = useState("all");   // all | local | joined | open | private
+  const filterParam = searchParams.get("filter");
+  const [communityFilter, setCommunityFilter] = useState(
+    ["all", "local", "joined", "open", "private"].includes(filterParam) ? filterParam : "all"
+  );   // all | local | joined | open | private
 
   const filteredCommunities = communities
     .filter(c => {

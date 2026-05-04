@@ -3723,12 +3723,11 @@ async def get_chat_rooms(
     if user_local_area:
         my_area_room = await get_or_create_area_room(user_local_area)
 
-    # Get or create any additional area rooms the user has joined
+    # Get or create any additional area rooms the user has joined — all in parallel
     joined_area_names = [a for a in user.get("joined_area_rooms", []) if a != user_local_area]
-    joined_area_rooms = []
-    for area_name in joined_area_names:
-        room = await get_or_create_area_room(area_name)
-        joined_area_rooms.append(room)
+    joined_area_rooms = list(await asyncio.gather(
+        *[get_or_create_area_room(a) for a in joined_area_names]
+    )) if joined_area_names else []
 
     # Get all active rooms
     all_rooms = await db.chat_rooms.find({"is_active": True}, {"_id": 0}).to_list(500)
@@ -3805,15 +3804,17 @@ async def search_area_rooms(
     joined = set(user.get("joined_area_rooms", []))
 
     results = []
+    # Batch fetch all matching rooms in one query instead of one per area
+    existing_rooms = await db.chat_rooms.find(
+        {"area_name": {"$in": matches}, "room_type": "local_area", "is_active": True},
+        {"_id": 0}
+    ).to_list(None)
+    existing_map = {r["area_name"]: r for r in existing_rooms}
+
     for area_name in matches:
-        # Only fetch existing rooms — don't create on search
-        existing = await db.chat_rooms.find_one(
-            {"area_name": area_name, "room_type": "local_area", "is_active": True},
-            {"_id": 0}
-        )
         results.append({
             "area_name": area_name,
-            "room": existing,
+            "room": existing_map.get(area_name),
             "is_primary": area_name == user_local_area,
             "is_joined": area_name in joined or area_name == user_local_area,
             "postcode_range": get_area_postcode_range(area_name),
@@ -3896,6 +3897,26 @@ async def get_nearby_chat_rooms(
     
     nearby_rooms.sort(key=lambda x: x.get("distance_km", 9999))
     return {"rooms": nearby_rooms, "search_radius_km": distance_km}
+
+@api_router.get("/chat/rooms/live")
+async def get_live_chat_rooms(user: dict = Depends(get_current_user)):
+    """Return all rooms with activity in the last 45 minutes, regardless of type or area."""
+    forty_five_min_ago = (datetime.now(timezone.utc) - timedelta(minutes=45)).isoformat()
+    # Query by last_activity_at only — any room with a recent message is live.
+    # Avoid is_active filter as some legacy rooms may have it missing/false.
+    rooms = await db.chat_rooms.find(
+        {"last_activity_at": {"$gte": forty_five_min_ago}},
+        {"_id": 0}
+    ).sort("last_activity_at", -1).to_list(50)
+    # Filter out friends-only rooms the user isn't part of
+    result = []
+    for r in rooms:
+        if r.get("room_type") == "friends_only":
+            members = r.get("members", [])
+            if user["user_id"] not in members:
+                continue
+        result.append(r)
+    return result
 
 @api_router.get("/chat/rooms/all")
 async def get_all_chat_rooms():
@@ -4696,17 +4717,19 @@ async def get_feed(request: Request, limit: int = Query(default=20, ge=1, le=100
         pass
 
     query = {"$or": [{"visibility": {"$ne": "only_me"}}, {"visibility": None}]}
-    inaccessible_communities = await get_inaccessible_community_ids(cu if current_user_id else None)
+    # Run inaccessible communities + block lookups in parallel
     if current_user_id:
-        # Exclude posts from users the current user has blocked (or who blocked them)
-        blocks_out = await db.user_blocks.find(
+        inaccessible_task = get_inaccessible_community_ids(cu)
+        blocks_out_task = db.user_blocks.find(
             {"blocker_id": current_user_id}, {"_id": 0, "blocked_id": 1}
         ).to_list(200)
-        blocks_in = await db.user_blocks.find(
+        blocks_in_task = db.user_blocks.find(
             {"blocked_id": current_user_id}, {"_id": 0, "blocker_id": 1}
         ).to_list(200)
+        inaccessible_communities, blocks_out, blocks_in = await asyncio.gather(
+            inaccessible_task, blocks_out_task, blocks_in_task
+        )
         blocked_ids = [b["blocked_id"] for b in blocks_out] + [b["blocker_id"] for b in blocks_in]
-
         query = {"$and": [
             {"$or": [
                 {"visibility": {"$ne": "only_me"}},
@@ -4715,6 +4738,9 @@ async def get_feed(request: Request, limit: int = Query(default=20, ge=1, le=100
             ]},
             *([{"author_id": {"$nin": blocked_ids}}] if blocked_ids else []),
         ]}
+    else:
+        inaccessible_communities = await get_inaccessible_community_ids(None)
+        blocked_ids = []
 
     if inaccessible_communities:
         if "$and" in query:
@@ -4738,24 +4764,36 @@ async def get_feed(request: Request, limit: int = Query(default=20, ge=1, le=100
         if current_user_id else None
     )
 
-    if likes_task is not None:
+    # Gather categories, likes, and memberships all in one round trip
+    membership_task = (
+        db.community_members.find(
+            {"user_id": current_user_id}, {"_id": 0, "community_id": 1}
+        ).to_list(None)
+        if current_user_id else None
+    )
+    if likes_task is not None and membership_task is not None:
+        categories_list, liked_docs, membership_docs = await asyncio.gather(
+            categories_task, likes_task, membership_task
+        )
+    elif likes_task is not None:
         categories_list, liked_docs = await asyncio.gather(categories_task, likes_task)
+        membership_docs = []
+    elif membership_task is not None:
+        categories_list, membership_docs = await asyncio.gather(categories_task, membership_task)
+        liked_docs = []
     else:
         categories_list = await categories_task
         liked_docs = []
+        membership_docs = []
 
     categories_map = {c["category_id"]: c for c in categories_list}
     liked_set = {d["post_id"] for d in liked_docs}
 
-    # Fetch user's tier + community memberships to gate community posts
+    # Use already-fetched user object (cu) to avoid a redundant DB round trip
     user_tier = None
     user_community_ids = set()
-    if current_user_id:
-        cu_doc = await db.users.find_one({"user_id": current_user_id}, {"subscription_tier": 1})
-        user_tier = (cu_doc or {}).get("subscription_tier", "free")
-        membership_docs = await db.community_members.find(
-            {"user_id": current_user_id}, {"_id": 0, "community_id": 1}
-        ).to_list(None)
+    if current_user_id and cu:
+        user_tier = cu.get("subscription_tier", "free")
         user_community_ids = {m["community_id"] for m in membership_docs}
 
     is_premium = user_tier in ("premium", "trial")
