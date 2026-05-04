@@ -466,6 +466,18 @@ const CHANGELOG = [
 // Plain readable summaries — no technical tags or implementation details.
 const USER_CHANGELOG = [
   {
+    version: "3.17.0",
+    date: "May 2026",
+    title: "Live Chat Rooms, Faster Platform & Privacy Updates",
+    entries: [
+      "Chat Rooms now shows accurate Live Now rooms — only rooms with a message in the last 45 minutes appear as live.",
+      "Room cards show a live indicator and 'Drop in' badge when a room is currently active.",
+      "The dashboard now shows your real online count instead of a placeholder.",
+      "The platform loads faster overall — pages now load on demand and backend queries run more efficiently.",
+      "Privacy page updated with accurate information about where your data is stored.",
+    ],
+  },
+  {
     version: "3.16.0",
     date: "April 2026",
     title: "Sign in with Google",
