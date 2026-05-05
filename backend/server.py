@@ -5938,6 +5938,65 @@ async def reject_professional(user_id: str, admin: dict = Depends(get_admin_user
     })
     return {"message": "Application rejected"}
 
+@api_router.post("/admin/dedup-categories")
+async def admin_dedup_categories(admin: dict = Depends(get_admin_user)):
+    """
+    One-shot dedup: for every category name that appears more than once,
+    keep the entry with the most posts (oldest created_at as tiebreak),
+    migrate all posts from duplicates to the keeper, then delete duplicates.
+    Also runs CATEGORY_RENAMES to fix any remaining old-named entries.
+    Admin-only. Safe to call multiple times.
+    """
+    fixed = []
+
+    # 1. Run rename migrations
+    CATEGORY_RENAMES = [
+        ("Just Venting",        "Real Talk"),
+        ("Mental Health Space", "Parent Wellbeing"),
+        ("Single Parents Space","Solo Parents"),
+        ("Relationships",       "Family & Relationships"),
+        ("Local Meetups",       "Local Village"),
+        ("Feeding Space",       "Feeding"),
+        ("Sleep Space",         "Sleep & Settling"),
+        ("Newborn Space",       "Newborns"),
+        ("Infant Space",        "Babies"),
+        ("Toddler Space",       "Toddlers"),
+        ("School Age Space",    "School Age"),
+        ("Teenager Space",      "Teenagers"),
+        ("Expecting Space",     "Pregnancy & Expecting"),
+        ("Mums Space",          "Mums of The Village"),
+        ("Dad Space",           "Dads of The Village"),
+    ]
+    for old_name, new_name in CATEGORY_RENAMES:
+        old_cat = await db.forum_categories.find_one({"name": old_name})
+        new_cat = await db.forum_categories.find_one({"name": new_name})
+        if old_cat and not new_cat:
+            await db.forum_categories.update_one({"_id": old_cat["_id"]}, {"$set": {"name": new_name}})
+            fixed.append(f"Renamed '{old_name}' → '{new_name}'")
+        elif old_cat and new_cat:
+            keep = old_cat if (old_cat.get("post_count", 0) or 0) >= (new_cat.get("post_count", 0) or 0) else new_cat
+            drop = new_cat if keep == old_cat else old_cat
+            await db.forum_posts.update_many({"category_id": drop["category_id"]}, {"$set": {"category_id": keep["category_id"]}})
+            await db.forum_categories.update_one({"_id": keep["_id"]}, {"$set": {"name": new_name}})
+            await db.forum_categories.delete_one({"_id": drop["_id"]})
+            fixed.append(f"Merged '{old_name}' + '{new_name}' → kept '{new_name}' ({keep.get('post_count',0)} posts)")
+
+    # 2. Dedup any remaining same-name entries
+    pipeline = [{"$group": {"_id": "$name", "count": {"$sum": 1}}}, {"$match": {"count": {"$gt": 1}}}]
+    dup_groups = await db.forum_categories.aggregate(pipeline).to_list(100)
+    for group in dup_groups:
+        entries = await db.forum_categories.find(
+            {"name": group["_id"]}, {"_id": 1, "post_count": 1, "created_at": 1, "category_id": 1}
+        ).to_list(20)
+        entries.sort(key=lambda x: (-(x.get("post_count") or 0), x.get("created_at") or ""))
+        for dup in entries[1:]:
+            await db.forum_posts.update_many({"category_id": dup["category_id"]}, {"$set": {"category_id": entries[0]["category_id"]}})
+            await db.forum_categories.delete_one({"_id": dup["_id"]})
+            fixed.append(f"Deduped '{group['_id']}' — removed id={dup.get('category_id')}")
+
+    return {"fixed": len(fixed), "actions": fixed}
+
+
 @api_router.get("/admin/professionals")
 async def get_approved_professionals(
     page: int = 1, limit: int = 20,
