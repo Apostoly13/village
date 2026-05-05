@@ -7,10 +7,11 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 const components = {
-  // Headings — keep them calm, not giant
-  h1: ({ children }) => <h2 className="font-heading font-bold text-xl text-foreground mt-4 mb-2 leading-snug">{children}</h2>,
-  h2: ({ children }) => <h3 className="font-heading font-bold text-lg text-foreground mt-3 mb-1.5 leading-snug">{children}</h3>,
-  h3: ({ children }) => <p className="font-semibold text-base text-foreground mt-2 mb-1">{children}</p>,
+  // Headings — demoted so they never compete with the page <h1> title
+  // h1 in markdown → renders as a bold subheading (not giant)
+  h1: ({ children }) => <p className="font-heading font-bold text-base text-foreground mt-3 mb-1 leading-snug">{children}</p>,
+  h2: ({ children }) => <p className="font-heading font-semibold text-sm text-foreground mt-2 mb-1 leading-snug">{children}</p>,
+  h3: ({ children }) => <p className="font-semibold text-sm text-muted-foreground mt-2 mb-0.5">{children}</p>,
 
   // Paragraph
   p: ({ children }) => <p className="text-foreground leading-relaxed mb-3 last:mb-0">{children}</p>,
@@ -57,6 +58,25 @@ const components = {
     >
       {children}
     </a>
+  ),
+
+  // Inline images
+  img: ({ src, alt }) => (
+    <img
+      src={src}
+      alt={alt || ""}
+      className="my-3 rounded-xl max-w-full max-h-96 object-contain cursor-zoom-in hover:opacity-90 transition-opacity"
+      onClick={(e) => {
+        const overlay = document.createElement("div");
+        overlay.style.cssText = "position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;cursor:zoom-out;padding:16px";
+        const img = document.createElement("img");
+        img.src = src;
+        img.style.cssText = "max-width:100%;max-height:100%;object-fit:contain;border-radius:12px";
+        overlay.appendChild(img);
+        overlay.onclick = () => document.body.removeChild(overlay);
+        document.body.appendChild(overlay);
+      }}
+    />
   ),
 
   // Horizontal rule

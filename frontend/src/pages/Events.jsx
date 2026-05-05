@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Crown } from "lucide-react";
 import Navigation from "../components/Navigation";
 import LocationButton from "../components/LocationButton";
-import { Calendar, MapPin, Clock, Users, Plus, Download, Check, Pencil, UserPlus, X, Send, MessageCircle, ExternalLink } from "lucide-react";
+import { Calendar, MapPin, Clock, Users, Plus, Download, Check, Pencil, UserPlus, X, Send, MessageCircle, ExternalLink, Image, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { parseApiError } from "../utils/apiError";
 import AppFooter from "../components/AppFooter";
@@ -325,7 +325,7 @@ function EventCard({ event, onRsvp, onUpdated, user, onOpenDetail }) {
       </div>
 
       {/* Content */}
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 overflow-hidden">
         <div className="flex items-start justify-between gap-2 mb-1">
           <div className="flex items-center gap-2 flex-wrap">
             <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${catStyle}`}>{catLabel}</span>
@@ -424,6 +424,13 @@ function EventCard({ event, onRsvp, onUpdated, user, onOpenDetail }) {
         </div>
       </div>
 
+      {/* Cover photo thumbnail */}
+      {event.image_url && (
+        <div className="flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border border-border/30 self-center">
+          <img src={event.image_url} alt="" className="w-full h-full object-cover" />
+        </div>
+      )}
+
       {/* Edit dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="bg-card border-border/50 max-w-lg max-h-[90vh] overflow-y-auto">
@@ -469,6 +476,10 @@ function CreateEventForm({ onCreated, onClose }) {
   const [venueResults, setVenueResults] = useState([]);
   const [searchingVenue, setSearchingVenue] = useState(false);
   const venueSearchTimeout = useRef(null);
+  const [imageUrl, setImageUrl] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef(null);
 
   const searchVenue = (q) => {
     handleChange("venue_address", q);
@@ -515,6 +526,36 @@ function CreateEventForm({ onCreated, onClose }) {
     setForm(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleImageSelect = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowed.includes(file.type)) { toast.error("Please select a JPEG, PNG, GIF, or WebP image"); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error("Image must be less than 5MB"); return; }
+    setUploadingImage(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch(`${API_URL}/api/upload/image`, { method: 'POST', credentials: 'include', body: fd });
+      if (res.ok) {
+        const data = await res.json();
+        setImageUrl(data.image_url);
+        setImagePreview(data.image_url);
+        toast.success("Photo added!");
+      } else {
+        const err = await res.json();
+        toast.error(parseApiError(err.detail, "Failed to upload photo"));
+      }
+    } catch { toast.error("Failed to upload photo"); }
+    finally { setUploadingImage(false); }
+  };
+
+  const removeImage = () => {
+    setImageUrl(null);
+    setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.title || !form.description || !form.date) {
@@ -539,6 +580,7 @@ function CreateEventForm({ onCreated, onClose }) {
         rsvp_limit: form.rsvp_limit ? parseInt(form.rsvp_limit, 10) : null,
         is_private: form.is_private,
         invited_notes: form.invited_emails || null,
+        image_url: imageUrl || null,
       };
       const res = await fetch(`${API_URL}/api/events`, {
         method: "POST",
@@ -586,6 +628,39 @@ function CreateEventForm({ onCreated, onClose }) {
           className={`${INPUT_CLASS} resize-none`}
           required
         />
+      </div>
+
+      {/* Cover photo */}
+      <div>
+        <label className="text-sm font-medium text-foreground block mb-1">
+          Cover photo <span className="text-muted-foreground font-normal">(optional)</span>
+        </label>
+        <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" onChange={handleImageSelect} className="hidden" />
+        {imagePreview ? (
+          <div className="relative rounded-xl overflow-hidden border border-border/50 aspect-[16/6]">
+            <img src={imagePreview} alt="Event cover" className="w-full h-full object-cover" />
+            <button
+              type="button"
+              onClick={removeImage}
+              className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full p-1 transition-colors"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadingImage}
+            className="w-full border-2 border-dashed border-border/50 rounded-xl py-5 flex flex-col items-center gap-2 text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-secondary/30 transition-all"
+          >
+            {uploadingImage ? (
+              <><Upload className="h-5 w-5 animate-pulse" /><span className="text-sm">Uploading...</span></>
+            ) : (
+              <><Image className="h-5 w-5" /><span className="text-sm">Add a cover photo</span><span className="text-xs">JPEG, PNG, GIF or WebP · max 5MB</span></>
+            )}
+          </button>
+        )}
       </div>
 
       {/* Venue name */}
@@ -919,6 +994,13 @@ function EventDetailModal({ event, user, onClose, onRsvp, onUpdated }) {
               </div>
             </div>
 
+            {/* Cover photo */}
+            {localEvent.image_url && (
+              <div className="rounded-2xl overflow-hidden mb-4 aspect-[16/6] border border-border/30">
+                <img src={localEvent.image_url} alt={localEvent.title} className="w-full h-full object-cover" />
+              </div>
+            )}
+
             {/* Time */}
             {(localEvent.time_start || localEvent.time_end) && (
               <div className="flex items-center gap-2 mb-3 text-sm text-foreground">
@@ -1101,11 +1183,20 @@ export default function Events({ user }) {
   // Client-side time filter (server handles category/state/distance)
   const [timeFilter, setTimeFilter] = useState("all");
 
-  // Handle nav deep-links: ?action=create opens the create dialog,
-  // ?tab=rsvp shows only events the user is going to
+  // Handle nav deep-links:
+  //   ?action=create  → opens the create dialog
+  //   ?tab=rsvp       → shows only events the user is going to
+  //   ?event=EVENT_ID → fetches and opens that event's detail modal directly
   useEffect(() => {
     if (searchParams.get("action") === "create" && !isFree) setDialogOpen(true);
     if (searchParams.get("tab") === "rsvp") setTimeFilter("going");
+    const eventId = searchParams.get("event");
+    if (eventId) {
+      fetch(`${API_URL}/api/events/${eventId}`, { credentials: "include" })
+        .then(r => r.ok ? r.json() : null)
+        .then(e => { if (e) setSelectedEvent(e); })
+        .catch(() => {});
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {

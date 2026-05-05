@@ -445,6 +445,7 @@ class DirectMessage(BaseModel):
     sender_name: str
     content: str
     is_read: bool = False
+    is_request: bool = False  # True = first-contact message awaiting acceptance
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class FriendRequest(BaseModel):
@@ -3162,6 +3163,67 @@ async def get_events(
 
     return events
 
+@api_router.get("/events/my-chats")
+async def get_my_event_chats(user: dict = Depends(get_current_user)):
+    """Return events the user is active in (RSVPed or has sent a message), with last message info."""
+    uid = user["user_id"]
+
+    # Events the user RSVPed to or organised
+    rsvp_event_ids = set()
+    async for e in db.events.find(
+        {"$or": [{"organiser_user_id": uid}, {"rsvp_list": uid}]},
+        {"event_id": 1}
+    ):
+        rsvp_event_ids.add(e["event_id"])
+
+    # Events the user has sent a message in
+    msg_event_ids = set()
+    async for m in db.event_chat.find({"author_id": uid}, {"event_id": 1}):
+        msg_event_ids.add(m["event_id"])
+
+    all_event_ids = list(rsvp_event_ids | msg_event_ids)
+    if not all_event_ids:
+        return []
+
+    # Fetch event details
+    events_map = {}
+    async for e in db.events.find({"event_id": {"$in": all_event_ids}}, {"_id": 0}):
+        events_map[e["event_id"]] = e
+
+    # For each event, get the last chat message
+    pipeline = [
+        {"$match": {"event_id": {"$in": all_event_ids}}},
+        {"$sort": {"created_at": -1}},
+        {"$group": {
+            "_id": "$event_id",
+            "last_message": {"$first": "$content"},
+            "last_message_time": {"$first": "$created_at"},
+            "last_author": {"$first": "$author_name"},
+        }}
+    ]
+    last_msgs = {r["_id"]: r async for r in db.event_chat.aggregate(pipeline)}
+
+    result = []
+    for eid in all_event_ids:
+        event = events_map.get(eid)
+        if not event or event.get("is_cancelled"):
+            continue
+        lm = last_msgs.get(eid, {})
+        result.append({
+            "event_id": eid,
+            "title": event.get("title", ""),
+            "date": event.get("date", ""),
+            "category": event.get("category", "general"),
+            "image_url": event.get("image_url"),
+            "rsvp_count": len(event.get("rsvp_list", [])),
+            "last_message": lm.get("last_message", ""),
+            "last_message_time": lm.get("last_message_time", event.get("created_at", "")),
+            "last_author": lm.get("last_author", ""),
+        })
+
+    result.sort(key=lambda x: x["last_message_time"], reverse=True)
+    return result
+
 @api_router.get("/events/{event_id}")
 async def get_event(event_id: str, request: Request):
     """Get a single event by ID"""
@@ -4288,7 +4350,7 @@ async def get_distance_options():
 async def get_conversations(user: dict = Depends(get_current_user)):
     user_id = user["user_id"]
     
-    # Get all messages involving this user
+    # Get all messages involving this user, with request-state metadata
     pipeline = [
         {"$match": {"$or": [{"sender_id": user_id}, {"receiver_id": user_id}]}},
         {"$sort": {"created_at": -1}},
@@ -4302,20 +4364,54 @@ async def get_conversations(user: dict = Depends(get_current_user)):
             },
             "last_message": {"$first": "$content"},
             "last_message_time": {"$first": "$created_at"},
+            # Unread count: exclude request messages (don't show badge until accepted)
             "unread_count": {
                 "$sum": {
                     "$cond": [
-                        {"$and": [{"$eq": ["$receiver_id", user_id]}, {"$eq": ["$is_read", False]}]},
-                        1,
-                        0
+                        {"$and": [
+                            {"$eq": ["$receiver_id", user_id]},
+                            {"$eq": ["$is_read", False]},
+                            {"$ne": ["$is_request", True]}
+                        ]},
+                        1, 0
                     ]
                 }
-            }
+            },
+            # Has any accepted (non-request) message been sent?
+            "accepted_count": {
+                "$sum": {"$cond": [{"$ne": ["$is_request", True]}, 1, 0]}
+            },
+            # Incoming pending requests (other user → me, still is_request)
+            "incoming_request_count": {
+                "$sum": {
+                    "$cond": [
+                        {"$and": [
+                            {"$eq": ["$receiver_id", user_id]},
+                            {"$eq": ["$is_request", True]}
+                        ]},
+                        1, 0
+                    ]
+                }
+            },
+            # Outgoing pending requests (me → other user, still is_request)
+            "outgoing_request_count": {
+                "$sum": {
+                    "$cond": [
+                        {"$and": [
+                            {"$eq": ["$sender_id", user_id]},
+                            {"$eq": ["$is_request", True]}
+                        ]},
+                        1, 0
+                    ]
+                }
+            },
+            # First message content (preview shown on request cards)
+            "first_message": {"$last": "$content"},
         }}
     ]
-    
+
     conversations_raw = await db.direct_messages.aggregate(pipeline).to_list(50)
-    
+
     # Batch-fetch all other-user profiles in one query (eliminates N+1)
     other_ids = [c["_id"] for c in conversations_raw]
     user_map: dict = {}
@@ -4330,16 +4426,26 @@ async def get_conversations(user: dict = Depends(get_current_user)):
     for conv in conversations_raw:
         other_user_id = conv["_id"]
         other_user = user_map.get(other_user_id)
-        if other_user:
-            conversations.append({
-                "conversation_id": f"{min(user_id, other_user_id)}_{max(user_id, other_user_id)}",
-                "other_user_id": other_user_id,
-                "other_user_name": other_user.get("nickname") or other_user.get("name", ""),
-                "other_user_picture": other_user.get("picture"),
-                "last_message": conv["last_message"],
-                "last_message_time": conv["last_message_time"],
-                "unread_count": conv["unread_count"]
-            })
+        if not other_user:
+            continue
+        accepted = conv.get("accepted_count", 0) > 0
+        incoming_req = conv.get("incoming_request_count", 0) > 0
+        outgoing_req = conv.get("outgoing_request_count", 0) > 0
+        # Classify: incoming request (no accepted msgs yet), outgoing pending, or normal
+        is_pending_request = incoming_req and not accepted
+        is_outgoing_request = outgoing_req and not accepted and not incoming_req
+        conversations.append({
+            "conversation_id": f"{min(user_id, other_user_id)}_{max(user_id, other_user_id)}",
+            "other_user_id": other_user_id,
+            "other_user_name": other_user.get("nickname") or other_user.get("name", ""),
+            "other_user_picture": other_user.get("picture"),
+            "last_message": conv["last_message"],
+            "last_message_time": conv["last_message_time"],
+            "unread_count": conv["unread_count"],
+            "is_pending_request": is_pending_request,
+            "is_outgoing_request": is_outgoing_request,
+            "request_preview": conv.get("first_message", "") if is_pending_request else None,
+        })
 
     return sorted(conversations, key=lambda x: x["last_message_time"], reverse=True)
 
@@ -4362,14 +4468,37 @@ async def get_direct_messages(other_user_id: str, user: dict = Depends(get_curre
             {"sender_id": other_user_id, "receiver_id": user_id}
         ]
     }, {"_id": 0}).sort("created_at", 1).to_list(100)
-    
-    # Mark messages as read
+
+    # Only mark accepted (non-request) messages as read — request messages are read after acceptance
     await db.direct_messages.update_many(
-        {"sender_id": other_user_id, "receiver_id": user_id, "is_read": False},
+        {"sender_id": other_user_id, "receiver_id": user_id, "is_read": False, "is_request": {"$ne": True}},
         {"$set": {"is_read": True}}
     )
-    
+
     return messages
+
+@api_router.post("/messages/{other_user_id}/accept-request")
+async def accept_message_request(other_user_id: str, user: dict = Depends(get_current_user)):
+    """Accept a message request — converts pending request messages to normal messages."""
+    user_id = user["user_id"]
+    result = await db.direct_messages.update_many(
+        {"sender_id": other_user_id, "receiver_id": user_id, "is_request": True},
+        {"$set": {"is_request": False, "is_read": True}}
+    )
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="No pending request found")
+    return {"accepted": True, "other_user_id": other_user_id}
+
+@api_router.post("/messages/{other_user_id}/decline-request")
+async def decline_message_request(other_user_id: str, user: dict = Depends(get_current_user)):
+    """Decline a message request — removes the pending request messages."""
+    user_id = user["user_id"]
+    result = await db.direct_messages.delete_many(
+        {"sender_id": other_user_id, "receiver_id": user_id, "is_request": True}
+    )
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="No pending request found")
+    return {"declined": True, "other_user_id": other_user_id}
 
 @api_router.post("/messages")
 async def send_direct_message(message_data: DirectMessageCreate, user: dict = Depends(get_current_user), request: Request = None):
@@ -4412,11 +4541,42 @@ async def send_direct_message(message_data: DirectMessageCreate, user: dict = De
     if block:
         raise HTTPException(status_code=403, detail="Unable to send message")
 
+    # Determine if this is a message request (first contact between non-friends)
+    is_request = False
+    friendship = await db.friendships.find_one({
+        "$or": [
+            {"user1_id": user["user_id"], "user2_id": message_data.receiver_id},
+            {"user1_id": message_data.receiver_id, "user2_id": user["user_id"]},
+        ]
+    })
+    if not friendship:
+        # Check whether the conversation is already established (any accepted message exists)
+        established = await db.direct_messages.find_one({
+            "$or": [
+                {"sender_id": user["user_id"], "receiver_id": message_data.receiver_id, "is_request": {"$ne": True}},
+                {"sender_id": message_data.receiver_id, "receiver_id": user["user_id"], "is_request": {"$ne": True}},
+            ]
+        })
+        if not established:
+            # No established conversation — check if a pending request already exists from this sender
+            pending = await db.direct_messages.find_one({
+                "sender_id": user["user_id"],
+                "receiver_id": message_data.receiver_id,
+                "is_request": True,
+            })
+            if pending:
+                raise HTTPException(status_code=429, detail={
+                    "error": "request_pending",
+                    "message": "Your message request is waiting. You can send more once they accept."
+                })
+            is_request = True
+
     message = DirectMessage(
         sender_id=user["user_id"],
         receiver_id=message_data.receiver_id,
         sender_name=user.get("nickname") or user["name"],
-        content=message_data.content
+        content=message_data.content,
+        is_request=is_request,
     )
     
     doc = message.model_dump()
@@ -4426,13 +4586,20 @@ async def send_direct_message(message_data: DirectMessageCreate, user: dict = De
     await increment_usage(user["user_id"], "chat_messages")
 
     # Create notification for receiver
+    notif_type = "message_request" if is_request else "dm"
+    notif_title = "New message request" if is_request else "New message"
+    notif_body = (
+        f"{user.get('nickname') or user['name']} wants to message you"
+        if is_request else
+        f"{user.get('nickname') or user['name']} sent you a message"
+    )
     notification = {
         "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
         "user_id": message_data.receiver_id,
-        "type": "dm",
-        "title": "New message",
-        "message": f"{user.get('nickname') or user['name']} sent you a message",
-        "link": f"/messages/{user['user_id']}",
+        "type": notif_type,
+        "title": notif_title,
+        "message": notif_body,
+        "link": f"/messages",
         "is_read": False,
         "created_at": datetime.now(timezone.utc).isoformat()
     }

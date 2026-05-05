@@ -3,7 +3,7 @@
  * Wraps selected text (or inserts at cursor) with markdown syntax.
  * Keeps it simple: Bold, Italic, Strikethrough, Link, Code, Quote, List.
  */
-import { Bold, Italic, Strikethrough, Link, Code, Quote, List } from "lucide-react";
+import { Bold, Italic, Strikethrough, Link, Quote, List } from "lucide-react";
 
 const ACTIONS = [
   {
@@ -26,13 +26,6 @@ const ACTIONS = [
     syntax: "~~",
     wrap: true,
     placeholder: "strikethrough",
-  },
-  {
-    label: "Inline code",
-    icon: Code,
-    syntax: "`",
-    wrap: true,
-    placeholder: "code",
   },
   {
     label: "Quote",
@@ -60,37 +53,39 @@ const ACTIONS = [
 
 function applyFormat(textarea, action, value, onChange) {
   if (!textarea) return;
-  const start = textarea.selectionStart;
-  const end = textarea.selectionEnd;
+  const start = textarea.selectionStart ?? 0;
+  const end   = textarea.selectionEnd   ?? 0;
   const selected = value.slice(start, end);
   let insert = "";
-  let cursorOffset = 0;
+  // Where to put the cursor / what to select after insert
+  let selStart = start;
+  let selEnd   = start;
 
   if (action.custom) {
-    insert = action.custom(selected);
-    cursorOffset = selected ? insert.length : insert.indexOf("url");
+    insert   = action.custom(selected);
+    selStart = start + (selected ? insert.length : insert.indexOf("url"));
+    selEnd   = selected ? start + insert.length : selStart + 3; // highlight "url"
   } else if (action.wrap) {
     const inner = selected || action.placeholder;
-    insert = `${action.syntax}${inner}${action.syntax}`;
-    cursorOffset = selected ? insert.length : action.syntax.length;
+    insert   = `${action.syntax}${inner}${action.syntax}`;
+    selStart = start + action.syntax.length;
+    selEnd   = selStart + inner.length;
   } else if (action.prefix) {
-    insert = `${action.syntax}${selected || action.placeholder}`;
-    cursorOffset = insert.length;
+    const inner = selected || action.placeholder;
+    insert   = `${action.syntax}${inner}`;
+    selStart = start + action.syntax.length;
+    selEnd   = selStart + inner.length;
   }
 
   const newValue = value.slice(0, start) + insert + value.slice(end);
   onChange(newValue);
 
-  // Restore cursor after React re-render
-  requestAnimationFrame(() => {
+  // After React re-renders the controlled input, restore focus + selection.
+  // setTimeout(0) reliably fires after React commits, unlike requestAnimationFrame.
+  setTimeout(() => {
     textarea.focus();
-    if (selected) {
-      textarea.setSelectionRange(start, start + insert.length);
-    } else {
-      const pos = start + cursorOffset;
-      textarea.setSelectionRange(pos, pos + (action.placeholder?.length || 0));
-    }
-  });
+    textarea.setSelectionRange(selStart, selEnd);
+  }, 0);
 }
 
 export default function MarkdownToolbar({ textareaRef, value, onChange }) {

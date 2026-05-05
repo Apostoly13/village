@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import Navigation from "../components/Navigation";
-import { Send, ArrowLeft, MessagesSquare, Search, UserPlus, X, ImageIcon, Users, Lock, Flag } from "lucide-react";
+import { Send, ArrowLeft, MessagesSquare, Search, UserPlus, X, ImageIcon, Users, Lock, Flag, ShoppingBag, Calendar, ExternalLink } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../components/ui/dialog";
 import { Label } from "../components/ui/label";
 import { Textarea } from "../components/ui/textarea";
@@ -224,22 +224,32 @@ export default function Messages({ user }) {
   const navigate = useNavigate();
 
   const [showSearch, setShowSearch] = useState(false);
+  const [inboxTab, setInboxTab] = useState("all"); // "all" | "unread" | "friends" | "stall"
 
   const [friends, setFriends] = useState([]);
   const [loadingFriends, setLoadingFriends] = useState(true);
 
   const [conversations, setConversations] = useState([]);
+  const [messageRequests, setMessageRequests] = useState([]);
   const [loadingConvs, setLoadingConvs] = useState(true);
 
-  const [chatMode, setChatMode] = useState(null); // "friend" | "dm"
+  const [stallConversations, setStallConversations] = useState([]);
+  const [eventConversations, setEventConversations] = useState([]);
+
+  const [chatMode, setChatMode] = useState(null); // "friend" | "dm" | "stall" | "event"
   const [activeRoomId, setActiveRoomId] = useState(null);
   const [activeFriend, setActiveFriend] = useState(null);
   const [activeDmUser, setActiveDmUser] = useState(null);
+  const [activeStallConv, setActiveStallConv] = useState(null);
+  const [activeEventConv, setActiveEventConv] = useState(null);
 
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [openingChat, setOpeningChat] = useState(null);
+
+  // Add friend from DM header
+  const [friendRequestSent, setFriendRequestSent] = useState(false);
 
   // Photo upload
   const [imagePreview, setImagePreview] = useState(null); // data URL
@@ -262,7 +272,7 @@ export default function Messages({ user }) {
   const inputRef = useRef(null);
   const imageInputRef = useRef(null);
 
-  useEffect(() => { fetchFriends(); fetchConversations(); }, []);
+  useEffect(() => { fetchFriends(); fetchConversations(); fetchStallConversations(); fetchEventConversations(); }, []);
 
   useEffect(() => {
     if (activeRoomId && chatMode === "friend") {
@@ -274,6 +284,25 @@ export default function Messages({ user }) {
   }, [activeRoomId, chatMode]);
 
   useEffect(() => {
+    if (activeStallConv && chatMode === "stall") {
+      fetchStallMessages();
+      const interval = setInterval(fetchStallMessages, 2000);
+      return () => clearInterval(interval);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeStallConv, chatMode]);
+
+  useEffect(() => {
+    if (activeEventConv && chatMode === "event") {
+      fetchEventMessages();
+      const interval = setInterval(fetchEventMessages, 2000);
+      return () => clearInterval(interval);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeEventConv, chatMode]);
+
+  useEffect(() => {
+    setFriendRequestSent(false);
     if (activeDmUser && chatMode === "dm") {
       fetchDmMessages();
       const interval = setInterval(fetchDmMessages, 1500);
@@ -316,7 +345,9 @@ export default function Messages({ user }) {
     try {
       const res = await fetch(`${API_URL}/api/messages/conversations`, { credentials: "include" });
       if (res.ok) {
-        setConversations(await res.json());
+        const all = await res.json();
+        setMessageRequests(all.filter(c => c.is_pending_request));
+        setConversations(all.filter(c => !c.is_pending_request));
       } else {
         toast.error("Failed to load conversations", { action: { label: "Retry", onClick: fetchConversations } });
       }
@@ -360,6 +391,85 @@ export default function Messages({ user }) {
     finally { setLoadingMessages(false); }
   };
 
+  const fetchStallConversations = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/stall/messages/conversations`, { credentials: "include" });
+      if (res.ok) setStallConversations(await res.json());
+    } catch {}
+  };
+
+  const fetchEventConversations = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/events/my-chats`, { credentials: "include" });
+      if (res.ok) setEventConversations(await res.json());
+    } catch {}
+  };
+
+  const fetchStallMessages = async () => {
+    if (!activeStallConv) return;
+    try {
+      const res = await fetch(
+        `${API_URL}/api/stall/messages/${activeStallConv.listing_id}/${activeStallConv.other_user_id}`,
+        { credentials: "include" }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (prevMsgCount.current > 0 && data.length > prevMsgCount.current) {
+          const lastMsg = data[data.length - 1];
+          if (lastMsg && lastMsg.sender_id !== user?.user_id) playDing();
+        }
+        prevMsgCount.current = data.length;
+        setMessages(data);
+      }
+    } catch {}
+    finally { setLoadingMessages(false); }
+  };
+
+  const fetchEventMessages = async () => {
+    if (!activeEventConv) return;
+    try {
+      const res = await fetch(`${API_URL}/api/events/${activeEventConv.event_id}/chat`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        if (prevMsgCount.current > 0 && data.length > prevMsgCount.current) {
+          const lastMsg = data[data.length - 1];
+          if (lastMsg && lastMsg.author_id !== user?.user_id) playDing();
+        }
+        prevMsgCount.current = data.length;
+        setMessages(data);
+      }
+    } catch {}
+    finally { setLoadingMessages(false); }
+  };
+
+  const openStallChat = (conv) => {
+    setLoadingMessages(true);
+    prevMsgCount.current = 0;
+    setActiveStallConv(conv);
+    setActiveEventConv(null);
+    setActiveRoomId(null);
+    setActiveFriend(null);
+    setActiveDmUser(null);
+    setChatMode("stall");
+    setMessages([]);
+    clearImageState();
+    setTimeout(() => inputRef.current?.focus(), 100);
+  };
+
+  const openEventChat = (conv) => {
+    setLoadingMessages(true);
+    prevMsgCount.current = 0;
+    setActiveEventConv(conv);
+    setActiveStallConv(null);
+    setActiveRoomId(null);
+    setActiveFriend(null);
+    setActiveDmUser(null);
+    setChatMode("event");
+    setMessages([]);
+    clearImageState();
+    setTimeout(() => inputRef.current?.focus(), 100);
+  };
+
   const openFriendChat = async (friend) => {
     setOpeningChat(friend.user_id);
     try {
@@ -400,6 +510,52 @@ export default function Messages({ user }) {
   const handleSearchStartChat = (u) => {
     setShowSearch(false);
     openDmChat({ user_id: u.user_id, name: u.name, nickname: u.nickname, picture: u.picture, is_online: u.is_online });
+  };
+
+  const handleAcceptRequest = async (req) => {
+    try {
+      const res = await fetch(`${API_URL}/api/messages/${req.other_user_id}/accept-request`, {
+        method: "POST", credentials: "include",
+      });
+      if (res.ok) {
+        setMessageRequests(prev => prev.filter(r => r.other_user_id !== req.other_user_id));
+        setConversations(prev => [{ ...req, is_pending_request: false, is_outgoing_request: false }, ...prev]);
+        openDmChat({ user_id: req.other_user_id, name: req.other_user_name, picture: req.other_user_picture });
+        toast.success("Request accepted");
+      }
+    } catch { toast.error("Something went wrong"); }
+  };
+
+  const handleDeclineRequest = async (req) => {
+    try {
+      const res = await fetch(`${API_URL}/api/messages/${req.other_user_id}/decline-request`, {
+        method: "POST", credentials: "include",
+      });
+      if (res.ok) {
+        setMessageRequests(prev => prev.filter(r => r.other_user_id !== req.other_user_id));
+        toast.success("Request declined");
+      }
+    } catch { toast.error("Something went wrong"); }
+  };
+
+  const sendFriendRequestFromChat = async () => {
+    if (!activeDmUser) return;
+    try {
+      const res = await fetch(`${API_URL}/api/friends/request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ to_user_id: activeDmUser.user_id }),
+      });
+      if (res.ok) {
+        setFriendRequestSent(true);
+        toast.success("Friend request sent!");
+      } else {
+        const err = await res.json();
+        toast.info(parseApiError(err.detail, "Request already sent"));
+        setFriendRequestSent(true); // treat as sent regardless
+      }
+    } catch { toast.error("Something went wrong"); }
   };
 
   // ── Image handling ──────────────────────────────────────────────────────────
@@ -559,12 +715,62 @@ export default function Messages({ user }) {
               toast.error("Village+ is required to start new conversations.", {
                 action: { label: "Upgrade", onClick: () => navigate("/plus") },
               });
+            } else if (detail.error === "request_pending") {
+              toast.info("Your message request is waiting. You'll be able to send more once they accept.");
             } else {
               toast.error("Message failed to send. Please try again.");
             }
           } catch {
             toast.error("Message failed to send. Please try again.");
           }
+        }
+      } catch {
+        setMessages(prev => prev.filter(m => m.message_id !== tempId));
+        setNewMessage(textContent);
+        toast.error("Message failed to send. Please try again.");
+      }
+    } else if (chatMode === "stall" && activeStallConv) {
+      try {
+        const res = await fetch(`${API_URL}/api/stall/messages`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            listing_id: activeStallConv.listing_id,
+            receiver_id: activeStallConv.other_user_id,
+            content,
+          }),
+        });
+        if (res.ok) {
+          const msg = await res.json();
+          setMessages(prev => prev.map(m => m.message_id === tempId ? msg : m));
+          fetchStallConversations();
+        } else {
+          setMessages(prev => prev.filter(m => m.message_id !== tempId));
+          setNewMessage(textContent);
+          toast.error("Message failed to send.");
+        }
+      } catch {
+        setMessages(prev => prev.filter(m => m.message_id !== tempId));
+        setNewMessage(textContent);
+        toast.error("Message failed to send. Please try again.");
+      }
+    } else if (chatMode === "event" && activeEventConv) {
+      try {
+        const res = await fetch(`${API_URL}/api/events/${activeEventConv.event_id}/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ content }),
+        });
+        if (res.ok) {
+          const msg = await res.json();
+          setMessages(prev => prev.map(m => m.message_id === tempId ? msg : m));
+          fetchEventConversations();
+        } else {
+          setMessages(prev => prev.filter(m => m.message_id !== tempId));
+          setNewMessage(textContent);
+          toast.error("Message failed to send.");
         }
       } catch {
         setMessages(prev => prev.filter(m => m.message_id !== tempId));
@@ -579,18 +785,56 @@ export default function Messages({ user }) {
     setActiveRoomId(null);
     setActiveFriend(null);
     setActiveDmUser(null);
+    setActiveStallConv(null);
+    setActiveEventConv(null);
     setChatMode(null);
     setMessages([]);
     clearImageState();
   };
 
-  const activeUser = chatMode === "friend" ? activeFriend : activeDmUser;
-  const hasActiveChat = !!(chatMode && (activeRoomId || activeDmUser));
+  const activeUser = chatMode === "friend" ? activeFriend : (chatMode === "stall" || chatMode === "event") ? null : activeDmUser;
+  const hasActiveChat = !!(chatMode && (activeRoomId || activeDmUser || activeStallConv || activeEventConv));
 
   const isFree = user?.subscription_tier === "free";
   const friendIds = new Set(friends.map(f => f.user_id));
+  // conversations state is already filtered (no pending requests) by fetchConversations
   const dmFromFriends = conversations.filter(c => friendIds.has(c.other_user_id));
-  const dmRequests = conversations.filter(c => !friendIds.has(c.other_user_id));
+  // Established DMs from non-friends (accepted conversations, not pending requests)
+  const dmEstablished = conversations.filter(c => !friendIds.has(c.other_user_id));
+  // Is the active DM an outgoing request that's still pending?
+  const activeDmIsOutgoingRequest = chatMode === "dm" && activeDmUser &&
+    conversations.some(c => c.other_user_id === activeDmUser.user_id && c.is_outgoing_request);
+
+  // Unified "Recent" list — DMs (friend + non-friend) + Stall + Events, sorted by last message time
+  const friendDmConvIds = new Set(dmFromFriends.map(c => c.other_user_id));
+  const recentConversations = [
+    ...dmFromFriends.map(c => ({ ...c, _type: "friend_dm" })),
+    ...dmEstablished.map(c => ({ ...c, _type: "dm" })),
+    ...stallConversations.map(c => ({ ...c, _type: "stall", _key: `${c.listing_id}_${c.other_user_id}` })),
+    ...eventConversations.map(c => ({ ...c, _type: "event", _key: `event_${c.event_id}`, unread_count: 0 })),
+  ].sort((a, b) => (b.last_message_time || "").localeCompare(a.last_message_time || ""));
+
+  // Friends with no conversation history at all (no DMs, no stall thread)
+  const friendsContactOnly = friends.filter(
+    f => !friendDmConvIds.has(f.user_id) && !dmEstablished.some(c => c.other_user_id === f.user_id)
+  );
+
+  // Tab-filtered conversation list
+  const filteredRecent = recentConversations.filter(c => {
+    if (inboxTab === "unread")  return (c.unread_count || 0) > 0;
+    if (inboxTab === "friends") return c._type === "friend_dm";
+    if (inboxTab === "stall")   return c._type === "stall";
+    if (inboxTab === "events")  return c._type === "event";
+    return true; // "all"
+  });
+  const showContactsSection = (inboxTab === "all" || inboxTab === "friends") && inboxTab !== "events";
+
+  // Unread badge counts per tab
+  const unreadTotal = recentConversations.reduce((n, c) => n + (c.unread_count || 0), 0) + messageRequests.length;
+  const unreadFriends = recentConversations.filter(c => c._type === "friend_dm").reduce((n, c) => n + (c.unread_count || 0), 0);
+  const unreadStall = stallConversations.reduce((n, c) => n + (c.unread_count || 0), 0);
+  // Events have no per-message read tracking yet — badge omitted
+  const unreadEvents = 0;
 
   return (
     <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
@@ -621,6 +865,36 @@ export default function Messages({ user }) {
           <div className={`${hasActiveChat ? "hidden lg:flex" : "flex"} flex-col w-full lg:w-72 shrink-0`}>
             <div className="village-card flex flex-col h-full overflow-hidden">
 
+              {/* ── Tab filter bar ── */}
+              {!showSearch && (
+                <div className="flex items-center gap-1 px-3 py-2.5 border-b border-border/30 shrink-0 overflow-x-auto">
+                  {[
+                    { id: "all",     label: "All",     badge: unreadTotal },
+                    { id: "unread",  label: "Unread",  badge: unreadTotal },
+                    { id: "friends", label: "Friends", badge: unreadFriends },
+                    { id: "stall",   label: "Stall",   badge: unreadStall },
+                    { id: "events",  label: "Events",  badge: unreadEvents },
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setInboxTab(tab.id)}
+                      className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors shrink-0 ${
+                        inboxTab === tab.id
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-secondary/60 text-muted-foreground hover:text-foreground hover:bg-secondary"
+                      }`}
+                    >
+                      {tab.label}
+                      {tab.badge > 0 && inboxTab !== tab.id && (
+                        <span className="min-w-[16px] h-4 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center px-0.5 font-bold">
+                          {tab.badge > 9 ? "9+" : tab.badge}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {showSearch ? (
                 <UserSearchPanel onClose={() => setShowSearch(false)} onStartChat={handleSearchStartChat} isFree={isFree} />
               ) : (
@@ -642,88 +916,199 @@ export default function Messages({ user }) {
                     </div>
                   ) : (
                     <>
-                      {/* Message Requests — people outside your friends list who messaged you */}
-                      {dmRequests.length > 0 && (
+                      {/* Pending message requests — Accept / Decline (All and Unread tabs only) */}
+                      {messageRequests.length > 0 && (inboxTab === "all" || inboxTab === "unread") && (
                         <>
                           <div className="px-4 py-2 bg-amber-500/5 border-b border-amber-500/20 flex items-center gap-2">
                             <span className="text-xs font-semibold text-amber-600 uppercase tracking-wide">Message Requests</span>
-                            <span className="text-xs bg-amber-500/10 text-amber-600 rounded-full px-1.5">{dmRequests.length}</span>
+                            <span className="text-xs bg-amber-500/10 text-amber-600 rounded-full px-1.5 font-semibold">{messageRequests.length}</span>
                           </div>
                           <div className="divide-y divide-border/30">
-                            {dmRequests.map(conv => (
-                              <DmRow
-                                key={conv.other_user_id}
-                                conv={conv}
-                                active={activeDmUser?.user_id === conv.other_user_id}
-                                onClick={() => openDmChat({ user_id: conv.other_user_id, name: conv.other_user_name, nickname: null, picture: conv.other_user_picture })}
-                              />
+                            {messageRequests.map(req => (
+                              <div key={req.other_user_id} className="px-4 py-3">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-sm font-semibold text-primary overflow-hidden shrink-0">
+                                    {req.other_user_picture
+                                      ? <img src={req.other_user_picture} alt="" className="w-full h-full object-cover" />
+                                      : req.other_user_name?.[0]?.toUpperCase()}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-foreground truncate">{req.other_user_name}</p>
+                                    <p className="text-xs text-muted-foreground truncate">
+                                      {req.request_preview?.startsWith("data:image/") ? "📷 Photo" : req.request_preview}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => handleAcceptRequest(req)}
+                                    className="flex-1 text-xs font-medium py-1.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                                  >
+                                    Accept
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeclineRequest(req)}
+                                    className="flex-1 text-xs font-medium py-1.5 rounded-xl bg-secondary text-foreground hover:bg-secondary/70 transition-colors"
+                                  >
+                                    Decline
+                                  </button>
+                                </div>
+                              </div>
                             ))}
                           </div>
                         </>
                       )}
 
-                      {/* Friends — with DM history shown as conversation, without shown as contact */}
-                      {friends.length > 0 && (
+                      {/* ── Filtered conversations ── */}
+                      {filteredRecent.length > 0 && (
                         <>
-                          <div className="px-4 py-2 bg-secondary/30 border-b border-border/30">
+                          {filteredRecent.map(conv => {
+                            const key = conv._key || conv.other_user_id;
+                            if (conv._type === "event") {
+                              const isActive = chatMode === "event" && activeEventConv?.event_id === conv.event_id;
+                              const eventDate = conv.date ? new Date(conv.date).toLocaleDateString("en-AU", { day: "numeric", month: "short" }) : null;
+                              return (
+                                <button
+                                  key={key}
+                                  onClick={() => openEventChat(conv)}
+                                  className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${isActive ? "bg-primary/10" : ""}`}
+                                >
+                                  <div className="relative shrink-0">
+                                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden">
+                                      {conv.image_url
+                                        ? <img src={conv.image_url} alt="" className="w-full h-full object-cover" />
+                                        : <Calendar className="h-4 w-4 text-primary" />}
+                                    </div>
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-foreground truncate">{conv.title}</p>
+                                    <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                                      <Calendar className="h-2.5 w-2.5 shrink-0" />
+                                      {eventDate ? eventDate : "Event chat"}
+                                      {conv.last_message && <span className="truncate"> · {conv.last_message}</span>}
+                                    </p>
+                                  </div>
+                                </button>
+                              );
+                            }
+                            if (conv._type === "stall") {
+                              const isActive = chatMode === "stall" && activeStallConv?.listing_id === conv.listing_id && activeStallConv?.other_user_id === conv.other_user_id;
+                              return (
+                                <button
+                                  key={key}
+                                  onClick={() => openStallChat(conv)}
+                                  className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${isActive ? "bg-primary/10" : ""}`}
+                                >
+                                  <div className="relative shrink-0">
+                                    <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center overflow-hidden">
+                                      {conv.listing_image
+                                        ? <img src={conv.listing_image} alt="" className="w-full h-full object-cover" />
+                                        : <ShoppingBag className="h-4 w-4 text-muted-foreground" />}
+                                    </div>
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between gap-1">
+                                      <p className="text-sm font-medium text-foreground truncate">{conv.other_user_name}</p>
+                                      {conv.unread_count > 0 && (
+                                        <span className="shrink-0 min-w-[18px] h-[18px] rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold px-1">{conv.unread_count}</span>
+                                      )}
+                                    </div>
+                                    <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                                      <ShoppingBag className="h-2.5 w-2.5 shrink-0" />
+                                      {conv.listing_title || "Stall enquiry"}
+                                    </p>
+                                  </div>
+                                </button>
+                              );
+                            }
+                            // DM or friend DM
+                            const friend = conv._type === "friend_dm" ? friends.find(f => f.user_id === conv.other_user_id) : null;
+                            const pic = friend?.picture || conv.other_user_picture;
+                            const name = friend?.nickname || conv.other_user_name;
+                            return (
+                              <button
+                                key={key}
+                                onClick={() => conv._type === "friend_dm" && friend
+                                  ? openDmChat({ user_id: conv.other_user_id, name: conv.other_user_name, nickname: friend.nickname, picture: pic, is_online: friend.is_online })
+                                  : openDmChat({ user_id: conv.other_user_id, name: conv.other_user_name, nickname: null, picture: pic })}
+                                className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${activeDmUser?.user_id === conv.other_user_id ? "bg-primary/10" : ""}`}
+                              >
+                                <div className="relative shrink-0">
+                                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-semibold text-primary overflow-hidden">
+                                    {pic ? <img src={pic} alt="" className="w-full h-full object-cover" /> : name?.[0]?.toUpperCase()}
+                                  </div>
+                                  {friend?.is_online && <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-card bg-green-500" />}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between gap-1">
+                                    <p className="text-sm font-medium text-foreground truncate">{name}</p>
+                                    {conv.unread_count > 0 && (
+                                      <span className="shrink-0 min-w-[18px] h-[18px] rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold px-1">{conv.unread_count}</span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                                    {conv._type === "dm" && <Lock className="h-2.5 w-2.5 shrink-0 opacity-50" />}
+                                    {conv.last_message?.startsWith("data:image/") ? "📷 Photo" : conv.last_message || (conv._type === "dm" ? "Private message" : "")}
+                                  </p>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </>
+                      )}
+
+                      {/* Friends with no conversation history — contact-only row */}
+                      {showContactsSection && friendsContactOnly.length > 0 && (
+                        <>
+                          {filteredRecent.length > 0 && <div className="h-px bg-border/30 mx-4" />}
+                          <div className="px-4 py-2">
                             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Friends</p>
                           </div>
                           <div className="divide-y divide-border/30">
-                            {friends.map(friend => {
-                              const conv = dmFromFriends.find(c => c.other_user_id === friend.user_id);
-                              if (conv) {
-                                // Has DM history — show as conversation row with last message
-                                return (
-                                  <DmRow
-                                    key={friend.user_id}
-                                    conv={{ ...conv, other_user_picture: friend.picture || conv.other_user_picture }}
-                                    active={activeDmUser?.user_id === friend.user_id}
-                                    onClick={() => openDmChat({ user_id: friend.user_id, name: conv.other_user_name, nickname: friend.nickname, picture: friend.picture || conv.other_user_picture, is_online: friend.is_online })}
-                                  />
-                                );
-                              }
-                              // No DM history — show as contact, opens live chat
-                              return (
-                                <button
-                                  key={friend.user_id}
-                                  onClick={() => openFriendChat(friend)}
-                                  disabled={openingChat === friend.user_id}
-                                  className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${activeFriend?.user_id === friend.user_id ? "bg-primary/10" : ""}`}
-                                >
-                                  <UserAvatar {...friend} isOnline={friend.is_online} />
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium text-foreground truncate">{friend.nickname || friend.name}</p>
-                                    <p className={`text-xs ${friend.is_online ? "text-green-500" : "text-muted-foreground"}`}>
-                                      {friend.is_online ? "Active now" : "Tap to chat"}
-                                    </p>
-                                  </div>
-                                  {openingChat === friend.user_id && <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />}
-                                </button>
-                              );
-                            })}
+                            {friendsContactOnly.map(friend => (
+                              <button
+                                key={friend.user_id}
+                                onClick={() => openFriendChat(friend)}
+                                disabled={openingChat === friend.user_id}
+                                className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${activeFriend?.user_id === friend.user_id ? "bg-primary/10" : ""}`}
+                              >
+                                <UserAvatar {...friend} isOnline={friend.is_online} />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-foreground truncate">{friend.nickname || friend.name}</p>
+                                  <p className={`text-xs ${friend.is_online ? "text-green-500" : "text-muted-foreground"}`}>
+                                    {friend.is_online ? "Active now" : "Tap to chat"}
+                                  </p>
+                                </div>
+                                {openingChat === friend.user_id && <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />}
+                              </button>
+                            ))}
                           </div>
                         </>
                       )}
 
-                      {/* Empty state */}
-                      {friends.length === 0 && conversations.length === 0 && (
+                      {/* Empty state — tab-aware */}
+                      {filteredRecent.length === 0 && !(showContactsSection && friendsContactOnly.length > 0) && !(inboxTab === "all" && messageRequests.length > 0) && (
                         <div className="p-6 text-center">
-                          <span className="text-3xl block mb-2">💬</span>
-                          {isFree ? (
-                            <>
-                              <p className="text-sm text-muted-foreground mb-1">No messages yet.</p>
-                              <p className="text-xs text-muted-foreground mb-3">When another parent messages you, you can reply here for free.</p>
-                              <button onClick={() => navigate("/plus")} className="text-xs text-primary hover:underline">
-                                Upgrade to Village+ to message anyone →
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <p className="text-sm text-muted-foreground mb-2">No conversations yet.</p>
-                              <button onClick={() => setShowSearch(true)} className="text-xs text-primary hover:underline">
-                                Find parents to connect with →
-                              </button>
-                            </>
+                          <span className="text-3xl block mb-2">
+                            {inboxTab === "stall" ? "🛒" : inboxTab === "friends" ? "👥" : inboxTab === "unread" ? "✅" : inboxTab === "events" ? "📅" : "💬"}
+                          </span>
+                          {inboxTab === "unread" && <p className="text-sm text-muted-foreground">All caught up!</p>}
+                          {inboxTab === "stall" && <p className="text-sm text-muted-foreground">No Stall enquiries yet.<br/><span className="text-xs">Browse the Stall and message a seller to get started.</span></p>}
+                          {inboxTab === "friends" && friends.length === 0 && <p className="text-sm text-muted-foreground">No friends yet.<br/><span className="text-xs">Add friends to chat privately.</span></p>}
+                          {inboxTab === "events" && <p className="text-sm text-muted-foreground">No event chats yet.<br/><span className="text-xs">RSVP to an event to join its group chat.</span></p>}
+                          {inboxTab === "all" && friends.length === 0 && conversations.length === 0 && messageRequests.length === 0 && stallConversations.length === 0 && (
+                            isFree ? (
+                              <>
+                                <p className="text-sm text-muted-foreground mb-1">No messages yet.</p>
+                                <p className="text-xs text-muted-foreground mb-3">When another parent messages you, you can reply here for free.</p>
+                                <button onClick={() => navigate("/plus")} className="text-xs text-primary hover:underline">Upgrade to Village+ to message anyone →</button>
+                              </>
+                            ) : (
+                              <>
+                                <p className="text-sm text-muted-foreground mb-2">No conversations yet.</p>
+                                <button onClick={() => setShowSearch(true)} className="text-xs text-primary hover:underline">Find parents to connect with →</button>
+                              </>
+                            )
                           )}
                         </div>
                       )}
@@ -737,30 +1122,96 @@ export default function Messages({ user }) {
           {/* ── Chat panel ──────────────────────────────────────────────────── */}
           <div className={`${hasActiveChat ? "flex" : "hidden lg:flex"} flex-1 flex-col min-w-0`}>
             <div className="village-card flex flex-col h-full overflow-hidden">
-              {hasActiveChat && activeUser ? (
+              {hasActiveChat && (chatMode === "stall" ? activeStallConv : chatMode === "event" ? activeEventConv : activeUser) ? (
                 <>
                   {/* Chat header */}
                   <div className="flex items-center gap-3 px-4 py-3 border-b border-border/50 shrink-0">
                     <button onClick={clearChat} className="lg:hidden p-1 text-muted-foreground hover:text-foreground">
                       <ArrowLeft className="h-5 w-5" />
                     </button>
-                    <UserAvatar picture={activeUser.picture} name={activeUser.name} nickname={activeUser.nickname} isOnline={activeUser.is_online} />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-foreground text-sm">{activeUser.nickname || activeUser.name}</p>
-                      <p className={`text-xs ${activeUser.is_online ? "text-green-500" : "text-muted-foreground"}`}>
-                        {chatMode === "friend" ? (activeUser.is_online ? "Active now" : "Offline") : "Private message"}
-                      </p>
-                    </div>
-                    {/* Chat type badge */}
-                    {chatMode === "friend" ? (
-                      <span className="flex items-center gap-1 text-xs bg-primary/10 text-primary border border-primary/20 rounded-full px-2.5 py-1 font-medium shrink-0">
-                        <Users className="h-3 w-3" /> Friend Chat
-                      </span>
+                    {chatMode === "event" ? (
+                      <>
+                        <button
+                          onClick={() => navigate(`/events?event=${activeEventConv?.event_id}`)}
+                          className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden shrink-0 hover:opacity-80 transition-opacity"
+                          title="View event"
+                        >
+                          {activeEventConv?.image_url
+                            ? <img src={activeEventConv.image_url} alt="" className="w-full h-full object-cover" />
+                            : <Calendar className="h-4 w-4 text-primary" />}
+                        </button>
+                        <button onClick={() => navigate(`/events?event=${activeEventConv?.event_id}`)} className="flex-1 min-w-0 text-left group">
+                          <p className="font-medium text-foreground text-sm truncate group-hover:underline">{activeEventConv?.title}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {activeEventConv?.date ? new Date(activeEventConv.date).toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" }) : "Event chat"}
+                          </p>
+                        </button>
+                        <button
+                          onClick={() => navigate(`/events?event=${activeEventConv?.event_id}`)}
+                          className="flex items-center gap-1 text-xs bg-primary/10 text-primary border border-primary/20 rounded-full px-2.5 py-1 font-medium hover:bg-primary/20 transition-colors shrink-0"
+                          title="View event"
+                        >
+                          <ExternalLink className="h-3 w-3" /> View Event
+                        </button>
+                      </>
+                    ) : chatMode === "stall" ? (
+                      <>
+                        <button
+                          onClick={() => navigate(`/stall/listing/${activeStallConv.listing_id}`)}
+                          className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center overflow-hidden shrink-0 hover:opacity-80 transition-opacity"
+                          title="View listing"
+                        >
+                          {activeStallConv.listing_image
+                            ? <img src={activeStallConv.listing_image} alt="" className="w-full h-full object-cover" />
+                            : <ShoppingBag className="h-4 w-4 text-muted-foreground" />}
+                        </button>
+                        <button onClick={() => navigate(`/stall/listing/${activeStallConv.listing_id}`)} className="flex-1 min-w-0 text-left group">
+                          <p className="font-medium text-foreground text-sm truncate group-hover:underline">{activeStallConv.other_user_name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{activeStallConv.listing_title || "Stall enquiry"}</p>
+                        </button>
+                        <button
+                          onClick={() => navigate(`/stall/listing/${activeStallConv.listing_id}`)}
+                          className="flex items-center gap-1 text-xs bg-secondary text-muted-foreground border border-border/50 rounded-full px-2.5 py-1 font-medium hover:bg-secondary/70 transition-colors shrink-0"
+                          title="View listing"
+                        >
+                          <ExternalLink className="h-3 w-3" /> View Listing
+                        </button>
+                      </>
                     ) : (
-                      <span className={`flex items-center gap-1 text-xs rounded-full px-2.5 py-1 font-medium shrink-0 border ${friendIds.has(activeUser.user_id) ? "bg-primary/10 text-primary border-primary/20" : "bg-amber-500/10 text-amber-600 border-amber-500/20"}`}>
-                        <Lock className="h-3 w-3" />
-                        {friendIds.has(activeUser.user_id) ? "Private" : "Message Request"}
-                      </span>
+                      <>
+                        {/* Clickable avatar → profile */}
+                        <button onClick={() => navigate(`/profile/${activeUser.user_id}`)} className="shrink-0 rounded-full focus:outline-none focus:ring-2 focus:ring-primary/30">
+                          <UserAvatar picture={activeUser.picture} name={activeUser.name} nickname={activeUser.nickname} isOnline={activeUser.is_online} />
+                        </button>
+                        {/* Clickable name → profile */}
+                        <button onClick={() => navigate(`/profile/${activeUser.user_id}`)} className="flex-1 min-w-0 text-left group">
+                          <p className="font-medium text-foreground text-sm group-hover:underline truncate">{activeUser.nickname || activeUser.name}</p>
+                          <p className={`text-xs ${activeUser.is_online ? "text-green-500" : "text-muted-foreground"}`}>
+                            {chatMode === "friend" ? (activeUser.is_online ? "Active now" : "Offline") : "Private message"}
+                          </p>
+                        </button>
+                        {/* Right side: badge or Add Friend button */}
+                        {chatMode === "friend" || friendIds.has(activeUser.user_id) ? (
+                          <span className="flex items-center gap-1 text-xs bg-primary/10 text-primary border border-primary/20 rounded-full px-2.5 py-1 font-medium shrink-0">
+                            <Users className="h-3 w-3" /> {chatMode === "friend" ? "Friend Chat" : "Friends"}
+                          </span>
+                        ) : activeDmIsOutgoingRequest ? (
+                          <span className="flex items-center gap-1 text-xs bg-amber-500/10 text-amber-600 border border-amber-500/20 rounded-full px-2.5 py-1 font-medium shrink-0">
+                            <Lock className="h-3 w-3" /> Request Pending
+                          </span>
+                        ) : friendRequestSent ? (
+                          <span className="flex items-center gap-1 text-xs bg-green-500/10 text-green-600 border border-green-500/20 rounded-full px-2.5 py-1 font-medium shrink-0">
+                            <UserPlus className="h-3 w-3" /> Sent ✓
+                          </span>
+                        ) : (
+                          <button
+                            onClick={sendFriendRequestFromChat}
+                            className="flex items-center gap-1 text-xs bg-primary text-primary-foreground rounded-full px-3 py-1.5 font-medium hover:bg-primary/90 transition-colors shrink-0"
+                          >
+                            <UserPlus className="h-3 w-3" /> Add Friend
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
 
@@ -817,6 +1268,13 @@ export default function Messages({ user }) {
                     </div>
                   )}
 
+                  {/* Outgoing request pending banner */}
+                  {activeDmIsOutgoingRequest && (
+                    <div className="px-4 py-2.5 bg-amber-500/5 border-t border-amber-500/20 shrink-0 text-center">
+                      <p className="text-xs text-amber-600 font-medium">Message request sent · waiting for them to accept</p>
+                    </div>
+                  )}
+
                   {/* Composer */}
                   <form onSubmit={handleSend} className="flex items-center gap-2 bg-card border-t border-border/50 px-4 py-3 shrink-0">
                     {/* Hidden file input */}
@@ -840,7 +1298,12 @@ export default function Messages({ user }) {
                       ref={inputRef}
                       value={newMessage}
                       onChange={e => setNewMessage(e.target.value.slice(0, 1000))}
-                      placeholder={imageFile ? "Add a caption (optional)..." : `Message ${activeUser.nickname || activeUser.name}...`}
+                      placeholder={
+                        imageFile ? "Add a caption (optional)..." :
+                        chatMode === "event" ? `Chat in ${activeEventConv?.title || "this event"}...` :
+                        chatMode === "stall" ? `Message about ${activeStallConv?.listing_title || "this listing"}...` :
+                        `Message ${activeUser?.nickname || activeUser?.name}...`
+                      }
                       className="flex-1 bg-secondary/50 rounded-full px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/30"
                       maxLength={1000}
                       disabled={sending || uploadingImage}

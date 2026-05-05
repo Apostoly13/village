@@ -43,8 +43,9 @@ export default function Navigation({ user }) {
       const MAP = {
         reply:          { msg: "New reply to your post",      link: notif.link },
         like:           { msg: "Someone liked your post",     link: null },
-        dm:             { msg: "New message",                 link: "/messages" },
-        friend_request: { msg: "New friend request",          link: "/friends" },
+        dm:              { msg: "New message",                 link: "/messages" },
+        message_request: { msg: "New message request",        link: "/messages" },
+        friend_request:  { msg: "New friend request",         link: "/friends" },
         stall_enquiry:  { msg: "New enquiry on your listing", link: notif.link },
       };
       const entry = MAP[notif.type];

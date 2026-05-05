@@ -7,6 +7,84 @@ import AppFooter from "../components/AppFooter";
 // ── Full technical changelog (admin-only view) ────────────────────────────────
 const CHANGELOG = [
   {
+    version: "3.24.0",
+    date: "May 2026",
+    title: "Inbox Deep-Links, Profile Links & Add Friend from DM",
+    entries: [
+      { tag: "Fixed",    text: "GET /events/my-chats was shadowed by GET /events/{event_id} due to FastAPI route ordering — moved my-chats before the parameterised route so it resolves correctly." },
+      { tag: "Added",    text: "DM chat header: avatar and name are now clickable links to /profile/{user_id}. Replaces the static 'Direct Message' badge with a contextual Add Friend button (or 'Sent ✓' / 'Friends ✓' states)." },
+      { tag: "Added",    text: "Add Friend button in DM header — sends POST /api/friends/request from inside the chat. Resets to default state when switching conversations. Shows 'Sent ✓' (green) after sending, 'Friends ✓' if already friends, 'Request Pending' (amber) if request is outgoing." },
+      { tag: "Improved", text: "Non-friend DM rows in the sidebar now show a faint lock icon before the last message preview — visually distinguishes them from friend chats without adding another tab." },
+      { tag: "Added",    text: "View Listing button in Stall chat header — navigates to /stall/listing/{listing_id}. Avatar and name are also clickable. Previously navigated to /stall (the section home)." },
+      { tag: "Added",    text: "View Event button in Event chat header — navigates to /events?event={event_id}, which auto-fetches and opens that event's detail modal. Avatar and name are also clickable." },
+      { tag: "Added",    text: "Events.jsx: ?event=EVENT_ID deep-link support — useEffect fetches GET /api/events/{event_id} and opens the EventDetailModal on mount. Works alongside existing ?action=create and ?tab=rsvp params." },
+    ],
+  },
+  {
+    version: "3.23.0",
+    date: "May 2026",
+    title: "Events Tab in Unified Inbox",
+    entries: [
+      { tag: "Added",    text: "Events tab in the Messages inbox — event group chats now appear as a fifth filter tab alongside All / Unread / Friends / Stall." },
+      { tag: "Added",    text: "fetchEventConversations() calls GET /api/events/my-chats on mount and after sending. Returns events the user RSVPed to, organised, or messaged in, each with last message, last_message_time, title, date, category, and image_url." },
+      { tag: "Added",    text: "Event rows in the sidebar show a rounded calendar-icon thumbnail (or the event cover photo), event title, and formatted date + last message preview as a sub-label." },
+      { tag: "Added",    text: "Event chat panel: header shows event cover photo/Calendar icon, event title, formatted date (weekday + day + month), and a blue Event badge. Composer placeholder reads 'Chat in [event name]...'." },
+      { tag: "Added",    text: "fetchEventMessages() polls GET /api/events/{event_id}/chat at 2s interval when an event chat is active. Sends via POST /api/events/{event_id}/chat. Ding fires when a new message arrives from another author." },
+      { tag: "Added",    text: "openEventChat() clears all other active chat state (stall, friend room, DM) before opening the event chat panel." },
+      { tag: "Improved", text: "clearChat() now also clears activeEventConv. hasActiveChat includes activeEventConv. activeUser is null for both stall and event modes (no 1:1 partner)." },
+      { tag: "Improved", text: "Composer placeholder is now mode-aware: event → 'Chat in [title]...', stall → 'Message about [listing]...', DM → 'Message [name]...' — fixes a potential crash where stall mode had activeUser=null." },
+      { tag: "Improved", text: "Empty state for Events tab: '📅 No event chats yet. RSVP to an event to join its group chat.' Event conversations included in recentConversations with unread_count: 0 (no per-message read tracking on event chats yet)." },
+    ],
+  },
+  {
+    version: "3.22.0",
+    date: "May 2026",
+    title: "Unified Messenger Inbox + Filter Tabs",
+    entries: [
+      { tag: "Improved", text: "Messages page is now a unified inbox — DMs, friend chats, and Stall enquiries all appear in a single chronologically sorted list with filter tabs: All / Unread / Friends / Stall. Previously Stall messages were only accessible from the Stall page." },
+      { tag: "Added",    text: "Filter tab bar (Messenger-style) at the top of the sidebar. Each tab shows a red badge when there are unread messages in that category. Unread tab shows only conversations with unread messages. Stall tab shows only Stall enquiries. Friends tab shows only friend conversations + contacts." },
+      { tag: "Added",    text: "Stall conversations in the unified sidebar show the listing thumbnail (or ShoppingBag fallback), the other user's name, and the listing title as a sub-label with a 🛒 Stall badge." },
+      { tag: "Added",    text: "Stall chat panel: header shows listing image + title + user name. Sending works via POST /api/stall/messages. Polling at 2s interval matches existing stall thread behaviour." },
+      { tag: "Improved", text: "Friends with no conversation history are grouped at the bottom as a 'Friends' contact section, only shown when there are no recent messages with them." },
+      { tag: "Improved", text: "fetchStallConversations() called on mount alongside fetchFriends and fetchConversations. Stall conversations refresh after sending a stall message." },
+    ],
+  },
+  {
+    version: "3.21.0",
+    date: "May 2026",
+    title: "Message Requests",
+    entries: [
+      { tag: "Added",    text: "Message requests — when a Village+ user messages someone they're not friends with for the first time, the message arrives as a request instead of landing straight in the inbox. The recipient sees Accept / Decline buttons with a preview of the first message." },
+      { tag: "Added",    text: "Backend: is_request flag on DirectMessage model. send_direct_message checks friendship (db.friendships), established conversation (non-request messages exist), and pending request (already sent one). Sets is_request=True only for genuine first-contact non-friends." },
+      { tag: "Added",    text: "Backend: POST /messages/{other_user_id}/accept-request — clears is_request flag on pending messages and marks them read. POST /messages/{other_user_id}/decline-request — deletes the pending request messages." },
+      { tag: "Improved", text: "Conversations endpoint now includes is_pending_request, is_outgoing_request, and request_preview per conversation, derived from a single aggregation pipeline with no N+1 queries." },
+      { tag: "Improved", text: "Chat panel shows a 'Request Pending' badge and amber banner for outgoing requests. Trying to send a second message before acceptance returns a clear toast." },
+      { tag: "Improved", text: "Notification type 'message_request' added to Navigation.jsx toast MAP. Unread count excludes is_request messages (not counted until accepted)." },
+    ],
+  },
+  {
+    version: "3.20.0",
+    date: "May 2026",
+    title: "Event Cover Photos",
+    entries: [
+      { tag: "Added", text: "Events can now have a cover photo. An image upload section appears in the Create Event form — supports JPEG, PNG, GIF, WebP up to 5MB. Photo is uploaded to /api/upload/image (base64, magic-byte validated) and stored as image_url on the event document." },
+      { tag: "Added", text: "Event detail modal shows the cover photo as a full-width banner between the title block and the event details (time, location, organiser, description)." },
+      { tag: "Added", text: "Event cards show a small thumbnail on the right side when the event has a cover photo." },
+    ],
+  },
+  {
+    version: "3.19.0",
+    date: "May 2026",
+    title: "Reply UX Overhaul, Auto-Bullet Lists & Toolbar Polish",
+    entries: [
+      { tag: "Fixed",    text: "Edit / Delete options now appear on your own reply immediately after posting — server doesn't return is_own_reply on create, so it's set client-side when appending the new reply to state." },
+      { tag: "Improved", text: "Inline reply form and bottom reply box are now fully independent — separate state (inlineReplyContent / replyContent) so typing in one doesn't affect the other." },
+      { tag: "Improved", text: "Bottom 'Add a Reply' box is now always visible, even when an inline reply form is open. Previously it was hidden whenever replyingTo was set, making it unreachable if the target thread was collapsed." },
+      { tag: "Improved", text: "Pressing Enter inside a bullet list (- or *) or numbered list auto-adds the next bullet / increments the number. Pressing Enter on an empty bullet exits the list. Works in all reply forms and the post composer." },
+      { tag: "Fixed",    text: "Removed 'Inline code' button from the Markdown toolbar — the Code import was also cleaned up. Remaining toolbar: Bold, Italic, Strikethrough, Quote, Bullet list, Link." },
+    ],
+  },
+  {
     version: "3.18.0",
     date: "May 2026",
     title: "Bug Fixes, Markdown Formatting & Message Photo Lightbox",
@@ -480,6 +558,69 @@ const CHANGELOG = [
 // ── Curated user-facing changelog (non-admin view) ────────────────────────────
 // Plain readable summaries — no technical tags or implementation details.
 const USER_CHANGELOG = [
+  {
+    version: "3.24.0",
+    date: "May 2026",
+    title: "Smarter Message Headers & Deep Links",
+    entries: [
+      "In a private message, tap the person's name or photo to view their profile.",
+      "If you're messaging someone who isn't a friend yet, an Add Friend button now appears in the chat header.",
+      "Stall enquiry chats now have a View Listing button — tap it to go straight to the listing.",
+      "Event chats now have a View Event button — tap it to open the event details.",
+    ],
+  },
+  {
+    version: "3.23.0",
+    date: "May 2026",
+    title: "Event Chats in Your Inbox",
+    entries: [
+      "Event group chats now appear in your Messages inbox under a new Events tab.",
+      "You'll see every event you've RSVPed to, organised, or chatted in — with the event name, date, and last message shown.",
+      "Tap an event to open the group chat and chat with everyone attending.",
+      "A new Events tab sits alongside All, Unread, Friends, and Stall in the inbox filter bar.",
+    ],
+  },
+  {
+    version: "3.22.0",
+    date: "May 2026",
+    title: "Unified Messages Inbox",
+    entries: [
+      "Your Messages page now shows everything in one place — direct messages, friend chats, and Stall enquiries all in a single sorted list.",
+      "Four tabs at the top let you filter by All, Unread, Friends, or Stall — similar to Facebook Messenger.",
+      "Each tab shows a red badge when there are unread messages in that category.",
+      "Stall enquiries appear in your main inbox — no more hunting in the Stall tab to find a conversation.",
+    ],
+  },
+  {
+    version: "3.21.0",
+    date: "May 2026",
+    title: "Message Requests",
+    entries: [
+      "When someone outside your friends list messages you for the first time, it arrives as a message request — not straight into your inbox.",
+      "You'll see their name and a preview of their message, then choose to Accept or Decline.",
+      "Accepting opens the conversation as normal. Declining removes the request.",
+      "If you send a message to someone new, they'll receive it as a request. You'll see a 'Request Pending' indicator in the chat while you wait.",
+    ],
+  },
+  {
+    version: "3.20.0",
+    date: "May 2026",
+    title: "Event Cover Photos",
+    entries: [
+      "You can now add a cover photo when creating an event — it shows as a banner in the event details and as a thumbnail in the event list.",
+    ],
+  },
+  {
+    version: "3.19.0",
+    date: "May 2026",
+    title: "Smarter Replies & Formatting Improvements",
+    entries: [
+      "Replies you post now immediately show Edit and Delete options — no refresh needed.",
+      "The main reply box at the bottom of a post is now always visible, even when you're replying to a specific comment.",
+      "Pressing Enter inside a bullet list automatically starts the next bullet. Pressing Enter on an empty bullet exits the list.",
+      "The Code button has been removed from the formatting toolbar — it was rarely needed and cluttered the bar.",
+    ],
+  },
   {
     version: "3.18.0",
     date: "May 2026",

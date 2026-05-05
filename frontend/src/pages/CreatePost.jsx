@@ -27,7 +27,7 @@ export default function CreatePost({ user }) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [categoryId, setCategoryId] = useState(preselectedCategory || "");
-  const [isAnonymous, setIsAnonymous] = useState(true);
+  const [isAnonymous, setIsAnonymous] = useState(false);
   const [loading, setLoading] = useState(false);
   const [touched, setTouched] = useState({ title: false, content: false, category: false });
   const [image, setImage] = useState(null);
@@ -56,6 +56,33 @@ export default function CreatePost({ user }) {
       }
     } catch (error) {
       console.error("Error fetching subscription:", error);
+    }
+  };
+
+  // Auto-continue list items when pressing Enter inside a bullet or numbered list
+  const handleListKeyDown = (e, value, setValue) => {
+    if (e.key !== "Enter" || e.shiftKey) return;
+    const el = e.target;
+    const cursor = el.selectionStart;
+    const lineStart = value.lastIndexOf("\n", cursor - 1) + 1;
+    const lineText = value.slice(lineStart, cursor);
+    const bulletMatch = lineText.match(/^(\s*)([-*]|\d+\.) /);
+    if (!bulletMatch) return;
+    e.preventDefault();
+    const [full, indent, marker] = bulletMatch;
+    const afterPrefix = lineText.slice(full.length);
+    if (!afterPrefix.trim()) {
+      // Empty bullet — exit the list
+      const newValue = value.slice(0, lineStart) + "\n" + value.slice(cursor);
+      setValue(newValue.slice(0, MAX_CONTENT_LENGTH));
+      setTimeout(() => { el.setSelectionRange(lineStart + 1, lineStart + 1); }, 0);
+    } else {
+      // Continue the list with the next item
+      const nextMarker = /\d+\./.test(marker) ? `${parseInt(marker) + 1}.` : marker;
+      const insert = `\n${indent}${nextMarker} `;
+      const newValue = value.slice(0, cursor) + insert + value.slice(el.selectionEnd);
+      setValue(newValue.slice(0, MAX_CONTENT_LENGTH));
+      setTimeout(() => { el.setSelectionRange(cursor + insert.length, cursor + insert.length); }, 0);
     }
   };
 
@@ -285,6 +312,7 @@ export default function CreatePost({ user }) {
                   id="content"
                   value={content}
                   onChange={(e) => { setContent(e.target.value.slice(0, MAX_CONTENT_LENGTH)); setTouched(t => ({ ...t, content: true })); }}
+                  onKeyDown={(e) => handleListKeyDown(e, content, (v) => { setContent(v); setTouched(t => ({ ...t, content: true })); })}
                   placeholder="Share your thoughts, questions, or experiences..."
                   className="min-h-[200px] border-0 bg-transparent focus:ring-0 shadow-none resize-none rounded-none"
                   data-testid="content-input"
