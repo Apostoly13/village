@@ -6683,27 +6683,30 @@ async def seed_data(request: Request):
 
     # Topic-based categories (Circles)
     topic_categories = [
-        {"name": "Feeding Space", "description": "Support for breastfeeding, pumping, formula, and feeding challenges", "icon": "🍼", "category_type": "topic"},
-        {"name": "Sleep Space", "description": "Sleep training, routines, leaps, regressions, and those sleepless nights — share tips and support", "icon": "🌙", "category_type": "topic"},
-        {"name": "Mental Health Space", "description": "A safe space to discuss postpartum emotions and self-care", "icon": "💚", "category_type": "topic"},
-        {"name": "Dad Space", "description": "A space just for dads — no judgment, just real talk", "icon": "👨", "category_type": "topic"},
-        {"name": "Single Parents Space", "description": "Support, tips, and connection for single mums and dads", "icon": "💪", "category_type": "topic"},
-        {"name": "Relationships", "description": "Navigating partner, family, and friend dynamics", "icon": "💕", "category_type": "topic"},
-        {"name": "Development & Milestones", "description": "Tracking growth and celebrating achievements", "icon": "⭐", "category_type": "topic"},
-        {"name": "Health & Wellness", "description": "Baby and parent health questions and advice", "icon": "🏥", "category_type": "topic"},
-        {"name": "Just Venting", "description": "Sometimes you just need to get it off your chest", "icon": "💨", "category_type": "topic"},
-        {"name": "Local Meetups", "description": "Organise and find parent meetups in your area", "icon": "📍", "category_type": "topic", "is_location_aware": True},
-        {"name": "Raising Multiples", "description": "For parents of twins, triplets, and beyond — twice (or more!) the love and chaos", "icon": "👶", "category_type": "topic"},
+        {"name": "Feeding", "description": "Support for breastfeeding, pumping, formula, and feeding challenges at every stage", "icon": "🍼", "category_type": "topic"},
+        {"name": "Sleep & Settling", "description": "Sleep training, routines, regressions, and surviving those sleepless nights", "icon": "🌙", "category_type": "topic"},
+        {"name": "Parent Wellbeing", "description": "A safe space for postpartum emotions, mental health, and taking care of yourself", "icon": "💚", "category_type": "topic"},
+        {"name": "Solo Parents", "description": "Support, tips, and connection for single mums and dads doing it on their own", "icon": "💪", "category_type": "topic"},
+        {"name": "Family & Relationships", "description": "Navigating partner, family, and friend dynamics through the parenting journey", "icon": "💕", "category_type": "topic"},
+        {"name": "Development & Milestones", "description": "Tracking growth and celebrating every achievement along the way", "icon": "⭐", "category_type": "topic"},
+        {"name": "Health & Wellness", "description": "Baby and parent health questions, advice, and support", "icon": "🏥", "category_type": "topic"},
+        {"name": "Real Talk", "description": "Sometimes you just need to get it off your chest. Honest, unfiltered, supported.", "icon": "💬", "category_type": "topic"},
+        {"name": "Local Village", "description": "Organise and find parent meetups, events, and connections in your local area", "icon": "📍", "category_type": "topic", "is_location_aware": True},
+        {"name": "Raising Multiples", "description": "For parents of twins, triplets, and beyond — twice (or more) the love and chaos", "icon": "👫", "category_type": "topic"},
+        {"name": "Postnatal Recovery", "description": "The fourth trimester is real. A space for recovery, healing, and honest talk about life after birth.", "icon": "🌸", "category_type": "topic"},
+        {"name": "Blended & Co-Parenting", "description": "Navigating stepfamilies, co-parenting, and shared custody — with support from parents who get it.", "icon": "🤝", "category_type": "topic"},
+        {"name": "Working Parents", "description": "Childcare decisions, going back to work, maternity and paternity leave, and the daily juggle.", "icon": "💼", "category_type": "topic"},
+        {"name": "Baby Gear & Reviews", "description": "Honest parent reviews on prams, carriers, car seats, monitors, and everything in between.", "icon": "🛒", "category_type": "topic"},
     ]
-    
-    # Age-based categories (Circles)
+
+    # Age-based categories
     age_categories = [
-        {"name": "Newborn Space", "description": "For parents of brand new babies (0–3 months)", "icon": "👶", "category_type": "age_group"},
-        {"name": "Infant Space", "description": "First year adventures and challenges (3–12 months)", "icon": "🧒", "category_type": "age_group"},
-        {"name": "Toddler Space", "description": "The wild toddler years (1–4 years)", "icon": "🚶", "category_type": "age_group"},
-        {"name": "School Age Space", "description": "For parents of school-age kids (5–12 years)", "icon": "🎒", "category_type": "age_group"},
-        {"name": "Teenager Space", "description": "Navigating the teen years (13+)", "icon": "🧑", "category_type": "age_group"},
-        {"name": "Expecting Space", "description": "Pregnancy support and preparation", "icon": "🤰", "category_type": "age_group"},
+        {"name": "Pregnancy & Expecting", "description": "Pregnancy support, preparation, and connecting with others on the same journey", "icon": "🤰", "category_type": "age_group"},
+        {"name": "Newborns", "description": "For parents of brand new babies (0–3 months) — the most intense and beautiful stage", "icon": "👶", "category_type": "age_group"},
+        {"name": "Babies", "description": "First year adventures and challenges (3–12 months)", "icon": "🧸", "category_type": "age_group"},
+        {"name": "Toddlers", "description": "The big-feeling toddler years (1–3 years)", "icon": "🚶", "category_type": "age_group"},
+        {"name": "School Age", "description": "For parents of primary school kids (6–12 years)", "icon": "📚", "category_type": "age_group"},
+        {"name": "Teenagers", "description": "Navigating the teen years (13+) — tricky and wonderful in equal measure", "icon": "🧑", "category_type": "age_group"},
     ]
     
     all_categories = topic_categories + age_categories
@@ -6737,14 +6740,22 @@ async def seed_data(request: Request):
     await db.chat_rooms.delete_many({"room_type": {"$in": ["global", "local", "state"]}})
     
     # Chat rooms - All Australia (main themed rooms)
+    # Note: stable-ID rooms are upserted in seed_required_rooms(). This /seed
+    # endpoint only creates rooms that don't already exist by name.
     all_australia_rooms = [
-        {"name": "3am Club", "description": "For those late-night feeds and sleepless nights. You're not alone!", "icon": "🌙"},
-        {"name": "Morning Coffee", "description": "Start your day with fellow Aussie parents", "icon": "☕"},
-        {"name": "New Parents Welcome", "description": "A friendly space for first-time parents", "icon": "👋"},
-        {"name": "Dad Chat", "description": "A place for dads to talk openly — no judgment, just real conversations", "icon": "👨"},
-        {"name": "Single Parents Lounge", "description": "A supportive space for single mums and dads. You're doing amazing!", "icon": "💪"},
-        {"name": "Vent Room", "description": "Sometimes you just need to let it out", "icon": "💨"},
-        {"name": "Wins & Celebrations", "description": "Share your parenting victories, big or small!", "icon": "🎉"},
+        {"name": "The 3am Club", "description": "Can't sleep? You're not alone. Open any time — most active between 10pm and 4am AEST.", "icon": "🌙"},
+        {"name": "Morning Coffee", "description": "Start your day with fellow Aussie parents — no agenda, just company.", "icon": "☕"},
+        {"name": "New Parents Welcome", "description": "A gentle space for parents in the early years. No question is too small.", "icon": "🌱"},
+        {"name": "Dad Chat", "description": "A space for dads to talk openly. Real conversations, no pressure.", "icon": "👨"},
+        {"name": "Solo Parents Chat", "description": "A supportive space for solo parents. You are doing an incredible job.", "icon": "💪"},
+        {"name": "Real Talk", "description": "Sometimes you just need to say it. No judgment — we are all ears.", "icon": "💬"},
+        {"name": "Wins & Celebrations", "description": "Share your wins — big and small. This village celebrates every one of them.", "icon": "🎉"},
+        {"name": "Ask The Village", "description": "Got a question? Ask anything parenting-related and get answers from real parents across Australia.", "icon": "🙋"},
+        {"name": "Recommendations", "description": "Share and discover what actually works — products, services, local finds, and honest parent opinions.", "icon": "⭐"},
+        {"name": "Playgroup & Activities", "description": "What are you doing with the kids this week? Share ideas, find groups, and plan local catch-ups.", "icon": "🧩"},
+        {"name": "Working Parents Chat", "description": "Juggling work and kids — childcare logistics, going back to work, and finding the balance.", "icon": "💼"},
+        {"name": "Screen Time & Tech", "description": "The parenting question everyone is asking. Share what works, what doesn't, and how others are handling it.", "icon": "📱"},
+        {"name": "Pregnancy Chat", "description": "A live space for expecting parents — symptoms, scans, worries, and excitement. You're not alone in this.", "icon": "🤰"},
     ]
     
     for room in all_australia_rooms:
@@ -7541,8 +7552,8 @@ async def seed_required_rooms():
     rooms_to_seed = [
         {
             "room_id": "room_3am_club",
-            "name": "3am Club",
-            "description": "Can't sleep? You're not alone. The 3am Club is open for tired parents any time.",
+            "name": "The 3am Club",
+            "description": "Can't sleep? You're not alone. Open any time — most active between 10pm and 4am AEST.",
             "icon": "🌙",
             "room_type": "all_australia",
             "gender_restriction": None,
@@ -7553,7 +7564,7 @@ async def seed_required_rooms():
         {
             "room_id": "room_mum_chat",
             "name": "Mum Chat",
-            "description": "A space for mums — honest, warm, and judgment-free.",
+            "description": "A warm, honest space for mums. No judgment — just real talk from parents who get it.",
             "icon": "👩",
             "room_type": "all_australia",
             "gender_restriction": "female",
@@ -7564,7 +7575,7 @@ async def seed_required_rooms():
         {
             "room_id": "room_dad_chat",
             "name": "Dad Chat",
-            "description": "A space for dads — no judgment, just real talk.",
+            "description": "A space for dads to talk openly. Real conversations, no pressure.",
             "icon": "👨",
             "room_type": "all_australia",
             "gender_restriction": "male",
@@ -7575,7 +7586,7 @@ async def seed_required_rooms():
         {
             "room_id": "room_morning_coffee",
             "name": "Morning Coffee",
-            "description": "Start your day with fellow parents — chat over your morning brew.",
+            "description": "Start your day with fellow parents. Chat over your morning brew — no agenda, just company.",
             "icon": "☕",
             "room_type": "all_australia",
             "gender_restriction": None,
@@ -7586,8 +7597,8 @@ async def seed_required_rooms():
         {
             "room_id": "room_new_parents_welcome",
             "name": "New Parents Welcome",
-            "description": "A gentle space for parents in their first year. No question is too small.",
-            "icon": "👶",
+            "description": "A gentle space for parents in the early years. No question is too small.",
+            "icon": "🌱",
             "room_type": "all_australia",
             "gender_restriction": None,
             "is_active": True,
@@ -7596,8 +7607,8 @@ async def seed_required_rooms():
         },
         {
             "room_id": "room_single_parents_lounge",
-            "name": "Single Parents Lounge",
-            "description": "A supportive space for single parents — you're doing an incredible job.",
+            "name": "Solo Parents Chat",
+            "description": "A supportive space for solo parents. You are doing an incredible job.",
             "icon": "💪",
             "room_type": "all_australia",
             "gender_restriction": None,
@@ -7607,9 +7618,9 @@ async def seed_required_rooms():
         },
         {
             "room_id": "room_vent_room",
-            "name": "Vent Room",
-            "description": "Need to let it out? This is a safe space. No judgment — we're all ears.",
-            "icon": "💨",
+            "name": "Real Talk",
+            "description": "Sometimes you just need to say it. No judgment — we are all ears.",
+            "icon": "💬",
             "room_type": "all_australia",
             "gender_restriction": None,
             "is_active": True,
@@ -7619,8 +7630,74 @@ async def seed_required_rooms():
         {
             "room_id": "room_wins_celebrations",
             "name": "Wins & Celebrations",
-            "description": "Share your wins — big and small. This village celebrates with you.",
+            "description": "Share your wins — big and small. This village celebrates every one of them.",
             "icon": "🎉",
+            "room_type": "all_australia",
+            "gender_restriction": None,
+            "is_active": True,
+            "active_users": 0,
+            "participant_ids": [],
+        },
+        {
+            "room_id": "room_ask_the_village",
+            "name": "Ask The Village",
+            "description": "Got a question? Ask anything parenting-related and get answers from real parents across Australia.",
+            "icon": "🙋",
+            "room_type": "all_australia",
+            "gender_restriction": None,
+            "is_active": True,
+            "active_users": 0,
+            "participant_ids": [],
+        },
+        {
+            "room_id": "room_recommendations",
+            "name": "Recommendations",
+            "description": "Share and discover what actually works — products, services, local finds, and honest parent opinions.",
+            "icon": "⭐",
+            "room_type": "all_australia",
+            "gender_restriction": None,
+            "is_active": True,
+            "active_users": 0,
+            "participant_ids": [],
+        },
+        {
+            "room_id": "room_playgroup_activities",
+            "name": "Playgroup & Activities",
+            "description": "What are you doing with the kids this week? Share ideas, find groups, and plan local catch-ups.",
+            "icon": "🧩",
+            "room_type": "all_australia",
+            "gender_restriction": None,
+            "is_active": True,
+            "active_users": 0,
+            "participant_ids": [],
+        },
+        {
+            "room_id": "room_working_parents",
+            "name": "Working Parents Chat",
+            "description": "Juggling work and kids — childcare logistics, going back to work, and finding the balance.",
+            "icon": "💼",
+            "room_type": "all_australia",
+            "gender_restriction": None,
+            "is_active": True,
+            "active_users": 0,
+            "participant_ids": [],
+        },
+        {
+            "room_id": "room_screen_time_tech",
+            "name": "Screen Time & Tech",
+            "description": "The parenting question everyone is asking. Share what works, what doesn't, and how others are handling it.",
+            "icon": "📱",
+            "room_type": "all_australia",
+            "gender_restriction": None,
+            "is_active": True,
+            "active_users": 0,
+            "participant_ids": [],
+        },
+        {
+            "room_id": "room_pregnancy_chat",
+            "name": "Pregnancy Chat",
+            "description": "A live space for expecting parents — symptoms, scans, worries, and excitement. You're not alone in this.",
+            "icon": "🤰",
             "room_type": "all_australia",
             "gender_restriction": None,
             "is_active": True,
@@ -7642,12 +7719,32 @@ async def seed_required_rooms():
         for d in dupes:
             await db.chat_rooms.delete_one({"_id": d["_id"]})
 
+    # ── Remove old-named rooms superseded by renamed stable rooms ────────────
+    # These names may exist in the DB from previous /seed calls; the stable-ID
+    # rooms have already been upserted above with the new names, so it's safe to
+    # delete any remaining old-name entries.
+    OLD_ROOM_NAME_MAP = {
+        "Single Parents Lounge": "Solo Parents Chat",
+        "Vent Room":             "Real Talk",
+        "3am Club":              "The 3am Club",
+    }
+    for old_name, new_name in OLD_ROOM_NAME_MAP.items():
+        new_room = await db.chat_rooms.find_one({"name": new_name})
+        if new_room:
+            result = await db.chat_rooms.delete_many({
+                "name": old_name,
+                "room_id": {"$ne": new_room["room_id"]}
+            })
+            if result.deleted_count:
+                logging.info("Removed %d old-named room(s) '%s' (replaced by '%s')",
+                             result.deleted_count, old_name, new_name)
+
     # ── Forum categories (upsert by category_id) ─────────────────────────────
     cats_to_seed = [
         {
             "category_id": "mum-space",
-            "name": "Mums Space",
-            "description": "A dedicated space for mums. Share your experience, ask questions, and support each other.",
+            "name": "Mums of The Village",
+            "description": "A dedicated space for mums to connect, share experiences, and support each other — no judgement here.",
             "icon": "👩",
             "category_type": "topic",
             "gender_restriction": "female",
@@ -7656,11 +7753,120 @@ async def seed_required_rooms():
         },
         {
             "category_id": "dad-space",
-            "name": "Dad Space",
-            "description": "A space for dads — no judgment, just real talk about fatherhood.",
+            "name": "Dads of The Village",
+            "description": "A space for dads — real talk about fatherhood, no pressure, just honest support.",
             "icon": "👨",
             "category_type": "topic",
             "gender_restriction": "male",
+            "post_count": 0,
+            "is_active": True,
+        },
+        {
+            "category_id": "cat-ask-the-village",
+            "name": "Ask The Village",
+            "description": "No question is too small. Ask anything about parenting and get answers from real parents.",
+            "icon": "🙋",
+            "category_type": "topic",
+            "post_count": 0,
+            "is_active": True,
+        },
+        {
+            "category_id": "cat-new-parents",
+            "name": "New Parents",
+            "description": "For those in the early days — first-time parents, the newborn stage, and the beautiful chaos of starting out.",
+            "icon": "🌱",
+            "category_type": "topic",
+            "post_count": 0,
+            "is_active": True,
+        },
+        {
+            "category_id": "cat-neurodiverse",
+            "name": "Neurodiverse Families",
+            "description": "A supportive space for parents of neurodiverse children — ADHD, autism, sensory needs, and beyond.",
+            "icon": "🧠",
+            "category_type": "topic",
+            "post_count": 0,
+            "is_active": True,
+        },
+        {
+            "category_id": "cat-childcare-school",
+            "name": "Childcare & School",
+            "description": "Navigating daycare, kindergarten, school choices, and everything in between.",
+            "icon": "🎒",
+            "category_type": "topic",
+            "post_count": 0,
+            "is_active": True,
+        },
+        {
+            "category_id": "cat-money-family",
+            "name": "Family Budget",
+            "description": "The real cost of raising kids — budgeting, saving, and managing family finances without the stress.",
+            "icon": "💰",
+            "category_type": "topic",
+            "post_count": 0,
+            "is_active": True,
+        },
+        {
+            "category_id": "cat-local-recommendations",
+            "name": "Local Recommendations",
+            "description": "Where to go, who to trust. Share local service and activity recommendations with your village.",
+            "icon": "📍",
+            "category_type": "topic",
+            "is_location_aware": True,
+            "post_count": 0,
+            "is_active": True,
+        },
+        {
+            "category_id": "cat-village-wins",
+            "name": "Village Wins",
+            "description": "Share the small victories and big moments. This village celebrates with you.",
+            "icon": "🎉",
+            "category_type": "topic",
+            "post_count": 0,
+            "is_active": True,
+        },
+        {
+            "category_id": "cat-preschoolers",
+            "name": "Preschoolers",
+            "description": "The preschool years (3–5) — language, learning, friendships, and big emotions.",
+            "icon": "🖍️",
+            "category_type": "age_group",
+            "post_count": 0,
+            "is_active": True,
+        },
+        {
+            "category_id": "cat-postnatal-recovery",
+            "name": "Postnatal Recovery",
+            "description": "The fourth trimester is real. A space for recovery, healing, and honest talk about life after birth.",
+            "icon": "🌸",
+            "category_type": "topic",
+            "post_count": 0,
+            "is_active": True,
+        },
+        {
+            "category_id": "cat-blended-coparenting",
+            "name": "Blended & Co-Parenting",
+            "description": "Navigating stepfamilies, co-parenting, and shared custody — with support from parents who get it.",
+            "icon": "🤝",
+            "category_type": "topic",
+            "post_count": 0,
+            "is_active": True,
+        },
+        {
+            "category_id": "cat-working-parents",
+            "name": "Working Parents",
+            "description": "Childcare decisions, going back to work, maternity and paternity leave, and the daily juggle.",
+            "icon": "💼",
+            "category_type": "topic",
+            "post_count": 0,
+            "is_active": True,
+        },
+        {
+            "category_id": "cat-baby-gear-reviews",
+            "name": "Baby Gear & Reviews",
+            "description": "Honest parent reviews on prams, carriers, car seats, monitors, and everything in between.",
+            "icon": "🛒",
+            "category_type": "topic",
             "post_count": 0,
             "is_active": True,
         },
@@ -7695,6 +7901,44 @@ async def seed_required_rooms():
         for dup in all_entries[1:]:
             await db.forum_categories.delete_one({"_id": dup["_id"]})
             logging.info("Startup dedup: removed duplicate category '%s' (%s)", group["_id"], dup.get("category_id", ""))
+
+    # ── Rename legacy /seed category names to new canonical names ────────────
+    # If the old name exists and the new name doesn't → rename in place
+    # If both exist → migrate posts to the new one and delete the old
+    CATEGORY_RENAMES = [
+        ("Just Venting",        "Real Talk"),
+        ("Mental Health Space", "Parent Wellbeing"),
+        ("Single Parents Space","Solo Parents"),
+        ("Relationships",       "Family & Relationships"),
+        ("Local Meetups",       "Local Village"),
+        ("Feeding Space",       "Feeding"),
+        ("Sleep Space",         "Sleep & Settling"),
+        ("Newborn Space",       "Newborns"),
+        ("Infant Space",        "Babies"),
+        ("Toddler Space",       "Toddlers"),
+        ("School Age Space",    "School Age"),
+        ("Teenager Space",      "Teenagers"),
+        ("Expecting Space",     "Pregnancy & Expecting"),
+        ("Mums Space",          "Mums of The Village"),
+        ("Dad Space",           "Dads of The Village"),
+    ]
+    for old_name, new_name in CATEGORY_RENAMES:
+        old_cat = await db.forum_categories.find_one({"name": old_name})
+        new_cat = await db.forum_categories.find_one({"name": new_name})
+        if old_cat and not new_cat:
+            await db.forum_categories.update_one(
+                {"_id": old_cat["_id"]},
+                {"$set": {"name": new_name}}
+            )
+            logging.info("Category rename: '%s' → '%s'", old_name, new_name)
+        elif old_cat and new_cat:
+            # Both exist — migrate posts to the canonical one and remove the duplicate
+            await db.forum_posts.update_many(
+                {"category_id": old_cat["category_id"]},
+                {"$set": {"category_id": new_cat["category_id"]}}
+            )
+            await db.forum_categories.delete_one({"_id": old_cat["_id"]})
+            logging.info("Category merge: '%s' merged into '%s'", old_name, new_name)
 
 async def purge_open_chat_messages():
     """

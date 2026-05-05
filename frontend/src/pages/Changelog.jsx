@@ -7,6 +7,39 @@ import AppFooter from "../components/AppFooter";
 // ── Full technical changelog (admin-only view) ────────────────────────────────
 const CHANGELOG = [
   {
+    version: "3.26.0",
+    date: "May 2026",
+    title: "New Spaces & Chat Rooms",
+    entries: [
+      { tag: "Added", text: "4 new forum Spaces: Postnatal Recovery, Blended & Co-Parenting, Working Parents, Baby Gear & Reviews — all seeded with stable category_ids in startup." },
+      { tag: "Added", text: "4 new Chat Rooms: Playgroup & Activities, Working Parents Chat, Screen Time & Tech, Pregnancy Chat — all seeded with stable room_ids in startup." },
+      { tag: "Improved", text: "Forums.jsx TOPIC_FILTER_MATCH updated: Support includes Postnatal Recovery; Parenting includes Working Parents, Baby Gear & Reviews; Family Life includes Blended & Co-Parenting and Working Parents; Ask & Share includes Baby Gear & Reviews." },
+      { tag: "Improved", text: "ChatRooms.jsx ROOM_TYPE_KEYWORDS updated: Support includes Pregnancy Chat; Parenting includes Working Parents Chat, Screen Time & Tech, Playgroup & Activities; Social includes Playgroup & Activities." },
+      { tag: "Improved", text: "/seed endpoint updated to include all new rooms and spaces for consistent fresh-DB seeding." },
+    ],
+  },
+  {
+    version: "3.25.0",
+    date: "May 2026",
+    title: "Spaces & Chat Rooms Overhaul",
+    entries: [
+      { tag: "Improved", text: "All space and chat room names reviewed and updated for clarity, warmth, and Australian tone. No emojis in descriptions." },
+      { tag: "Renamed",  text: "Spaces: Mums Space → Mums of The Village, Dad Space → Dads of The Village, Just Venting → Real Talk, Mental Health Space → Parent Wellbeing, Single Parents Space → Solo Parents, Relationships → Family & Relationships, Local Meetups → Local Village, Feeding Space → Feeding, Sleep Space → Sleep & Settling, Newborn Space → Newborns, Infant Space → Babies, Toddler Space → Toddlers, School Age Space → School Age, Teenager Space → Teenagers, Expecting Space → Pregnancy & Expecting." },
+      { tag: "Renamed",  text: "Chat Rooms: 3am Club → The 3am Club, Single Parents Lounge → Solo Parents Chat, Vent Room → Real Talk." },
+      { tag: "Added",    text: "9 new stable-ID forum spaces: Ask The Village, New Parents, Neurodiverse Families, Childcare & School, Family Budget, Local Recommendations, Village Wins, Preschoolers (age group), all seeded via startup with stable category_ids." },
+      { tag: "Added",    text: "2 new chat rooms: Ask The Village and Recommendations — both seeded in startup with stable room_ids." },
+      { tag: "Added",    text: "Backend CATEGORY_RENAMES migration — runs on every startup. Renames legacy /seed category names to canonical names in-place; merges posts and deletes duplicate if both old and new names exist." },
+      { tag: "Added",    text: "Backend OLD_ROOM_NAME_MAP cleanup — on startup, deletes old-named /seed rooms (3am Club, Single Parents Lounge, Vent Room) once stable-ID replacements exist." },
+      { tag: "Added",    text: "Forums.jsx: topic filter pill bar — All, Support, Parenting, Family Life, Local, Ask & Share, Wellbeing. Filters topic space cards by keyword matching." },
+      { tag: "Added",    text: "Forums.jsx: age filter pill bar — All ages, Expecting, Baby (0–12m), Toddler & Preschooler, School Age+. Filters age group cards by keyword matching." },
+      { tag: "Fixed",    text: "Forums.jsx: isMum/isDad regex updated to match plural forms (Mums, Dads). isMumSpace/isDadSpace category_id fixed from mum-circle/dad-circle to mum-space/dad-space." },
+      { tag: "Added",    text: "ChatRooms.jsx: secondary room type filter chips — All rooms, Support, Parenting, Social, Ask & Share. Hidden when Local tab is active. Applied to both Live now and All Australia grids." },
+      { tag: "Fixed",    text: "ChatRooms.jsx: 3am Club daytime callout converted from clickable Link to informational-only callout — no longer creates a visual duplicate of the room tile. Arrow and hover styling removed." },
+      { tag: "Improved", text: "ChatRooms.jsx: page h1 updated from 'Drop in. Chat live.' to 'Chat Rooms' with a clearer subtitle." },
+      { tag: "Improved", text: "spaces.js SPACE_NAME_MAP expanded to cover all legacy Circle names, Space names, and chat room names for correct display via getSpaceName()." },
+    ],
+  },
+  {
     version: "3.24.0",
     date: "May 2026",
     title: "Inbox Deep-Links, Profile Links & Add Friend from DM",
@@ -558,6 +591,29 @@ const CHANGELOG = [
 // ── Curated user-facing changelog (non-admin view) ────────────────────────────
 // Plain readable summaries — no technical tags or implementation details.
 const USER_CHANGELOG = [
+  {
+    version: "3.26.0",
+    date: "May 2026",
+    title: "More Spaces & Chat Rooms",
+    entries: [
+      "Four new Spaces added: Postnatal Recovery, Blended & Co-Parenting, Working Parents, and Baby Gear & Reviews.",
+      "Four new Chat Rooms added: Playgroup & Activities, Working Parents Chat, Screen Time & Tech, and Pregnancy Chat.",
+      "All new rooms and spaces are wired into the topic and type filter chips so you can find them straight away.",
+    ],
+  },
+  {
+    version: "3.25.0",
+    date: "May 2026",
+    title: "Better Spaces & Chat Rooms",
+    entries: [
+      "Spaces and Chat Rooms have been renamed and reorganised for clarity — warmer names, cleaner descriptions.",
+      "Nine new Spaces added: Ask The Village, New Parents, Neurodiverse Families, Childcare & School, Family Budget, Local Recommendations, Village Wins, Preschoolers, and more.",
+      "Two new Chat Rooms: Ask The Village and Recommendations.",
+      "Filter pills added to Spaces — browse by topic type (Support, Parenting, Family Life, Local) or age group (Baby, Toddler, School Age).",
+      "Filter chips added to Chat Rooms — narrow rooms by type (Support, Parenting, Social, Ask & Share).",
+      "The 3am Club daytime info card is now informational only — no longer appears as a second room tile.",
+    ],
+  },
   {
     version: "3.24.0",
     date: "May 2026",

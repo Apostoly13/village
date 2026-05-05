@@ -38,8 +38,8 @@ export default function Forums({ user }) {
   // Gender filter: hide gender-specific spaces until gender is set; then filter by gender
   const applyGenderFilter = (cats) => {
     const g = liveGender;
-    const isMumSpace = (c) => (c.name || "").toLowerCase().includes("mum") || c.category_id === "mum-circle";
-    const isDadSpace = (c) => (c.name || "").toLowerCase().includes("dad") || c.category_id === "dad-circle";
+    const isMumSpace = (c) => (c.name || "").toLowerCase().includes("mum") || c.category_id === "mum-space";
+    const isDadSpace = (c) => (c.name || "").toLowerCase().includes("dad") || c.category_id === "dad-space";
 
     // Only females see Mum Space; only males see Dad Space; everyone else sees neither
     if (g === "female") return cats.filter(c => !isDadSpace(c));
@@ -251,8 +251,66 @@ export default function Forums({ user }) {
     </div>
   );
 
-  const isMum = (c) => /\bmum\b/i.test(c.name);
-  const isDad = (c) => /\bdad\b/i.test(c.name);
+  // Match "Mum", "Mums", "Mum Chat" etc.
+  const isMum = (c) => /\bmums?\b/i.test(c.name);
+  const isDad = (c) => /\bdads?\b/i.test(c.name);
+
+  // Topic filter pills
+  const [topicFilter, setTopicFilter] = useState("all");
+  const TOPIC_FILTERS = [
+    { id: "all",        label: "All" },
+    { id: "support",    label: "Support" },
+    { id: "parenting",  label: "Parenting" },
+    { id: "family",     label: "Family Life" },
+    { id: "local",      label: "Local" },
+    { id: "ask",        label: "Ask & Share" },
+    { id: "wellbeing",  label: "Wellbeing" },
+  ];
+
+  const TOPIC_FILTER_MATCH = {
+    support:   ["real talk", "parent wellbeing", "solo parents", "mums of the village", "dads of the village", "postnatal recovery"],
+    parenting: ["development", "milestones", "health", "wellness", "raising multiples", "neurodiverse", "childcare", "school", "working parents", "screen time", "baby gear"],
+    family:    ["family", "relationships", "family budget", "new parents", "pregnancy", "blended", "co-parenting", "working parents"],
+    local:     ["local village", "local recommendations"],
+    ask:       ["ask the village", "village wins", "baby gear", "recommendations"],
+    wellbeing: ["parent wellbeing", "real talk", "solo parents", "postnatal recovery"],
+  };
+
+  const applyTopicFilter = (cats) => {
+    if (topicFilter === "all") return cats;
+    const keywords = TOPIC_FILTER_MATCH[topicFilter] || [];
+    return cats.filter(c => {
+      if (c.is_location_aware && topicFilter === "local") return true;
+      const name = (c.name || "").toLowerCase();
+      return keywords.some(kw => name.includes(kw));
+    });
+  };
+
+  // Age filter pills
+  const [ageFilter, setAgeFilter] = useState("all");
+  const AGE_FILTERS = [
+    { id: "all",       label: "All ages" },
+    { id: "expecting", label: "Expecting" },
+    { id: "baby",      label: "Baby (0–12m)" },
+    { id: "toddler",   label: "Toddler & Preschooler" },
+    { id: "school",    label: "School Age+" },
+  ];
+
+  const AGE_FILTER_MATCH = {
+    expecting: ["pregnancy", "expecting"],
+    baby:      ["newborn", "babies", "baby"],
+    toddler:   ["toddler", "preschooler"],
+    school:    ["school age", "teen"],
+  };
+
+  const applyAgeFilter = (cats) => {
+    if (ageFilter === "all") return cats;
+    const keywords = AGE_FILTER_MATCH[ageFilter] || [];
+    return cats.filter(c => {
+      const name = (c.name || "").toLowerCase();
+      return keywords.some(kw => name.includes(kw));
+    });
+  };
 
   // Community search + sort state
   const [communitySearch, setCommunitySearch] = useState("");
@@ -301,7 +359,7 @@ export default function Forums({ user }) {
             ) : (
               <>
                 <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-1">Spaces</h1>
-                <p className="text-sm text-muted-foreground">Discussion threads by topic and age group — post, reply, and connect</p>
+                <p className="text-sm text-muted-foreground">Discussion threads by topic and age group — post, reply, and support each other</p>
               </>
             )}
           </div>
@@ -515,6 +573,24 @@ export default function Forums({ user }) {
 
             {/* TOPICS */}
             <TabsContent value="topics" className="mt-0">
+              {/* Topic filter pills */}
+              {!loading && topicCategories.length > 0 && (
+                <div className="flex gap-1.5 flex-wrap mb-5">
+                  {TOPIC_FILTERS.map(f => (
+                    <button
+                      key={f.id}
+                      onClick={() => setTopicFilter(f.id)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+                        topicFilter === f.id
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-card border border-border/50 text-muted-foreground hover:text-foreground hover:border-primary/30"
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+              )}
               {loading ? (
                 <SkeletonGrid count={6} />
               ) : topicCategories.length === 0 ? (
@@ -525,7 +601,8 @@ export default function Forums({ user }) {
                 </div>
               ) : (
                 <>
-                  {(() => {
+                  {/* Featured gender-specific spaces — only shown when filter is "all" or matches */}
+                  {topicFilter === "all" && (() => {
                     const mumSpace = liveGender === "female" ? topicCategories.find(isMum) : null;
                     const dadSpace = liveGender === "male"   ? topicCategories.find(isDad) : null;
                     if (!mumSpace && !dadSpace) return null;
@@ -557,19 +634,51 @@ export default function Forums({ user }) {
                       </div>
                     );
                   })()}
-                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {topicCategories
-                      .filter(c => !isMum(c) && !isDad(c))
-                      .map((category, idx) => (
-                        <CategoryCard key={category.category_id} category={category} index={idx} />
-                      ))}
-                  </div>
+                  {(() => {
+                    const filtered = applyTopicFilter(
+                      topicCategories.filter(c => topicFilter === "all" ? (!isMum(c) && !isDad(c)) : true)
+                    );
+                    if (filtered.length === 0) {
+                      return (
+                        <div className="text-center py-10 village-card">
+                          <p className="text-sm text-muted-foreground">No spaces match this filter.</p>
+                          <button onClick={() => setTopicFilter("all")}
+                            className="mt-2 text-xs text-primary underline underline-offset-2">Show all</button>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {filtered.map((category, idx) => (
+                          <CategoryCard key={category.category_id} category={category} index={idx} />
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </>
               )}
             </TabsContent>
 
             {/* AGE GROUPS */}
             <TabsContent value="age" className="mt-0">
+              {/* Age filter pills */}
+              {!loading && ageCategories.length > 0 && (
+                <div className="flex gap-1.5 flex-wrap mb-5">
+                  {AGE_FILTERS.map(f => (
+                    <button
+                      key={f.id}
+                      onClick={() => setAgeFilter(f.id)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+                        ageFilter === f.id
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-card border border-border/50 text-muted-foreground hover:text-foreground hover:border-primary/30"
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+              )}
               {loading ? (
                 <SkeletonGrid count={4} />
               ) : ageCategories.length === 0 ? (
@@ -578,13 +687,25 @@ export default function Forums({ user }) {
                   <h3 className="font-heading font-semibold text-foreground mb-1">No age groups yet</h3>
                   <p className="text-sm text-muted-foreground">Check back soon!</p>
                 </div>
-              ) : (
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {ageCategories.map((category, idx) => (
-                    <CategoryCard key={category.category_id} category={category} index={idx} />
-                  ))}
-                </div>
-              )}
+              ) : (() => {
+                const filtered = applyAgeFilter(ageCategories);
+                if (filtered.length === 0) {
+                  return (
+                    <div className="text-center py-10 village-card">
+                      <p className="text-sm text-muted-foreground">No age groups match this filter.</p>
+                      <button onClick={() => setAgeFilter("all")}
+                        className="mt-2 text-xs text-primary underline underline-offset-2">Show all</button>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filtered.map((category, idx) => (
+                      <CategoryCard key={category.category_id} category={category} index={idx} />
+                    ))}
+                  </div>
+                );
+              })()}
             </TabsContent>
           </Tabs>
         )}

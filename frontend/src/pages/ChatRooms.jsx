@@ -36,6 +36,21 @@ const FILTERS = [
   { id: "local", label: "Local" },
 ];
 
+const ROOM_TYPE_FILTERS = [
+  { id: "all",         label: "All rooms" },
+  { id: "support",     label: "Support" },
+  { id: "parenting",   label: "Parenting" },
+  { id: "social",      label: "Social" },
+  { id: "ask",         label: "Ask & Share" },
+];
+
+const ROOM_TYPE_KEYWORDS = {
+  support:   ["real talk", "solo parents", "3am club", "mum chat", "dad chat", "pregnancy chat"],
+  parenting: ["new parents", "new parents welcome", "working parents", "screen time", "playgroup"],
+  social:    ["morning coffee", "wins", "celebrations", "playgroup", "activities"],
+  ask:       ["ask the village", "recommendations"],
+};
+
 export default function ChatRooms({ user }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -55,13 +70,16 @@ export default function ChatRooms({ user }) {
   const [liveRoomsFetched, setLiveRoomsFetched] = useState([]);
   const [liveLoading, setLiveLoading]         = useState(true);
 
-  // Filter chip state — "all" | "live" | "local"
+  // Primary filter chip state — "all" | "live" | "local"
   const [activeFilter, setActiveFilter] = useState(() => {
     const t = searchParams.get("tab");
     if (t === "local") return "local";
     if (t === "live")  return "live";
     return "all";
   });
+
+  // Secondary type filter — only shown when activeFilter !== "local"
+  const [roomTypeFilter, setRoomTypeFilter] = useState("all");
 
   // Live gender — updates instantly when profile is saved
   const [liveGender, setLiveGender] = useState(user?.gender);
@@ -367,8 +385,8 @@ export default function ChatRooms({ user }) {
 
         {/* Header */}
         <div className="mb-6">
-          <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-1">Drop in. Chat live.</h1>
-          <p className="text-sm text-muted-foreground">Real-time chat rooms for parents who need company right now. National, local area, and friends chat.</p>
+          <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-1">Chat Rooms</h1>
+          <p className="text-sm text-muted-foreground">Real-time group chats for parents. Drop in anytime — national rooms, local areas, and more.</p>
         </div>
 
         <div className="grid lg:grid-cols-[1fr_272px] gap-8">
@@ -376,12 +394,12 @@ export default function ChatRooms({ user }) {
           {/* ── Main content ────────────────────────── */}
           <div className="min-w-0 space-y-6">
 
-            {/* Filter chips */}
+            {/* Primary filter chips */}
             <div className="flex items-center gap-2 flex-wrap">
               {FILTERS.map(f => (
                 <button
                   key={f.id}
-                  onClick={() => setActiveFilter(f.id)}
+                  onClick={() => { setActiveFilter(f.id); if (f.id === "local") setRoomTypeFilter("all"); }}
                   data-testid={`filter-${f.id}`}
                   className={`inline-flex items-center gap-1.5 h-8 px-4 rounded-full text-sm font-medium transition-colors ${
                     activeFilter === f.id
@@ -396,6 +414,25 @@ export default function ChatRooms({ user }) {
                 </button>
               ))}
             </div>
+
+            {/* Secondary type filter — shown when not in Local view */}
+            {activeFilter !== "local" && (
+              <div className="flex items-center gap-1.5 flex-wrap -mt-2">
+                {ROOM_TYPE_FILTERS.map(f => (
+                  <button
+                    key={f.id}
+                    onClick={() => setRoomTypeFilter(f.id)}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+                      roomTypeFilter === f.id
+                        ? "bg-secondary text-foreground border border-border"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* Night Owl banner */}
             {nightOwl && (activeFilter === "all" || activeFilter === "live") && (
@@ -418,9 +455,17 @@ export default function ChatRooms({ user }) {
                     Live now
                   </h2>
                   <div className="grid sm:grid-cols-2 gap-4">
-                    {liveRooms.slice(0, 6).map((room, idx) => (
-                      <RoomCard key={room.room_id} room={room} idx={`live-${idx}`} />
-                    ))}
+                    {liveRooms
+                      .filter(r => {
+                        if (roomTypeFilter === "all") return true;
+                        const keywords = ROOM_TYPE_KEYWORDS[roomTypeFilter] || [];
+                        const name = (r.name || "").toLowerCase();
+                        return keywords.some(kw => name.includes(kw));
+                      })
+                      .slice(0, 6)
+                      .map((room, idx) => (
+                        <RoomCard key={room.room_id} room={room} idx={`live-${idx}`} />
+                      ))}
                   </div>
                 </section>
               ) : activeFilter === "live" ? (
@@ -495,6 +540,12 @@ export default function ChatRooms({ user }) {
                             if (liveGender !== "female" && r.gender_restriction === "female") return false;
                             if (liveGender !== "male"   && r.gender_restriction === "male")   return false;
                           }
+                          // Secondary type filter
+                          if (roomTypeFilter !== "all") {
+                            const keywords = ROOM_TYPE_KEYWORDS[roomTypeFilter] || [];
+                            const name = (r.name || "").toLowerCase();
+                            if (!keywords.some(kw => name.includes(kw))) return false;
+                          }
                           return true;
                         })
                         .map((room, idx) => (
@@ -502,23 +553,16 @@ export default function ChatRooms({ user }) {
                         ))}
                     </div>
 
-                    {/* 3am Club promo — hidden during night owl hours (already featured above) */}
-                    {!nightOwl && (() => {
-                      const club = allAustraliaRooms.find(r => r.name?.toLowerCase().includes("3am"));
-                      const href = club ? `/chat/${club.room_id}` : "/chat";
-                      return (
-                        <Link to={href} className="block">
-                          <div className="p-4 rounded-[18px] bg-primary/5 border border-primary/20 hover:border-primary/40 village-card-hover flex items-start gap-4">
-                            <span className="text-2xl shrink-0">🌙</span>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-heading font-bold text-foreground mb-0.5">The 3am Club</h3>
-                              <p className="text-xs text-muted-foreground">Most active 10pm–4am AEST — for those late-night feeds when you need company. Active night owls earn the 🦉 Night Owl badge.</p>
-                            </div>
-                            <span className="text-muted-foreground shrink-0 self-center">→</span>
-                          </div>
-                        </Link>
-                      );
-                    })()}
+                    {/* 3am Club info — informational callout during daytime (room appears in the grid above) */}
+                    {!nightOwl && (
+                      <div className="p-4 rounded-[18px] bg-secondary/60 border border-border/40 flex items-start gap-3">
+                        <span className="text-xl shrink-0 mt-0.5">🌙</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground mb-0.5">The 3am Club</p>
+                          <p className="text-xs text-muted-foreground">Most active between 10pm and 4am AEST — always open for late-night company. Night Owl badge awarded for regular late-night activity.</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </section>
