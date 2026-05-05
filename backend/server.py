@@ -5938,6 +5938,15 @@ async def reject_professional(user_id: str, admin: dict = Depends(get_admin_user
     })
     return {"message": "Application rejected"}
 
+_AGE_GROUP_CANONICAL = {
+    "Newborns", "Babies", "Toddlers", "Preschoolers",
+    "School Age", "Teenagers", "Pregnancy & Expecting",
+}
+
+def _canonical_type(name: str) -> str:
+    return "age_group" if name in _AGE_GROUP_CANONICAL else "topic"
+
+
 @api_router.post("/admin/dedup-categories")
 async def admin_dedup_categories(admin: dict = Depends(get_admin_user)):
     """
@@ -5993,15 +6002,21 @@ async def admin_dedup_categories(admin: dict = Depends(get_admin_user)):
         old_cat = await db.forum_categories.find_one({"name": old_name})
         new_cat = await db.forum_categories.find_one({"name": new_name})
         if old_cat and not new_cat:
-            await db.forum_categories.update_one({"_id": old_cat["_id"]}, {"$set": {"name": new_name}})
-            fixed.append(f"Renamed '{old_name}' → '{new_name}'")
+            # Rename in place — also fix category_type if old entry had wrong type
+            update = {"name": new_name}
+            if old_cat.get("category_type") != _canonical_type(new_name):
+                update["category_type"] = _canonical_type(new_name)
+            await db.forum_categories.update_one({"_id": old_cat["_id"]}, {"$set": update})
+            fixed.append(f"Renamed '{old_name}' → '{new_name}' (type={update.get('category_type', old_cat.get('category_type'))})")
         elif old_cat and new_cat:
             keep = old_cat if (old_cat.get("post_count", 0) or 0) >= (new_cat.get("post_count", 0) or 0) else new_cat
             drop = new_cat if keep == old_cat else old_cat
+            # Always use new_cat's category_type — it's the canonical one
+            correct_type = new_cat.get("category_type") or old_cat.get("category_type")
             await db.forum_posts.update_many({"category_id": drop["category_id"]}, {"$set": {"category_id": keep["category_id"]}})
-            await db.forum_categories.update_one({"_id": keep["_id"]}, {"$set": {"name": new_name}})
+            await db.forum_categories.update_one({"_id": keep["_id"]}, {"$set": {"name": new_name, "category_type": correct_type}})
             await db.forum_categories.delete_one({"_id": drop["_id"]})
-            fixed.append(f"Merged '{old_name}' + '{new_name}' → kept '{new_name}' ({keep.get('post_count',0)} posts)")
+            fixed.append(f"Merged '{old_name}' + '{new_name}' → kept as '{new_name}' type={correct_type} ({keep.get('post_count',0)} posts)")
 
     # 2. Dedup any remaining same-name entries
     pipeline = [{"$group": {"_id": "$name", "count": {"$sum": 1}}}, {"$match": {"count": {"$gt": 1}}}]
@@ -8022,26 +8037,31 @@ async def seed_required_rooms():
         old_cat = await db.forum_categories.find_one({"name": old_name})
         new_cat = await db.forum_categories.find_one({"name": new_name})
         if old_cat and not new_cat:
+            # Rename in place — also fix category_type if the old entry had a wrong type
+            age_groups = {"Newborns", "Babies", "Toddlers", "Preschoolers",
+                          "School Age", "Teenagers", "Pregnancy & Expecting"}
+            correct_type = "age_group" if new_name in age_groups else "topic"
             await db.forum_categories.update_one(
                 {"_id": old_cat["_id"]},
-                {"$set": {"name": new_name}}
+                {"$set": {"name": new_name, "category_type": correct_type}}
             )
-            logging.info("Category rename: '%s' → '%s'", old_name, new_name)
+            logging.info("Category rename: '%s' → '%s' (type=%s)", old_name, new_name, correct_type)
         elif old_cat and new_cat:
-            # Both exist — keep the one with more posts; migrate posts and delete the other
-            keep, drop = (new_cat, old_cat) if new_cat.get("post_count", 0) >= old_cat.get("post_count", 0) else (old_cat, new_cat)
+            # Both exist — keep the one with more posts; migrate posts and delete the other.
+            # Always use new_cat's category_type — it's the canonical seeded type.
+            keep, drop = (old_cat, new_cat) if (old_cat.get("post_count", 0) or 0) >= (new_cat.get("post_count", 0) or 0) else (new_cat, old_cat)
+            correct_type = new_cat.get("category_type") or old_cat.get("category_type")
             await db.forum_posts.update_many(
                 {"category_id": drop["category_id"]},
                 {"$set": {"category_id": keep["category_id"]}}
             )
-            # Ensure the kept entry has the new canonical name
             await db.forum_categories.update_one(
                 {"_id": keep["_id"]},
-                {"$set": {"name": new_name}}
+                {"$set": {"name": new_name, "category_type": correct_type}}
             )
             await db.forum_categories.delete_one({"_id": drop["_id"]})
-            logging.info("Category merge: '%s' + '%s' → kept '%s' (%s posts)",
-                         old_name, new_name, new_name, keep.get("post_count", 0))
+            logging.info("Category merge: '%s' + '%s' → kept '%s' type=%s (%s posts)",
+                         old_name, new_name, new_name, correct_type, keep.get("post_count", 0))
 
     # ── Second dedup pass — catches any duplicates created by the rename sequence ─
     pipeline2 = [
