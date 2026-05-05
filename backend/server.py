@@ -7679,6 +7679,23 @@ async def seed_required_rooms():
         for d in dupes:
             await db.forum_categories.delete_one({"_id": d["_id"]})
 
+    # ── Global name-based dedup (catches duplicates from repeated /seed calls) ──
+    # For each category name that appears more than once, keep the entry with the
+    # most posts (or oldest created_at as tiebreak) and delete the rest.
+    pipeline = [
+        {"$group": {"_id": "$name", "count": {"$sum": 1}}},
+        {"$match": {"count": {"$gt": 1}}}
+    ]
+    async for group in db.forum_categories.aggregate(pipeline):
+        all_entries = await db.forum_categories.find(
+            {"name": group["_id"]}, {"_id": 1, "post_count": 1, "created_at": 1, "category_id": 1}
+        ).to_list(20)
+        # Keep the entry with the most posts; use earliest created_at as tiebreak
+        all_entries.sort(key=lambda x: (-x.get("post_count", 0), x.get("created_at", "")))
+        for dup in all_entries[1:]:
+            await db.forum_categories.delete_one({"_id": dup["_id"]})
+            logging.info("Startup dedup: removed duplicate category '%s' (%s)", group["_id"], dup.get("category_id", ""))
+
 async def purge_open_chat_messages():
     """
     Auto-purge old messages from open group chat rooms to keep them fresh.
