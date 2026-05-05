@@ -5949,8 +5949,9 @@ async def admin_dedup_categories(admin: dict = Depends(get_admin_user)):
     """
     fixed = []
 
-    # 1. Run rename migrations
+    # 1. Run rename migrations — Space names, Circle names (legacy), and any others
     CATEGORY_RENAMES = [
+        # Space → canonical
         ("Just Venting",        "Real Talk"),
         ("Mental Health Space", "Parent Wellbeing"),
         ("Single Parents Space","Solo Parents"),
@@ -5966,7 +5967,28 @@ async def admin_dedup_categories(admin: dict = Depends(get_admin_user)):
         ("Expecting Space",     "Pregnancy & Expecting"),
         ("Mums Space",          "Mums of The Village"),
         ("Dad Space",           "Dads of The Village"),
+        # Circle → canonical (legacy pre-seed names)
+        ("Mum Circle",          "Mums of The Village"),
+        ("Dad Circle",          "Dads of The Village"),
+        ("Sleep Circle",        "Sleep & Settling"),
+        ("Feeding Circle",      "Feeding"),
+        ("Toddler Circle",      "Toddlers"),
+        ("Newborn Circle",      "Newborns"),
+        ("School Age Circle",   "School Age"),
+        ("Teenager Circle",     "Teenagers"),
+        ("Single Parent Circle","Solo Parents"),
+        ("Mental Health Circle","Parent Wellbeing"),
+        ("Infant Circle",       "Babies"),
+        ("Expecting Circle",    "Pregnancy & Expecting"),
+        ("Family & Relationships Circle", "Family & Relationships"),
     ]
+
+    # 2. Delete obvious test/automation categories
+    TEST_PATTERNS = ["TEST_AUTOMATION", "Test Community"]
+    for pattern in TEST_PATTERNS:
+        result = await db.forum_categories.delete_many({"name": {"$regex": pattern}})
+        if result.deleted_count:
+            fixed.append(f"Deleted {result.deleted_count} test category/ies matching '{pattern}'")
     for old_name, new_name in CATEGORY_RENAMES:
         old_cat = await db.forum_categories.find_one({"name": old_name})
         new_cat = await db.forum_categories.find_one({"name": new_name})
@@ -7961,10 +7983,12 @@ async def seed_required_rooms():
             await db.forum_categories.delete_one({"_id": dup["_id"]})
             logging.info("Startup dedup: removed duplicate category '%s' (%s)", group["_id"], dup.get("category_id", ""))
 
-    # ── Rename legacy /seed category names to new canonical names ────────────
-    # If the old name exists and the new name doesn't → rename in place
-    # If both exist → migrate posts to the new one and delete the old
+    # ── Rename legacy category names to canonical names ──────────────────────
+    # Covers: Space names, Circle names (oldest legacy), and any others.
+    # If old name exists and new name doesn't → rename in place.
+    # If both exist → keep the one with more posts, set canonical name, delete other.
     CATEGORY_RENAMES = [
+        # Space → canonical
         ("Just Venting",        "Real Talk"),
         ("Mental Health Space", "Parent Wellbeing"),
         ("Single Parents Space","Solo Parents"),
@@ -7980,6 +8004,19 @@ async def seed_required_rooms():
         ("Expecting Space",     "Pregnancy & Expecting"),
         ("Mums Space",          "Mums of The Village"),
         ("Dad Space",           "Dads of The Village"),
+        # Circle → canonical (oldest legacy names)
+        ("Mum Circle",          "Mums of The Village"),
+        ("Dad Circle",          "Dads of The Village"),
+        ("Sleep Circle",        "Sleep & Settling"),
+        ("Feeding Circle",      "Feeding"),
+        ("Toddler Circle",      "Toddlers"),
+        ("Newborn Circle",      "Newborns"),
+        ("School Age Circle",   "School Age"),
+        ("Teenager Circle",     "Teenagers"),
+        ("Single Parent Circle","Solo Parents"),
+        ("Mental Health Circle","Parent Wellbeing"),
+        ("Infant Circle",       "Babies"),
+        ("Expecting Circle",    "Pregnancy & Expecting"),
     ]
     for old_name, new_name in CATEGORY_RENAMES:
         old_cat = await db.forum_categories.find_one({"name": old_name})
