@@ -7932,13 +7932,39 @@ async def seed_required_rooms():
             )
             logging.info("Category rename: '%s' → '%s'", old_name, new_name)
         elif old_cat and new_cat:
-            # Both exist — migrate posts to the canonical one and remove the duplicate
+            # Both exist — keep the one with more posts; migrate posts and delete the other
+            keep, drop = (new_cat, old_cat) if new_cat.get("post_count", 0) >= old_cat.get("post_count", 0) else (old_cat, new_cat)
             await db.forum_posts.update_many(
-                {"category_id": old_cat["category_id"]},
-                {"$set": {"category_id": new_cat["category_id"]}}
+                {"category_id": drop["category_id"]},
+                {"$set": {"category_id": keep["category_id"]}}
             )
-            await db.forum_categories.delete_one({"_id": old_cat["_id"]})
-            logging.info("Category merge: '%s' merged into '%s'", old_name, new_name)
+            # Ensure the kept entry has the new canonical name
+            await db.forum_categories.update_one(
+                {"_id": keep["_id"]},
+                {"$set": {"name": new_name}}
+            )
+            await db.forum_categories.delete_one({"_id": drop["_id"]})
+            logging.info("Category merge: '%s' + '%s' → kept '%s' (%s posts)",
+                         old_name, new_name, new_name, keep.get("post_count", 0))
+
+    # ── Second dedup pass — catches any duplicates created by the rename sequence ─
+    pipeline2 = [
+        {"$group": {"_id": "$name", "count": {"$sum": 1}}},
+        {"$match": {"count": {"$gt": 1}}}
+    ]
+    async for group in db.forum_categories.aggregate(pipeline2):
+        dupes = await db.forum_categories.find(
+            {"name": group["_id"]}, {"_id": 1, "post_count": 1, "created_at": 1, "category_id": 1}
+        ).to_list(20)
+        dupes.sort(key=lambda x: (-x.get("post_count", 0), x.get("created_at", "") or ""))
+        for dup in dupes[1:]:
+            # migrate any orphaned posts before deleting
+            await db.forum_posts.update_many(
+                {"category_id": dup["category_id"]},
+                {"$set": {"category_id": dupes[0]["category_id"]}}
+            )
+            await db.forum_categories.delete_one({"_id": dup["_id"]})
+            logging.info("Post-rename dedup: removed '%s' (id=%s)", group["_id"], dup.get("category_id", ""))
 
 async def purge_open_chat_messages():
     """

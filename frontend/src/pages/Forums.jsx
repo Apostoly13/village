@@ -49,6 +49,7 @@ export default function Forums({ user }) {
 
   const fetchData = async () => {
     // Show cached categories immediately while fetching fresh data
+    // Note: cache is name-deduped on write, so stale duplicates won't re-appear
     try {
       const cached = sessionStorage.getItem("village_categories_cache");
       if (cached) { setCategories(applyGenderFilter(JSON.parse(cached))); setLoading(false); }
@@ -57,9 +58,19 @@ export default function Forums({ user }) {
       const res = await fetch(`${API_URL}/api/forums/categories`, { credentials: "include" });
       if (res.ok) {
         const raw = await res.json();
-        // Deduplicate by category_id (prevents double-renders from stale cache + fresh data)
-        const seen = new Set();
-        const data = raw.filter(c => { if (seen.has(c.category_id)) return false; seen.add(c.category_id); return true; });
+        // Deduplicate by category_id first, then by normalised name (catches DB-level name dupes)
+        const seenId = new Set();
+        const seenName = new Set();
+        const data = raw
+          .sort((a, b) => (b.post_count || 0) - (a.post_count || 0)) // keep the one with most posts
+          .filter(c => {
+            if (seenId.has(c.category_id)) return false;
+            seenId.add(c.category_id);
+            const key = (c.name || "").toLowerCase().trim();
+            if (seenName.has(key)) return false;
+            seenName.add(key);
+            return true;
+          });
         setCategories(applyGenderFilter(data));
         try { sessionStorage.setItem("village_categories_cache", JSON.stringify(data)); } catch {}
       }
