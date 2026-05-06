@@ -4763,12 +4763,23 @@ async def get_friend_requests(user: dict = Depends(get_current_user)):
 
 @api_router.get("/friends/sent")
 async def get_sent_requests(user: dict = Depends(get_current_user)):
-    """Get friend requests sent by current user"""
+    """Get friend requests sent by current user — includes to_user profile"""
     requests = await db.friend_requests.find(
         {"from_user_id": user["user_id"], "status": "pending"},
         {"_id": 0}
     ).to_list(50)
-    
+
+    if requests:
+        to_ids = [r["to_user_id"] for r in requests]
+        recipients = await db.users.find(
+            {"user_id": {"$in": to_ids}},
+            {"_id": 0, "password_hash": 0, "email": 0, "reset_token": 0,
+             "stripe_customer_id": 0, "stripe_subscription_id": 0}
+        ).to_list(50)
+        recipient_map = {r["user_id"]: r for r in recipients}
+        for req in requests:
+            req["to_user"] = recipient_map.get(req["to_user_id"])
+
     return requests
 
 @api_router.post("/friends/request/{request_id}/accept")
@@ -4828,8 +4839,29 @@ async def decline_friend_request(request_id: str, user: dict = Depends(get_curre
         {"request_id": request_id},
         {"$set": {"status": "declined"}}
     )
-    
+
     return {"message": "Friend request declined"}
+
+@api_router.delete("/friends/request/{request_id}")
+async def cancel_friend_request(request_id: str, user: dict = Depends(get_current_user)):
+    """Cancel a sent friend request and remove the recipient's notification"""
+    request = await db.friend_requests.find_one(
+        {"request_id": request_id, "from_user_id": user["user_id"], "status": "pending"},
+        {"_id": 0}
+    )
+    if not request:
+        raise HTTPException(status_code=404, detail="Friend request not found")
+
+    await db.friend_requests.delete_one({"request_id": request_id})
+
+    # Remove the unread notification from the recipient's side
+    await db.notifications.delete_one({
+        "user_id": request["to_user_id"],
+        "type": "friend_request",
+        "is_read": False,
+    })
+
+    return {"message": "Friend request cancelled"}
 
 @api_router.get("/friends")
 async def get_friends(user: dict = Depends(get_current_user)):

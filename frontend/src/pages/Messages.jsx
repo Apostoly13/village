@@ -827,7 +827,7 @@ export default function Messages({ user }) {
     if (inboxTab === "events")  return c._type === "event";
     return true; // "all"
   });
-  const showContactsSection = (inboxTab === "all" || inboxTab === "friends") && inboxTab !== "events";
+  const showContactsSection = inboxTab === "all";
 
   // Unread badge counts per tab
   const unreadTotal = recentConversations.reduce((n, c) => n + (c.unread_count || 0), 0) + messageRequests.length;
@@ -959,158 +959,243 @@ export default function Messages({ user }) {
                         </>
                       )}
 
-                      {/* ── Filtered conversations ── */}
-                      {filteredRecent.length > 0 && (
-                        <>
-                          {filteredRecent.map(conv => {
-                            const key = conv._key || conv.other_user_id;
-                            if (conv._type === "event") {
-                              const isActive = chatMode === "event" && activeEventConv?.event_id === conv.event_id;
-                              const eventDate = conv.date ? new Date(conv.date).toLocaleDateString("en-AU", { day: "numeric", month: "short" }) : null;
-                              return (
-                                <button
-                                  key={key}
-                                  onClick={() => openEventChat(conv)}
-                                  className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${isActive ? "bg-primary/10" : ""}`}
-                                >
-                                  <div className="relative shrink-0">
-                                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden">
-                                      {conv.image_url
-                                        ? <img src={conv.image_url} alt="" className="w-full h-full object-cover" />
-                                        : <Calendar className="h-4 w-4 text-primary" />}
-                                    </div>
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium text-foreground truncate">{conv.title}</p>
-                                    <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                                      <Calendar className="h-2.5 w-2.5 shrink-0" />
-                                      {eventDate ? eventDate : "Event chat"}
-                                      {conv.last_message && <span className="truncate"> · {conv.last_message}</span>}
-                                    </p>
-                                  </div>
-                                </button>
-                              );
-                            }
-                            if (conv._type === "stall") {
-                              const isActive = chatMode === "stall" && activeStallConv?.listing_id === conv.listing_id && activeStallConv?.other_user_id === conv.other_user_id;
-                              return (
-                                <button
-                                  key={key}
-                                  onClick={() => openStallChat(conv)}
-                                  className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${isActive ? "bg-primary/10" : ""}`}
-                                >
-                                  <div className="relative shrink-0">
-                                    <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center overflow-hidden">
-                                      {conv.listing_image
-                                        ? <img src={conv.listing_image} alt="" className="w-full h-full object-cover" />
-                                        : <ShoppingBag className="h-4 w-4 text-muted-foreground" />}
-                                    </div>
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center justify-between gap-1">
-                                      <p className="text-sm font-medium text-foreground truncate">{conv.other_user_name}</p>
-                                      {conv.unread_count > 0 && (
-                                        <span className="shrink-0 min-w-[18px] h-[18px] rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold px-1">{conv.unread_count}</span>
-                                      )}
-                                    </div>
-                                    <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                                      <ShoppingBag className="h-2.5 w-2.5 shrink-0" />
-                                      {conv.listing_title || "Stall enquiry"}
-                                    </p>
-                                  </div>
-                                </button>
-                              );
-                            }
-                            // DM or friend DM
-                            const friend = conv._type === "friend_dm" ? friends.find(f => f.user_id === conv.other_user_id) : null;
-                            const pic = friend?.picture || conv.other_user_picture;
-                            const name = friend?.nickname || conv.other_user_name;
-                            return (
-                              <button
-                                key={key}
-                                onClick={() => conv._type === "friend_dm" && friend
-                                  ? openDmChat({ user_id: conv.other_user_id, name: conv.other_user_name, nickname: friend.nickname, picture: pic, is_online: friend.is_online })
-                                  : openDmChat({ user_id: conv.other_user_id, name: conv.other_user_name, nickname: null, picture: pic })}
-                                className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${activeDmUser?.user_id === conv.other_user_id ? "bg-primary/10" : ""}`}
-                              >
-                                <div className="relative shrink-0">
-                                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-semibold text-primary overflow-hidden">
-                                    {pic ? <img src={pic} alt="" className="w-full h-full object-cover" /> : name?.[0]?.toUpperCase()}
-                                  </div>
-                                  {friend?.is_online && <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-card bg-green-500" />}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center justify-between gap-1">
-                                    <p className="text-sm font-medium text-foreground truncate">{name}</p>
-                                    {conv.unread_count > 0 && (
-                                      <span className="shrink-0 min-w-[18px] h-[18px] rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold px-1">{conv.unread_count}</span>
-                                    )}
-                                  </div>
-                                  <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                                    {conv._type === "dm" && <Lock className="h-2.5 w-2.5 shrink-0 opacity-50" />}
-                                    {conv.last_message?.startsWith("data:image/") ? "📷 Photo" : conv.last_message || (conv._type === "dm" ? "Private message" : "")}
-                                  </p>
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </>
-                      )}
+                      {inboxTab === "friends" ? (
+                        // Unified friends view — all friends under one section
+                        (() => {
+                          const allFriendItems = [
+                            // Friends with conversation history
+                            ...dmFromFriends.map(c => {
+                              const friend = friends.find(f => f.user_id === c.other_user_id);
+                              return { type: "conv", conv: c, friend, sortKey: c.last_message_time || "" };
+                            }),
+                            // Friends with no conversation history
+                            ...friendsContactOnly.map(f => ({ type: "contact", friend: f, sortKey: "" })),
+                          ].sort((a, b) => b.sortKey.localeCompare(a.sortKey));
 
-                      {/* Friends with no conversation history — contact-only row */}
-                      {showContactsSection && friendsContactOnly.length > 0 && (
-                        <>
-                          {filteredRecent.length > 0 && <div className="h-px bg-border/30 mx-4" />}
-                          <div className="px-4 py-2">
-                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Friends</p>
-                          </div>
-                          <div className="divide-y divide-border/30">
-                            {friendsContactOnly.map(friend => (
-                              <button
-                                key={friend.user_id}
-                                onClick={() => openFriendChat(friend)}
-                                disabled={openingChat === friend.user_id}
-                                className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${activeFriend?.user_id === friend.user_id ? "bg-primary/10" : ""}`}
-                              >
-                                <UserAvatar {...friend} isOnline={friend.is_online} />
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-foreground truncate">{friend.nickname || friend.name}</p>
-                                  <p className={`text-xs ${friend.is_online ? "text-green-500" : "text-muted-foreground"}`}>
-                                    {friend.is_online ? "Active now" : "Tap to chat"}
-                                  </p>
-                                </div>
-                                {openingChat === friend.user_id && <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />}
-                              </button>
-                            ))}
-                          </div>
-                        </>
-                      )}
+                          if (allFriendItems.length === 0) return (
+                            <div className="p-6 text-center">
+                              <span className="text-3xl block mb-2">👥</span>
+                              <p className="text-sm text-muted-foreground">No friends yet.<br/><span className="text-xs">Add friends to chat privately.</span></p>
+                            </div>
+                          );
 
-                      {/* Empty state — tab-aware */}
-                      {filteredRecent.length === 0 && !(showContactsSection && friendsContactOnly.length > 0) && !(inboxTab === "all" && messageRequests.length > 0) && (
-                        <div className="p-6 text-center">
-                          <span className="text-3xl block mb-2">
-                            {inboxTab === "stall" ? "🛒" : inboxTab === "friends" ? "👥" : inboxTab === "unread" ? "✅" : inboxTab === "events" ? "📅" : "💬"}
-                          </span>
-                          {inboxTab === "unread" && <p className="text-sm text-muted-foreground">All caught up!</p>}
-                          {inboxTab === "stall" && <p className="text-sm text-muted-foreground">No Stall enquiries yet.<br/><span className="text-xs">Browse the Stall and message a seller to get started.</span></p>}
-                          {inboxTab === "friends" && friends.length === 0 && <p className="text-sm text-muted-foreground">No friends yet.<br/><span className="text-xs">Add friends to chat privately.</span></p>}
-                          {inboxTab === "events" && <p className="text-sm text-muted-foreground">No event chats yet.<br/><span className="text-xs">RSVP to an event to join its group chat.</span></p>}
-                          {inboxTab === "all" && friends.length === 0 && conversations.length === 0 && messageRequests.length === 0 && stallConversations.length === 0 && (
-                            isFree ? (
-                              <>
-                                <p className="text-sm text-muted-foreground mb-1">No messages yet.</p>
-                                <p className="text-xs text-muted-foreground mb-3">When another parent messages you, you can reply here for free.</p>
-                                <button onClick={() => navigate("/plus")} className="text-xs text-primary hover:underline">Upgrade to Village+ to message anyone →</button>
-                              </>
-                            ) : (
-                              <>
-                                <p className="text-sm text-muted-foreground mb-2">No conversations yet.</p>
-                                <button onClick={() => setShowSearch(true)} className="text-xs text-primary hover:underline">Find parents to connect with →</button>
-                              </>
-                            )
+                          return (
+                            <>
+                              <div className="px-4 py-2">
+                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Friends</p>
+                              </div>
+                              <div className="divide-y divide-border/30">
+                                {allFriendItems.map(item => {
+                                  if (item.type === "conv") {
+                                    const { conv, friend } = item;
+                                    const pic = friend?.picture || conv.other_user_picture;
+                                    const name = friend?.nickname || conv.other_user_name;
+                                    return (
+                                      <button
+                                        key={conv.other_user_id}
+                                        onClick={() => openDmChat({ user_id: conv.other_user_id, name: conv.other_user_name, nickname: friend?.nickname, picture: pic, is_online: friend?.is_online })}
+                                        className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${activeDmUser?.user_id === conv.other_user_id ? "bg-primary/10" : ""}`}
+                                      >
+                                        <div className="relative shrink-0">
+                                          <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-semibold text-primary overflow-hidden">
+                                            {pic ? <img src={pic} alt="" className="w-full h-full object-cover" /> : name?.[0]?.toUpperCase()}
+                                          </div>
+                                          {friend?.is_online && <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-card bg-green-500" />}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center justify-between gap-1">
+                                            <p className="text-sm font-medium text-foreground truncate">{name}</p>
+                                            {conv.unread_count > 0 && (
+                                              <span className="shrink-0 min-w-[18px] h-[18px] rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold px-1">{conv.unread_count}</span>
+                                            )}
+                                          </div>
+                                          <p className="text-xs text-muted-foreground truncate">
+                                            {conv.last_message?.startsWith("data:image/") ? "📷 Photo" : conv.last_message}
+                                          </p>
+                                        </div>
+                                      </button>
+                                    );
+                                  } else {
+                                    const { friend } = item;
+                                    return (
+                                      <button
+                                        key={friend.user_id}
+                                        onClick={() => openFriendChat(friend)}
+                                        disabled={openingChat === friend.user_id}
+                                        className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${activeFriend?.user_id === friend.user_id ? "bg-primary/10" : ""}`}
+                                      >
+                                        <UserAvatar {...friend} isOnline={friend.is_online} />
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-sm font-medium text-foreground truncate">{friend.nickname || friend.name}</p>
+                                          <p className={`text-xs ${friend.is_online ? "text-green-500" : "text-muted-foreground"}`}>
+                                            {friend.is_online ? "Active now" : "Tap to chat"}
+                                          </p>
+                                        </div>
+                                        {openingChat === friend.user_id && <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />}
+                                      </button>
+                                    );
+                                  }
+                                })}
+                              </div>
+                            </>
+                          );
+                        })()
+                      ) : (
+                        // All other tabs — existing rendering
+                        <>
+                          {/* ── Filtered conversations ── */}
+                          {filteredRecent.length > 0 && (
+                            <>
+                              {filteredRecent.map(conv => {
+                                const key = conv._key || conv.other_user_id;
+                                if (conv._type === "event") {
+                                  const isActive = chatMode === "event" && activeEventConv?.event_id === conv.event_id;
+                                  const eventDate = conv.date ? new Date(conv.date).toLocaleDateString("en-AU", { day: "numeric", month: "short" }) : null;
+                                  return (
+                                    <button
+                                      key={key}
+                                      onClick={() => openEventChat(conv)}
+                                      className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${isActive ? "bg-primary/10" : ""}`}
+                                    >
+                                      <div className="relative shrink-0">
+                                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden">
+                                          {conv.image_url
+                                            ? <img src={conv.image_url} alt="" className="w-full h-full object-cover" />
+                                            : <Calendar className="h-4 w-4 text-primary" />}
+                                        </div>
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium text-foreground truncate">{conv.title}</p>
+                                        <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                                          <Calendar className="h-2.5 w-2.5 shrink-0" />
+                                          {eventDate ? eventDate : "Event chat"}
+                                          {conv.last_message && <span className="truncate"> · {conv.last_message}</span>}
+                                        </p>
+                                      </div>
+                                    </button>
+                                  );
+                                }
+                                if (conv._type === "stall") {
+                                  const isActive = chatMode === "stall" && activeStallConv?.listing_id === conv.listing_id && activeStallConv?.other_user_id === conv.other_user_id;
+                                  return (
+                                    <button
+                                      key={key}
+                                      onClick={() => openStallChat(conv)}
+                                      className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${isActive ? "bg-primary/10" : ""}`}
+                                    >
+                                      <div className="relative shrink-0">
+                                        <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center overflow-hidden">
+                                          {conv.listing_image
+                                            ? <img src={conv.listing_image} alt="" className="w-full h-full object-cover" />
+                                            : <ShoppingBag className="h-4 w-4 text-muted-foreground" />}
+                                        </div>
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center justify-between gap-1">
+                                          <p className="text-sm font-medium text-foreground truncate">{conv.other_user_name}</p>
+                                          {conv.unread_count > 0 && (
+                                            <span className="shrink-0 min-w-[18px] h-[18px] rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold px-1">{conv.unread_count}</span>
+                                          )}
+                                        </div>
+                                        <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                                          <ShoppingBag className="h-2.5 w-2.5 shrink-0" />
+                                          {conv.listing_title || "Stall enquiry"}
+                                        </p>
+                                      </div>
+                                    </button>
+                                  );
+                                }
+                                // DM or friend DM
+                                const friend = conv._type === "friend_dm" ? friends.find(f => f.user_id === conv.other_user_id) : null;
+                                const pic = friend?.picture || conv.other_user_picture;
+                                const name = friend?.nickname || conv.other_user_name;
+                                return (
+                                  <button
+                                    key={key}
+                                    onClick={() => conv._type === "friend_dm" && friend
+                                      ? openDmChat({ user_id: conv.other_user_id, name: conv.other_user_name, nickname: friend.nickname, picture: pic, is_online: friend.is_online })
+                                      : openDmChat({ user_id: conv.other_user_id, name: conv.other_user_name, nickname: null, picture: pic })}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${activeDmUser?.user_id === conv.other_user_id ? "bg-primary/10" : ""}`}
+                                  >
+                                    <div className="relative shrink-0">
+                                      <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-semibold text-primary overflow-hidden">
+                                        {pic ? <img src={pic} alt="" className="w-full h-full object-cover" /> : name?.[0]?.toUpperCase()}
+                                      </div>
+                                      {friend?.is_online && <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-card bg-green-500" />}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center justify-between gap-1">
+                                        <p className="text-sm font-medium text-foreground truncate">{name}</p>
+                                        {conv.unread_count > 0 && (
+                                          <span className="shrink-0 min-w-[18px] h-[18px] rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold px-1">{conv.unread_count}</span>
+                                        )}
+                                      </div>
+                                      <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                                        {conv._type === "dm" && <Lock className="h-2.5 w-2.5 shrink-0 opacity-50" />}
+                                        {conv.last_message?.startsWith("data:image/") ? "📷 Photo" : conv.last_message || (conv._type === "dm" ? "Private message" : "")}
+                                      </p>
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </>
                           )}
-                        </div>
+
+                          {/* Friends with no conversation history — contact-only row */}
+                          {showContactsSection && friendsContactOnly.length > 0 && (
+                            <>
+                              {filteredRecent.length > 0 && <div className="h-px bg-border/30 mx-4" />}
+                              <div className="px-4 py-2">
+                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Friends</p>
+                              </div>
+                              <div className="divide-y divide-border/30">
+                                {friendsContactOnly.map(friend => (
+                                  <button
+                                    key={friend.user_id}
+                                    onClick={() => openFriendChat(friend)}
+                                    disabled={openingChat === friend.user_id}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${activeFriend?.user_id === friend.user_id ? "bg-primary/10" : ""}`}
+                                  >
+                                    <UserAvatar {...friend} isOnline={friend.is_online} />
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium text-foreground truncate">{friend.nickname || friend.name}</p>
+                                      <p className={`text-xs ${friend.is_online ? "text-green-500" : "text-muted-foreground"}`}>
+                                        {friend.is_online ? "Active now" : "Tap to chat"}
+                                      </p>
+                                    </div>
+                                    {openingChat === friend.user_id && <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />}
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+
+                          {/* Empty state — tab-aware */}
+                          {filteredRecent.length === 0 && !(showContactsSection && friendsContactOnly.length > 0) && !(inboxTab === "all" && messageRequests.length > 0) && (
+                            <div className="p-6 text-center">
+                              <span className="text-3xl block mb-2">
+                                {inboxTab === "stall" ? "🛒" : inboxTab === "unread" ? "✅" : inboxTab === "events" ? "📅" : "💬"}
+                              </span>
+                              {inboxTab === "unread" && <p className="text-sm text-muted-foreground">All caught up!</p>}
+                              {inboxTab === "stall" && <p className="text-sm text-muted-foreground">No Stall enquiries yet.<br/><span className="text-xs">Browse the Stall and message a seller to get started.</span></p>}
+                              {inboxTab === "events" && <p className="text-sm text-muted-foreground">No event chats yet.<br/><span className="text-xs">RSVP to an event to join its group chat.</span></p>}
+                              {inboxTab === "all" && friends.length === 0 && conversations.length === 0 && messageRequests.length === 0 && stallConversations.length === 0 && (
+                                isFree ? (
+                                  <>
+                                    <p className="text-sm text-muted-foreground mb-1">No messages yet.</p>
+                                    <p className="text-xs text-muted-foreground mb-3">When another parent messages you, you can reply here for free.</p>
+                                    <button onClick={() => navigate("/plus")} className="text-xs text-primary hover:underline">Upgrade to Village+ to message anyone →</button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <p className="text-sm text-muted-foreground mb-2">No conversations yet.</p>
+                                    <button onClick={() => setShowSearch(true)} className="text-xs text-primary hover:underline">Find parents to connect with →</button>
+                                  </>
+                                )
+                              )}
+                            </div>
+                          )}
+                        </>
                       )}
                     </>
                   )}

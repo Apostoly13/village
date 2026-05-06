@@ -7,6 +7,20 @@ import AppFooter from "../components/AppFooter";
 // ── Full technical changelog (admin-only view) ────────────────────────────────
 const CHANGELOG = [
   {
+    version: "3.30.0",
+    date: "May 2026",
+    title: "Friends Overhaul, Find Parents Search & DM Improvements",
+    entries: [
+      { tag: "Added",    text: "Friends page: 'Find Parents' tab — search by name or suburb, see online status and location, send friend requests directly from results. Debounced search (300ms) with loading skeleton." },
+      { tag: "Added",    text: "Friends page: 'Sent Requests' tab — shows who you've sent a friend request to (with avatar, name, suburb), plus a Cancel button. Cancelling deletes the request and removes the unread notification from the recipient." },
+      { tag: "Added",    text: "Backend: GET /friends/sent now returns full recipient profile (avatar, name, suburb, online status) alongside each pending request." },
+      { tag: "Added",    text: "Backend: DELETE /friends/request/{request_id} — cancels an outgoing friend request and removes the associated unread notification from the recipient." },
+      { tag: "Improved", text: "Messages.jsx: Friends tab now shows all friends in a unified view — friends with existing DM history show conversation preview and unread badge; friends with no history show 'Tap to chat'. Sorted by last message time, contact-only friends sorted last." },
+      { tag: "Improved", text: "Messages.jsx: DM conversations are re-categorised based on current relationship — a message thread started before a friendship now appears under Friends instead of under Private Messages." },
+      { tag: "Improved", text: "ChatPopout.jsx: free users now see their existing DM conversations and can reply. The full upgrade gate is removed — only initiating new chats with non-friends requires Village+. Bubble shows live unread count instead of a lock icon." },
+    ],
+  },
+  {
     version: "3.29.0",
     date: "May 2026",
     title: "Stall Enhancements, Events Dialog Fix & Chat Auto-Throttle",
@@ -644,6 +658,18 @@ const CHANGELOG = [
 // ── Curated user-facing changelog (non-admin view) ────────────────────────────
 // Plain readable summaries — no technical tags or implementation details.
 const USER_CHANGELOG = [
+  {
+    version: "3.30.0",
+    date: "May 2026",
+    title: "Find Parents, Sent Requests & Smarter Messages",
+    entries: [
+      "A new 'Find Parents' tab on the Friends page lets you search by name or suburb and send friend requests directly from results.",
+      "You can now see all the friend requests you've sent — with the option to cancel a request, which also removes it from the other person's notifications.",
+      "The Messages Friends tab now shows all your friends in one view — those you've chatted with show a message preview, and those you haven't can be tapped to start a chat.",
+      "Messages from before you were friends now appear under Friends rather than Private Messages, keeping everything in the right place.",
+      "Free users can now reply to existing private message conversations from the chat popout — only starting new chats with non-friends requires Village+.",
+    ],
+  },
   {
     version: "3.29.0",
     date: "May 2026",

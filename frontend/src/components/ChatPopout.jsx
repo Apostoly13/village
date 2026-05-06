@@ -319,47 +319,110 @@ export default function ChatPopout({ user }) {
     return (
       <div className="fixed bottom-20 right-0 lg:bottom-8 z-[100] hidden lg:flex flex-col items-end">
         {open ? (
-          <div className="mb-2 bg-card border border-border/40 border-r-0 rounded-l-2xl shadow-xl flex flex-col overflow-hidden lg:border-r lg:rounded-2xl lg:mr-4" style={{width:"288px", height:"280px"}}>
+          <div className="mb-2 max-h-[420px] bg-card border border-border/40 border-r-0 rounded-l-2xl shadow-xl flex flex-col overflow-hidden lg:border-r lg:rounded-2xl lg:mr-4" style={{width:"288px"}}>
+            {/* Header */}
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/30 bg-card/95 shrink-0">
-              <div className="flex items-center gap-1.5">
-                <MessagesSquare className="h-3.5 w-3.5 text-muted-foreground" />
-                <p className="font-medium text-foreground text-sm">Messages</p>
-              </div>
+              {view === "chat" ? (
+                <>
+                  <button onClick={() => setView("list")} className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">← Back</button>
+                  <p className="font-medium text-foreground text-sm truncate mx-3 flex-1 text-center">{activeDmUser?.nickname || activeDmUser?.name}</p>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-1.5">
+                    <MessagesSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                    <p className="font-medium text-foreground text-sm">Messages</p>
+                  </div>
+                  <Link to="/messages" onClick={handleClose} className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">Full view</Link>
+                </>
+              )}
               <button onClick={handleClose} className="text-muted-foreground hover:text-foreground p-1 ml-2 shrink-0">
                 <X className="h-3.5 w-3.5" />
               </button>
             </div>
-            <div className="flex flex-col items-center justify-center flex-1 px-5 py-6 text-center gap-3">
-              <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center">
-                <Crown className="h-5 w-5 text-primary" />
+
+            {view === "list" ? (
+              <div className="flex flex-col flex-1 min-h-0">
+                <div className="flex-1 overflow-y-auto">
+                  {loadingConvs ? (
+                    <div className="p-3 space-y-3">{[1,2,3].map(i => <div key={i} className="flex items-center gap-3 animate-pulse"><div className="w-8 h-8 rounded-full bg-muted shrink-0" /><div className="flex-1 h-3 bg-muted rounded" /></div>)}</div>
+                  ) : conversations.filter(c => !c.is_pending_request).length === 0 ? (
+                    <div className="p-5 text-center">
+                      <p className="text-sm text-muted-foreground mb-1">No messages yet.</p>
+                      <p className="text-xs text-muted-foreground">When someone messages you, you can reply here for free.</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-border/30">
+                      {conversations.filter(c => !c.is_pending_request).map(conv => (
+                        <button
+                          key={conv.other_user_id}
+                          onClick={() => openDmChat({ user_id: conv.other_user_id, name: conv.other_user_name, nickname: null, picture: conv.other_user_picture })}
+                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left"
+                        >
+                          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold text-primary overflow-hidden shrink-0">
+                            {conv.other_user_picture ? <img src={conv.other_user_picture} alt="" className="w-full h-full object-cover" /> : conv.other_user_name?.[0]?.toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-1">
+                              <p className="text-sm font-medium text-foreground truncate">{conv.other_user_name}</p>
+                              {conv.unread_count > 0 && <span className="shrink-0 min-w-[16px] h-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-bold px-1">{conv.unread_count}</span>}
+                            </div>
+                            <p className="text-xs text-muted-foreground truncate">{conv.last_message?.startsWith("data:image/") ? "📷 Photo" : conv.last_message}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {/* Upgrade note */}
+                <div className="px-4 py-2.5 border-t border-border/30 bg-secondary/20 shrink-0">
+                  <p className="text-[11px] text-muted-foreground text-center">
+                    <Link to="/plus" onClick={handleClose} className="text-primary hover:underline font-medium">Village+</Link> unlocks messaging anyone
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="font-heading font-semibold text-foreground text-sm mb-1">Messages — Village+ feature</p>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Direct messaging is available on Village+. Upgrade to connect privately with other parents.
-                </p>
+            ) : (
+              // Chat view for free users — reply only
+              <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+                <div ref={scrollContainerRef} onScroll={() => { const el = scrollContainerRef.current; if (el) isAtBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60; }} className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
+                  {messages.map((msg, idx) => {
+                    const isOwn = (msg.author_id || msg.sender_id) === user?.user_id;
+                    return (
+                      <div key={msg.message_id || idx} className={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
+                        <div className={`max-w-[80%] px-3 py-2 text-xs rounded-2xl shadow-sm ${isOwn ? "bg-primary text-primary-foreground" : "bg-card border border-border/50 text-foreground"}`}>
+                          {msg.content}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div ref={messagesEndRef} />
+                </div>
+                <form onSubmit={handleSend} className="flex items-center gap-2 border-t border-border/50 px-3 py-2 shrink-0">
+                  <input
+                    ref={inputRef}
+                    value={newMessage}
+                    onChange={e => setNewMessage(e.target.value.slice(0, 500))}
+                    placeholder={`Reply to ${activeDmUser?.name}…`}
+                    className="flex-1 bg-secondary/50 rounded-full px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/30"
+                    disabled={sending}
+                  />
+                  <button type="submit" disabled={!newMessage.trim() || sending} className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-50 shrink-0">
+                    <Send className="h-3 w-3" />
+                  </button>
+                </form>
               </div>
-              <Link
-                to="/plus"
-                onClick={handleClose}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
-              >
-                <Crown className="h-3.5 w-3.5" />
-                Upgrade to Village+
-              </Link>
-              <p className="text-[11px] text-muted-foreground">$9.99/month · cancel any time</p>
-            </div>
+            )}
           </div>
         ) : (
           <button
-            onClick={handleOpen}
-            aria-label="Messages — Village+ feature"
+            onClick={() => { handleOpen(); fetchConversations(); }}
+            aria-label="Messages"
             className="flex items-center gap-2 pl-3 pr-4 py-2 bg-card border border-border/40 border-r-0 rounded-l-xl text-muted-foreground shadow-md hover:text-foreground hover:border-border/70 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
             data-testid="chat-popout-bubble"
           >
             <MessagesSquare className="h-4 w-4 shrink-0" />
             <span className="text-xs font-medium">Messages</span>
-            <Lock className="h-3 w-3 opacity-60" />
+            {totalUnread > 0 && <span className="min-w-[16px] h-4 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center font-bold px-1">{totalUnread > 9 ? "9+" : totalUnread}</span>}
           </button>
         )}
       </div>
