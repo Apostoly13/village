@@ -3596,6 +3596,16 @@ async def mark_notification_read(notification_id: str, user: dict = Depends(get_
     )
     return {"message": "Notification marked as read"}
 
+@api_router.post("/notifications/mark-dm-read")
+async def mark_dm_notifications_read(user: dict = Depends(get_current_user)):
+    """Mark all DM and message_request notifications as read.
+    Called when the user opens any direct message conversation."""
+    await db.notifications.update_many(
+        {"user_id": user["user_id"], "type": {"$in": ["dm", "message_request"]}, "is_read": False},
+        {"$set": {"is_read": True}}
+    )
+    return {"ok": True}
+
 # ==================== USER BLOCKING ====================
 
 @api_router.post("/users/{user_id}/block")
@@ -4648,6 +4658,7 @@ async def send_direct_message(message_data: DirectMessageCreate, user: dict = De
     notification = {
         "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
         "user_id": message_data.receiver_id,
+        "from_user_id": user["user_id"],
         "type": notif_type,
         "title": notif_title,
         "message": notif_body,

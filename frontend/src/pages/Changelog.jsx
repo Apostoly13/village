@@ -7,6 +7,23 @@ import AppFooter from "../components/AppFooter";
 // ── Full technical changelog (admin-only view) ────────────────────────────────
 const CHANGELOG = [
   {
+    version: "3.31.0",
+    date: "May 2026",
+    title: "Instant Notifications, Real-time Read Sync & Landing Page Stall",
+    entries: [
+      { tag: "Added",    text: "Backend: POST /notifications/mark-dm-read — marks all dm and message_request notifications as read for the current user. Called when any DM conversation is opened." },
+      { tag: "Added",    text: "DM notifications now store from_user_id on creation, enabling future per-sender mark-read precision." },
+      { tag: "Improved", text: "Reading a DM in the chat popout or Messages page now instantly clears: the notification bell count, the notification panel list (dm/message_request entries), the Dashboard 'things to check' section, and the Messages page conversation unread badges — all without a page refresh." },
+      { tag: "Improved", text: "Navigation: village:dm-read event handler now decrements unreadCount by the exact number of unread DM notifications in local state (inside setNotifications updater for synchronous state access), then re-polls the server to correct any drift." },
+      { tag: "Improved", text: "Dashboard: listens for village:dm-read and immediately marks dm/message_request activity entries as read in local state." },
+      { tag: "Improved", text: "Messages.jsx: listens for village:dm-read and clears all conversation unread counts in local state when a DM is read in the popout." },
+      { tag: "Improved", text: "ChatPopout: fetches conversations on mount (not just when opened) so the bubble unread count is correct immediately after login. Piggbacks on Navigation's village:nav-poll event every 20s to stay in sync without a separate poll loop." },
+      { tag: "Improved", text: "ChatPopout: fixed size — Village+ 340×540px, free 340×500px. Consistent readable height regardless of content instead of collapsing with short lists." },
+      { tag: "Improved", text: "ChatPopout: free user view now shows a 'Private Messages' section label with a 'Message anyone' Village+ link. Village+ inbox tab renamed from 'Inbox' to 'Messages' with a 'Private Messages' section header above filter pills." },
+      { tag: "Added",    text: "Landing page: The Village Stall added to the 'What's inside' feature grid and as a 4th tab in the 'See what's happening' demo section (Spaces / Chat Rooms / Events / Stall) on both mobile and desktop." },
+    ],
+  },
+  {
     version: "3.30.0",
     date: "May 2026",
     title: "Friends Overhaul, Find Parents Search & DM Improvements",
@@ -658,6 +675,17 @@ const CHANGELOG = [
 // ── Curated user-facing changelog (non-admin view) ────────────────────────────
 // Plain readable summaries — no technical tags or implementation details.
 const USER_CHANGELOG = [
+  {
+    version: "3.31.0",
+    date: "May 2026",
+    title: "Instant Read Sync & The Village Stall on Homepage",
+    entries: [
+      "Reading a message in the chat popout or Messages page now instantly clears the notification from the bell, the dashboard, and everywhere else on the platform — no refresh needed.",
+      "The messages popout now shows the correct unread count as soon as you log in, instead of only after opening it.",
+      "The messages popout opens to a consistent readable size instead of adjusting based on how much content is inside.",
+      "The Village Stall is now featured on the homepage — browse sample listings in the 'See what's happening' section alongside Spaces, Chat Rooms, and Events.",
+    ],
+  },
   {
     version: "3.30.0",
     date: "May 2026",

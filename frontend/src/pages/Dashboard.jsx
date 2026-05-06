@@ -364,7 +364,22 @@ export default function Dashboard({ user }) {
       }
     };
     window.addEventListener("village:profileUpdated", handleProfileUpdate);
-    return () => window.removeEventListener("village:profileUpdated", handleProfileUpdate);
+
+    // When a DM is read anywhere (popout, Messages page), instantly clear dm/message_request
+    // entries from the dashboard "things to check" section without requiring a refresh
+    const handleDmRead = () => {
+      setRecentActivity(prev =>
+        prev.map(n =>
+          n.type === "dm" || n.type === "message_request" ? { ...n, is_read: true } : n
+        )
+      );
+    };
+    window.addEventListener("village:dm-read", handleDmRead);
+
+    return () => {
+      window.removeEventListener("village:profileUpdated", handleProfileUpdate);
+      window.removeEventListener("village:dm-read", handleDmRead);
+    };
   }, [user]);
 
   // Cache TTL: 5 minutes — skip revalidation for fresh caches

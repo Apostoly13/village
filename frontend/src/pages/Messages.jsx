@@ -274,6 +274,15 @@ export default function Messages({ user }) {
 
   useEffect(() => { fetchFriends(); fetchConversations(); fetchStallConversations(); fetchEventConversations(); }, []);
 
+  // When a DM is read in the popout, instantly clear unread counts in this page's list too
+  useEffect(() => {
+    const onDmRead = () => {
+      setConversations(prev => prev.map(c => ({ ...c, unread_count: 0 })));
+    };
+    window.addEventListener("village:dm-read", onDmRead);
+    return () => window.removeEventListener("village:dm-read", onDmRead);
+  }, []);
+
   useEffect(() => {
     if (activeRoomId && chatMode === "friend") {
       fetchRoomMessages();
@@ -304,7 +313,7 @@ export default function Messages({ user }) {
   useEffect(() => {
     setFriendRequestSent(false);
     if (activeDmUser && chatMode === "dm") {
-      fetchDmMessages();
+      fetchDmMessages(true);
       const interval = setInterval(fetchDmMessages, 1500);
       return () => clearInterval(interval);
     }
@@ -374,7 +383,7 @@ export default function Messages({ user }) {
     finally { setLoadingMessages(false); }
   };
 
-  const fetchDmMessages = async () => {
+  const fetchDmMessages = async (isInitial = false) => {
     if (!activeDmUser) return;
     try {
       const res = await fetch(`${API_URL}/api/messages/${activeDmUser.user_id}`, { credentials: "include" });
@@ -386,6 +395,16 @@ export default function Messages({ user }) {
         }
         prevMsgCount.current = data.length;
         setMessages(data);
+        // Clear unread count for this conversation immediately in local state
+        setConversations(prev =>
+          prev.map(c => c.other_user_id === activeDmUser.user_id ? { ...c, unread_count: 0 } : c)
+        );
+        if (isInitial) {
+          // Mark DM notifications as read so the bell clears immediately
+          fetch(`${API_URL}/api/notifications/mark-dm-read`, { method: "POST", credentials: "include" }).catch(() => {});
+          // Tell Navigation to re-poll its unread badge right away
+          window.dispatchEvent(new Event("village:dm-read"));
+        }
       }
     } catch {}
     finally { setLoadingMessages(false); }

@@ -33,6 +33,8 @@ export default function Navigation({ user }) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const prevUnreadCountRef = useRef(null);
+  const notificationsOpenRef = useRef(false);
+  const fetchNotificationsRef = useRef(null);
 
   const showNewNotificationToast = async () => {
     try {
@@ -90,6 +92,8 @@ export default function Navigation({ user }) {
           const data = await msgRes.json();
           setUnreadMessages(data.count);
         }
+        // Let other components (e.g. ChatPopout) piggyback on this poll cycle
+        window.dispatchEvent(new Event("village:nav-poll"));
       } catch {}
       // Heartbeat every 6th tick (~120s) — fire-and-forget
       if (tickCount % 6 === 0) {
@@ -101,11 +105,38 @@ export default function Navigation({ user }) {
     const onVisibilityChange = () => { if (!document.hidden) poll(); };
     document.addEventListener("visibilitychange", onVisibilityChange);
 
+    // Instant update when a DM is read elsewhere (popout, Messages page)
+    // React state setters and refs are stable — safe to call from this stale closure
+    const onDmRead = () => {
+      // 1. Count how many DM notifications are currently unread in local state,
+      //    then mark them all as read and decrement the bell count by that exact delta.
+      //    Both happen inside setNotifications so we read current state synchronously.
+      setNotifications(prev => {
+        const unreadDmCount = prev.filter(
+          n => (n.type === "dm" || n.type === "message_request") && !n.is_read
+        ).length;
+        if (unreadDmCount > 0) {
+          setUnreadCount(c => Math.max(0, c - unreadDmCount));
+        }
+        return prev.map(n =>
+          n.type === "dm" || n.type === "message_request" ? { ...n, is_read: true } : n
+        );
+      });
+      // 2. If the panel is open right now, also re-fetch for a fully fresh server list
+      if (notificationsOpenRef.current && fetchNotificationsRef.current) {
+        fetchNotificationsRef.current();
+      }
+      // 3. Re-poll to sync the true server count (corrects any local/server drift)
+      poll();
+    };
+    window.addEventListener("village:dm-read", onDmRead);
+
     poll();
     const interval = setInterval(poll, 20000);
     return () => {
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("village:dm-read", onDmRead);
     };
   }, []);
 
@@ -119,8 +150,11 @@ export default function Navigation({ user }) {
       console.error("Error fetching notifications:", error);
     }
   };
+  // Keep ref in sync so the dm-read handler can call it from a stale closure
+  fetchNotificationsRef.current = fetchNotifications;
 
   const handleNotificationsOpen = (open) => {
+    notificationsOpenRef.current = open;
     setNotificationsOpen(open);
     if (open) {
       fetchNotifications();

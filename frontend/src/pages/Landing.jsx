@@ -11,6 +11,7 @@ import {
   IconMoon, IconChat, IconLock, IconShield, IconPin, IconCal,
   IconPeople, IconPhone, IconSun, IconHand
 } from "../icons";
+import { Stall as IconStall } from "../components/village/icons";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -150,6 +151,43 @@ function DemoEvents() {
   );
 }
 
+const DEMO_STALL = [
+  { id: 1, title: "ERGO Baby carrier — barely used", price: "$65", type: "sell", location: "Newtown", image: null, badge: "Sell" },
+  { id: 2, title: "Toddler bike with balance wheels (18m–3yr)", price: "Free", type: "donate", location: "Manly", image: null, badge: "Donate" },
+  { id: 3, title: "Baby clothes bundle 000–00 (girls)", price: "Swap", type: "swap", location: "Richmond", image: null, badge: "Swap" },
+];
+
+function DemoStall() {
+  return (
+    <div className="space-y-3">
+      {DEMO_STALL.map((item) => (
+        <div key={item.id} className="bg-card border border-border/50 rounded-2xl p-4 flex gap-4">
+          <div className="w-14 h-14 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0 text-xl">
+            {item.type === "donate" ? "🎁" : item.type === "swap" ? "🔄" : "🏷️"}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-2 mb-1">
+              <p className="font-medium text-foreground text-sm leading-snug">{item.title}</p>
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${
+                item.type === "donate" ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                : item.type === "swap" ? "bg-sky-500/10 text-sky-600 dark:text-sky-400"
+                : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+              }`}>{item.badge}</span>
+            </div>
+            <p className="text-sm font-semibold text-foreground mb-1">{item.price}</p>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">📍 {item.location}</span>
+              <Link to="/register">
+                <Button size="sm" variant="outline" className="rounded-full text-xs h-7 px-3">Enquire</Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function Landing() {
   const navigate = useNavigate();
@@ -183,6 +221,7 @@ export default function Landing() {
     { Icon: IconPin,    title: "Local community",           description: "Suburb-based groups and events. Find parents near you and real-life meetups you can actually get to." },
     { Icon: IconCal,    title: "Events & playgroups",       description: "Browse and RSVP to local playgroups, coffee mornings, and dad meetups. Host your own in one tap." },
     { Icon: IconPeople, title: "Private messaging",         description: "Build real friendships and message privately. End-to-end private between you and the parent you're chatting with." },
+    { Icon: IconStall,  title: "The Village Stall",         description: "Buy, sell, swap, and donate baby gear with parents near you. Keep good things circulating in your community — no fees, no strangers." },
     { Icon: IconPhone,  title: "Crisis support, built in",  description: "PANDA, Lifeline, and Beyond Blue surfaced on every sensitive space. Help is never more than a tap away." },
     { Icon: IconSun,    title: "Built in Australia",        description: "Australian parents, Australian moderation, Australian community. Made for the way we actually do parenting here." },
   ];
@@ -191,6 +230,7 @@ export default function Landing() {
     { id: "spaces",  label: "Spaces",      emoji: "💬" },
     { id: "circles", label: "Group Chats", emoji: "🌙" },
     { id: "events",  label: "Events",      emoji: "📅" },
+    { id: "stall",   label: "Stall",       emoji: "🏷️" },
   ];
 
   // ── Mobile section definitions ──────────────────────────────────────────────
@@ -351,10 +391,10 @@ export default function Landing() {
               <h2 className="font-heading text-2xl font-bold text-foreground mt-1 mb-2">See what's happening now</h2>
               <p className="text-sm text-muted-foreground">A snapshot of the community — no sign-up needed.</p>
             </div>
-            <div className="flex items-center gap-2 mb-4 bg-secondary/50 rounded-2xl p-1.5">
+            <div className="flex items-center gap-1 mb-4 bg-secondary/50 rounded-2xl p-1.5 overflow-x-auto">
               {DEMO_TABS.map((tab) => (
                 <button key={tab.id} onClick={() => setDemoTab(tab.id)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all ${demoTab === tab.id ? "bg-card text-foreground shadow-sm border border-border/50" : "text-muted-foreground"}`}
+                  className={`flex-1 flex items-center justify-center gap-1 px-2 py-2 rounded-xl text-xs font-medium transition-all shrink-0 whitespace-nowrap ${demoTab === tab.id ? "bg-card text-foreground shadow-sm border border-border/50" : "text-muted-foreground"}`}
                 >
                   <span>{tab.emoji}</span><span>{tab.label}</span>
                 </button>
@@ -364,6 +404,7 @@ export default function Landing() {
               {demoTab === "spaces"  && <DemoSupportSpaces />}
               {demoTab === "circles" && <DemoChatCircles />}
               {demoTab === "events"  && <DemoEvents />}
+              {demoTab === "stall"   && <DemoStall />}
               <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent pointer-events-none" />
               <div className="absolute bottom-1 left-0 right-0 flex justify-center">
                 <Link to="/register">
@@ -646,7 +687,7 @@ export default function Landing() {
               <h2 className="font-heading text-3xl sm:text-4xl font-bold text-foreground mt-2 mb-3">See what's happening right now</h2>
               <p className="text-muted-foreground max-w-xl mx-auto">A snapshot of the community — no sign-up needed to look.</p>
             </div>
-            <div className="flex items-center gap-2 mb-6 bg-secondary/50 rounded-2xl p-1.5 max-w-sm mx-auto">
+            <div className="flex items-center gap-2 mb-6 bg-secondary/50 rounded-2xl p-1.5 max-w-md mx-auto">
               {DEMO_TABS.map((tab) => (
                 <button key={tab.id} onClick={() => setDemoTab(tab.id)}
                   className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all ${demoTab === tab.id ? "bg-card text-foreground shadow-sm border border-border/50" : "text-muted-foreground hover:text-foreground"}`}
@@ -661,6 +702,7 @@ export default function Landing() {
                 {demoTab === "spaces"  && <DemoSupportSpaces />}
                 {demoTab === "circles" && <DemoChatCircles />}
                 {demoTab === "events"  && <DemoEvents />}
+                {demoTab === "stall"   && <DemoStall />}
               </div>
               <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent pointer-events-none" />
               <div className="absolute bottom-0 left-0 right-0 flex justify-center pb-2">

@@ -62,7 +62,20 @@ export default function ChatPopout({ user }) {
   useEffect(() => { openRef.current = open; }, [open]);
   useEffect(() => { saveState({ open, roomId }); }, [open, roomId]);
 
-  // Load lists when popout opens
+  // Fetch conversations on mount so the bubble shows correct unread count immediately,
+  // without requiring the user to open the popout first.
+  // Also re-fetch whenever Navigation fires its poll cycle (village:dm-read or visibility change)
+  // so the bubble stays in sync without a separate polling loop.
+  useEffect(() => {
+    if (!user) return;
+    fetchConversations();
+    const onSync = () => { if (!open) fetchConversations(); };
+    window.addEventListener("village:nav-poll", onSync);
+    return () => window.removeEventListener("village:nav-poll", onSync);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Reload lists when popout opens (refresh friends + conversations)
   useEffect(() => {
     if (open && view === "list") {
       fetchFriends();
@@ -221,7 +234,19 @@ export default function ChatPopout({ user }) {
     if (!activeDmUser) return;
     try {
       const r = await fetch(`${API_URL}/api/messages/${activeDmUser.user_id}`, { credentials: "include" });
-      if (r.ok) setMessages(await r.json());
+      if (r.ok) {
+        setMessages(await r.json());
+        // Clear unread count for this conversation immediately in local state
+        setConversations(prev =>
+          prev.map(c => c.other_user_id === activeDmUser.user_id ? { ...c, unread_count: 0 } : c)
+        );
+        if (isInitial) {
+          // Mark DM notifications as read so the bell clears immediately
+          fetch(`${API_URL}/api/notifications/mark-dm-read`, { method: "POST", credentials: "include" }).catch(() => {});
+          // Tell Navigation to re-poll its unread badge immediately
+          window.dispatchEvent(new Event("village:dm-read"));
+        }
+      }
     } catch {}
   };
 
@@ -319,7 +344,7 @@ export default function ChatPopout({ user }) {
     return (
       <div className="fixed bottom-20 right-0 lg:bottom-8 z-[100] hidden lg:flex flex-col items-end">
         {open ? (
-          <div className="mb-2 max-h-[420px] bg-card border border-border/40 border-r-0 rounded-l-2xl shadow-xl flex flex-col overflow-hidden lg:border-r lg:rounded-2xl lg:mr-4" style={{width:"288px"}}>
+          <div className="mb-2 bg-card border border-border/40 border-r-0 rounded-l-2xl shadow-xl flex flex-col overflow-hidden lg:border-r lg:rounded-2xl lg:mr-4" style={{width:"340px", height:"500px"}}>
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/30 bg-card/95 shrink-0">
               {view === "chat" ? (
@@ -344,12 +369,19 @@ export default function ChatPopout({ user }) {
             {view === "list" ? (
               <div className="flex flex-col flex-1 min-h-0">
                 <div className="flex-1 overflow-y-auto">
+                  {/* Private Messages label */}
+                  <div className="px-4 pt-3 pb-1.5 flex items-center justify-between">
+                    <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Private Messages</span>
+                    <Link to="/plus" onClick={handleClose} className="flex items-center gap-1 text-[10px] text-primary hover:underline font-medium">
+                      <Lock className="h-2.5 w-2.5" />Message anyone
+                    </Link>
+                  </div>
                   {loadingConvs ? (
                     <div className="p-3 space-y-3">{[1,2,3].map(i => <div key={i} className="flex items-center gap-3 animate-pulse"><div className="w-8 h-8 rounded-full bg-muted shrink-0" /><div className="flex-1 h-3 bg-muted rounded" /></div>)}</div>
                   ) : conversations.filter(c => !c.is_pending_request).length === 0 ? (
                     <div className="p-5 text-center">
                       <p className="text-sm text-muted-foreground mb-1">No messages yet.</p>
-                      <p className="text-xs text-muted-foreground">When someone messages you, you can reply here for free.</p>
+                      <p className="text-xs text-muted-foreground">When someone messages you, you can reply here.</p>
                     </div>
                   ) : (
                     <div className="divide-y divide-border/30">
@@ -377,7 +409,7 @@ export default function ChatPopout({ user }) {
                 {/* Upgrade note */}
                 <div className="px-4 py-2.5 border-t border-border/30 bg-secondary/20 shrink-0">
                   <p className="text-[11px] text-muted-foreground text-center">
-                    <Link to="/plus" onClick={handleClose} className="text-primary hover:underline font-medium">Village+</Link> unlocks messaging anyone
+                    <Link to="/plus" onClick={handleClose} className="text-primary hover:underline font-medium">Village+</Link> lets you message any parent
                   </p>
                 </div>
               </div>
@@ -432,7 +464,7 @@ export default function ChatPopout({ user }) {
   return (
     <div className="fixed bottom-20 right-0 lg:bottom-8 z-[100] hidden lg:flex flex-col items-end">
       {open ? (
-        <div className="mb-2 max-h-[460px] bg-card border border-border/40 border-r-0 rounded-l-2xl shadow-xl flex flex-col overflow-hidden lg:border-r lg:rounded-2xl lg:mr-4" style={{width:"288px"}}>
+        <div className="mb-2 bg-card border border-border/40 border-r-0 rounded-l-2xl shadow-xl flex flex-col overflow-hidden lg:border-r lg:rounded-2xl lg:mr-4" style={{width:"340px", height:"540px"}}>
 
           {/* Header — minimal, no icon circle */}
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/30 bg-card/95 shrink-0">
@@ -476,7 +508,7 @@ export default function ChatPopout({ user }) {
                   Friends
                 </button>
                 <button onClick={() => setListTab("dms")} className={`flex-1 py-2 text-xs font-medium relative transition-colors ${listTab === "dms" ? "text-primary border-b-2 border-primary" : "text-muted-foreground hover:text-foreground"}`}>
-                  Inbox
+                  Messages
                   {conversations.some(c => (c.unread_count || 0) > 0) && <span className="absolute top-1.5 right-3 w-1.5 h-1.5 rounded-full bg-red-500" />}
                 </button>
                 <button onClick={() => setListTab("search")} className={`flex-1 py-2 text-xs font-medium transition-colors ${listTab === "search" ? "text-primary border-b-2 border-primary" : "text-muted-foreground hover:text-foreground"}`}>
@@ -538,6 +570,10 @@ export default function ChatPopout({ user }) {
                   }).some(c => (c.unread_count || 0) > 0);
                   return (
                     <>
+                      {/* Section label */}
+                      <div className="px-4 pt-3 pb-1">
+                        <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Private Messages</span>
+                      </div>
                       {/* Filter pills */}
                       <div className="flex gap-1.5 px-3 py-2 border-b border-border/30 overflow-x-auto shrink-0">
                         {INBOX_FILTERS.map(f => (
