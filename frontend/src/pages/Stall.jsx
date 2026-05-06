@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
-import { Crown, Plus, Tag, ArrowLeftRight, Heart, Search as SearchIcon, MapPin, Clock, Bookmark, BookmarkCheck, ShoppingBag, Users, Filter, X, MessageCircle, Send, ArrowLeft } from "lucide-react";
+import { Crown, Plus, Tag, ArrowLeftRight, Heart, Search as SearchIcon, MapPin, Clock, Bookmark, BookmarkCheck, ShoppingBag, Users, Filter, X, MessageCircle, Send, ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { parseApiError } from "../utils/apiError";
@@ -41,31 +41,160 @@ const TYPE_LABELS = { sell: "Selling", swap: "Swapping", give_away: "Giving Away
 
 const fmtTime = (d) => { try { return formatDistanceToNow(new Date(d), { addSuffix: true }); } catch { return ""; } };
 
+const CONDITION_SHORT = { like_new: "Like new", good: "Good", fair: "Fair", well_loved: "Well loved" };
+
 // ── ListingCard ───────────────────────────────────────────────────────────────
 
 function ListingCard({ listing, onSaveToggle, savedIds }) {
-  const navigate  = useNavigate();
-  const isSaved   = savedIds.has(listing.listing_id);
-  const firstImage = listing.images?.[0];
+  const navigate    = useNavigate();
+  const isSaved     = savedIds.has(listing.listing_id);
+  const images      = listing.images?.length ? listing.images : [];
+  const isWanted    = listing.listing_type === "wanted";
+  const [imgIdx, setImgIdx] = useState(0);
+  const touchStartX = useRef(null);
 
   const handleSave = async (e) => {
     e.stopPropagation();
     await onSaveToggle(listing.listing_id);
   };
 
+  const prevImg = (e) => {
+    e.stopPropagation();
+    setImgIdx(i => (i - 1 + images.length) % images.length);
+  };
+  const nextImg = (e) => {
+    e.stopPropagation();
+    setImgIdx(i => (i + 1) % images.length);
+  };
+
+  const onTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+  const onTouchEnd = (e) => {
+    if (touchStartX.current === null || images.length < 2) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    if (Math.abs(dx) > 40) {
+      dx < 0
+        ? setImgIdx(i => (i + 1) % images.length)
+        : setImgIdx(i => (i - 1 + images.length) % images.length);
+    }
+    touchStartX.current = null;
+  };
+
+  // Wanted listings get a distinct card — dashed border, violet tint, no photo needed
+  if (isWanted) {
+    return (
+      <article
+        onClick={() => navigate(`/stall/listing/${listing.listing_id}`)}
+        className="village-card village-card-hover overflow-hidden flex flex-col border border-dashed border-violet-400/40 bg-violet-500/[0.03]"
+      >
+        <div className="p-3 flex flex-col gap-1.5 flex-1">
+          <div className="flex items-center justify-between gap-1">
+            <div className="flex items-center gap-1.5">
+              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${TYPE_STYLES.wanted}`}>
+                Wanted
+              </span>
+              {listing.status === "pending" && (
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 border border-amber-500/30">
+                  🤝 Pending
+                </span>
+              )}
+              {listing.status === "paused" && (
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-secondary text-muted-foreground border border-border/50">
+                  ⏸ Paused
+                </span>
+              )}
+            </div>
+            <button onClick={handleSave} className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
+              {isSaved ? <BookmarkCheck className="h-3.5 w-3.5 text-primary" /> : <Bookmark className="h-3.5 w-3.5" />}
+            </button>
+          </div>
+
+          {/* Search icon + title */}
+          <div className="flex items-start gap-2 py-1">
+            <SearchIcon className="h-4 w-4 text-violet-500/60 shrink-0 mt-0.5" />
+            <h3 className="font-heading font-bold text-[14px] leading-snug line-clamp-2 text-foreground">
+              {listing.title}
+            </h3>
+          </div>
+
+          {listing.description && (
+            <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-2">
+              {listing.description}
+            </p>
+          )}
+
+          {listing.price != null && (
+            <p className="text-sm font-semibold text-violet-600 dark:text-violet-400">
+              Budget up to ${listing.price.toFixed(0)}
+            </p>
+          )}
+
+          {listing.age_group && (
+            <span className="self-start text-[10px] px-2 py-0.5 rounded-full bg-secondary text-muted-foreground border border-border/50">
+              {listing.age_group}
+            </span>
+          )}
+
+          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-auto pt-1">
+            {listing.suburb && (
+              <span className="flex items-center gap-0.5 truncate">
+                <MapPin className="h-3 w-3 shrink-0" />
+                {listing.distance_km != null ? `${listing.distance_km}km` : listing.suburb}
+              </span>
+            )}
+            <span className="ml-auto shrink-0 flex items-center gap-0.5">
+              <Clock className="h-3 w-3" />{fmtTime(listing.created_at)}
+            </span>
+          </div>
+        </div>
+      </article>
+    );
+  }
+
   return (
     <article
       onClick={() => navigate(`/stall/listing/${listing.listing_id}`)}
       className="village-card village-card-hover overflow-hidden flex flex-col"
     >
-      <div className="relative aspect-[4/3] bg-secondary/40 shrink-0">
-        {firstImage ? (
-          <img src={firstImage} alt={listing.title} className="w-full h-full object-cover" />
+      {/* Photo area — shorter aspect ratio to leave room for description */}
+      <div
+        className="relative aspect-[16/10] bg-secondary/40 shrink-0 overflow-hidden"
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+      >
+        {images.length > 0 ? (
+          <img src={images[imgIdx]} alt={listing.title} className="w-full h-full object-cover" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-muted-foreground/30">
+          <div className="w-full h-full flex items-center justify-center text-muted-foreground/20">
             <ShoppingBag className="h-10 w-10" />
           </div>
         )}
+
+        {/* Prev / next arrows — only when multiple images */}
+        {images.length > 1 && (
+          <>
+            <button
+              onClick={prevImg}
+              className="absolute left-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/60 transition-colors"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={nextImg}
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/60 transition-colors"
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+            {/* Dot indicators */}
+            <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex gap-1">
+              {images.map((_, i) => (
+                <span key={i} className={`w-1 h-1 rounded-full transition-colors ${i === imgIdx ? "bg-white" : "bg-white/40"}`} />
+              ))}
+            </div>
+          </>
+        )}
+
         <span className={`absolute top-2 left-2 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${TYPE_STYLES[listing.listing_type] || ""}`}>
           {TYPE_LABELS[listing.listing_type] || listing.listing_type}
         </span>
@@ -77,13 +206,29 @@ function ListingCard({ listing, onSaveToggle, savedIds }) {
             ? <BookmarkCheck className="h-3.5 w-3.5 text-primary" />
             : <Bookmark className="h-3.5 w-3.5 text-muted-foreground" />}
         </button>
+        {listing.postage_available && (
+          <span className="absolute bottom-2 right-2 text-[10px] bg-card/85 backdrop-blur-sm px-1.5 py-0.5 rounded-full text-muted-foreground">
+            📦 Post
+          </span>
+        )}
+        {listing.status === "pending" && (
+          <span className="absolute bottom-2 left-2 text-[10px] font-semibold bg-amber-500/90 text-white px-2 py-0.5 rounded-full backdrop-blur-sm">
+            🤝 Pending
+          </span>
+        )}
+        {listing.status === "paused" && (
+          <span className="absolute bottom-2 left-2 text-[10px] font-semibold bg-card/85 text-muted-foreground px-2 py-0.5 rounded-full backdrop-blur-sm border border-border/50">
+            ⏸ Paused
+          </span>
+        )}
       </div>
 
-      <div className="p-3 flex flex-col gap-1.5 flex-1">
-        <h3 className="font-heading font-bold text-[14px] leading-snug line-clamp-2 text-foreground">
+      <div className="p-3 flex flex-col gap-1 flex-1">
+        <h3 className="font-heading font-bold text-[14px] leading-snug line-clamp-1 text-foreground">
           {listing.title}
         </h3>
-        <p className="text-base font-bold text-foreground">
+
+        <p className="text-sm font-bold text-foreground leading-none">
           {listing.listing_type === "give_away" && <span className="text-amber-600 dark:text-amber-400">Free</span>}
           {listing.listing_type === "sell" && (
             listing.make_offer ? <span className="text-emerald-600 dark:text-emerald-400">Make an offer</span>
@@ -91,9 +236,31 @@ function ListingCard({ listing, onSaveToggle, savedIds }) {
               : <span className="text-muted-foreground text-sm">POA</span>
           )}
           {listing.listing_type === "swap" && <span className="text-sky-600 dark:text-sky-400">Swap</span>}
-          {listing.listing_type === "wanted" && <span className="text-violet-600 dark:text-violet-400">Wanted</span>}
         </p>
-        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-auto">
+
+        {listing.description && (
+          <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-2 mt-0.5">
+            {listing.description}
+          </p>
+        )}
+
+        {/* Condition + age group chips */}
+        {(listing.condition || listing.age_group) && (
+          <div className="flex flex-wrap gap-1 mt-0.5">
+            {listing.condition && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground border border-border/40">
+                {CONDITION_SHORT[listing.condition] || listing.condition}
+              </span>
+            )}
+            {listing.age_group && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground border border-border/40">
+                {listing.age_group}
+              </span>
+            )}
+          </div>
+        )}
+
+        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-auto pt-1">
           {listing.suburb && (
             <span className="flex items-center gap-0.5 truncate">
               <MapPin className="h-3 w-3 shrink-0" />
@@ -101,8 +268,7 @@ function ListingCard({ listing, onSaveToggle, savedIds }) {
             </span>
           )}
           <span className="ml-auto shrink-0 flex items-center gap-0.5">
-            <Clock className="h-3 w-3" />
-            {fmtTime(listing.created_at)}
+            <Clock className="h-3 w-3" />{fmtTime(listing.created_at)}
           </span>
         </div>
       </div>
@@ -123,6 +289,7 @@ export default function Stall({ user }) {
   const [activeCategory, setActiveCategory] = useState(searchParams.get("category") || "");
   const [search,         setSearch]         = useState(searchParams.get("q") || "");
   const [searchInput,    setSearchInput]    = useState(search);
+  const [sortBy,         setSortBy]         = useState(user?.latitude ? "nearest" : "newest");
   const [listings,       setListings]       = useState([]);
   const [total,          setTotal]          = useState(0);
   const [loading,        setLoading]        = useState(true);
@@ -134,15 +301,14 @@ export default function Stall({ user }) {
   const fetchListings = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ limit: "24", sort: "newest" });
+      const params = new URLSearchParams({ limit: "24", sort: sortBy });
       if (activeType !== "all") params.set("listing_type", activeType);
       if (activeCategory) params.set("category", activeCategory);
       if (search) params.set("search", search);
-      if (user?.latitude && user?.longitude) {
+      if (sortBy === "nearest" && user?.latitude && user?.longitude) {
         params.set("lat", user.latitude);
         params.set("lon", user.longitude);
-        params.set("distance_km", "50");
-        params.set("sort", "nearest");
+        params.set("distance_km", "100");
       }
       const res = await fetch(`${API_URL}/api/stall/listings?${params}`, { credentials: "include" });
       if (res.ok) {
@@ -152,7 +318,7 @@ export default function Stall({ user }) {
       }
     } catch {}
     finally { setLoading(false); }
-  }, [activeType, activeCategory, search, user?.latitude, user?.longitude]);
+  }, [activeType, activeCategory, search, sortBy, user?.latitude, user?.longitude]);
 
   const fetchSaved = useCallback(async () => {
     if (!isPremium) return;
@@ -258,11 +424,11 @@ export default function Stall({ user }) {
         </div>
 
         {/* Tab bar */}
-        <div className="flex items-center gap-1 mb-5 border-b border-border/40 overflow-x-auto scrollbar-none pb-0">
+        <div className="flex items-center gap-1 mb-5 border-b border-border/40 flex-wrap">
           {TABS.map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => { setActiveTab(tab.id); setSearchParams(prev => { const p = new URLSearchParams(prev); p.set("tab", tab.id); return p; }, { replace: true }); }}
               className={`relative flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap shrink-0 ${
                 activeTab === tab.id
                   ? "border-primary text-primary"
@@ -311,8 +477,8 @@ export default function Stall({ user }) {
               </button>
             </div>
 
-            {/* Type pills */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 mb-4 scrollbar-none">
+            {/* Type pills + sort */}
+            <div className="flex flex-wrap items-center gap-2 mb-4">
               {LISTING_TYPES.map(t => (
                 <button
                   key={t.id}
@@ -327,6 +493,23 @@ export default function Stall({ user }) {
                   {t.label}
                 </button>
               ))}
+              {/* Sort toggle — pushed to the right; Nearest only if user has location */}
+              <div className="flex items-center gap-1 ml-auto bg-secondary/60 rounded-full p-0.5">
+                <button
+                  onClick={() => setSortBy("newest")}
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors whitespace-nowrap ${sortBy === "newest" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  Newest
+                </button>
+                {user?.latitude && (
+                  <button
+                    onClick={() => setSortBy("nearest")}
+                    className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors whitespace-nowrap ${sortBy === "nearest" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    Nearest
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Category filter */}
@@ -370,11 +553,24 @@ export default function Stall({ user }) {
             ) : listings.length === 0 ? (
               <div className="text-center py-16">
                 <ShoppingBag className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-                <p className="font-heading font-semibold text-foreground text-sm mb-1">No listings yet</p>
-                <p className="text-xs text-muted-foreground mb-4">Be the first to post something in your area.</p>
-                <Button variant="outline" className="rounded-full" onClick={() => navigate("/stall/new")}>
-                  Post a listing
-                </Button>
+                <p className="font-heading font-semibold text-foreground text-sm mb-1">
+                  {search || activeType !== "all" || activeCategory ? "No listings match your filters" : "No listings yet"}
+                </p>
+                <p className="text-xs text-muted-foreground mb-4">
+                  {search || activeType !== "all" || activeCategory
+                    ? "Try clearing a filter, or be the first to post something in this category."
+                    : "Be the first to post something — someone local is probably looking for it."}
+                </p>
+                <div className="flex gap-2 justify-center flex-wrap">
+                  {(search || activeType !== "all" || activeCategory) && (
+                    <Button variant="outline" className="rounded-full" onClick={() => { setSearch(""); setSearchInput(""); setActiveType("all"); setActiveCategory(""); }}>
+                      Clear filters
+                    </Button>
+                  )}
+                  <Button variant="outline" className="rounded-full" onClick={() => navigate("/stall/new")}>
+                    Post a listing
+                  </Button>
+                </div>
               </div>
             ) : (
               <>
@@ -578,7 +774,7 @@ function MyListingsTab({ user, navigate }) {
     } catch { toast.error("Something went wrong"); }
   };
 
-  const STATUS_LABELS = { active: "Active", sold: "Sold", swapped: "Swapped", gone: "Gone", closed: "Closed", paused: "Paused" };
+  const STATUS_LABELS = { active: "Active", sold: "Sold", swapped: "Swapped", gone: "Gone", closed: "Closed", paused: "Paused", pending: "Pending" };
   const STATUS_COLORS = {
     active:  "text-emerald-600 bg-emerald-500/10",
     sold:    "text-muted-foreground bg-secondary",
@@ -586,6 +782,7 @@ function MyListingsTab({ user, navigate }) {
     gone:    "text-amber-600 bg-amber-500/10",
     closed:  "text-muted-foreground bg-secondary",
     paused:  "text-amber-700 bg-amber-500/10",
+    pending: "text-amber-600 bg-amber-500/10",
   };
 
   if (loading) return (
@@ -635,16 +832,36 @@ function MyListingsTab({ user, navigate }) {
                   >
                     Mark as {l.listing_type === "give_away" ? "gone" : l.listing_type === "swap" ? "swapped" : "sold"}
                   </button>
+                  <button onClick={() => markStatus(l.listing_id, "paused")} className="text-xs text-muted-foreground hover:text-foreground">Pause</button>
+                  <button onClick={() => markStatus(l.listing_id, "pending")} className="text-xs text-amber-600 hover:underline">Pending</button>
                   <button onClick={() => deleteListing(l.listing_id)} className="text-xs text-destructive hover:underline ml-auto">Delete</button>
                 </div>
               )}
-              {l.status === "paused" && l.paused_reason === "trial_expired" && (
-                <div className="mt-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
-                  ⏸️ Paused — your trial expired.{" "}
-                  <Link to="/plus" className="underline font-medium">Upgrade to Village+</Link> to reinstate this listing. It will be permanently deleted in 7 days if not reinstated.
+              {l.status === "paused" && (
+                l.paused_reason === "trial_expired" ? (
+                  <div className="mt-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
+                    ⏸️ Paused — your trial expired.{" "}
+                    <Link to="/plus" className="underline font-medium">Upgrade to Village+</Link> to reinstate this listing. It will be permanently deleted in 7 days if not reinstated.
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
+                    <button onClick={() => navigate(`/stall/listing/${l.listing_id}`)} className="text-xs text-primary hover:underline">View</button>
+                    <button onClick={() => navigate(`/stall/listing/${l.listing_id}/edit`)} className="text-xs text-muted-foreground hover:text-foreground">Edit</button>
+                    <button onClick={() => markStatus(l.listing_id, "active")} className="text-xs text-emerald-600 hover:underline">Unpause</button>
+                    <button onClick={() => deleteListing(l.listing_id)} className="text-xs text-destructive hover:underline ml-auto">Delete</button>
+                  </div>
+                )
+              )}
+              {l.status === "pending" && (
+                <div className="mt-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-xs text-amber-700 dark:text-amber-400 leading-relaxed flex items-center justify-between gap-2">
+                  <span>🤝 In negotiation — still visible to buyers.</span>
+                  <div className="flex gap-2 shrink-0">
+                    <button onClick={() => markStatus(l.listing_id, "active")} className="text-xs text-emerald-600 hover:underline">Mark active</button>
+                    <button onClick={() => deleteListing(l.listing_id)} className="text-xs text-destructive hover:underline">Delete</button>
+                  </div>
                 </div>
               )}
-              {l.status !== "active" && l.status !== "paused" && (
+              {!["active", "paused", "pending"].includes(l.status) && (
                 <div className="flex items-center gap-2 mt-2">
                   <button onClick={() => markStatus(l.listing_id, "active")} className="text-xs text-primary hover:underline">Reactivate</button>
                   <button onClick={() => deleteListing(l.listing_id)} className="text-xs text-destructive hover:underline ml-auto">Delete</button>

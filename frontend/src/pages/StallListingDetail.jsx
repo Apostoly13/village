@@ -403,7 +403,7 @@ export default function StallListingDetail({ user }) {
   const isActive  = listing.status === "active";
 
   return (
-    <div className="min-h-screen bg-background pb-32 lg:pl-60 lg:pb-0">
+    <div className="min-h-screen bg-background pb-24 lg:pl-60 lg:pb-8">
       <Navigation user={user} />
 
       {/* Full-screen chat panel */}
@@ -492,14 +492,52 @@ export default function StallListingDetail({ user }) {
               <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${typeStyle.bg}`}>
                 {typeStyle.label}
               </span>
-              <button
-                onClick={toggleSave}
-                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {saved ? <BookmarkCheck className="h-4 w-4 text-primary" /> : <Bookmark className="h-4 w-4" />}
-                {saved ? "Saved" : "Save"}
-              </button>
+              {!isOwn && (
+                <button
+                  onClick={toggleSave}
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {saved ? <BookmarkCheck className="h-4 w-4 text-primary" /> : <Bookmark className="h-4 w-4" />}
+                  {saved ? "Saved" : "Save"}
+                </button>
+              )}
             </div>
+
+            {/* Seller management card — only shown to the listing owner */}
+            {isOwn && (
+              <div className="bg-secondary/40 border border-border/50 rounded-2xl p-3.5 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-foreground">Your listing</p>
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                    listing.status === "active"  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" :
+                    listing.status === "sold"    ? "bg-secondary text-muted-foreground" :
+                                                   "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                  }`}>
+                    {listing.status === "active" ? "Active" : listing.status === "sold" ? "Sold" : "Paused"}
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 rounded-xl h-9"
+                    onClick={() => navigate(`/stall/listing/${listingId}/edit`)}
+                  >
+                    Edit listing
+                  </Button>
+                  {isActive && (
+                    <Button
+                      size="sm"
+                      className="flex-1 rounded-xl h-9"
+                      onClick={() => navigate("/stall?tab=messages")}
+                    >
+                      <MessageCircle className="h-3.5 w-3.5 mr-1.5" />
+                      Enquiries
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Title */}
             <h1 className="font-heading text-2xl font-bold text-foreground leading-tight">{listing.title}</h1>
@@ -624,29 +662,6 @@ export default function StallListingDetail({ user }) {
         </div>
       )}
 
-      {/* Own listing actions */}
-      {isOwn && (
-        <div className="fixed bottom-16 left-0 right-0 lg:bottom-0 lg:left-60 z-40 p-4 bg-background/80 backdrop-blur-md border-t border-border/40">
-          <div className="max-w-3xl mx-auto flex gap-3">
-            <Button
-              variant="outline"
-              className="flex-1 rounded-xl"
-              onClick={() => navigate(`/stall/listing/${listingId}/edit`)}
-            >
-              Edit listing
-            </Button>
-            {isActive && (
-              <Button
-                className="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white"
-                onClick={() => navigate("/stall?tab=messages")}
-              >
-                <MessageCircle className="h-4 w-4 mr-1.5" />
-                View enquiries
-              </Button>
-            )}
-          </div>
-        </div>
-      )}
 
       <AppFooter />
 

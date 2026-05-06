@@ -40,6 +40,41 @@ ROOT_DIR = Path(__file__).parent
 # In-memory is reset on server restart (acceptable for single-process MVP deploys).
 _rate_buckets: dict = defaultdict(list)
 
+# ── Per-room auto-throttle ────────────────────────────────────────────────────
+# Tracks message timestamps (last 60 s) per room to calculate a dynamic
+# per-user cooldown.  Pure in-memory; resets on restart (fine for MVP).
+_room_msg_times: dict = defaultdict(list)
+
+def _record_room_message(room_id: str) -> None:
+    """Record that a message was just sent in room_id."""
+    import time as _time
+    now = _time.monotonic()
+    _room_msg_times[room_id].append(now)
+
+def _get_auto_slow_mode(room_id: str) -> int:
+    """
+    Return the auto-calculated per-user cooldown (seconds) for room_id based
+    on the room-wide message rate in the last 60 seconds.
+
+    Tiers (room-wide msg/min):
+      <  10  → 0  (use default 3s)
+      10–19  → 5s
+      20–39  → 10s
+      40–79  → 20s
+      80+    → 30s
+    """
+    import time as _time
+    now = _time.monotonic()
+    cutoff = now - 60.0
+    times = [t for t in _room_msg_times[room_id] if t > cutoff]
+    _room_msg_times[room_id] = times  # prune in-place
+    count = len(times)
+    if count >= 80: return 30
+    if count >= 40: return 20
+    if count >= 20: return 10
+    if count >= 10: return 5
+    return 0
+
 async def _check_rate_limit(key: str, max_requests: int, window_seconds: int):
     """Raise HTTP 429 if key has exceeded max_requests within window_seconds."""
     global _redis_client
@@ -110,7 +145,8 @@ JWT_SECRET = os.environ.get('JWT_SECRET')
 if not JWT_SECRET:
     raise RuntimeError("JWT_SECRET environment variable is not set. Set a strong random secret before starting the server.")
 JWT_ALGORITHM = "HS256"
-JWT_EXPIRATION_DAYS = 7
+JWT_EXPIRATION_DAYS = 30          # Token lifetime — 30 days from issue
+JWT_RENEWAL_THRESHOLD_DAYS = 7    # Re-issue a fresh token when < 7 days remain (sliding window)
 
 # Frontend URL — used in email links. Override in .env for production.
 FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000').rstrip('/')
@@ -4250,7 +4286,8 @@ async def get_room_messages(room_id: str, limit: int = 50, before: Optional[str]
 
 @api_router.post("/chat/rooms/{room_id}/messages")
 async def send_room_message(room_id: str, message_data: ChatMessageCreate, user: dict = Depends(get_current_user), request: Request = None):
-    await _check_rate_limit(f"{user['user_id']}:chat-send", 60, 60)
+    # Global backstop — 20 messages/minute across all rooms (catches abuse)
+    await _check_rate_limit(f"{user['user_id']}:chat-send-global", 20, 60)
     # Verify room exists
     room = await db.chat_rooms.find_one({"room_id": room_id}, {"_id": 0})
     if not room:
@@ -4282,6 +4319,19 @@ async def send_room_message(room_id: str, message_data: ChatMessageCreate, user:
                     "message": f"You've used all {limit_check['limit']} messages today. Upgrade to premium for unlimited chat."
                 })
 
+    # Per-room per-user cooldown.
+    # Friends rooms: no cooldown (private chat).
+    # Open rooms: effective cooldown = max(auto_throttle, manual_slow_mode, 3s floor).
+    # Auto-throttle is calculated from the room's message rate over the last 60 s.
+    cooldown = 0
+    if not is_friends_room:
+        auto_cooldown    = _get_auto_slow_mode(room_id)
+        manual_cooldown  = int(room.get("slow_mode_seconds") or 0)
+        cooldown         = max(auto_cooldown, manual_cooldown, 3)
+        await _check_rate_limit(f"{user['user_id']}:chat-room:{room_id}", 1, cooldown)
+        # Record after rate-limit passes (prevents double-counting rejected messages)
+        _record_room_message(room_id)
+
     message = ChatMessage(
         room_id=room_id,
         author_id=user["user_id"],
@@ -4290,10 +4340,10 @@ async def send_room_message(room_id: str, message_data: ChatMessageCreate, user:
         author_subscription_tier=user.get("subscription_tier", "free"),
         content=message_data.content
     )
-    
+
     doc = message.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
-    
+
     await db.chat_messages.insert_one(doc)
     if not is_friends_room:
         await increment_usage(user["user_id"], "chat_messages")
@@ -4304,7 +4354,9 @@ async def send_room_message(room_id: str, message_data: ChatMessageCreate, user:
         {"$set": {"last_activity_at": datetime.now(timezone.utc).isoformat(), "is_active": True}}
     )
 
-    return message.model_dump()
+    result = message.model_dump()
+    result["cooldown_seconds"] = cooldown  # tells client how long to wait before next send
+    return result
 
 # ==================== LOCATION ENDPOINTS ====================
 
@@ -5939,12 +5991,53 @@ async def reject_professional(user_id: str, admin: dict = Depends(get_admin_user
     return {"message": "Application rejected"}
 
 _AGE_GROUP_CANONICAL = {
-    "Newborns", "Babies", "Toddlers", "Preschoolers",
-    "School Age", "Teenagers", "Pregnancy & Expecting",
+    "Newborns", "Babies", "Toddlers", "Preschool & Kinder",
+    "Primary School", "Teenagers", "Pregnancy & Expecting",
 }
 
 def _canonical_type(name: str) -> str:
     return "age_group" if name in _AGE_GROUP_CANONICAL else "topic"
+
+def _is_stable_cat_id(category_id: str) -> bool:
+    """Returns True if this category_id is a known stable seed ID."""
+    cid = category_id or ""
+    return cid.startswith("cat-") or cid in {"mum-space", "dad-space"}
+
+
+class SlowModePayload(BaseModel):
+    slow_mode_seconds: int = 0  # 0 = off; typical values: 5, 10, 15, 30, 60, 300
+
+@api_router.post("/admin/chat/rooms/{room_id}/slow-mode")
+async def admin_set_slow_mode(room_id: str, payload: SlowModePayload, admin: dict = Depends(get_admin_user)):
+    """
+    Enable or disable slow mode for a chat room.
+    slow_mode_seconds=0 turns it off.
+    Typical values: 5 (fast room), 15 (moderate), 30–60 (very busy room).
+    """
+    seconds = max(0, min(payload.slow_mode_seconds, 600))  # cap at 10 minutes
+    room = await db.chat_rooms.find_one({"room_id": room_id})
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    await db.chat_rooms.update_one(
+        {"room_id": room_id},
+        {"$set": {"slow_mode_seconds": seconds}}
+    )
+    status = f"{seconds}s cooldown between messages" if seconds > 0 else "off"
+    logging.info("Admin %s set slow mode on room %s: %s", admin.get("user_id"), room_id, status)
+    return {"room_id": room_id, "slow_mode_seconds": seconds, "status": status}
+
+@api_router.get("/admin/chat/rooms")
+async def admin_get_chat_rooms(admin: dict = Depends(get_admin_user)):
+    """List all chat rooms with slow mode settings, auto-throttle state, and activity stats."""
+    rooms = await db.chat_rooms.find({}, {"_id": 0}).sort("name", 1).to_list(200)
+    for room in rooms:
+        rid = room["room_id"]
+        room["recent_message_count"] = await db.chat_messages.count_documents({"room_id": rid})
+        auto   = _get_auto_slow_mode(rid)
+        manual = int(room.get("slow_mode_seconds") or 0)
+        room["auto_slow_mode_seconds"]      = auto
+        room["effective_slow_mode_seconds"] = max(auto, manual, 3)
+    return rooms
 
 
 @api_router.post("/admin/dedup-categories")
@@ -5990,6 +6083,9 @@ async def admin_dedup_categories(admin: dict = Depends(get_admin_user)):
         ("Infant Circle",       "Babies"),
         ("Expecting Circle",    "Pregnancy & Expecting"),
         ("Family & Relationships Circle", "Family & Relationships"),
+        # New canonical renames
+        ("Preschoolers",        "Preschool & Kinder"),
+        ("School Age",          "Primary School"),
     ]
 
     # 2. Delete obvious test/automation categories
@@ -6003,33 +6099,42 @@ async def admin_dedup_categories(admin: dict = Depends(get_admin_user)):
         new_cat = await db.forum_categories.find_one({"name": new_name})
         if old_cat and not new_cat:
             # Rename in place — also fix category_type if old entry had wrong type
-            update = {"name": new_name}
-            if old_cat.get("category_type") != _canonical_type(new_name):
-                update["category_type"] = _canonical_type(new_name)
+            update = {"name": new_name, "category_type": _canonical_type(new_name)}
             await db.forum_categories.update_one({"_id": old_cat["_id"]}, {"$set": update})
-            fixed.append(f"Renamed '{old_name}' → '{new_name}' (type={update.get('category_type', old_cat.get('category_type'))})")
+            fixed.append(f"Renamed '{old_name}' → '{new_name}' (type={update['category_type']})")
         elif old_cat and new_cat:
-            keep = old_cat if (old_cat.get("post_count", 0) or 0) >= (new_cat.get("post_count", 0) or 0) else new_cat
-            drop = new_cat if keep == old_cat else old_cat
-            # Always use new_cat's category_type — it's the canonical one
-            correct_type = new_cat.get("category_type") or old_cat.get("category_type")
+            # Always prefer stable IDs — a stable-ID entry wins regardless of post count
+            old_stable = _is_stable_cat_id(old_cat.get("category_id", ""))
+            new_stable = _is_stable_cat_id(new_cat.get("category_id", ""))
+            if new_stable and not old_stable:
+                keep, drop = new_cat, old_cat
+            elif old_stable and not new_stable:
+                keep, drop = old_cat, new_cat
+            else:
+                keep, drop = (old_cat, new_cat) if (old_cat.get("post_count", 0) or 0) >= (new_cat.get("post_count", 0) or 0) else (new_cat, old_cat)
+            correct_type = _canonical_type(new_name)
             await db.forum_posts.update_many({"category_id": drop["category_id"]}, {"$set": {"category_id": keep["category_id"]}})
             await db.forum_categories.update_one({"_id": keep["_id"]}, {"$set": {"name": new_name, "category_type": correct_type}})
             await db.forum_categories.delete_one({"_id": drop["_id"]})
-            fixed.append(f"Merged '{old_name}' + '{new_name}' → kept as '{new_name}' type={correct_type} ({keep.get('post_count',0)} posts)")
+            fixed.append(f"Merged '{old_name}' + '{new_name}' → kept stable={keep.get('category_id')} type={correct_type} ({keep.get('post_count',0)} posts)")
 
-    # 2. Dedup any remaining same-name entries
+    # 3. Dedup any remaining same-name entries — stable IDs always win
     pipeline = [{"$group": {"_id": "$name", "count": {"$sum": 1}}}, {"$match": {"count": {"$gt": 1}}}]
     dup_groups = await db.forum_categories.aggregate(pipeline).to_list(100)
     for group in dup_groups:
         entries = await db.forum_categories.find(
             {"name": group["_id"]}, {"_id": 1, "post_count": 1, "created_at": 1, "category_id": 1}
         ).to_list(20)
-        entries.sort(key=lambda x: (-(x.get("post_count") or 0), x.get("created_at") or ""))
+        # Stable IDs always win; tiebreak by post_count desc then created_at asc
+        entries.sort(key=lambda x: (
+            0 if _is_stable_cat_id(x.get("category_id", "")) else 1,
+            -(x.get("post_count") or 0),
+            x.get("created_at") or ""
+        ))
         for dup in entries[1:]:
             await db.forum_posts.update_many({"category_id": dup["category_id"]}, {"$set": {"category_id": entries[0]["category_id"]}})
             await db.forum_categories.delete_one({"_id": dup["_id"]})
-            fixed.append(f"Deduped '{group['_id']}' — removed id={dup.get('category_id')}")
+            fixed.append(f"Deduped '{group['_id']}' — removed id={dup.get('category_id')} (kept {entries[0].get('category_id')})")
 
     return {"fixed": len(fixed), "actions": fixed}
 
@@ -6801,7 +6906,8 @@ async def seed_data(request: Request):
         {"name": "Newborns", "description": "For parents of brand new babies (0–3 months) — the most intense and beautiful stage", "icon": "👶", "category_type": "age_group"},
         {"name": "Babies", "description": "First year adventures and challenges (3–12 months)", "icon": "🧸", "category_type": "age_group"},
         {"name": "Toddlers", "description": "The big-feeling toddler years (1–3 years)", "icon": "🚶", "category_type": "age_group"},
-        {"name": "School Age", "description": "For parents of primary school kids (6–12 years)", "icon": "📚", "category_type": "age_group"},
+        {"name": "Preschool & Kinder", "description": "Preschool and kinder years (3–5) — school readiness, big emotions, and friendships.", "icon": "🖍️", "category_type": "age_group"},
+        {"name": "Primary School", "description": "For parents of primary school kids (5–12 years)", "icon": "🎒", "category_type": "age_group"},
         {"name": "Teenagers", "description": "Navigating the teen years (13+) — tricky and wonderful in equal measure", "icon": "🧑", "category_type": "age_group"},
     ]
     
@@ -7119,7 +7225,8 @@ async def browse_stall_listings(
     limit: int = 24,
     skip: int = 0,
 ):
-    query: dict = {"status": "active"}
+    # Show active and pending (in-negotiation) listings to all browsers
+    query: dict = {"status": {"$in": ["active", "pending"]}}
     if listing_type:
         query["listing_type"] = listing_type
     if category:
@@ -7514,6 +7621,43 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         )
         return response
 
+
+class SlidingSessionMiddleware(BaseHTTPMiddleware):
+    """
+    Sliding-window JWT sessions.
+    If the incoming session cookie has less than JWT_RENEWAL_THRESHOLD_DAYS remaining,
+    issue a fresh JWT so active users are never unexpectedly logged out.
+    Only fires for valid, non-expired tokens close to expiry — no DB hit required.
+    """
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        session_token = request.cookies.get("session_token")
+        if not session_token:
+            return response
+        try:
+            payload = jwt.decode(session_token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+            exp = payload.get("exp")
+            user_id = payload.get("user_id")
+            if exp and user_id:
+                remaining_seconds = exp - datetime.now(timezone.utc).timestamp()
+                threshold_seconds = JWT_RENEWAL_THRESHOLD_DAYS * 24 * 3600
+                if 0 < remaining_seconds < threshold_seconds:
+                    new_token = create_jwt_token(user_id)
+                    response.set_cookie(
+                        key="session_token",
+                        value=new_token,
+                        httponly=True,
+                        secure=COOKIE_SECURE,
+                        samesite=COOKIE_SAMESITE,
+                        path="/",
+                        max_age=JWT_EXPIRATION_DAYS * 24 * 60 * 60,
+                    )
+        except Exception:
+            pass  # Expired or invalid — let the route handler return 401 as normal
+        return response
+
+
+app.add_middleware(SlidingSessionMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(
     CORSMiddleware,
@@ -7923,8 +8067,8 @@ async def seed_required_rooms():
         },
         {
             "category_id": "cat-preschoolers",
-            "name": "Preschoolers",
-            "description": "The preschool years (3–5) — language, learning, friendships, and big emotions.",
+            "name": "Preschool & Kinder",
+            "description": "The preschool and kinder years (3–5) — school readiness, big emotions, friendships, and language development.",
             "icon": "🖍️",
             "category_type": "age_group",
             "post_count": 0,
@@ -7966,6 +8110,126 @@ async def seed_required_rooms():
             "post_count": 0,
             "is_active": True,
         },
+        # ── Topic spaces with stable IDs (previously only existed as random-ID legacy entries) ──
+        {
+            "category_id": "cat-feeding",
+            "name": "Feeding",
+            "description": "Breastfeeding, formula, solids, and everything in between. Share your experiences and get support.",
+            "icon": "🍼",
+            "category_type": "topic",
+            "post_count": 0,
+            "is_active": True,
+        },
+        {
+            "category_id": "cat-sleep-settling",
+            "name": "Sleep & Settling",
+            "description": "Sleep training, settling techniques, routines, and surviving the sleepless nights.",
+            "icon": "😴",
+            "category_type": "topic",
+            "post_count": 0,
+            "is_active": True,
+        },
+        {
+            "category_id": "cat-wellbeing",
+            "name": "Parent Wellbeing",
+            "description": "Your mental health matters. A safe space to talk about anxiety, depression, burnout, and finding support.",
+            "icon": "💚",
+            "category_type": "topic",
+            "post_count": 0,
+            "is_active": True,
+        },
+        {
+            "category_id": "cat-solo-parents",
+            "name": "Solo Parents",
+            "description": "A supportive space for solo and single parents. You are not doing this alone.",
+            "icon": "💪",
+            "category_type": "topic",
+            "post_count": 0,
+            "is_active": True,
+        },
+        {
+            "category_id": "cat-family-rel",
+            "name": "Family & Relationships",
+            "description": "Navigating relationships — partners, extended family, friendships, and everything in between.",
+            "icon": "❤️",
+            "category_type": "topic",
+            "post_count": 0,
+            "is_active": True,
+        },
+        {
+            "category_id": "cat-real-talk",
+            "name": "Real Talk",
+            "description": "Sometimes you just need to say it. No filters, no judgement — just honest parenting chat.",
+            "icon": "💬",
+            "category_type": "topic",
+            "post_count": 0,
+            "is_active": True,
+        },
+        {
+            "category_id": "cat-local-village",
+            "name": "Local Village",
+            "description": "Connect with parents in your area. Local tips, events, recommendations, and community.",
+            "icon": "📍",
+            "category_type": "topic",
+            "is_location_aware": True,
+            "post_count": 0,
+            "is_active": True,
+        },
+        # ── Age group spaces with stable IDs ──
+        {
+            "category_id": "cat-age-pregnancy",
+            "name": "Pregnancy & Expecting",
+            "description": "From positive test to birth — symptoms, scans, preparations, and the emotional journey of expecting.",
+            "icon": "🤰",
+            "category_type": "age_group",
+            "post_count": 0,
+            "is_active": True,
+        },
+        {
+            "category_id": "cat-age-newborns",
+            "name": "Newborns",
+            "description": "The newborn stage (0–3 months) — feeding, sleeping, settling, and surviving the beautiful chaos.",
+            "icon": "👶",
+            "category_type": "age_group",
+            "post_count": 0,
+            "is_active": True,
+        },
+        {
+            "category_id": "cat-age-babies",
+            "name": "Babies",
+            "description": "Babies (3–12 months) — milestones, solids, sleep, development, and all the firsts.",
+            "icon": "🍼",
+            "category_type": "age_group",
+            "post_count": 0,
+            "is_active": True,
+        },
+        {
+            "category_id": "cat-age-toddlers",
+            "name": "Toddlers",
+            "description": "Toddlers (1–3 years) — tantrums, language, independence, and navigating the big feelings.",
+            "icon": "🧒",
+            "category_type": "age_group",
+            "post_count": 0,
+            "is_active": True,
+        },
+        {
+            "category_id": "cat-age-primary",
+            "name": "Primary School",
+            "description": "Primary school years (5–12) — homework help, friendships, extracurriculars, and growing independence.",
+            "icon": "🎒",
+            "category_type": "age_group",
+            "post_count": 0,
+            "is_active": True,
+        },
+        {
+            "category_id": "cat-age-teenagers",
+            "name": "Teenagers",
+            "description": "Teenagers (13+) — navigating high school, identity, social media, and the teen years.",
+            "icon": "🧑",
+            "category_type": "age_group",
+            "post_count": 0,
+            "is_active": True,
+        },
     ]
     for cat in cats_to_seed:
         await db.forum_categories.update_one(
@@ -7973,17 +8237,28 @@ async def seed_required_rooms():
             {"$setOnInsert": {"created_at": now}, "$set": cat},
             upsert=True,
         )
-    # Remove any accidental duplicates (keep only the canonical category_id)
+    # Remove any duplicates with different category_id but same name — stable ID always wins.
+    # Migrate posts from the random-ID entry to the stable entry before deleting.
     for cat in cats_to_seed:
         dupes = await db.forum_categories.find(
             {"name": cat["name"], "category_id": {"$ne": cat["category_id"]}}
         ).to_list(20)
         for d in dupes:
+            await db.forum_posts.update_many(
+                {"category_id": d["category_id"]},
+                {"$set": {"category_id": cat["category_id"]}}
+            )
             await db.forum_categories.delete_one({"_id": d["_id"]})
+            logging.info("Startup: removed random-ID duplicate '%s' (id=%s) → migrated posts to %s",
+                         cat["name"], d.get("category_id"), cat["category_id"])
 
     # ── Global name-based dedup (catches duplicates from repeated /seed calls) ──
-    # For each category name that appears more than once, keep the entry with the
-    # most posts (or oldest created_at as tiebreak) and delete the rest.
+    # Stable IDs (cat-*, mum-space, dad-space) always win over random-ID legacy entries.
+    # Posts are migrated from the dropped entry to the winner before deletion.
+    def _is_stable(entry):
+        cid = (entry.get("category_id") or "")
+        return cid.startswith("cat-") or cid in {"mum-space", "dad-space"}
+
     pipeline = [
         {"$group": {"_id": "$name", "count": {"$sum": 1}}},
         {"$match": {"count": {"$gt": 1}}}
@@ -7992,11 +8267,21 @@ async def seed_required_rooms():
         all_entries = await db.forum_categories.find(
             {"name": group["_id"]}, {"_id": 1, "post_count": 1, "created_at": 1, "category_id": 1}
         ).to_list(20)
-        # Keep the entry with the most posts; use earliest created_at as tiebreak
-        all_entries.sort(key=lambda x: (-x.get("post_count", 0), x.get("created_at", "")))
+        # Stable IDs always win; tiebreak by post_count desc then created_at asc
+        all_entries.sort(key=lambda x: (
+            0 if _is_stable(x) else 1,
+            -(x.get("post_count") or 0),
+            x.get("created_at") or ""
+        ))
+        winner = all_entries[0]
         for dup in all_entries[1:]:
+            await db.forum_posts.update_many(
+                {"category_id": dup["category_id"]},
+                {"$set": {"category_id": winner["category_id"]}}
+            )
             await db.forum_categories.delete_one({"_id": dup["_id"]})
-            logging.info("Startup dedup: removed duplicate category '%s' (%s)", group["_id"], dup.get("category_id", ""))
+            logging.info("Startup dedup: removed duplicate '%s' (id=%s) → kept %s",
+                         group["_id"], dup.get("category_id", ""), winner.get("category_id", ""))
 
     # ── Rename legacy category names to canonical names ──────────────────────
     # Covers: Space names, Circle names (oldest legacy), and any others.
@@ -8032,25 +8317,37 @@ async def seed_required_rooms():
         ("Mental Health Circle","Parent Wellbeing"),
         ("Infant Circle",       "Babies"),
         ("Expecting Circle",    "Pregnancy & Expecting"),
+        # New canonical renames (age group updates)
+        ("Preschoolers",        "Preschool & Kinder"),
+        ("School Age",          "Primary School"),
     ]
+    # Updated canonical age group names
+    _age_groups_canonical = {
+        "Newborns", "Babies", "Toddlers", "Preschool & Kinder",
+        "Primary School", "Teenagers", "Pregnancy & Expecting",
+    }
     for old_name, new_name in CATEGORY_RENAMES:
         old_cat = await db.forum_categories.find_one({"name": old_name})
         new_cat = await db.forum_categories.find_one({"name": new_name})
         if old_cat and not new_cat:
-            # Rename in place — also fix category_type if the old entry had a wrong type
-            age_groups = {"Newborns", "Babies", "Toddlers", "Preschoolers",
-                          "School Age", "Teenagers", "Pregnancy & Expecting"}
-            correct_type = "age_group" if new_name in age_groups else "topic"
+            # Rename in place — fix category_type to canonical
+            correct_type = "age_group" if new_name in _age_groups_canonical else "topic"
             await db.forum_categories.update_one(
                 {"_id": old_cat["_id"]},
                 {"$set": {"name": new_name, "category_type": correct_type}}
             )
             logging.info("Category rename: '%s' → '%s' (type=%s)", old_name, new_name, correct_type)
         elif old_cat and new_cat:
-            # Both exist — keep the one with more posts; migrate posts and delete the other.
-            # Always use new_cat's category_type — it's the canonical seeded type.
-            keep, drop = (old_cat, new_cat) if (old_cat.get("post_count", 0) or 0) >= (new_cat.get("post_count", 0) or 0) else (new_cat, old_cat)
-            correct_type = new_cat.get("category_type") or old_cat.get("category_type")
+            # Both exist — stable IDs always win over random-ID legacy entries.
+            correct_type = "age_group" if new_name in _age_groups_canonical else "topic"
+            old_stable = _is_stable(old_cat)
+            new_stable = _is_stable(new_cat)
+            if new_stable and not old_stable:
+                keep, drop = new_cat, old_cat
+            elif old_stable and not new_stable:
+                keep, drop = old_cat, new_cat
+            else:
+                keep, drop = (old_cat, new_cat) if (old_cat.get("post_count", 0) or 0) >= (new_cat.get("post_count", 0) or 0) else (new_cat, old_cat)
             await db.forum_posts.update_many(
                 {"category_id": drop["category_id"]},
                 {"$set": {"category_id": keep["category_id"]}}
@@ -8060,8 +8357,8 @@ async def seed_required_rooms():
                 {"$set": {"name": new_name, "category_type": correct_type}}
             )
             await db.forum_categories.delete_one({"_id": drop["_id"]})
-            logging.info("Category merge: '%s' + '%s' → kept '%s' type=%s (%s posts)",
-                         old_name, new_name, new_name, correct_type, keep.get("post_count", 0))
+            logging.info("Category merge: '%s' + '%s' → kept %s type=%s (%s posts)",
+                         old_name, new_name, keep.get("category_id"), correct_type, keep.get("post_count", 0))
 
     # ── Second dedup pass — catches any duplicates created by the rename sequence ─
     pipeline2 = [
@@ -8072,15 +8369,21 @@ async def seed_required_rooms():
         dupes = await db.forum_categories.find(
             {"name": group["_id"]}, {"_id": 1, "post_count": 1, "created_at": 1, "category_id": 1}
         ).to_list(20)
-        dupes.sort(key=lambda x: (-x.get("post_count", 0), x.get("created_at", "") or ""))
+        # Stable IDs always win
+        dupes.sort(key=lambda x: (
+            0 if _is_stable(x) else 1,
+            -(x.get("post_count") or 0),
+            x.get("created_at") or ""
+        ))
+        winner = dupes[0]
         for dup in dupes[1:]:
-            # migrate any orphaned posts before deleting
             await db.forum_posts.update_many(
                 {"category_id": dup["category_id"]},
-                {"$set": {"category_id": dupes[0]["category_id"]}}
+                {"$set": {"category_id": winner["category_id"]}}
             )
             await db.forum_categories.delete_one({"_id": dup["_id"]})
-            logging.info("Post-rename dedup: removed '%s' (id=%s)", group["_id"], dup.get("category_id", ""))
+            logging.info("Post-rename dedup: removed '%s' (id=%s) → kept %s",
+                         group["_id"], dup.get("category_id", ""), winner.get("category_id", ""))
 
 async def purge_open_chat_messages():
     """

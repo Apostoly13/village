@@ -53,7 +53,7 @@ const ROOM_TYPE_KEYWORDS = {
 
 export default function ChatRooms({ user }) {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [myAreaRoom, setMyAreaRoom]           = useState(null);
   const [joinedAreaRooms, setJoinedAreaRooms] = useState([]);
@@ -73,8 +73,9 @@ export default function ChatRooms({ user }) {
   // Primary filter chip state — "all" | "live" | "local"
   const [activeFilter, setActiveFilter] = useState(() => {
     const t = searchParams.get("tab");
+    // Only persist "local" in URL — "live" is time-sensitive and
+    // should not be the default on a fresh page load (empty state is confusing).
     if (t === "local") return "local";
-    if (t === "live")  return "live";
     return "all";
   });
 
@@ -399,7 +400,13 @@ export default function ChatRooms({ user }) {
               {FILTERS.map(f => (
                 <button
                   key={f.id}
-                  onClick={() => { setActiveFilter(f.id); if (f.id === "local") setRoomTypeFilter("all"); }}
+                  onClick={() => {
+                    setActiveFilter(f.id);
+                    if (f.id === "local") setRoomTypeFilter("all");
+                    // Only persist "local" in URL — "all" and "live" are not persisted
+                    // because "live" is time-sensitive (empty on back-nav looks like a bug).
+                    setSearchParams(f.id === "local" ? { tab: "local" } : {}, { replace: true });
+                  }}
                   data-testid={`filter-${f.id}`}
                   className={`inline-flex items-center gap-1.5 h-8 px-4 rounded-full text-sm font-medium transition-colors ${
                     activeFilter === f.id
@@ -472,7 +479,13 @@ export default function ChatRooms({ user }) {
                 <div className="text-center py-12 village-card">
                   <span className="text-4xl mb-3 block">💬</span>
                   <h3 className="font-heading font-semibold text-foreground mb-1">No rooms live right now</h3>
-                  <p className="text-sm text-muted-foreground">Most rooms are active evenings and weekends. Check back soon!</p>
+                  <p className="text-sm text-muted-foreground mb-4">Most rooms are active evenings and weekends. Drop into any room — your message starts the conversation.</p>
+                  <button
+                    onClick={() => { setActiveFilter("all"); setSearchParams({}, { replace: true }); }}
+                    className="inline-flex items-center gap-1.5 h-8 px-4 rounded-full text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+                  >
+                    Browse all rooms
+                  </button>
                 </div>
               ) : null
             )}
@@ -553,16 +566,6 @@ export default function ChatRooms({ user }) {
                         ))}
                     </div>
 
-                    {/* 3am Club info — informational callout during daytime (room appears in the grid above) */}
-                    {!nightOwl && (
-                      <div className="p-4 rounded-[18px] bg-secondary/60 border border-border/40 flex items-start gap-3">
-                        <span className="text-xl shrink-0 mt-0.5">🌙</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground mb-0.5">The 3am Club</p>
-                          <p className="text-xs text-muted-foreground">Most active between 10pm and 4am AEST — always open for late-night company. Night Owl badge awarded for regular late-night activity.</p>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
               </section>
@@ -720,9 +723,8 @@ export default function ChatRooms({ user }) {
             <div className="village-card p-5">
               <h3 className="font-heading font-semibold text-foreground mb-3">How chat works</h3>
               <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
-                <p><strong className="text-foreground font-medium">National rooms</strong> are always open — busiest in the evenings.</p>
+                <p><strong className="text-foreground font-medium">All Australia rooms</strong> are open to every parent on the platform — no location needed. Drop in anytime, they're always on.</p>
                 <p><strong className="text-foreground font-medium">Local rooms</strong> are area-based — connecting parents across your broader neighbourhood (e.g. Inner West, Northern Beaches). Add your suburb in your <Link to="/profile" className="text-primary hover:underline">profile</Link> to find yours.</p>
-                <p><strong className="text-foreground font-medium">Friends chats</strong> can be started from your <Link to="/friends" className="text-primary hover:underline">Friends page</Link>.</p>
                 <div className="pt-2 mt-2 border-t border-border/50">
                   <p className="text-xs leading-relaxed">
                     <strong className="text-foreground font-medium">Message history</strong> — open chat rooms automatically clear messages older than 7 days (national) or 14 days (local). This keeps conversations fresh and relevant. Private DMs are never auto-deleted.
@@ -733,7 +735,8 @@ export default function ChatRooms({ user }) {
             <div className="village-card p-5">
               <h3 className="font-heading font-semibold text-foreground mb-3">Quiet hours</h3>
               <div className="text-sm text-muted-foreground leading-relaxed space-y-2">
-                <p>The 3am Club is most active 10pm–4am AEST.</p>
+                <p>The 3am Club is most active 10pm–4am AEST — always open for late-night company.</p>
+                <p>Night Owl badge awarded for regular late-night activity.</p>
                 <p>Mute notifications in <Link to="/settings" className="text-primary hover:underline">Settings</Link>.</p>
               </div>
             </div>

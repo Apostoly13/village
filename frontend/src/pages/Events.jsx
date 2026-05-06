@@ -311,6 +311,7 @@ function EventCard({ event, onRsvp, onUpdated, user, onOpenDetail }) {
   const icalHref = `${API_URL}/api/events/${event.event_id}/ical`;
 
   return (
+    <>
     <article
       className="village-card village-card-hover border-l-2 border-l-primary/20 p-5 flex gap-4 cursor-pointer"
       onClick={() => onOpenDetail && onOpenDetail(event)}
@@ -431,7 +432,9 @@ function EventCard({ event, onRsvp, onUpdated, user, onOpenDetail }) {
         </div>
       )}
 
-      {/* Edit dialog */}
+    </article>
+
+      {/* Edit dialog — outside <article> so overlay clicks don't bubble to onOpenDetail */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="bg-card border-border/50 max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -441,7 +444,7 @@ function EventCard({ event, onRsvp, onUpdated, user, onOpenDetail }) {
         </DialogContent>
       </Dialog>
 
-      {/* Moderators dialog */}
+      {/* Moderators dialog — outside <article> so overlay clicks don't bubble to onOpenDetail */}
       <Dialog open={modsOpen} onOpenChange={setModsOpen}>
         <DialogContent className="bg-card border-border/50 max-w-sm">
           <DialogHeader>
@@ -450,7 +453,7 @@ function EventCard({ event, onRsvp, onUpdated, user, onOpenDetail }) {
           <ManageModeratorsDialog event={event} onClose={() => setModsOpen(false)} />
         </DialogContent>
       </Dialog>
-    </article>
+    </>
   );
 }
 

@@ -13,7 +13,7 @@ const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 export default function FriendsPage({ user }) {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [friends, setFriends] = useState([]);
   const [requests, setRequests] = useState([]);
   const [sentRequests, setSentRequests] = useState([]);
@@ -258,7 +258,7 @@ export default function FriendsPage({ user }) {
           <p className="text-sm text-muted-foreground">Connect with parents in the village</p>
         </div>
 
-        <Tabs defaultValue={["friends","requests","sent"].includes(searchParams.get("tab")) ? searchParams.get("tab") : "friends"} className="w-full">
+        <Tabs defaultValue={["friends","requests","sent"].includes(searchParams.get("tab")) ? searchParams.get("tab") : "friends"} onValueChange={(v) => setSearchParams({ tab: v }, { replace: true })} className="w-full">
           <TabsList className="w-full bg-card border border-border/50 rounded-xl p-1 mb-6">
             <TabsTrigger value="friends" className="flex-1 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" data-testid="tab-friends">
               Friends ({friends.length})

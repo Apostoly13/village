@@ -21,6 +21,8 @@ export default function ChatRoom({ user }) {
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [cooldown, setCooldown] = useState(0); // seconds remaining before next send allowed
+  const cooldownRef = useRef(null);
   const [subscription, setSubscription] = useState(null);
   const [savedMessageIds, setSavedMessageIds] = useState(new Set());
   const [hasMore, setHasMore] = useState(false);
@@ -162,10 +164,27 @@ export default function ChatRoom({ user }) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  // Start a per-second countdown after sending so the button stays disabled
+  // for exactly as long as the server's cooldown requires.
+  const startCooldown = (seconds) => {
+    if (!seconds || seconds <= 0) return;
+    setCooldown(seconds);
+    clearInterval(cooldownRef.current);
+    cooldownRef.current = setInterval(() => {
+      setCooldown(prev => {
+        if (prev <= 1) { clearInterval(cooldownRef.current); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  // Clean up ticker on unmount
+  useEffect(() => () => clearInterval(cooldownRef.current), []);
+
   const handleSend = async (e) => {
     e.preventDefault();
     const content = newMessage.trim();
-    if (!content || sending) return;
+    if (!content || sending || cooldown > 0) return;
 
     // Optimistic update: add message immediately with a temp ID so it
     // appears at once and is never wiped by a concurrent polling response
@@ -197,6 +216,8 @@ export default function ChatRoom({ user }) {
         const message = await response.json();
         // Swap temp placeholder with the confirmed server message
         setMessages(prev => prev.map(m => m.message_id === tempId ? message : m));
+        // Start cooldown timer so the send button stays locked until ready
+        startCooldown(message.cooldown_seconds || 0);
         fetchSubscription();
       } else if (response.status === 429) {
         // Limit reached — remove optimistic message and restore input
@@ -489,14 +510,27 @@ export default function ChatRoom({ user }) {
                 />
                 <Button
                   type="submit"
-                  disabled={sending || !newMessage.trim()}
-                  className="rounded-full p-0 shrink-0"
-                  style={{ height: 44, width: 44, background: "var(--ink)", color: "var(--paper)" }}
+                  disabled={sending || cooldown > 0 || !newMessage.trim()}
+                  className="rounded-full p-0 shrink-0 relative"
+                  style={{
+                    height: 44, width: 44,
+                    background: (cooldown > 0 || sending) ? "var(--line)" : "var(--ink)",
+                    color: "var(--paper)",
+                    transition: "background 0.2s",
+                  }}
                   data-testid="send-btn"
                 >
-                  <Send className="h-4 w-4" />
+                  {cooldown > 0
+                    ? <span className="text-xs font-semibold leading-none">{cooldown}</span>
+                    : <Send className="h-4 w-4" />
+                  }
                 </Button>
               </div>
+              {cooldown > 5 && (
+                <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1.5">
+                  <span>🐢</span> This room is busy — slowing things down so everyone can keep up
+                </p>
+              )}
               {newMessage.length > 800 && (
                 <p className={`text-xs mt-1.5 text-right ${newMessage.length >= 1000 ? 'text-destructive' : 'text-muted-foreground'}`}>
                   {newMessage.length}/1000

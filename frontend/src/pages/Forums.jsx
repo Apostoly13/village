@@ -14,7 +14,7 @@ import { getSpaceName } from "../config/spaces";
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 export default function Forums({ user }) {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
   const showCommunities = tabParam === "communities";
   const defaultTab = ["topics", "age"].includes(tabParam) ? tabParam : "topics";
@@ -110,7 +110,8 @@ export default function Forums({ user }) {
 
   const formatLast = (dateString) => dateString ? timeAgoVerbose(dateString) : null;
 
-  const topicCategories = categories.filter(c => c.category_type === "topic");
+  // Pregnancy & Expecting appears in BOTH tabs (it's an age_group but also a topic)
+  const topicCategories = categories.filter(c => c.category_type === "topic" || c.name === "Pregnancy & Expecting");
   const ageCategories = categories.filter(c => c.category_type === "age_group");
   const communities = categories.filter(c => c.category_type === "community");
   const isPremium = user?.subscription_tier === "premium" || user?.role === "admin";
@@ -280,8 +281,8 @@ export default function Forums({ user }) {
 
   const TOPIC_FILTER_MATCH = {
     support:   ["real talk", "parent wellbeing", "solo parents", "mums of the village", "dads of the village", "postnatal recovery"],
-    parenting: ["development", "milestones", "health", "wellness", "raising multiples", "neurodiverse", "childcare", "school", "working parents", "screen time", "baby gear"],
-    family:    ["family", "relationships", "family budget", "new parents", "pregnancy", "blended", "co-parenting", "working parents"],
+    parenting: ["development", "milestones", "health", "wellness", "raising multiples", "neurodiverse", "childcare", "school", "working parents", "screen time", "baby gear", "feeding", "sleep"],
+    family:    ["family", "relationships", "family budget", "new parents", "pregnancy", "expecting", "blended", "co-parenting", "working parents"],
     local:     ["local village", "local recommendations"],
     ask:       ["ask the village", "village wins", "baby gear", "recommendations"],
     wellbeing: ["parent wellbeing", "real talk", "solo parents", "postnatal recovery"],
@@ -297,21 +298,39 @@ export default function Forums({ user }) {
     });
   };
 
+  // Age group sort order — youngest to oldest
+  const AGE_ORDER = [
+    "Pregnancy & Expecting",
+    "Newborns",
+    "Babies",
+    "Toddlers",
+    "Preschool & Kinder",
+    "Primary School",
+    "Teenagers",
+  ];
+  const sortByAge = (cats) =>
+    [...cats].sort((a, b) => {
+      const ai = AGE_ORDER.indexOf(a.name);
+      const bi = AGE_ORDER.indexOf(b.name);
+      // Known ages sort by index; unknown ages go to the end
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    });
+
   // Age filter pills
   const [ageFilter, setAgeFilter] = useState("all");
   const AGE_FILTERS = [
     { id: "all",       label: "All ages" },
     { id: "expecting", label: "Expecting" },
     { id: "baby",      label: "Baby (0–12m)" },
-    { id: "toddler",   label: "Toddler & Preschooler" },
-    { id: "school",    label: "School Age+" },
+    { id: "toddler",   label: "Toddler & Kinder" },
+    { id: "school",    label: "Primary & Teens" },
   ];
 
   const AGE_FILTER_MATCH = {
     expecting: ["pregnancy", "expecting"],
     baby:      ["newborn", "babies", "baby"],
-    toddler:   ["toddler", "preschooler"],
-    school:    ["school age", "teen"],
+    toddler:   ["toddler", "preschool", "kinder"],
+    school:    ["primary school", "teen"],
   };
 
   const applyAgeFilter = (cats) => {
@@ -564,7 +583,7 @@ export default function Forums({ user }) {
           </div>
         ) : (
           /* ── Spaces: By Topic + By Age Group ─────────────────────────── */
-          <Tabs defaultValue={defaultTab} className="w-full">
+          <Tabs defaultValue={defaultTab} onValueChange={(v) => setSearchParams({ tab: v }, { replace: true })} className="w-full">
             <TabsList className="w-full bg-card border border-border/50 rounded-xl p-1 mb-6">
               <TabsTrigger
                 value="topics"
@@ -699,7 +718,7 @@ export default function Forums({ user }) {
                   <p className="text-sm text-muted-foreground">Check back soon!</p>
                 </div>
               ) : (() => {
-                const filtered = applyAgeFilter(ageCategories);
+                const filtered = sortByAge(applyAgeFilter(ageCategories));
                 if (filtered.length === 0) {
                   return (
                     <div className="text-center py-10 village-card">

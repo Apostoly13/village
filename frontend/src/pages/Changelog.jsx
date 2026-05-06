@@ -7,6 +7,59 @@ import AppFooter from "../components/AppFooter";
 // ── Full technical changelog (admin-only view) ────────────────────────────────
 const CHANGELOG = [
   {
+    version: "3.29.0",
+    date: "May 2026",
+    title: "Stall Enhancements, Events Dialog Fix & Chat Auto-Throttle",
+    entries: [
+      { tag: "Added",    text: "Auto-throttle slow mode in Chat Rooms — backend tracks message frequency per room using a sliding 60-second window. Rooms hitting 10/20/40/80 messages/min automatically apply a 5/10/20/30s cooldown. Manual admin floor still applies alongside auto throttle; effective cooldown = max(auto, manual, 3s)." },
+      { tag: "Added",    text: "Chat send button cooldown — instead of bouncing a 429, the send button is disabled with a live countdown for the exact cooldown duration. A 'Room is busy' explanation appears when cooldown > 5s." },
+      { tag: "Added",    text: "GET /admin/chat/rooms now returns auto_slow_mode_seconds and effective_slow_mode_seconds per room alongside the manual floor. Admin UI shows both badges." },
+      { tag: "Added",    text: "SuburbSearch component — debounced suburb autocomplete backed by /api/location/search, used in Create and Edit Stall Listing flows. Replaces plain free-text suburb input." },
+      { tag: "Fixed",    text: "Edit Stall Listing: updating a listing's suburb now correctly saves state and postcode alongside suburb text. Previously only the suburb string was tracked, leaving old state/postcode values on the listing." },
+      { tag: "Fixed",    text: "Events.jsx: Edit and Mods dialogs moved outside the <article onClick> element to a React fragment sibling. Previously, clicking the dialog overlay bubbled to the article's onOpenDetail handler, opening the event detail instead of the dialog." },
+      { tag: "Added",    text: "Stall listing 'Pending' status — sellers can mark a listing as in-negotiation from both the My Listings quick actions and the Edit Listing page. Pending listings remain visible to buyers in browse with a amber badge on the card." },
+      { tag: "Fixed",    text: "Stall browse query now includes status: pending alongside active — previously pending listings were filtered out of browse results." },
+      { tag: "Added",    text: "Stall listing card photo carousel — multiple photos can be scrolled via left/right chevron arrows on desktop and touch swipe on mobile (40px threshold)." },
+      { tag: "Added",    text: "Listing card description preview — up to 2 lines of description shown on the card. Image aspect ratio reduced from 4/3 to 16/10 to make room without increasing card height." },
+      { tag: "Improved", text: "Stall tab bar changed from overflow-x-auto/scrollbar-none to flex-wrap — eliminates scrollbar bleed-through on the right edge." },
+      { tag: "Improved", text: "ChatRooms.jsx: live tab no longer persisted to URL — live rooms are time-sensitive and should not be the default landing tab on revisit." },
+    ],
+  },
+  {
+    version: "3.28.0",
+    date: "May 2026",
+    title: "Session Persistence, Slow Mode, Chat Popout Filters & Nav Fixes",
+    entries: [
+      { tag: "Added",    text: "Session persistence: JWT expiry extended to 30 days with a sliding window — token is silently renewed when fewer than 7 days remain. Authenticated users are no longer logged out after a week of activity." },
+      { tag: "Added",    text: "SlidingSessionMiddleware (FastAPI BaseHTTPMiddleware) — runs on every authenticated response, decodes the JWT, checks remaining TTL, and issues a fresh cookie when below the renewal threshold." },
+      { tag: "Added",    text: "Admin Chat Rooms tab — admins can view all chat rooms sorted by message volume, see live slow mode status per room (amber badge when active), set slow_mode_seconds via a number input, and save per-room." },
+      { tag: "Added",    text: "Backend: POST /admin/chat/rooms/:roomId/slow-mode and GET /admin/chat/rooms endpoints. Slow mode is stored on the room document (slow_mode_seconds field). Rate limiter reads this field on every message send — defaults to 3s per-room cooldown if slow mode is off, applies slow_mode_seconds cooldown if set." },
+      { tag: "Added",    text: "ChatRoom.jsx: slow mode indicator (🐢 + seconds) displayed above the message input when slow_mode_seconds > 0." },
+      { tag: "Added",    text: "ChatPopout: Inbox tab renamed from 'Messages'; filter pills added — All, Friends, Stall, Events. Stall and Events filters navigate to the full Messages page with the correct tab pre-selected. PopoutDmRow updated with type badges (amber Stall, blue Event) and contextual subtitles (listing title for Stall, event title for Events)." },
+      { tag: "Improved", text: "Messages.jsx: filter pills changed from overflow-x-auto / fixed-padding to flex-1 equal-width layout — all 5 pills fit without horizontal scrolling at normal mobile widths." },
+      { tag: "Improved", text: "Forums.jsx, ChatRooms.jsx, Friends.jsx, Stall.jsx: active tab now synced to the URL via setSearchParams({ tab }, { replace: true }). Browser back button restores the correct tab instead of resetting to the section homepage." },
+      { tag: "Improved", text: "ChatRooms.jsx: 'National rooms' renamed to 'All Australia rooms' throughout. Sidebar copy expanded — explains rooms are open to all parents with no location required. Standalone 3am Club daytime callout card removed; its content merged into the Quiet Hours sidebar section." },
+      { tag: "Improved", text: "ChatRooms.jsx: 'Friends chats' line removed from the How Chat Works sidebar — it described a feature not currently active in this area." },
+      { tag: "Improved", text: "Forums.jsx: age group spaces in the By Age Group tab sorted youngest-to-oldest using AGE_ORDER array (Pregnancy & Expecting → Newborns → Babies → Toddlers → Preschool & Kinder → Primary School → Teenagers)." },
+    ],
+  },
+  {
+    version: "3.27.0",
+    date: "May 2026",
+    title: "Age Group Renames + Stable Category IDs for All Spaces",
+    entries: [
+      { tag: "Renamed",  text: "Preschoolers → Preschool & Kinder (3–5 years). School Age → Primary School (5–12 years). Both renamed in cats_to_seed, CATEGORY_RENAMES, _AGE_GROUP_CANONICAL, and admin dedup endpoint." },
+      { tag: "Added",    text: "Stable category_ids for all previously random-ID spaces: cat-feeding (Feeding), cat-sleep-settling (Sleep & Settling), cat-wellbeing (Parent Wellbeing), cat-solo-parents (Solo Parents), cat-family-rel (Family & Relationships), cat-real-talk (Real Talk), cat-local-village (Local Village), cat-age-pregnancy (Pregnancy & Expecting), cat-age-newborns (Newborns), cat-age-babies (Babies), cat-age-toddlers (Toddlers), cat-age-primary (Primary School), cat-age-teenagers (Teenagers)." },
+      { tag: "Fixed",    text: "Startup dedup now prefers stable IDs (cat-*, mum-space, dad-space) over random-ID legacy entries regardless of post count. Posts are migrated from the dropped entry to the winner before deletion. This permanently fixes dev≠local differences caused by random-ID entries winning dedup." },
+      { tag: "Fixed",    text: "Per-category dedup in cats_to_seed loop now also migrates posts before deleting the random-ID duplicate." },
+      { tag: "Fixed",    text: "CATEGORY_RENAMES merge logic updated to prefer stable IDs. Added 'Preschoolers' → 'Preschool & Kinder' and 'School Age' → 'Primary School' to both startup and admin dedup CATEGORY_RENAMES lists." },
+      { tag: "Fixed",    text: "Second dedup pass also updated to prefer stable IDs." },
+      { tag: "Added",    text: "Forums.jsx: Pregnancy & Expecting now appears in BOTH the By Topic tab and the By Age Group tab." },
+      { tag: "Improved", text: "Forums.jsx: AGE_FILTER_MATCH updated — toddler filter matches 'preschool' and 'kinder'; school filter matches 'primary school' and 'teen'. AGE_FILTERS labels updated to 'Toddler & Kinder' and 'Primary & Teens'." },
+      { tag: "Improved", text: "Forums.jsx: TOPIC_FILTER_MATCH updated — Parenting now includes 'feeding' and 'sleep'; Family Life includes 'expecting'." },
+    ],
+  },
+  {
     version: "3.26.0",
     date: "May 2026",
     title: "New Spaces & Chat Rooms",
@@ -591,6 +644,44 @@ const CHANGELOG = [
 // ── Curated user-facing changelog (non-admin view) ────────────────────────────
 // Plain readable summaries — no technical tags or implementation details.
 const USER_CHANGELOG = [
+  {
+    version: "3.29.0",
+    date: "May 2026",
+    title: "The Village Stall Improvements & Chat Updates",
+    entries: [
+      "Stall listings now show a description preview on the card — no need to click in to see what the item is.",
+      "Listing photos can be swiped through directly on the browse page — swipe on mobile or use the arrows on desktop.",
+      "New 'Pending' status for listings — mark a listing as in negotiation so other buyers know a deal is in progress, while the listing stays visible.",
+      "Chat rooms now automatically slow down during busy periods so everyone can keep up. A countdown on the send button shows how long to wait.",
+      "Suburb search in listing forms now uses autocomplete — start typing a suburb and pick from suggestions.",
+      "Fixed a bug where clicking the Mods button on an event was opening the event detail page instead of the moderators panel.",
+    ],
+  },
+  {
+    version: "3.28.0",
+    date: "May 2026",
+    title: "Stay Signed In, Smarter Chat & Better Navigation",
+    entries: [
+      "You'll stay signed in for up to 30 days — no more being logged out after a week. Your session renews automatically while you're active.",
+      "Chat Rooms now support slow mode — admins can set a cooldown between messages in busy rooms to keep conversations easier to follow.",
+      "The chat popout now has inbox filter tabs: All, Friends, Stall, and Events — so you can find the right conversation quickly.",
+      "All Australia rooms sidebar updated — clearer explanation of what they are and who can join.",
+      "Going back in your browser now returns you to the same tab you were on in Forums, Chat Rooms, Friends, and The Stall.",
+      "Age group Spaces now appear youngest to oldest in the By Age Group tab.",
+      "Message filter pills no longer require scrolling — all five fit on screen.",
+    ],
+  },
+  {
+    version: "3.27.0",
+    date: "May 2026",
+    title: "Updated Age Groups & Consistent Spaces",
+    entries: [
+      "Age group Spaces have been renamed: Preschoolers is now Preschool & Kinder (3–5 years), and School Age is now Primary School (5–12 years).",
+      "Pregnancy & Expecting now appears in both the By Topic and By Age Group tabs.",
+      "All Spaces now have consistent, stable identifiers — dev and local environments will stay in sync going forward.",
+      "Topic and age filter chips updated to match the new Space names.",
+    ],
+  },
   {
     version: "3.26.0",
     date: "May 2026",

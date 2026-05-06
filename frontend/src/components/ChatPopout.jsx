@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Crown, X, MessagesSquare, Send, Search, UserPlus, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { timeAgoVerbose } from "../utils/dateHelpers";
@@ -17,6 +17,7 @@ const formatTime = timeAgoVerbose;
 function getPrefs() { try { return JSON.parse(localStorage.getItem("village_prefs") || "{}"); } catch { return {}; } }
 
 export default function ChatPopout({ user }) {
+  const navigate = useNavigate();
   const saved = loadState();
 
   const [open, setOpen] = useState(saved?.open ?? false);
@@ -33,6 +34,7 @@ export default function ChatPopout({ user }) {
   // DM conversations
   const [conversations, setConversations] = useState([]);
   const [loadingConvs, setLoadingConvs] = useState(false);
+  const [inboxFilter, setInboxFilter] = useState("all"); // "all" | "friends" | "stall" | "events"
 
   // User search
   const [searchQuery, setSearchQuery] = useState("");
@@ -411,8 +413,8 @@ export default function ChatPopout({ user }) {
                   Friends
                 </button>
                 <button onClick={() => setListTab("dms")} className={`flex-1 py-2 text-xs font-medium relative transition-colors ${listTab === "dms" ? "text-primary border-b-2 border-primary" : "text-muted-foreground hover:text-foreground"}`}>
-                  Messages
-                  {dmRequests.some(c => c.unread_count > 0) && <span className="absolute top-1.5 right-3 w-1.5 h-1.5 rounded-full bg-red-500" />}
+                  Inbox
+                  {conversations.some(c => (c.unread_count || 0) > 0) && <span className="absolute top-1.5 right-3 w-1.5 h-1.5 rounded-full bg-red-500" />}
                 </button>
                 <button onClick={() => setListTab("search")} className={`flex-1 py-2 text-xs font-medium transition-colors ${listTab === "search" ? "text-primary border-b-2 border-primary" : "text-muted-foreground hover:text-foreground"}`}>
                   Search
@@ -452,35 +454,72 @@ export default function ChatPopout({ user }) {
                 )}
 
                 {/* DMs tab */}
-                {listTab === "dms" && (
-                  loadingConvs ? (
-                    <div className="p-3 space-y-3">{[1,2,3].map(i => <div key={i} className="flex items-center gap-3 animate-pulse"><div className="w-8 h-8 rounded-full bg-muted shrink-0" /><div className="flex-1 h-3 bg-muted rounded" /></div>)}</div>
-                  ) : conversations.length === 0 ? (
-                    <div className="p-5 text-center">
-                      <p className="text-sm text-muted-foreground">No messages yet.</p>
-                      <button onClick={() => setListTab("search")} className="text-xs text-primary hover:underline mt-1 block mx-auto">Message someone →</button>
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-border/30">
-                      {dmRequests.length > 0 && (
-                        <div className="px-3 py-1.5 bg-secondary/40">
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Message Requests</p>
+                {listTab === "dms" && (() => {
+                  const INBOX_FILTERS = [
+                    { id: "all",     label: "All" },
+                    { id: "friends", label: "Friends" },
+                    { id: "stall",   label: "Stall" },
+                    { id: "events",  label: "Events" },
+                  ];
+                  const filtered = conversations.filter(c => {
+                    if (inboxFilter === "friends") return c.conversation_type === "friend_dm" || friendIds.has(c.other_user_id);
+                    if (inboxFilter === "stall")   return c.conversation_type === "stall";
+                    if (inboxFilter === "events")  return c.conversation_type === "event";
+                    return true;
+                  });
+                  const hasUnreadFor = (fId) => conversations.filter(c => {
+                    if (fId === "friends") return c.conversation_type === "friend_dm" || friendIds.has(c.other_user_id);
+                    if (fId === "stall")   return c.conversation_type === "stall";
+                    if (fId === "events")  return c.conversation_type === "event";
+                    return true;
+                  }).some(c => (c.unread_count || 0) > 0);
+                  return (
+                    <>
+                      {/* Filter pills */}
+                      <div className="flex gap-1.5 px-3 py-2 border-b border-border/30 overflow-x-auto shrink-0">
+                        {INBOX_FILTERS.map(f => (
+                          <button key={f.id} onClick={() => setInboxFilter(f.id)}
+                            className={`relative flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium whitespace-nowrap transition-colors shrink-0 ${
+                              inboxFilter === f.id ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"
+                            }`}>
+                            {f.label}
+                            {inboxFilter !== f.id && hasUnreadFor(f.id) && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                      {/* Conversation list */}
+                      {loadingConvs ? (
+                        <div className="p-3 space-y-3">{[1,2,3].map(i => <div key={i} className="flex items-center gap-3 animate-pulse"><div className="w-8 h-8 rounded-full bg-muted shrink-0" /><div className="flex-1 h-3 bg-muted rounded" /></div>)}</div>
+                      ) : filtered.length === 0 ? (
+                        <div className="p-5 text-center">
+                          {inboxFilter === "all" ? (
+                            <>
+                              <p className="text-sm text-muted-foreground">No messages yet.</p>
+                              <button onClick={() => setListTab("search")} className="text-xs text-primary hover:underline mt-1 block mx-auto">Message someone →</button>
+                            </>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">No {inboxFilter} messages yet.</p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-border/30">
+                          {filtered.map(conv => {
+                            const isStall = conv.conversation_type === "stall";
+                            const isEvent = conv.conversation_type === "event";
+                            const handleClick = () => {
+                              if (isStall) { handleClose(); navigate("/messages?tab=stall"); }
+                              else if (isEvent) { handleClose(); navigate("/messages?tab=events"); }
+                              else openDmChat({ user_id: conv.other_user_id, name: conv.other_user_name, nickname: null, picture: conv.other_user_picture });
+                            };
+                            return <PopoutDmRow key={conv.other_user_id || conv.conversation_id || conv.room_id} conv={conv} onClick={handleClick} />;
+                          })}
                         </div>
                       )}
-                      {dmRequests.map(conv => (
-                        <PopoutDmRow key={conv.other_user_id} conv={conv} onClick={() => openDmChat({ user_id: conv.other_user_id, name: conv.other_user_name, nickname: null, picture: conv.other_user_picture })} />
-                      ))}
-                      {dmRequests.length > 0 && conversations.some(c => friendIds.has(c.other_user_id)) && (
-                        <div className="px-3 py-1.5 bg-secondary/40">
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">From Friends</p>
-                        </div>
-                      )}
-                      {conversations.filter(c => friendIds.has(c.other_user_id)).map(conv => (
-                        <PopoutDmRow key={conv.other_user_id} conv={conv} onClick={() => openDmChat({ user_id: conv.other_user_id, name: conv.other_user_name, nickname: null, picture: conv.other_user_picture })} />
-                      ))}
-                    </div>
-                  )
-                )}
+                    </>
+                  );
+                })()}
 
                 {/* Search tab */}
                 {listTab === "search" && (
@@ -588,21 +627,38 @@ export default function ChatPopout({ user }) {
 }
 
 function PopoutDmRow({ conv, onClick }) {
+  const isStall = conv.conversation_type === "stall";
+  const isEvent = conv.conversation_type === "event";
+  const avatarIcon = isStall ? "🛒" : isEvent ? "🎉" : null;
+  const subtitle = isStall
+    ? (conv.listing_title || conv.last_message)
+    : isEvent
+    ? (conv.event_title || conv.last_message)
+    : conv.last_message;
+
   return (
     <button onClick={onClick} className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-secondary/50 transition-colors text-left">
       <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold text-primary overflow-hidden shrink-0">
-        {conv.other_user_picture ? <img src={conv.other_user_picture} alt="" className="w-full h-full object-cover" /> : conv.other_user_name?.[0]?.toUpperCase()}
+        {avatarIcon
+          ? <span className="text-base">{avatarIcon}</span>
+          : conv.other_user_picture
+          ? <img src={conv.other_user_picture} alt="" className="w-full h-full object-cover" />
+          : conv.other_user_name?.[0]?.toUpperCase()}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-1">
-          <p className="text-sm font-medium text-foreground truncate">{conv.other_user_name}</p>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <p className="text-sm font-medium text-foreground truncate">{conv.other_user_name}</p>
+            {isStall && <span className="shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">Stall</span>}
+            {isEvent && <span className="shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400">Event</span>}
+          </div>
           {conv.unread_count > 0 && (
             <span className="shrink-0 min-w-[16px] h-4 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold px-1">
               {conv.unread_count}
             </span>
           )}
         </div>
-        <p className="text-xs text-muted-foreground truncate">{conv.last_message}</p>
+        <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
       </div>
     </button>
   );

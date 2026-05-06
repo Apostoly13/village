@@ -5,6 +5,7 @@ import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
 import { ArrowLeft, Camera, X, ImageIcon, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import SuburbSearch from "../components/SuburbSearch";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -53,7 +54,9 @@ export default function EditStallListing({ user }) {
   const [makeOffer, setMakeOffer] = useState(false);
   const [swapFor, setSwapFor] = useState("");
   const [description, setDescription] = useState("");
-  const [suburb, setSuburb] = useState("");
+  const [suburb, setSuburb]   = useState("");
+  const [listingState, setListingState] = useState("");
+  const [postcode, setPostcode] = useState("");
   const [postageAvailable, setPostageAvailable] = useState(false);
   const [status, setStatus] = useState("active");
 
@@ -85,6 +88,8 @@ export default function EditStallListing({ user }) {
         setSwapFor(data.swap_for || "");
         setDescription(data.description || "");
         setSuburb(data.suburb || "");
+        setListingState(data.state || "");
+        setPostcode(data.postcode || "");
         setPostageAvailable(data.postage_available || false);
         setStatus(data.status || "active");
       } catch {
@@ -142,6 +147,8 @@ export default function EditStallListing({ user }) {
         age_group: ageGroup || null,
         images,
         suburb: suburb.trim() || null,
+        state: listingState || null,
+        postcode: postcode || null,
         postage_available: postageAvailable,
         make_offer: makeOffer,
         status,
@@ -405,15 +412,17 @@ export default function EditStallListing({ user }) {
               <label className="block text-sm font-medium text-foreground mb-1.5">
                 Suburb <span className="text-destructive">*</span>
               </label>
-              <input
+              <SuburbSearch
                 value={suburb}
-                onChange={e => { setSuburb(e.target.value.slice(0, 60)); if (errors.suburb) setErrors(p => ({ ...p, suburb: null })); }}
-                placeholder="e.g. Bondi Beach, NSW"
-                className={`${INPUT_CLASS} ${errors.suburb ? "border-destructive" : ""}`}
+                onChange={(s, st, pc) => {
+                  setSuburb(s);
+                  if (st) setListingState(st);
+                  if (pc) setPostcode(pc);
+                  if (errors.suburb) setErrors(p => ({ ...p, suburb: null }));
+                }}
+                placeholder="Search suburb…"
+                error={errors.suburb}
               />
-              {errors.suburb && (
-                <p className="text-xs text-destructive mt-1 flex items-center gap-1"><AlertCircle className="h-3 w-3" />{errors.suburb}</p>
-              )}
             </div>
 
             <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
@@ -443,22 +452,30 @@ export default function EditStallListing({ user }) {
           {/* ── Listing status ── */}
           <section className="village-card p-5">
             <h2 className="font-semibold text-foreground mb-3">Status</h2>
-            <div className="flex gap-2">
-              {["active", "paused", "sold"].map(s => (
+            <div className="flex flex-wrap gap-2">
+              {[
+                { id: "active",  label: "Active" },
+                { id: "pending", label: "Pending" },
+                { id: "paused",  label: "Paused" },
+                { id: "sold",    label: "Mark as sold" },
+              ].map(s => (
                 <button
-                  key={s}
+                  key={s.id}
                   type="button"
-                  onClick={() => setStatus(s)}
-                  className={`px-4 py-2 rounded-xl text-sm border transition-colors capitalize ${
-                    status === s
+                  onClick={() => setStatus(s.id)}
+                  className={`px-4 py-2 rounded-xl text-sm border transition-colors ${
+                    status === s.id
                       ? "bg-primary text-primary-foreground border-primary"
                       : "border-border/50 text-muted-foreground hover:border-border hover:text-foreground"
                   }`}
                 >
-                  {s === "sold" ? "Mark as sold" : s.charAt(0).toUpperCase() + s.slice(1)}
+                  {s.label}
                 </button>
               ))}
             </div>
+            {status === "pending" && (
+              <p className="text-xs text-muted-foreground mt-2">🤝 Marks listing as in negotiation — it stays visible to other buyers.</p>
+            )}
           </section>
 
           {/* ── Actions ── */}

@@ -15,6 +15,7 @@ import {
   HelpCircle, TrendingUp, BookOpen, Check, X, Activity,
   Trophy, RefreshCw, MessageCircle, Repeat2,
   DollarSign, Building2, Megaphone, Layers, Stethoscope, Trash2, Star, Send,
+  Radio, Turtle,
 } from "lucide-react";
 import { Textarea } from "../components/ui/textarea";
 
@@ -63,6 +64,10 @@ export default function AdminDashboard({ user }) {
   const [users, setUsers] = useState([]);
   const [reports, setReports] = useState([]);
   const [pendingBlogPosts, setPendingBlogPosts] = useState([]);
+  const [chatRooms, setChatRooms] = useState([]);
+  const [chatRoomsLoading, setChatRoomsLoading] = useState(false);
+  const [slowModeInputs, setSlowModeInputs] = useState({}); // room_id → seconds string
+  const [slowModeSaving, setSlowModeSaving] = useState({});  // room_id → bool
 
   // Revenue
   const [revenue, setRevenue] = useState(null);
@@ -193,6 +198,44 @@ export default function AdminDashboard({ user }) {
       const res = await apiFetch("/api/blog/pending");
       if (res?.ok) setPendingBlogPosts(await res.json());
     } catch (e) { console.error(e); }
+  };
+
+  const fetchChatRooms = async () => {
+    setChatRoomsLoading(true);
+    try {
+      const res = await apiFetch("/api/admin/chat/rooms");
+      if (res?.ok) {
+        const data = await res.json();
+        setChatRooms(data);
+        // Pre-fill slow mode inputs with current values
+        const inputs = {};
+        data.forEach(r => { inputs[r.room_id] = String(r.slow_mode_seconds || 0); });
+        setSlowModeInputs(inputs);
+      } else if (res) {
+        toast.error(`Failed to load chat rooms (${res.status})`);
+      }
+    } catch (e) { console.error(e); toast.error("Couldn't reach the server"); }
+    finally { setChatRoomsLoading(false); }
+  };
+
+  const saveSlowMode = async (roomId) => {
+    const seconds = parseInt(slowModeInputs[roomId] || "0", 10);
+    if (isNaN(seconds) || seconds < 0) return;
+    setSlowModeSaving(p => ({ ...p, [roomId]: true }));
+    try {
+      const res = await apiFetch(`/api/admin/chat/rooms/${roomId}/slow-mode`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slow_mode_seconds: seconds }),
+      });
+      if (res?.ok) {
+        setChatRooms(prev => prev.map(r => r.room_id === roomId ? { ...r, slow_mode_seconds: seconds } : r));
+        toast.success(seconds > 0 ? `Slow mode set to ${seconds}s` : "Slow mode off");
+      } else {
+        toast.error("Failed to update slow mode");
+      }
+    } catch { toast.error("Something went wrong"); }
+    finally { setSlowModeSaving(p => ({ ...p, [roomId]: false })); }
   };
 
   const openDrilldown = async (type) => {
@@ -349,6 +392,7 @@ export default function AdminDashboard({ user }) {
     if (tab === "users" && users.length === 0) fetchUsers();
     if (tab === "moderation" && reports.length === 0) fetchReports();
     if (tab === "blog") fetchPendingBlogPosts();
+    if (tab === "chatrooms") fetchChatRooms();
     if (tab === "engagement" && !retention) fetchRetention();
     if (tab === "leaderboards" && !leaderboards) fetchLeaderboards(leaderboardPeriod);
     if (tab === "revenue" && !revenue) fetchRevenue();
@@ -492,6 +536,7 @@ export default function AdminDashboard({ user }) {
                 { value: "users",         icon: Users,       label: "Users" },
                 { value: "moderation",    icon: Flag,        label: "Moderation", badge: analytics?.content?.pending_reports },
                 { value: "communities",   icon: Building2,   label: "Communities" },
+                { value: "chatrooms",     icon: Radio,       label: "Chat Rooms" },
                 { value: "professionals", icon: Stethoscope, label: "Professionals" },
                 { value: "announcements", icon: Megaphone,   label: "Announcements" },
                 { value: "blog",          icon: BookOpen,    label: "Blog" },
@@ -1613,6 +1658,114 @@ export default function AdminDashboard({ user }) {
                 </div>
               )}
             </div>
+          </TabsContent>
+
+          {/* ══════════ CHAT ROOMS TAB ══════════ */}
+          <TabsContent value="chatrooms" className="mt-0 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-heading font-bold text-foreground text-lg">Chat Rooms</h2>
+                <p className="text-sm text-muted-foreground">Monitor activity and manage slow mode per room.</p>
+              </div>
+              <Button variant="outline" size="sm" className="rounded-lg gap-1.5" onClick={fetchChatRooms}>
+                <RefreshCw className="h-3.5 w-3.5" />Refresh
+              </Button>
+            </div>
+
+            {/* Slow mode explainer */}
+            <div className="bg-amber-500/8 border border-amber-500/20 rounded-xl p-4 flex gap-3 items-start">
+              <Turtle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+              <div className="text-sm text-muted-foreground leading-relaxed space-y-1">
+                <p><strong className="text-foreground font-medium">Auto throttle</strong> kicks in automatically as a room gets busy — 10 msg/min → 5s, 20 → 10s, 40 → 20s, 80+ → 30s per user.</p>
+                <p><strong className="text-foreground font-medium">Manual floor</strong> sets a minimum cooldown regardless of traffic. Set to <strong>0</strong> to let auto handle it. Effective cooldown = whichever is higher.</p>
+              </div>
+            </div>
+
+            {chatRoomsLoading ? (
+              <div className="space-y-3">
+                {[1,2,3,4].map(i => (
+                  <div key={i} className="bg-card border border-border/40 rounded-2xl p-4 animate-pulse">
+                    <div className="h-4 w-1/3 bg-muted rounded mb-2" />
+                    <div className="h-3 w-1/2 bg-muted rounded" />
+                  </div>
+                ))}
+              </div>
+            ) : chatRooms.length === 0 ? (
+              <div className="text-center py-12 bg-card rounded-2xl border border-border/40">
+                <Radio className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+                <p className="text-muted-foreground text-sm">No chat rooms found.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {chatRooms
+                  .filter(r => r.room_type !== "friends_only")
+                  .sort((a, b) => (b.recent_message_count || 0) - (a.recent_message_count || 0))
+                  .map(room => {
+                    const manualOn  = (room.slow_mode_seconds || 0) > 0;
+                    const autoOn    = (room.auto_slow_mode_seconds || 0) > 0;
+                    const effective = room.effective_slow_mode_seconds || 3;
+                    const anyActive = manualOn || autoOn;
+                    const inputVal  = slowModeInputs[room.room_id] ?? String(room.slow_mode_seconds || 0);
+                    return (
+                      <div key={room.room_id} className={`bg-card border rounded-2xl p-4 flex items-center gap-4 ${anyActive ? "border-amber-500/30" : "border-border/40"}`}>
+                        {/* Icon */}
+                        <span className="text-2xl shrink-0">{room.icon || "💬"}</span>
+
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-medium text-foreground text-sm">{room.name}</p>
+                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${room.room_type === "local_area" ? "bg-blue-500/10 text-blue-600" : "bg-secondary text-muted-foreground"}`}>
+                              {room.room_type === "local_area" ? "Local" : "All Australia"}
+                            </span>
+                            {autoOn && (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-orange-500/15 text-orange-600 flex items-center gap-1">
+                                <Turtle className="h-3 w-3" />Auto {room.auto_slow_mode_seconds}s
+                              </span>
+                            )}
+                            {manualOn && (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 flex items-center gap-1">
+                                Manual {room.slow_mode_seconds}s
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {room.recent_message_count || 0} messages stored
+                            {room.active_users > 0 && ` · ${room.active_users} active`}
+                            {anyActive && ` · Effective cooldown: ${effective}s/user`}
+                          </p>
+                        </div>
+
+                        {/* Manual slow mode control */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          <div className="flex flex-col items-end gap-0.5">
+                            <span className="text-[10px] text-muted-foreground whitespace-nowrap">Manual floor (s)</span>
+                            <div className="flex items-center gap-1">
+                              <Input
+                                type="number"
+                                min={0}
+                                max={600}
+                                value={inputVal}
+                                onChange={e => setSlowModeInputs(p => ({ ...p, [room.room_id]: e.target.value }))}
+                                className="w-16 h-8 text-xs text-center rounded-lg px-1"
+                              />
+                              <Button
+                                size="sm"
+                                variant={manualOn ? "default" : "outline"}
+                                className="h-8 rounded-lg text-xs px-3"
+                                disabled={slowModeSaving[room.room_id]}
+                                onClick={() => saveSlowMode(room.room_id)}
+                              >
+                                {slowModeSaving[room.room_id] ? "Saving…" : "Save"}
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
           </TabsContent>
 
           {/* ══════════ BLOG TAB ══════════ */}

@@ -5,6 +5,7 @@ import Navigation from "../components/Navigation";
 import { ArrowLeft, ArrowRight, Camera, X, Tag, ArrowLeftRight, Heart, Search, Check, ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { parseApiError } from "../utils/apiError";
+import SuburbSearch from "../components/SuburbSearch";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -437,12 +438,10 @@ export default function CreateStallListing({ user }) {
 
             <div>
               <label className="text-sm font-medium text-foreground mb-1.5 block">Suburb <span className="text-destructive">*</span></label>
-              <input
+              <SuburbSearch
                 value={suburb}
-                onChange={e => setSuburb(e.target.value)}
-                placeholder="e.g. Newtown"
-                className={INPUT_CLASS}
-                autoFocus
+                onChange={(s) => setSuburb(s)}
+                placeholder="Search suburb…"
               />
             </div>
 

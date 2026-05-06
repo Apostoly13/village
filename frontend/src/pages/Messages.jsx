@@ -867,7 +867,7 @@ export default function Messages({ user }) {
 
               {/* ── Tab filter bar ── */}
               {!showSearch && (
-                <div className="flex items-center gap-1 px-3 py-2.5 border-b border-border/30 shrink-0 overflow-x-auto">
+                <div className="flex items-center gap-1 px-2 py-2.5 border-b border-border/30 shrink-0">
                   {[
                     { id: "all",     label: "All",     badge: unreadTotal },
                     { id: "unread",  label: "Unread",  badge: unreadTotal },
@@ -878,7 +878,7 @@ export default function Messages({ user }) {
                     <button
                       key={tab.id}
                       onClick={() => setInboxTab(tab.id)}
-                      className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors shrink-0 ${
+                      className={`relative flex-1 flex items-center justify-center gap-1 py-1.5 rounded-full text-[11px] font-semibold transition-colors ${
                         inboxTab === tab.id
                           ? "bg-primary text-primary-foreground"
                           : "bg-secondary/60 text-muted-foreground hover:text-foreground hover:bg-secondary"
@@ -886,7 +886,7 @@ export default function Messages({ user }) {
                     >
                       {tab.label}
                       {tab.badge > 0 && inboxTab !== tab.id && (
-                        <span className="min-w-[16px] h-4 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center px-0.5 font-bold">
+                        <span className="min-w-[14px] h-3.5 rounded-full bg-red-500 text-white text-[9px] flex items-center justify-center px-0.5 font-bold">
                           {tab.badge > 9 ? "9+" : tab.badge}
                         </span>
                       )}
