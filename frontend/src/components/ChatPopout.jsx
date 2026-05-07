@@ -449,12 +449,17 @@ export default function ChatPopout({ user }) {
           <button
             onClick={() => { handleOpen(); fetchConversations(); }}
             aria-label="Messages"
-            className="flex items-center gap-2 pl-3 pr-4 py-2 bg-card border border-border/40 border-r-0 rounded-l-xl text-muted-foreground shadow-md hover:text-foreground hover:border-border/70 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            className="flex items-center gap-2.5 pl-4 pr-5 py-3 bg-card border border-border/40 border-r-0 rounded-l-2xl text-muted-foreground shadow-md hover:text-foreground hover:border-border/70 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
             data-testid="chat-popout-bubble"
+            style={{
+              boxShadow: totalUnread > 0
+                ? "0 0 0 1px hsl(var(--primary)/0.3), 0 0 12px 2px hsl(var(--primary)/0.25), 0 0 28px 4px hsl(var(--primary)/0.12)"
+                : "0 0 0 1px hsl(var(--primary)/0.12), 0 0 10px 1px hsl(var(--primary)/0.08)"
+            }}
           >
-            <MessagesSquare className="h-4 w-4 shrink-0" />
-            <span className="text-xs font-medium">Messages</span>
-            {totalUnread > 0 && <span className="min-w-[16px] h-4 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center font-bold px-1">{totalUnread > 9 ? "9+" : totalUnread}</span>}
+            <MessagesSquare className="h-5 w-5 shrink-0" />
+            <span className="text-sm font-semibold">Messages</span>
+            {totalUnread > 0 && <span className="min-w-[20px] h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center font-bold px-1.5">{totalUnread > 9 ? "9+" : totalUnread}</span>}
           </button>
         )}
       </div>
@@ -711,6 +716,11 @@ export default function ChatPopout({ user }) {
           aria-label={totalUnread > 0 ? `Messages — ${totalUnread} unread` : "Messages"}
           className="flex items-center gap-2.5 pl-4 pr-5 py-3 bg-card border border-border/40 border-r-0 rounded-l-2xl text-muted-foreground shadow-lg hover:text-foreground hover:border-border/70 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
           data-testid="chat-popout-bubble"
+          style={{
+            boxShadow: totalUnread > 0
+              ? "0 0 0 1px hsl(var(--primary)/0.35), 0 0 14px 3px hsl(var(--primary)/0.28), 0 0 32px 6px hsl(var(--primary)/0.13)"
+              : "0 0 0 1px hsl(var(--primary)/0.14), 0 0 12px 2px hsl(var(--primary)/0.09)"
+          }}
         >
           <MessagesSquare className="h-5 w-5 shrink-0" />
           <span className="text-sm font-semibold">Messages</span>

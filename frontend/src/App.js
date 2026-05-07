@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
+import ComingSoonPublic from "./pages/ComingSoonPublic";
 import { useTheme } from "./useTheme";
 import { FEATURES } from "./config/features";
 import { Toaster } from "./components/ui/sonner";
@@ -524,13 +525,45 @@ const AppRouter = () => {
   );
 };
 
+// ── Coming Soon Gate ──────────────────────────────────────────────────────────
+// Controlled via Vercel env vars on the main deployment only:
+//   REACT_APP_COMING_SOON=true        → enables the public gate
+//   REACT_APP_PREVIEW_SECRET=<secret> → bypass token (visit /?preview=<secret>)
+// Dev deployment: neither var is set, so gate is always off.
+
+const COMING_SOON_ENABLED = process.env.REACT_APP_COMING_SOON === "true";
+const PREVIEW_SECRET      = process.env.REACT_APP_PREVIEW_SECRET || "";
+const BYPASS_KEY          = "village_preview_bypass";
+
+function ComingSoonGate({ children }) {
+  const location = useLocation();
+
+  useEffect(() => {
+    if (!COMING_SOON_ENABLED || !PREVIEW_SECRET) return;
+    const params  = new URLSearchParams(location.search);
+    const preview = params.get("preview");
+    if (preview && preview === PREVIEW_SECRET) {
+      localStorage.setItem(BYPASS_KEY, "1");
+      // Strip the ?preview= param from the URL cleanly
+      window.history.replaceState({}, "", location.pathname);
+    }
+  }, [location]);
+
+  if (!COMING_SOON_ENABLED) return children;
+  if (localStorage.getItem(BYPASS_KEY) === "1") return children;
+
+  return <ComingSoonPublic />;
+}
+
 function App() {
   useTheme(); // applies data-theme + html.dark from stored preference on first render
   return (
     <BrowserRouter>
-      <AppRouter />
-      <Toaster position="top-center" />
-      <PWAInstallBanner />
+      <ComingSoonGate>
+        <AppRouter />
+        <Toaster position="top-center" />
+        <PWAInstallBanner />
+      </ComingSoonGate>
     </BrowserRouter>
   );
 }

@@ -7,6 +7,17 @@ import AppFooter from "../components/AppFooter";
 // ── Full technical changelog (admin-only view) ────────────────────────────────
 const CHANGELOG = [
   {
+    version: "3.32.0",
+    date: "May 2026",
+    title: "Chat Popout Glow, Larger Bubble & Coming Soon Bypass Gate",
+    entries: [
+      { tag: "Improved", text: "ChatPopout minimised bubble is now larger on both free and Village+ — bigger padding, larger icon (h-5 w-5), semibold text-sm label, and a bigger unread badge (h-5 min-w-[20px])." },
+      { tag: "Added",    text: "ChatPopout Village+ bubble now shows a soft glowing border using primary colour box-shadows — three-layer glow (ring + inner bloom + outer bloom) that intensifies when there are unread messages." },
+      { tag: "Added",    text: "ComingSoonPublic.jsx — standalone public-facing gate page (warm branded design, no app navigation) shown on main when REACT_APP_COMING_SOON=true." },
+      { tag: "Added",    text: "App.js: ComingSoonGate component wraps the full app. Reads REACT_APP_COMING_SOON and REACT_APP_PREVIEW_SECRET env vars. If coming soon mode is active and no bypass is set, renders ComingSoonPublic. Bypass: visit /?preview=<secret> to set localStorage flag and unlock the full app for that browser." },
+    ],
+  },
+  {
     version: "3.31.0",
     date: "May 2026",
     title: "Instant Notifications, Real-time Read Sync & Landing Page Stall",
@@ -675,6 +686,15 @@ const CHANGELOG = [
 // ── Curated user-facing changelog (non-admin view) ────────────────────────────
 // Plain readable summaries — no technical tags or implementation details.
 const USER_CHANGELOG = [
+  {
+    version: "3.32.0",
+    date: "May 2026",
+    title: "Bigger Chat Bubble & Visual Polish",
+    entries: [
+      "The messages chat bubble in the corner is now larger and easier to tap — bigger icon, badge, and text.",
+      "The Village+ chat bubble now glows softly when you have unread messages.",
+    ],
+  },
   {
     version: "3.31.0",
     date: "May 2026",
