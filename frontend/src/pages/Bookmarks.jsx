@@ -4,8 +4,8 @@ import { Button } from "../components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import Navigation from "../components/Navigation";
 import { Bookmark, ArrowLeft, Heart, MessageCircle, Eye, Clock, Trash2 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import { timeAgoVerbose } from "../utils/dateHelpers";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -45,19 +45,13 @@ export default function Bookmarks({ user }) {
     }
   };
 
-  const formatDate = (dateString) => {
-    try {
-      return formatDistanceToNow(new Date(dateString), { addSuffix: true });
-    } catch {
-      return "recently";
-    }
-  };
+  const formatDate = timeAgoVerbose;
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pb-0">
+    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
       <Navigation user={user} />
       
-      <main className="max-w-4xl mx-auto px-4 pt-20 lg:pt-24">
+      <main className="max-w-4xl mx-auto px-4 pt-16 lg:pt-8">
         <Link to="/forums" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors">
           <ArrowLeft className="h-4 w-4" />
           Back to Forums
@@ -85,7 +79,7 @@ export default function Bookmarks({ user }) {
             ))}
           </div>
         ) : bookmarks.length === 0 ? (
-          <div className="text-center py-12 bg-card rounded-2xl border border-border/50">
+          <div className="text-center py-12 village-card">
             <span className="text-4xl mb-3 block">🔖</span>
             <h3 className="font-heading font-semibold text-foreground mb-1">Nothing saved yet</h3>
             <p className="text-sm text-muted-foreground mb-4">Tap the bookmark icon on any post to save it here.</p>

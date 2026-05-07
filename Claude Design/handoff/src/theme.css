@@ -1,0 +1,164 @@
+/* The Village — Day / Night theme
+   Drop this file into src/ and import it once in src/index.js (or App.js).
+   Toggle by setting <body data-theme="day"> or <body data-theme="night">. */
+
+:root {
+  /* Shared type + shape */
+  --serif:  'Fraunces', 'Playfair Display', Georgia, serif;
+  --sans:   'Inter Tight', 'Inter', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --mono:   'JetBrains Mono', ui-monospace, Menlo, monospace;
+  --r-xs: 6px; --r-sm: 10px; --r-md: 14px; --r-lg: 20px; --r-xl: 28px; --r-pill: 9999px;
+}
+
+/* ── DAY ────────────────────────────────────────────────────────────────
+   Warm paper cream + brand brown from the wordmark. */
+[data-theme="day"] {
+  --paper:        #f7f2e9;
+  --paper-2:      #f1eadc;
+  --paper-3:      #eadfcc;
+  --ink:          #2a1f17;
+  --ink-2:        #5a4638;
+  --ink-3:        #8a7a67;
+  --line:         rgba(42, 31, 23, 0.10);
+  --line-2:       rgba(42, 31, 23, 0.05);
+
+  --brand:        #6b3a25;     /* wordmark brown */
+  --brand-soft:   #a04f33;
+  --brand-cream:  #f5e6d0;
+
+  --sage:         #6e8f6a;
+  --sage-deep:    #4f6f4c;
+  --sage-wash:    #e4eadf;
+
+  --clay:         #c96a4a;
+  --clay-deep:    #a14f33;
+  --clay-wash:    #f4d9cd;
+
+  --dusk:         #8d7aa8;
+  --dusk-wash:    #e7e0ee;
+
+  --honey:        #d9a15b;
+  --honey-wash:   #f2e1c2;
+
+  --peach:        #e8a898;
+  --peach-wash:   #f7dfd7;
+
+  --primary:      #2a1f17;      /* body/headlines + primary buttons */
+  --primary-fg:   #f7f2e9;
+  --accent:       #c96a4a;      /* CTA highlight, italic accent color */
+  --glow:         none;
+
+  --shadow-sm: 0 1px 2px rgba(42,31,23,0.05), 0 1px 1px rgba(42,31,23,0.03);
+  --shadow-md: 0 6px 20px rgba(42,31,23,0.07), 0 2px 6px rgba(42,31,23,0.04);
+  --shadow-lg: 0 24px 60px rgba(42,31,23,0.14), 0 6px 18px rgba(42,31,23,0.07);
+
+  /* shadcn bridge — map to your existing hsl(var(--x)) tokens so no component
+     changes are needed. Use the hex→hsl converter of your choice if you
+     prefer pure hsl; kept here as a cheat sheet. */
+  --background: 37 45% 94%;         /* #f7f2e9 */
+  --foreground: 25 29% 13%;         /* #2a1f17 */
+  --card: 35 44% 90%;               /* #f1eadc */
+  --card-foreground: 25 29% 13%;
+  --popover: 37 45% 94%;
+  --popover-foreground: 25 29% 13%;
+  --primary-hsl: 25 29% 13%;
+  --primary-foreground: 37 45% 94%;
+  --secondary: 35 42% 86%;          /* #eadfcc */
+  --secondary-foreground: 24 22% 28%;
+  --muted: 35 42% 86%;
+  --muted-foreground: 28 15% 47%;
+  --accent-hsl: 14 55% 54%;         /* #c96a4a */
+  --accent-foreground: 37 45% 94%;
+  --destructive: 0 60% 50%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 25 29% 13% / 0.1;
+  --input: 35 44% 90%;
+  --ring: 14 55% 54%;
+  --radius: 0.875rem;
+}
+
+/* ── NIGHT ──────────────────────────────────────────────────────────────
+   Candlelight-warm dark. Not cold blue tech-dark. Keeps your existing
+   NightOwl amber for primary actions. */
+[data-theme="night"] {
+  --paper:        #17120e;
+  --paper-2:      #1f1812;
+  --paper-3:      #2a2119;
+  --ink:          #f5e6d0;
+  --ink-2:        #d8c3a0;
+  --ink-3:        #8f7d62;
+  --line:         rgba(245, 230, 208, 0.08);
+  --line-2:       rgba(245, 230, 208, 0.04);
+
+  --brand:        #f5e6d0;
+  --brand-soft:   #e8a898;
+  --brand-cream:  #2a1f17;
+
+  --sage:         #9ac99e;
+  --sage-deep:    #6e8f6a;
+  --sage-wash:    rgba(154, 201, 158, 0.12);
+
+  --clay:         #e08968;
+  --clay-deep:    #c96a4a;
+  --clay-wash:    rgba(224, 137, 104, 0.14);
+
+  --dusk:         #b5a4cf;
+  --dusk-wash:    rgba(181, 164, 207, 0.12);
+
+  --honey:        #f5c542;       /* existing NightOwl amber */
+  --honey-wash:   rgba(245, 197, 66, 0.14);
+
+  --peach:        #f0b5a3;
+  --peach-wash:   rgba(240, 181, 163, 0.12);
+
+  --primary:      #f5c542;
+  --primary-fg:   #1a1208;
+  --accent:       #e08968;
+  --glow:         0 0 24px rgba(245, 197, 66, 0.22);
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-md: 0 8px 28px rgba(0,0,0,0.45), 0 2px 6px rgba(0,0,0,0.35);
+  --shadow-lg: 0 24px 60px rgba(0,0,0,0.6), 0 6px 18px rgba(0,0,0,0.45);
+
+  /* shadcn bridge */
+  --background: 27 25% 7%;          /* #17120e */
+  --foreground: 40 65% 89%;         /* #f5e6d0 */
+  --card: 26 24% 10%;               /* #1f1812 */
+  --card-foreground: 40 65% 89%;
+  --popover: 26 24% 10%;
+  --popover-foreground: 40 65% 89%;
+  --primary-hsl: 47 91% 61%;        /* #f5c542 */
+  --primary-foreground: 30 45% 6%;
+  --secondary: 26 23% 13%;          /* #2a2119 */
+  --secondary-foreground: 40 65% 89%;
+  --muted: 26 23% 13%;
+  --muted-foreground: 34 19% 46%;
+  --accent-hsl: 17 66% 64%;         /* #e08968 */
+  --accent-foreground: 30 45% 6%;
+  --destructive: 2 70% 55%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 40 65% 89% / 0.08;
+  --input: 26 23% 13%;
+  --ring: 47 91% 61%;
+  --radius: 0.875rem;
+}
+
+/* Convenience utility classes — optional */
+.tv-serif { font-family: var(--serif); letter-spacing: -0.02em; }
+.tv-mono  { font-family: var(--mono); letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.7rem; }
+.tv-italic-accent { font-style: italic; color: var(--accent); }
+
+/* Paper noise used on hero sections */
+.tv-paper-noise {
+  background-image:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.16   0 0 0 0 0.14   0 0 0 0 0.11   0 0 0 0.035 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+
+/* Hand-drawn underline */
+.tv-hand-underline {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 12' preserveAspectRatio='none'><path d='M2 7 C 40 2, 80 10, 120 6 S 190 3, 198 7' fill='none' stroke='%23c96a4a' stroke-width='3' stroke-linecap='round' opacity='0.9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: 0 92%;
+  background-size: 100% 0.38em;
+  padding-bottom: 0.12em;
+}

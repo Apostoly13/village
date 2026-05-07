@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Link } from "react-router-dom";
-import { Crown, X, MessagesSquare, Send, Search, UserPlus } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { Link, useNavigate } from "react-router-dom";
+import { Crown, X, MessagesSquare, Send, Search, UserPlus, Lock } from "lucide-react";
 import { toast } from "sonner";
+import { timeAgoVerbose } from "../utils/dateHelpers";
+import { parseApiError } from "../utils/apiError";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 const STORAGE_KEY = "chatPopout";
@@ -12,10 +13,11 @@ function loadState() {
   catch { return null; }
 }
 function saveState(state) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {} }
-function formatTime(d) { try { return formatDistanceToNow(new Date(d), { addSuffix: true }); } catch { return ""; } }
+const formatTime = timeAgoVerbose;
 function getPrefs() { try { return JSON.parse(localStorage.getItem("village_prefs") || "{}"); } catch { return {}; } }
 
 export default function ChatPopout({ user }) {
+  const navigate = useNavigate();
   const saved = loadState();
 
   const [open, setOpen] = useState(saved?.open ?? false);
@@ -32,6 +34,7 @@ export default function ChatPopout({ user }) {
   // DM conversations
   const [conversations, setConversations] = useState([]);
   const [loadingConvs, setLoadingConvs] = useState(false);
+  const [inboxFilter, setInboxFilter] = useState("all"); // "all" | "friends" | "stall" | "events"
 
   // User search
   const [searchQuery, setSearchQuery] = useState("");
@@ -50,6 +53,8 @@ export default function ChatPopout({ user }) {
   const [openingChat, setOpeningChat] = useState(null);
 
   const messagesEndRef = useRef(null);
+  const scrollContainerRef = useRef(null);
+  const isAtBottom = useRef(true);
   const inputRef = useRef(null);
   const lastSeenMsgIdRef = useRef(null);
   const openRef = useRef(open);
@@ -57,7 +62,20 @@ export default function ChatPopout({ user }) {
   useEffect(() => { openRef.current = open; }, [open]);
   useEffect(() => { saveState({ open, roomId }); }, [open, roomId]);
 
-  // Load lists when popout opens
+  // Fetch conversations on mount so the bubble shows correct unread count immediately,
+  // without requiring the user to open the popout first.
+  // Also re-fetch whenever Navigation fires its poll cycle (village:dm-read or visibility change)
+  // so the bubble stays in sync without a separate polling loop.
+  useEffect(() => {
+    if (!user) return;
+    fetchConversations();
+    const onSync = () => { if (!open) fetchConversations(); };
+    window.addEventListener("village:nav-poll", onSync);
+    return () => window.removeEventListener("village:nav-poll", onSync);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Reload lists when popout opens (refresh friends + conversations)
   useEffect(() => {
     if (open && view === "list") {
       fetchFriends();
@@ -104,9 +122,26 @@ export default function ChatPopout({ user }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId]);
 
+  // Auto-scroll only when user is already at the bottom
+  // Use scrollTop directly — scrollIntoView can bubble up and scroll the whole page
   useEffect(() => {
-    if (open && view === "chat") messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (open && view === "chat" && isAtBottom.current) {
+      const el = scrollContainerRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    }
   }, [messages, open, view]);
+
+  // Force scroll + reset when switching conversations / opening chat view
+  useEffect(() => {
+    if (open && view === "chat") {
+      isAtBottom.current = true;
+      setTimeout(() => {
+        const el = scrollContainerRef.current;
+        if (el) el.scrollTop = el.scrollHeight;
+      }, 0);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId, activeDmUser, view, open]);
 
   useEffect(() => {
     if (open && view === "chat" && messages.length > 0)
@@ -147,7 +182,7 @@ export default function ChatPopout({ user }) {
         body: JSON.stringify({ to_user_id: userId }),
       });
       if (r.ok) { setFriendRequests(p => ({ ...p, [userId]: true })); toast.success("Friend request sent!"); }
-      else { const e = await r.json(); toast.info(e.detail || "Already sent"); }
+      else { const e = await r.json(); toast.info(parseApiError(e.detail, "Already sent")); }
     } catch { toast.error("Something went wrong"); }
   };
 
@@ -199,7 +234,19 @@ export default function ChatPopout({ user }) {
     if (!activeDmUser) return;
     try {
       const r = await fetch(`${API_URL}/api/messages/${activeDmUser.user_id}`, { credentials: "include" });
-      if (r.ok) setMessages(await r.json());
+      if (r.ok) {
+        setMessages(await r.json());
+        // Clear unread count for this conversation immediately in local state
+        setConversations(prev =>
+          prev.map(c => c.other_user_id === activeDmUser.user_id ? { ...c, unread_count: 0 } : c)
+        );
+        if (isInitial) {
+          // Mark DM notifications as read so the bell clears immediately
+          fetch(`${API_URL}/api/notifications/mark-dm-read`, { method: "POST", credentials: "include" }).catch(() => {});
+          // Tell Navigation to re-poll its unread badge immediately
+          window.dispatchEvent(new Event("village:dm-read"));
+        }
+      }
     } catch {}
   };
 
@@ -285,15 +332,144 @@ export default function ChatPopout({ user }) {
   const handleOpen = () => { setOpen(true); setUnreadCount(0); };
   const handleClose = () => setOpen(false);
 
+  const isAdmin = user?.role === "admin" || user?.role === "moderator";
+  const isFree  = user?.subscription_tier === "free" && !isAdmin;
+
   const activeUser = chatMode === "friend" ? (room ? { name: room.name } : null) : activeDmUser;
   const friendIds = new Set(friends.map(f => f.user_id));
   const dmRequests = conversations.filter(c => !friendIds.has(c.other_user_id));
   const totalUnread = conversations.reduce((a, c) => a + (c.unread_count || 0), 0) + unreadCount;
 
+  if (isFree) {
+    return (
+      <div className="fixed bottom-20 right-0 lg:bottom-8 z-[100] hidden lg:flex flex-col items-end">
+        {open ? (
+          <div className="mb-2 bg-card border border-border/40 border-r-0 rounded-l-2xl shadow-xl flex flex-col overflow-hidden lg:border-r lg:rounded-2xl lg:mr-4" style={{width:"340px", height:"500px"}}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/30 bg-card/95 shrink-0">
+              {view === "chat" ? (
+                <>
+                  <button onClick={() => setView("list")} className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">← Back</button>
+                  <p className="font-medium text-foreground text-sm truncate mx-3 flex-1 text-center">{activeDmUser?.nickname || activeDmUser?.name}</p>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-1.5">
+                    <MessagesSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                    <p className="font-medium text-foreground text-sm">Messages</p>
+                  </div>
+                  <Link to="/messages" onClick={handleClose} className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">Full view</Link>
+                </>
+              )}
+              <button onClick={handleClose} className="text-muted-foreground hover:text-foreground p-1 ml-2 shrink-0">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+
+            {view === "list" ? (
+              <div className="flex flex-col flex-1 min-h-0">
+                <div className="flex-1 overflow-y-auto">
+                  {/* Private Messages label */}
+                  <div className="px-4 pt-3 pb-1.5 flex items-center justify-between">
+                    <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Private Messages</span>
+                    <Link to="/plus" onClick={handleClose} className="flex items-center gap-1 text-[10px] text-primary hover:underline font-medium">
+                      <Lock className="h-2.5 w-2.5" />Message anyone
+                    </Link>
+                  </div>
+                  {loadingConvs ? (
+                    <div className="p-3 space-y-3">{[1,2,3].map(i => <div key={i} className="flex items-center gap-3 animate-pulse"><div className="w-8 h-8 rounded-full bg-muted shrink-0" /><div className="flex-1 h-3 bg-muted rounded" /></div>)}</div>
+                  ) : conversations.filter(c => !c.is_pending_request).length === 0 ? (
+                    <div className="p-5 text-center">
+                      <p className="text-sm text-muted-foreground mb-1">No messages yet.</p>
+                      <p className="text-xs text-muted-foreground">When someone messages you, you can reply here.</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-border/30">
+                      {conversations.filter(c => !c.is_pending_request).map(conv => (
+                        <button
+                          key={conv.other_user_id}
+                          onClick={() => openDmChat({ user_id: conv.other_user_id, name: conv.other_user_name, nickname: null, picture: conv.other_user_picture })}
+                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left"
+                        >
+                          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold text-primary overflow-hidden shrink-0">
+                            {conv.other_user_picture ? <img src={conv.other_user_picture} alt="" className="w-full h-full object-cover" /> : conv.other_user_name?.[0]?.toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-1">
+                              <p className="text-sm font-medium text-foreground truncate">{conv.other_user_name}</p>
+                              {conv.unread_count > 0 && <span className="shrink-0 min-w-[16px] h-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-bold px-1">{conv.unread_count}</span>}
+                            </div>
+                            <p className="text-xs text-muted-foreground truncate">{conv.last_message?.startsWith("data:image/") ? "📷 Photo" : conv.last_message}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {/* Upgrade note */}
+                <div className="px-4 py-2.5 border-t border-border/30 bg-secondary/20 shrink-0">
+                  <p className="text-[11px] text-muted-foreground text-center">
+                    <Link to="/plus" onClick={handleClose} className="text-primary hover:underline font-medium">Village+</Link> lets you message any parent
+                  </p>
+                </div>
+              </div>
+            ) : (
+              // Chat view for free users — reply only
+              <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+                <div ref={scrollContainerRef} onScroll={() => { const el = scrollContainerRef.current; if (el) isAtBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60; }} className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
+                  {messages.map((msg, idx) => {
+                    const isOwn = (msg.author_id || msg.sender_id) === user?.user_id;
+                    return (
+                      <div key={msg.message_id || idx} className={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
+                        <div className={`max-w-[80%] px-3 py-2 text-xs rounded-2xl shadow-sm ${isOwn ? "bg-primary text-primary-foreground" : "bg-card border border-border/50 text-foreground"}`}>
+                          {msg.content}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div ref={messagesEndRef} />
+                </div>
+                <form onSubmit={handleSend} className="flex items-center gap-2 border-t border-border/50 px-3 py-2 shrink-0">
+                  <input
+                    ref={inputRef}
+                    value={newMessage}
+                    onChange={e => setNewMessage(e.target.value.slice(0, 500))}
+                    placeholder={`Reply to ${activeDmUser?.name}…`}
+                    className="flex-1 bg-secondary/50 rounded-full px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/30"
+                    disabled={sending}
+                  />
+                  <button type="submit" disabled={!newMessage.trim() || sending} className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-50 shrink-0">
+                    <Send className="h-3 w-3" />
+                  </button>
+                </form>
+              </div>
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={() => { handleOpen(); fetchConversations(); }}
+            aria-label="Messages"
+            className="flex items-center gap-2.5 pl-4 pr-5 py-3 bg-card border border-border/40 border-r-0 rounded-l-2xl text-muted-foreground shadow-md hover:text-foreground hover:border-border/70 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            data-testid="chat-popout-bubble"
+            style={{
+              boxShadow: totalUnread > 0
+                ? "0 0 0 1px hsl(var(--primary)/0.3), 0 0 12px 2px hsl(var(--primary)/0.25), 0 0 28px 4px hsl(var(--primary)/0.12)"
+                : "0 0 0 1px hsl(var(--primary)/0.12), 0 0 10px 1px hsl(var(--primary)/0.08)"
+            }}
+          >
+            <MessagesSquare className="h-5 w-5 shrink-0" />
+            <span className="text-sm font-semibold">Messages</span>
+            {totalUnread > 0 && <span className="min-w-[20px] h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center font-bold px-1.5">{totalUnread > 9 ? "9+" : totalUnread}</span>}
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div className="fixed bottom-20 right-0 lg:bottom-8 z-[100] flex flex-col items-end">
+    <div className="fixed bottom-20 right-0 lg:bottom-8 z-[100] hidden lg:flex flex-col items-end">
       {open ? (
-        <div className="mb-2 max-h-[460px] bg-card border border-border/40 border-r-0 rounded-l-2xl shadow-xl flex flex-col overflow-hidden lg:border-r lg:rounded-2xl lg:mr-4" style={{width:"288px"}}>
+        <div className="mb-2 bg-card border border-border/40 border-r-0 rounded-l-2xl shadow-xl flex flex-col overflow-hidden lg:border-r lg:rounded-2xl lg:mr-4" style={{width:"340px", height:"540px"}}>
 
           {/* Header — minimal, no icon circle */}
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/30 bg-card/95 shrink-0">
@@ -338,7 +514,7 @@ export default function ChatPopout({ user }) {
                 </button>
                 <button onClick={() => setListTab("dms")} className={`flex-1 py-2 text-xs font-medium relative transition-colors ${listTab === "dms" ? "text-primary border-b-2 border-primary" : "text-muted-foreground hover:text-foreground"}`}>
                   Messages
-                  {dmRequests.some(c => c.unread_count > 0) && <span className="absolute top-1.5 right-3 w-1.5 h-1.5 rounded-full bg-red-500" />}
+                  {conversations.some(c => (c.unread_count || 0) > 0) && <span className="absolute top-1.5 right-3 w-1.5 h-1.5 rounded-full bg-red-500" />}
                 </button>
                 <button onClick={() => setListTab("search")} className={`flex-1 py-2 text-xs font-medium transition-colors ${listTab === "search" ? "text-primary border-b-2 border-primary" : "text-muted-foreground hover:text-foreground"}`}>
                   Search
@@ -378,35 +554,76 @@ export default function ChatPopout({ user }) {
                 )}
 
                 {/* DMs tab */}
-                {listTab === "dms" && (
-                  loadingConvs ? (
-                    <div className="p-3 space-y-3">{[1,2,3].map(i => <div key={i} className="flex items-center gap-3 animate-pulse"><div className="w-8 h-8 rounded-full bg-muted shrink-0" /><div className="flex-1 h-3 bg-muted rounded" /></div>)}</div>
-                  ) : conversations.length === 0 ? (
-                    <div className="p-5 text-center">
-                      <p className="text-sm text-muted-foreground">No messages yet.</p>
-                      <button onClick={() => setListTab("search")} className="text-xs text-primary hover:underline mt-1 block mx-auto">Message someone →</button>
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-border/30">
-                      {dmRequests.length > 0 && (
-                        <div className="px-3 py-1.5 bg-secondary/40">
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Message Requests</p>
+                {listTab === "dms" && (() => {
+                  const INBOX_FILTERS = [
+                    { id: "all",     label: "All" },
+                    { id: "friends", label: "Friends" },
+                    { id: "stall",   label: "Stall" },
+                    { id: "events",  label: "Events" },
+                  ];
+                  const filtered = conversations.filter(c => {
+                    if (inboxFilter === "friends") return c.conversation_type === "friend_dm" || friendIds.has(c.other_user_id);
+                    if (inboxFilter === "stall")   return c.conversation_type === "stall";
+                    if (inboxFilter === "events")  return c.conversation_type === "event";
+                    return true;
+                  });
+                  const hasUnreadFor = (fId) => conversations.filter(c => {
+                    if (fId === "friends") return c.conversation_type === "friend_dm" || friendIds.has(c.other_user_id);
+                    if (fId === "stall")   return c.conversation_type === "stall";
+                    if (fId === "events")  return c.conversation_type === "event";
+                    return true;
+                  }).some(c => (c.unread_count || 0) > 0);
+                  return (
+                    <>
+                      {/* Section label */}
+                      <div className="px-4 pt-3 pb-1">
+                        <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Private Messages</span>
+                      </div>
+                      {/* Filter pills */}
+                      <div className="flex gap-1.5 px-3 py-2 border-b border-border/30 overflow-x-auto shrink-0">
+                        {INBOX_FILTERS.map(f => (
+                          <button key={f.id} onClick={() => setInboxFilter(f.id)}
+                            className={`relative flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium whitespace-nowrap transition-colors shrink-0 ${
+                              inboxFilter === f.id ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"
+                            }`}>
+                            {f.label}
+                            {inboxFilter !== f.id && hasUnreadFor(f.id) && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                      {/* Conversation list */}
+                      {loadingConvs ? (
+                        <div className="p-3 space-y-3">{[1,2,3].map(i => <div key={i} className="flex items-center gap-3 animate-pulse"><div className="w-8 h-8 rounded-full bg-muted shrink-0" /><div className="flex-1 h-3 bg-muted rounded" /></div>)}</div>
+                      ) : filtered.length === 0 ? (
+                        <div className="p-5 text-center">
+                          {inboxFilter === "all" ? (
+                            <>
+                              <p className="text-sm text-muted-foreground">No messages yet.</p>
+                              <button onClick={() => setListTab("search")} className="text-xs text-primary hover:underline mt-1 block mx-auto">Message someone →</button>
+                            </>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">No {inboxFilter} messages yet.</p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-border/30">
+                          {filtered.map(conv => {
+                            const isStall = conv.conversation_type === "stall";
+                            const isEvent = conv.conversation_type === "event";
+                            const handleClick = () => {
+                              if (isStall) { handleClose(); navigate("/messages?tab=stall"); }
+                              else if (isEvent) { handleClose(); navigate("/messages?tab=events"); }
+                              else openDmChat({ user_id: conv.other_user_id, name: conv.other_user_name, nickname: null, picture: conv.other_user_picture });
+                            };
+                            return <PopoutDmRow key={conv.other_user_id || conv.conversation_id || conv.room_id} conv={conv} onClick={handleClick} />;
+                          })}
                         </div>
                       )}
-                      {dmRequests.map(conv => (
-                        <PopoutDmRow key={conv.other_user_id} conv={conv} onClick={() => openDmChat({ user_id: conv.other_user_id, name: conv.other_user_name, nickname: null, picture: conv.other_user_picture })} />
-                      ))}
-                      {dmRequests.length > 0 && conversations.some(c => friendIds.has(c.other_user_id)) && (
-                        <div className="px-3 py-1.5 bg-secondary/40">
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">From Friends</p>
-                        </div>
-                      )}
-                      {conversations.filter(c => friendIds.has(c.other_user_id)).map(conv => (
-                        <PopoutDmRow key={conv.other_user_id} conv={conv} onClick={() => openDmChat({ user_id: conv.other_user_id, name: conv.other_user_name, nickname: null, picture: conv.other_user_picture })} />
-                      ))}
-                    </div>
-                  )
-                )}
+                    </>
+                  );
+                })()}
 
                 {/* Search tab */}
                 {listTab === "search" && (
@@ -451,7 +668,14 @@ export default function ChatPopout({ user }) {
           {/* Chat view */}
           {view === "chat" && (
             <>
-              <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
+              <div
+                ref={scrollContainerRef}
+                onScroll={() => {
+                  const el = scrollContainerRef.current;
+                  if (el) isAtBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+                }}
+                className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0"
+              >
                 {messages.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">No messages yet. Say hi!</p>}
                 {messages.map((msg, idx) => {
                   const isOwn = (msg.author_id || msg.sender_id) === user?.user_id;
@@ -490,13 +714,18 @@ export default function ChatPopout({ user }) {
         <button
           onClick={handleOpen}
           aria-label={totalUnread > 0 ? `Messages — ${totalUnread} unread` : "Messages"}
-          className="flex items-center gap-2 pl-3 pr-4 py-2 bg-card border border-border/40 border-r-0 rounded-l-xl text-muted-foreground shadow-md hover:text-foreground hover:border-border/70 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          className="flex items-center gap-2.5 pl-4 pr-5 py-3 bg-card border border-border/40 border-r-0 rounded-l-2xl text-muted-foreground shadow-lg hover:text-foreground hover:border-border/70 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
           data-testid="chat-popout-bubble"
+          style={{
+            boxShadow: totalUnread > 0
+              ? "0 0 0 1px hsl(var(--primary)/0.35), 0 0 14px 3px hsl(var(--primary)/0.28), 0 0 32px 6px hsl(var(--primary)/0.13)"
+              : "0 0 0 1px hsl(var(--primary)/0.14), 0 0 12px 2px hsl(var(--primary)/0.09)"
+          }}
         >
-          <MessagesSquare className="h-4 w-4 shrink-0" />
-          <span className="text-xs font-medium">Messages</span>
+          <MessagesSquare className="h-5 w-5 shrink-0" />
+          <span className="text-sm font-semibold">Messages</span>
           {totalUnread > 0 && (
-            <span className="min-w-[16px] h-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-bold px-1">
+            <span className="min-w-[20px] h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold px-1.5">
               {totalUnread > 9 ? "9+" : totalUnread}
             </span>
           )}
@@ -507,21 +736,38 @@ export default function ChatPopout({ user }) {
 }
 
 function PopoutDmRow({ conv, onClick }) {
+  const isStall = conv.conversation_type === "stall";
+  const isEvent = conv.conversation_type === "event";
+  const avatarIcon = isStall ? "🛒" : isEvent ? "🎉" : null;
+  const subtitle = isStall
+    ? (conv.listing_title || conv.last_message)
+    : isEvent
+    ? (conv.event_title || conv.last_message)
+    : conv.last_message;
+
   return (
     <button onClick={onClick} className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-secondary/50 transition-colors text-left">
       <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold text-primary overflow-hidden shrink-0">
-        {conv.other_user_picture ? <img src={conv.other_user_picture} alt="" className="w-full h-full object-cover" /> : conv.other_user_name?.[0]?.toUpperCase()}
+        {avatarIcon
+          ? <span className="text-base">{avatarIcon}</span>
+          : conv.other_user_picture
+          ? <img src={conv.other_user_picture} alt="" className="w-full h-full object-cover" />
+          : conv.other_user_name?.[0]?.toUpperCase()}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-1">
-          <p className="text-sm font-medium text-foreground truncate">{conv.other_user_name}</p>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <p className="text-sm font-medium text-foreground truncate">{conv.other_user_name}</p>
+            {isStall && <span className="shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">Stall</span>}
+            {isEvent && <span className="shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400">Event</span>}
+          </div>
           {conv.unread_count > 0 && (
             <span className="shrink-0 min-w-[16px] h-4 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold px-1">
               {conv.unread_count}
             </span>
           )}
         </div>
-        <p className="text-xs text-muted-foreground truncate">{conv.last_message}</p>
+        <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
       </div>
     </button>
   );

@@ -8,8 +8,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
 import { BookOpen, Sparkles, Eye, Clock, Tag, PenLine } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import { timeAgoVerbose } from "../utils/dateHelpers";
+import { parseApiError } from "../utils/apiError";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -18,13 +19,7 @@ function readTime(content = "") {
   return Math.max(1, Math.round(words / 200));
 }
 
-function formatDate(dateString) {
-  try {
-    return formatDistanceToNow(new Date(dateString), { addSuffix: true });
-  } catch {
-    return "recently";
-  }
-}
+const formatDate = timeAgoVerbose;
 
 function WriteArticleDialog({ onSubmitted }) {
   const [open, setOpen] = useState(false);
@@ -56,7 +51,7 @@ function WriteArticleDialog({ onSubmitted }) {
         if (onSubmitted) onSubmitted();
       } else {
         const err = await res.json();
-        toast.error(err.detail || "Submission failed");
+        toast.error(parseApiError(err.detail, "Submission failed"));
       }
     } catch {
       toast.error("Something went wrong");
@@ -175,7 +170,7 @@ export default function Blog({ user }) {
         toast.success("New blog post generated!");
       } else {
         const err = await res.json();
-        toast.error(err.detail || "Generation failed");
+        toast.error(parseApiError(err.detail, "Generation failed"));
       }
     } catch {
       toast.error("Something went wrong");
@@ -191,10 +186,10 @@ export default function Blog({ user }) {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pb-0">
+    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
       <Navigation user={user} />
 
-      <main className="max-w-4xl mx-auto px-4 pt-20 lg:pt-24">
+      <main className="max-w-4xl mx-auto px-4 pt-16 lg:pt-8">
         {/* Header */}
         <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
           <div>
@@ -229,7 +224,7 @@ export default function Blog({ user }) {
             ))}
           </div>
         ) : posts.length === 0 ? (
-          <div className="text-center py-16 bg-card rounded-2xl border border-border/50">
+          <div className="text-center py-16 village-card">
             <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="font-heading font-semibold text-foreground mb-2">No posts yet</h3>
             <p className="text-sm text-muted-foreground mb-4">
@@ -250,7 +245,7 @@ export default function Blog({ user }) {
               <Link key={post.blog_id || idx} to={`/blog/${post.slug}`} className="block">
                 {idx === 0 ? (
                   /* Featured / hero card for the first post */
-                  <article className="bg-card rounded-2xl border border-border/40 card-elevated border-l-4 border-l-primary/60 hover:shadow-md hover:border-l-primary transition-all overflow-hidden">
+                  <article className="village-card village-card-hover border-l-4 border-l-primary/60 hover:border-l-primary overflow-hidden">
                     <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent px-6 py-5">
                       <div className="flex items-center gap-2 mb-3">
                         <span className="text-xs font-semibold uppercase tracking-widest text-primary/80">Featured</span>

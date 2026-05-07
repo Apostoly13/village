@@ -55,10 +55,10 @@ export default function Suggestions({ user }) {
   const charsLeft = CHAR_LIMIT - form.description.length;
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pb-0">
+    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
       <Navigation user={user} />
 
-      <main className="max-w-3xl mx-auto px-4 pt-20 lg:pt-24">
+      <main className="max-w-3xl mx-auto px-4 pt-16 lg:pt-8">
         <Link
           to="/dashboard"
           className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors"

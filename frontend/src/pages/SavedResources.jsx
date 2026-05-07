@@ -4,9 +4,10 @@ import { Button } from "../components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import Navigation from "../components/Navigation";
 import { Bookmark, Heart, MessageCircle, Eye, Clock, Trash2, MessageSquare, Calendar, BookOpen, MapPin, Users, Check } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import AppFooter from "../components/AppFooter";
+import { CATEGORY_STYLES, CATEGORY_LABELS } from "../utils/eventCategories";
+import { timeAgoVerbose, formatEventDate } from "../utils/dateHelpers";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -16,42 +17,7 @@ const TABS = [
   { id: "events", label: "Events" },
 ];
 
-const CATEGORY_STYLES = {
-  general: "bg-secondary text-secondary-foreground",
-  playgroup: "bg-green-500/10 text-green-600",
-  meetup: "bg-blue-500/10 text-blue-600",
-  workshop: "bg-purple-500/10 text-purple-600",
-  support: "bg-pink-500/10 text-pink-600",
-};
-
-const CATEGORY_LABELS = {
-  general: "General",
-  playgroup: "Playgroup",
-  meetup: "Meetup",
-  workshop: "Workshop",
-  support: "Support",
-};
-
-function formatDate(dateString) {
-  try {
-    return formatDistanceToNow(new Date(dateString), { addSuffix: true });
-  } catch {
-    return "recently";
-  }
-}
-
-function formatEventDate(dateStr) {
-  try {
-    const [year, month, day] = dateStr.split("-").map(Number);
-    const d = new Date(year, month - 1, day);
-    return {
-      day: d.getDate(),
-      month: d.toLocaleString("en-AU", { month: "short" }),
-    };
-  } catch {
-    return { day: "?", month: "???" };
-  }
-}
+const formatDate = timeAgoVerbose;
 
 // Posts tab
 function PostsTab() {
@@ -413,10 +379,10 @@ export default function SavedResources({ user }) {
   const [activeTab, setActiveTab] = useState("posts");
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pb-8">
+    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-8">
       <Navigation user={user} />
 
-      <main className="max-w-4xl mx-auto px-4 pt-20 lg:pt-24">
+      <main className="max-w-4xl mx-auto px-4 pt-16 lg:pt-8">
         {/* Header */}
         <div className="mb-6">
           <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-1 flex items-center gap-2">

@@ -24,9 +24,13 @@ import {
 } from "../components/ui/dropdown-menu";
 import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
+import MarkdownContent from "../components/MarkdownContent";
+import MarkdownToolbar from "../components/MarkdownToolbar";
 import { toast } from "sonner";
-import { ArrowLeft, Heart, MessageCircle, Eye, Clock, Send, Bookmark, BookmarkCheck, MoreVertical, Edit2, Trash2, Flag, Reply, MapPin, Crown } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { ArrowLeft, Heart, MessageCircle, Eye, Clock, Send, Bookmark, BookmarkCheck, MoreVertical, Edit2, Trash2, Flag, Reply, MapPin, Crown, X } from "lucide-react";
+import VerifiedBadge from "../components/VerifiedBadge";
+import { parseApiError } from "../utils/apiError";
+import { timeAgoVerbose } from "../utils/dateHelpers";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 const MAX_CONTENT_LENGTH = 5000;
@@ -38,8 +42,12 @@ export default function ForumPost({ user }) {
   const [post, setPost] = useState(null);
   const [replies, setReplies] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Bottom (top-level) reply form state
   const [replyContent, setReplyContent] = useState("");
   const replyTextareaRef = useRef(null);
+  // Inline (threaded) reply form state — separate so bottom box stays accessible when a thread is collapsed
+  const [inlineReplyContent, setInlineReplyContent] = useState("");
+  const inlineReplyRef = useRef(null);
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
@@ -52,10 +60,20 @@ export default function ForumPost({ user }) {
   const [editReplyContent, setEditReplyContent] = useState("");
   
   const [subscription, setSubscription] = useState(null);
+  const [crisisDismissed, setCrisisDismissed] = useState(false);
+
+  // Collapsible threads
+  const [collapsedThreads, setCollapsedThreads] = useState(new Set());
+  const toggleCollapse = (replyId) => setCollapsedThreads(prev => {
+    const next = new Set(prev);
+    next.has(replyId) ? next.delete(replyId) : next.add(replyId);
+    return next;
+  });
 
   // Modal states
   const [deletePostModal, setDeletePostModal] = useState(false);
   const [deleteReplyId, setDeleteReplyId] = useState(null);
+  const [lightboxImage, setLightboxImage] = useState(null);
   const [reportModal, setReportModal] = useState(false);
   const [reportTarget, setReportTarget] = useState(null);
   const [reportReason, setReportReason] = useState("");
@@ -63,7 +81,6 @@ export default function ForumPost({ user }) {
 
   useEffect(() => {
     fetchData();
-    fetchSubscription();
   }, [postId]);
 
   const fetchSubscription = async () => {
@@ -75,9 +92,11 @@ export default function ForumPost({ user }) {
 
   const fetchData = async () => {
     try {
-      const [postRes, repliesRes] = await Promise.all([
+      // All three fetches run in parallel
+      const [postRes, repliesRes, subRes] = await Promise.all([
         fetch(`${API_URL}/api/forums/posts/${postId}`, { credentials: "include" }),
-        fetch(`${API_URL}/api/forums/posts/${postId}/replies`, { credentials: "include" })
+        fetch(`${API_URL}/api/forums/posts/${postId}/replies`, { credentials: "include" }),
+        fetch(`${API_URL}/api/subscription/status`, { credentials: "include" }),
       ]);
 
       if (postRes.ok) {
@@ -87,6 +106,7 @@ export default function ForumPost({ user }) {
         setEditContent(postData.content);
       }
       if (repliesRes.ok) setReplies(await repliesRes.json());
+      if (subRes.ok) setSubscription(await subRes.json());
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -148,10 +168,35 @@ export default function ForumPost({ user }) {
     }
   };
 
-  const handleReply = async (e) => {
+  // Auto-continue list items when pressing Enter inside a bullet or numbered list
+  const handleListKeyDown = (e, value, setValue) => {
+    if (e.key !== "Enter" || e.shiftKey) return;
+    const el = e.target;
+    const cursor = el.selectionStart;
+    const lineStart = value.lastIndexOf("\n", cursor - 1) + 1;
+    const lineText = value.slice(lineStart, cursor);
+    const bulletMatch = lineText.match(/^(\s*)([-*]|\d+\.) /);
+    if (!bulletMatch) return;
     e.preventDefault();
-    if (!replyContent.trim()) return;
+    const [full, indent, marker] = bulletMatch;
+    const afterPrefix = lineText.slice(full.length);
+    if (!afterPrefix.trim()) {
+      // Empty bullet — exit the list
+      const newValue = value.slice(0, lineStart) + "\n" + value.slice(cursor);
+      setValue(newValue.slice(0, MAX_CONTENT_LENGTH));
+      setTimeout(() => { el.setSelectionRange(lineStart + 1, lineStart + 1); }, 0);
+    } else {
+      // Continue the list with the next item
+      const nextMarker = /\d+\./.test(marker) ? `${parseInt(marker) + 1}.` : marker;
+      const insert = `\n${indent}${nextMarker} `;
+      const newValue = value.slice(0, cursor) + insert + value.slice(el.selectionEnd);
+      setValue(newValue.slice(0, MAX_CONTENT_LENGTH));
+      setTimeout(() => { el.setSelectionRange(cursor + insert.length, cursor + insert.length); }, 0);
+    }
+  };
 
+  // Shared post-reply logic to avoid duplication
+  const _postReply = async (content, parentReplyId, onSuccess) => {
     setSubmitting(true);
     try {
       const response = await fetch(`${API_URL}/api/forums/posts/${postId}/replies`, {
@@ -159,22 +204,24 @@ export default function ForumPost({ user }) {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          content: replyContent,
+          content,
           is_anonymous: isAnonymous,
-          parent_reply_id: replyingTo?.reply_id || null
+          parent_reply_id: parentReplyId || null
         })
       });
 
       if (response.ok) {
         const newReply = await response.json();
+        // Server doesn't enrich create-reply response with is_own_reply, so set it here
+        newReply.is_own_reply = true;
         setReplies(prev => [...prev, newReply]);
-        setReplyContent("");
-        if (replyTextareaRef.current) replyTextareaRef.current.style.height = '';
-        setIsAnonymous(false);
-        setReplyingTo(null);
         setPost(prev => ({ ...prev, reply_count: (prev.reply_count || 0) + 1 }));
+        setSubscription(prev => prev ? {
+          ...prev,
+          usage: { ...prev.usage, replies_this_week: (prev.usage?.replies_this_week || 0) + 1 }
+        } : prev);
+        onSuccess?.();
         toast.success("Reply posted!");
-        fetchSubscription();
       } else if (response.status === 429) {
         const err = await response.json();
         toast.error(err.detail?.message || "Daily reply limit reached");
@@ -187,6 +234,29 @@ export default function ForumPost({ user }) {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // Bottom form — always top-level (parent_reply_id: null)
+  const handleReply = async (e) => {
+    e.preventDefault();
+    if (!replyContent.trim()) return;
+    await _postReply(replyContent, null, () => {
+      setReplyContent("");
+      setIsAnonymous(false);
+      if (replyTextareaRef.current) replyTextareaRef.current.style.height = '';
+    });
+  };
+
+  // Inline form — threaded reply to a specific reply
+  const handleInlineReply = async (e) => {
+    e.preventDefault();
+    if (!inlineReplyContent.trim()) return;
+    await _postReply(inlineReplyContent, replyingTo?.reply_id, () => {
+      setInlineReplyContent("");
+      setIsAnonymous(false);
+      setReplyingTo(null);
+      if (inlineReplyRef.current) inlineReplyRef.current.style.height = '';
+    });
   };
 
   const handleEditPost = async () => {
@@ -298,7 +368,7 @@ export default function ForumPost({ user }) {
         toast.success("Report submitted. Thank you for helping keep our community safe.");
       } else {
         const error = await response.json();
-        toast.error(error.detail || "Failed to submit report");
+        toast.error(parseApiError(error.detail, "Failed to submit report"));
       }
     } catch (error) {
       toast.error("Something went wrong");
@@ -309,13 +379,7 @@ export default function ForumPost({ user }) {
     setReportDetails("");
   };
 
-  const formatDate = (dateString) => {
-    try {
-      return formatDistanceToNow(new Date(dateString), { addSuffix: true });
-    } catch {
-      return "recently";
-    }
-  };
+  const formatDate = timeAgoVerbose;
 
   // Organize replies into threads
   const topLevelReplies = replies.filter(r => !r.parent_reply_id);
@@ -324,6 +388,7 @@ export default function ForumPost({ user }) {
   const renderReply = (reply, depth = 0) => {
     const childReplies = getChildReplies(reply.reply_id);
     const isEditing = editingReplyId === reply.reply_id;
+    const isCollapsed = collapsedThreads.has(reply.reply_id);
 
     // Use global position in the flat replies array so every reply alternates reliably
     const globalIndex = replies.findIndex(r => r.reply_id === reply.reply_id);
@@ -333,7 +398,7 @@ export default function ForumPost({ user }) {
     return (
       <div key={reply.reply_id} className={depth > 0 ? 'ml-4 border-l-2 border-primary/40 pl-3' : 'border-l-2 border-l-primary/20 pl-3 rounded-l-sm'}>
         <div
-          className={`${bgClass} rounded-2xl p-4 border mb-3 ${isEven ? 'border-border/40' : 'border-primary/20'}`}
+          className={`${bgClass} rounded-[18px] p-4 border mb-3 ${isEven ? 'border-border/40' : 'border-primary/20'}`}
           data-testid={`reply-${reply.reply_id}`}
         >
           <div className="flex items-start gap-3">
@@ -352,12 +417,26 @@ export default function ForumPost({ user }) {
               </Avatar>
             )}
             <div className="flex-1 min-w-0 overflow-hidden">
-              <div className="flex items-center justify-between mb-2">
+              {/* Header row — always visible, tappable on mobile to collapse */}
+              <div
+                className="flex items-center justify-between mb-2 cursor-pointer sm:cursor-default"
+                onClick={() => { if (window.innerWidth < 640) toggleCollapse(reply.reply_id); }}
+              >
                 <div className="flex items-center gap-2 flex-wrap">
+                  {/* Desktop collapse toggle */}
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); toggleCollapse(reply.reply_id); }}
+                    className="hidden sm:inline-flex items-center justify-center w-4 h-4 rounded text-[10px] font-bold leading-none text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors select-none shrink-0"
+                    title={isCollapsed ? "Expand thread" : "Collapse thread"}
+                  >
+                    {isCollapsed ? '+' : '−'}
+                  </button>
                   {reply.author_id !== "anonymous" ? (
-                    <Link to={`/profile/${reply.author_id}`} className="hover:underline flex items-center gap-1">
+                    <Link to={`/profile/${reply.author_id}`} className="hover:underline flex items-center gap-1 flex-wrap" onClick={e => e.stopPropagation()}>
                       <span className="font-medium text-foreground hover:text-primary transition-colors">{reply.author_name}</span>
                       {reply.author_subscription_tier === "premium" && !reply.is_anonymous && <Crown className="h-3 w-3 text-amber-500" />}
+                      {reply.author_is_verified_partner && !reply.is_anonymous && <VerifiedBadge occupation={reply.author_professional_type} />}
                     </Link>
                   ) : (
                     <span className="font-medium text-foreground">{reply.author_name}</span>
@@ -368,6 +447,9 @@ export default function ForumPost({ user }) {
                   <span className="text-xs text-muted-foreground">•</span>
                   <span className="text-xs text-muted-foreground">{formatDate(reply.created_at)}</span>
                   {reply.is_edited && <span className="text-xs text-muted-foreground">(edited)</span>}
+                  {isCollapsed && childReplies.length > 0 && (
+                    <span className="text-xs text-muted-foreground ml-1">· {childReplies.length} {childReplies.length === 1 ? 'reply' : 'replies'} hidden</span>
+                  )}
                 </div>
                 
                 <DropdownMenu>
@@ -398,7 +480,7 @@ export default function ForumPost({ user }) {
                 </DropdownMenu>
               </div>
               
-              {isEditing ? (
+              {!isCollapsed && (isEditing ? (
                 <div className="space-y-3">
                   <Textarea
                     value={editReplyContent}
@@ -411,62 +493,66 @@ export default function ForumPost({ user }) {
                   </div>
                 </div>
               ) : (
-                <p className="text-foreground whitespace-pre-wrap break-words overflow-hidden">{reply.content}</p>
-              )}
+                <MarkdownContent content={reply.content} className="text-sm" />
+              ))}
               
-              <div className="flex items-center gap-3 mt-3">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleLikeReply(reply.reply_id)}
-                  className={`rounded-full h-8 px-3 ${reply.user_liked ? 'text-red-500' : 'text-muted-foreground'}`}
-                >
-                  <Heart className={`h-4 w-4 mr-1 ${reply.user_liked ? 'fill-current' : ''}`} />
-                  {reply.like_count || 0}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    if (replyingTo?.reply_id === reply.reply_id) {
-                      setReplyingTo(null);
-                      setReplyContent("");
-                      if (replyTextareaRef.current) replyTextareaRef.current.style.height = '';
-                    } else {
-                      setReplyingTo(reply);
-                      setReplyContent("");
-                    }
-                  }}
-                  className={`rounded-full h-8 px-3 ${replyingTo?.reply_id === reply.reply_id ? 'text-primary' : 'text-muted-foreground'}`}
-                >
-                  <Reply className="h-4 w-4 mr-1" />
-                  {replyingTo?.reply_id === reply.reply_id ? 'Cancel' : 'Reply'}
-                </Button>
-              </div>
+              {!isCollapsed && (
+                <div className="flex items-center gap-3 mt-3">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleLikeReply(reply.reply_id)}
+                    className={`rounded-full h-8 px-3 ${reply.user_liked ? 'text-red-500' : 'text-muted-foreground'}`}
+                  >
+                    <Heart className={`h-4 w-4 mr-1 ${reply.user_liked ? 'fill-current' : ''}`} />
+                    {reply.like_count || 0}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      if (replyingTo?.reply_id === reply.reply_id) {
+                        setReplyingTo(null);
+                        setInlineReplyContent("");
+                        if (inlineReplyRef.current) inlineReplyRef.current.style.height = '';
+                      } else {
+                        setReplyingTo(reply);
+                        setInlineReplyContent("");
+                      }
+                    }}
+                    className={`rounded-full h-8 px-3 ${replyingTo?.reply_id === reply.reply_id ? 'text-primary' : 'text-muted-foreground'}`}
+                  >
+                    <Reply className="h-4 w-4 mr-1" />
+                    {replyingTo?.reply_id === reply.reply_id ? 'Cancel' : 'Reply'}
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Inline reply form — appears directly below this reply */}
-        {replyingTo?.reply_id === reply.reply_id && (
+        {/* Inline reply form — appears directly below this reply, uses own state so bottom box stays accessible */}
+        {!isCollapsed && replyingTo?.reply_id === reply.reply_id && (
           <div className="mt-1 mb-3 ml-4 pl-3 border-l-2 border-primary/40">
-            <form onSubmit={handleReply} className="bg-card rounded-2xl p-4 border border-border/40 space-y-3">
-              <div className="relative">
+            <form onSubmit={handleInlineReply} className="village-card overflow-hidden p-0 space-y-0">
+              <MarkdownToolbar textareaRef={inlineReplyRef} value={inlineReplyContent} onChange={(v) => setInlineReplyContent(v.slice(0, MAX_CONTENT_LENGTH))} />
+              <div className="relative p-4 pb-3">
                 <Textarea
-                  ref={replyTextareaRef}
-                  value={replyContent}
+                  ref={inlineReplyRef}
+                  value={inlineReplyContent}
                   onChange={(e) => {
-                    setReplyContent(e.target.value.slice(0, MAX_CONTENT_LENGTH));
+                    setInlineReplyContent(e.target.value.slice(0, MAX_CONTENT_LENGTH));
                     const el = e.target;
                     el.style.height = 'auto';
                     el.style.height = el.scrollHeight + 'px';
                   }}
+                  onKeyDown={(e) => handleListKeyDown(e, inlineReplyContent, setInlineReplyContent)}
                   placeholder={`Reply to ${reply.author_name}...`}
-                  className="min-h-[44px] bg-secondary/50 border-transparent focus:border-primary rounded-xl text-sm"
+                  className="min-h-[44px] bg-transparent border-transparent focus:border-transparent shadow-none text-sm resize-none"
                   style={{ overflow: 'hidden', resize: 'none' }}
                   autoFocus
                 />
-                <span className="absolute bottom-2 right-2 text-xs text-muted-foreground">{replyContent.length}/{MAX_CONTENT_LENGTH}</span>
+                <span className="absolute bottom-2 right-4 text-xs text-muted-foreground">{inlineReplyContent.length}/{MAX_CONTENT_LENGTH}</span>
               </div>
               {subscription?.limits_apply && subscription?.forum_replies && (
                 <Link to="/plus" className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors mb-1">
@@ -474,7 +560,7 @@ export default function ForumPost({ user }) {
                   {subscription.forum_replies.limit - subscription.forum_replies.used}/{subscription.forum_replies.limit} replies today
                 </Link>
               )}
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between px-4 pb-4">
                 <div className="flex items-center gap-2">
                   <Checkbox
                     id={`anon-inline-${reply.reply_id}`}
@@ -486,7 +572,7 @@ export default function ForumPost({ user }) {
                 <Button
                   type="submit"
                   size="sm"
-                  disabled={submitting || !replyContent.trim() || (subscription?.limits_apply && subscription?.forum_replies && !subscription.forum_replies.allowed)}
+                  disabled={submitting || !inlineReplyContent.trim() || (subscription?.limits_apply && subscription?.forum_replies && !subscription.forum_replies.allowed)}
                   className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl h-8 text-xs"
                 >
                   {submitting ? "Posting..." : <><Send className="h-3 w-3 mr-1" />Post Reply</>}
@@ -496,19 +582,19 @@ export default function ForumPost({ user }) {
           </div>
         )}
 
-        {childReplies.map(child => renderReply(child, depth + 1))}
+        {!isCollapsed && childReplies.map(child => renderReply(child, depth + 1))}
       </div>
     );
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background pb-20 lg:pb-0">
+      <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
         <Navigation user={user} />
-        <main className="max-w-4xl mx-auto px-4 pt-20 lg:pt-24">
+        <main className="max-w-4xl mx-auto px-4 pt-16 lg:pt-8">
           <div className="animate-pulse space-y-6">
             <div className="h-6 w-32 bg-muted rounded"></div>
-            <div className="bg-card rounded-2xl p-6 border border-border/50 space-y-4">
+            <div className="village-card p-6 space-y-4">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-muted"></div>
                 <div className="space-y-2">
@@ -527,15 +613,15 @@ export default function ForumPost({ user }) {
 
   if (!post) {
     return (
-      <div className="min-h-screen bg-background pb-20 lg:pb-0">
+      <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
         <Navigation user={user} />
-        <main className="max-w-4xl mx-auto px-4 pt-20 lg:pt-24">
-          <div className="text-center py-16 bg-card rounded-2xl border border-border/40 card-elevated">
+        <main className="max-w-4xl mx-auto px-4 pt-16 lg:pt-8">
+          <div className="text-center py-16 village-card">
             <span className="text-4xl mb-4 block">🔍</span>
             <h1 className="font-heading text-xl font-bold text-foreground mb-2">Post not found</h1>
             <p className="text-sm text-muted-foreground mb-6">This post may have been removed or the link is incorrect.</p>
             <Link to="/forums">
-              <Button className="rounded-xl">Back to Support Spaces</Button>
+              <Button className="rounded-xl">Back to Spaces</Button>
             </Link>
           </div>
         </main>
@@ -544,21 +630,52 @@ export default function ForumPost({ user }) {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pb-0">
+    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
       <Navigation user={user} />
       
-      <main className="max-w-4xl mx-auto px-4 pt-20 lg:pt-24">
-        <Link
-          to={post?.category_id ? `/forums/${post.category_id}` : "/forums"}
+      <main className="max-w-4xl mx-auto px-4 pt-16 lg:pt-8">
+        <button
+          onClick={() => navigate(post?.category_id ? `/forums/${post.category_id}` : -1)}
           className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors"
           data-testid="back-link"
         >
           <ArrowLeft className="h-4 w-4" />
-          {post?.category_name || "Support Spaces"}
-        </Link>
+          {post?.category_name ? `Back to ${post.category_name}` : "Back to Spaces"}
+        </button>
+
+        {/* ── Crisis support banner (mental-health categories only) ── */}
+        {!crisisDismissed && (() => {
+          const name = (post.category_name || "").toLowerCase();
+          const id   = (post.category_id   || "").toLowerCase();
+          const keywords = ["mental health", "wellbeing", "anxiety", "depression", "postnatal", "perinatal", "emotional", "mum", "parent well"];
+          if (!keywords.some(kw => name.includes(kw) || id.includes(kw))) return null;
+          return (
+            <div className="mb-5 rounded-2xl bg-sky-500/5 border border-sky-500/20 p-4 flex items-start gap-3">
+              <span className="text-xl shrink-0">💙</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground mb-1">Support is available — you're not alone</p>
+                <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                  If you're in crisis or need to talk to someone right now, these free services are available 24/7:
+                </p>
+                <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs">
+                  <a href="tel:1300726306" className="font-semibold text-sky-600 dark:text-sky-400 hover:underline">PANDA — 1300 726 306</a>
+                  <a href="tel:131114"     className="font-semibold text-sky-600 dark:text-sky-400 hover:underline">Lifeline — 13 11 14</a>
+                  <a href="tel:1300224636" className="font-semibold text-sky-600 dark:text-sky-400 hover:underline">Beyond Blue — 1300 22 4636</a>
+                </div>
+              </div>
+              <button
+                onClick={() => setCrisisDismissed(true)}
+                className="text-muted-foreground hover:text-foreground shrink-0 p-0.5 transition-colors"
+                aria-label="Dismiss"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          );
+        })()}
 
         {/* Main Post */}
-        <article className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20 mb-6" data-testid="post-content">
+        <article className="village-card p-6 border-l-2 border-l-primary/20 mb-6" data-testid="post-content">
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
               {post.author_id !== "anonymous" ? (
@@ -578,9 +695,10 @@ export default function ForumPost({ user }) {
               <div>
                 {post.author_id !== "anonymous" ? (
                   <Link to={`/profile/${post.author_id}`} className="hover:underline">
-                    <p className="font-medium text-foreground hover:text-primary transition-colors flex items-center gap-1">
+                    <p className="font-medium text-foreground hover:text-primary transition-colors flex items-center gap-1 flex-wrap">
                       {post.author_name}
                       {post.author_subscription_tier === "premium" && !post.is_anonymous && <Crown className="h-3 w-3 text-amber-500" />}
+                      {post.author_is_verified_partner && !post.is_anonymous && <VerifiedBadge occupation={post.author_professional_type} />}
                     </p>
                   </Link>
                 ) : (
@@ -653,7 +771,12 @@ export default function ForumPost({ user }) {
             </div>
           ) : (
             <>
-              <h1 className="font-heading text-2xl font-bold text-foreground mb-4">{post.title}</h1>
+              <h1
+                className="text-2xl sm:text-3xl font-medium leading-snug mb-4"
+                style={{ fontFamily: "var(--serif)", letterSpacing: "-0.025em", color: "var(--ink)" }}
+              >
+                {post.title}
+              </h1>
               {(post.suburb || post.postcode) && (
                 <div className="flex items-center gap-1 text-sm text-muted-foreground mb-3" data-testid="post-location-badge">
                   <MapPin className="h-4 w-4 text-primary" />
@@ -661,14 +784,14 @@ export default function ForumPost({ user }) {
                   {post.state && <span className="text-xs">({post.state})</span>}
                 </div>
               )}
-              <p className="text-foreground whitespace-pre-wrap break-words overflow-hidden mb-4">{post.content}</p>
+              <MarkdownContent content={post.content} className="mb-4" />
               {post.image && (
                 <div className="mb-6 rounded-xl overflow-hidden border border-border/50">
                   <img 
                     src={post.image} 
                     alt="Post attachment" 
-                    className="w-full max-h-96 object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                    onClick={() => window.open(post.image, '_blank')}
+                    className="w-full max-h-96 object-cover cursor-zoom-in hover:opacity-90 transition-opacity"
+                    onClick={() => setLightboxImage(post.image)}
                   />
                 </div>
               )}
@@ -713,7 +836,7 @@ export default function ForumPost({ user }) {
           </h2>
           
           {replies.length === 0 ? (
-            <div className="text-center py-10 bg-card rounded-2xl border border-border/40 card-elevated">
+            <div className="text-center py-10 village-card">
               <span className="text-3xl mb-3 block">💬</span>
               <h3 className="font-heading font-semibold text-foreground mb-1">No replies yet</h3>
               <p className="text-sm text-muted-foreground">Be the first to share your thoughts or support.</p>
@@ -724,8 +847,7 @@ export default function ForumPost({ user }) {
         </div>
 
         {/* Bottom reply form — only for top-level replies (not replying to a specific reply) */}
-        {!replyingTo && (
-        <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20 mb-8" data-testid="reply-form">
+        <div className="village-card p-6 border-l-2 border-l-primary/20 mb-8" data-testid="reply-form">
           <h3 className="font-heading font-bold text-lg text-foreground mb-4">Add a Reply</h3>
           <form onSubmit={handleReply} className="space-y-4">
             <div className="relative">
@@ -738,6 +860,7 @@ export default function ForumPost({ user }) {
                   el.style.height = 'auto';
                   el.style.height = el.scrollHeight + 'px';
                 }}
+                onKeyDown={(e) => handleListKeyDown(e, replyContent, setReplyContent)}
                 placeholder="Share your thoughts or support..."
                 className="min-h-[44px] bg-secondary/50 border-transparent focus:border-primary rounded-xl"
                 style={{ overflow: 'hidden', resize: 'none' }}
@@ -781,7 +904,6 @@ export default function ForumPost({ user }) {
             </div>
           </form>
         </div>
-        )}
       </main>
       <AppFooter />
 
@@ -859,6 +981,21 @@ export default function ForumPost({ user }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Lightbox */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center cursor-zoom-out p-4"
+          onClick={() => setLightboxImage(null)}
+        >
+          <img
+            src={lightboxImage}
+            alt="Full size"
+            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }

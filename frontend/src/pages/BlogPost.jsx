@@ -4,8 +4,8 @@ import { Button } from "../components/ui/button";
 import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
 import { ArrowLeft, BookOpen, Eye, Clock, Tag, Trash2 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import { timeAgoVerbose } from "../utils/dateHelpers";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -14,13 +14,7 @@ function readTime(content = "") {
   return Math.max(1, Math.round(words / 200));
 }
 
-function formatDate(dateString) {
-  try {
-    return formatDistanceToNow(new Date(dateString), { addSuffix: true });
-  } catch {
-    return "recently";
-  }
-}
+const formatDate = timeAgoVerbose;
 
 // Very basic markdown renderer: bold, italic, headings, bullets, line breaks
 function renderMarkdown(md = "") {
@@ -151,10 +145,10 @@ export default function BlogPost({ user }) {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pb-0">
+    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
       <Navigation user={user} />
 
-      <main className="max-w-3xl mx-auto px-4 pt-20 lg:pt-24">
+      <main className="max-w-3xl mx-auto px-4 pt-16 lg:pt-8">
         <div className="mb-6">
           <Link to="/blog">
             <Button variant="ghost" size="sm" className="rounded-full -ml-2 text-muted-foreground hover:text-foreground">

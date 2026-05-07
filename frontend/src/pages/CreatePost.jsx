@@ -8,8 +8,10 @@ import { Checkbox } from "../components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
+import MarkdownToolbar from "../components/MarkdownToolbar";
 import { toast } from "sonner";
 import { ArrowLeft, Image, X, Upload, Crown, MapPin, ArrowRight } from "lucide-react";
+import { parseApiError } from "../utils/apiError";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 const MAX_CONTENT_LENGTH = 5000;
@@ -19,13 +21,15 @@ export default function CreatePost({ user }) {
   const [searchParams] = useSearchParams();
   const preselectedCategory = searchParams.get('category');
   const fileInputRef = useRef(null);
+  const contentRef = useRef(null);
 
   const [categories, setCategories] = useState([]);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [categoryId, setCategoryId] = useState(preselectedCategory || "");
-  const [isAnonymous, setIsAnonymous] = useState(user?.anonymous_by_default || false);
+  const [isAnonymous, setIsAnonymous] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [touched, setTouched] = useState({ title: false, content: false, category: false });
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -52,6 +56,33 @@ export default function CreatePost({ user }) {
       }
     } catch (error) {
       console.error("Error fetching subscription:", error);
+    }
+  };
+
+  // Auto-continue list items when pressing Enter inside a bullet or numbered list
+  const handleListKeyDown = (e, value, setValue) => {
+    if (e.key !== "Enter" || e.shiftKey) return;
+    const el = e.target;
+    const cursor = el.selectionStart;
+    const lineStart = value.lastIndexOf("\n", cursor - 1) + 1;
+    const lineText = value.slice(lineStart, cursor);
+    const bulletMatch = lineText.match(/^(\s*)([-*]|\d+\.) /);
+    if (!bulletMatch) return;
+    e.preventDefault();
+    const [full, indent, marker] = bulletMatch;
+    const afterPrefix = lineText.slice(full.length);
+    if (!afterPrefix.trim()) {
+      // Empty bullet — exit the list
+      const newValue = value.slice(0, lineStart) + "\n" + value.slice(cursor);
+      setValue(newValue.slice(0, MAX_CONTENT_LENGTH));
+      setTimeout(() => { el.setSelectionRange(lineStart + 1, lineStart + 1); }, 0);
+    } else {
+      // Continue the list with the next item
+      const nextMarker = /\d+\./.test(marker) ? `${parseInt(marker) + 1}.` : marker;
+      const insert = `\n${indent}${nextMarker} `;
+      const newValue = value.slice(0, cursor) + insert + value.slice(el.selectionEnd);
+      setValue(newValue.slice(0, MAX_CONTENT_LENGTH));
+      setTimeout(() => { el.setSelectionRange(cursor + insert.length, cursor + insert.length); }, 0);
     }
   };
 
@@ -104,7 +135,7 @@ export default function CreatePost({ user }) {
         toast.success("Image uploaded!");
       } else {
         const error = await response.json();
-        toast.error(error.detail || "Failed to upload image");
+        toast.error(parseApiError(error.detail, "Failed to upload image"));
       }
     } catch (error) {
       toast.error("Failed to upload image");
@@ -127,8 +158,8 @@ export default function CreatePost({ user }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    setTouched({ title: true, content: true, category: true });
     if (!title.trim() || !content.trim() || !categoryId) {
-      toast.error("Please fill in all fields");
       return;
     }
 
@@ -161,11 +192,11 @@ export default function CreatePost({ user }) {
         navigate(`/forums/post/${post.post_id}`);
       } else if (response.status === 429) {
         const error = await response.json();
-        toast.error(error.detail || "Monthly post limit reached");
+        toast.error(parseApiError(error.detail, "Monthly post limit reached"));
         fetchSubscription();
       } else {
         const error = await response.json();
-        toast.error(error.detail || "Failed to create post");
+        toast.error(parseApiError(error.detail, "Failed to create post"));
       }
     } catch (error) {
       toast.error("Something went wrong");
@@ -175,10 +206,10 @@ export default function CreatePost({ user }) {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pb-0">
+    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
       <Navigation user={user} />
       
-      <main className="max-w-2xl mx-auto px-4 pt-20 lg:pt-24">
+      <main className="max-w-2xl mx-auto px-4 pt-16 lg:pt-8">
         <button 
           onClick={() => navigate(-1)}
           className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors"
@@ -254,30 +285,45 @@ export default function CreatePost({ user }) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="title" className="text-foreground">Title</Label>
-              <Input 
+              <Label htmlFor="title" className="text-foreground">Title <span className="text-destructive">*</span></Label>
+              <Input
                 id="title"
                 value={title}
-                onChange={(e) => setTitle(e.target.value.slice(0, 200))}
+                onChange={(e) => { setTitle(e.target.value.slice(0, 200)); setTouched(t => ({ ...t, title: true })); }}
                 placeholder="What's on your mind?"
-                className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
+                className={`h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary ${touched.title && !title.trim() ? "border-destructive/50 focus:border-destructive" : ""}`}
                 maxLength={200}
                 data-testid="title-input"
               />
-              <p className="text-xs text-muted-foreground text-right">{title.length}/200</p>
+              <div className="flex items-center justify-between">
+                {touched.title && !title.trim() ? (
+                  <p className="text-xs text-destructive">Title is required</p>
+                ) : <span />}
+                <p className="text-xs text-muted-foreground">{title.length}/200</p>
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="content" className="text-foreground">Content</Label>
-              <Textarea 
-                id="content"
-                value={content}
-                onChange={(e) => setContent(e.target.value.slice(0, MAX_CONTENT_LENGTH))}
-                placeholder="Share your thoughts, questions, or experiences..."
-                className="min-h-[200px] rounded-xl bg-secondary/50 border-transparent focus:border-primary resize-none"
-                data-testid="content-input"
-              />
-              <p className="text-xs text-muted-foreground text-right">{content.length}/{MAX_CONTENT_LENGTH}</p>
+              <Label htmlFor="content" className="text-foreground">Content <span className="text-destructive">*</span></Label>
+              <div className={`rounded-xl overflow-hidden border bg-secondary/50 focus-within:border-primary transition-colors ${touched.content && !content.trim() ? "border-destructive/50" : "border-transparent"}`}>
+                <MarkdownToolbar textareaRef={contentRef} value={content} onChange={(v) => { setContent(v.slice(0, MAX_CONTENT_LENGTH)); setTouched(t => ({ ...t, content: true })); }} />
+                <Textarea
+                  ref={contentRef}
+                  id="content"
+                  value={content}
+                  onChange={(e) => { setContent(e.target.value.slice(0, MAX_CONTENT_LENGTH)); setTouched(t => ({ ...t, content: true })); }}
+                  onKeyDown={(e) => handleListKeyDown(e, content, (v) => { setContent(v); setTouched(t => ({ ...t, content: true })); })}
+                  placeholder="Share your thoughts, questions, or experiences..."
+                  className="min-h-[200px] border-0 bg-transparent focus:ring-0 shadow-none resize-none rounded-none"
+                  data-testid="content-input"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                {touched.content && !content.trim() ? (
+                  <p className="text-xs text-destructive">Content is required</p>
+                ) : <span />}
+                <p className="text-xs text-muted-foreground">{content.length}/{MAX_CONTENT_LENGTH}</p>
+              </div>
             </div>
 
             {/* Image Upload */}
@@ -414,7 +460,7 @@ export default function CreatePost({ user }) {
                 <Label htmlFor="anonymous" className="font-medium text-foreground cursor-pointer">
                   Post anonymously
                 </Label>
-                <p className="text-xs text-muted-foreground">This post won't show your name or avatar</p>
+                <p className="text-xs text-muted-foreground">Your name and avatar are hidden from other members. Anonymous posts are not linked to your account by design.</p>
               </div>
             </div>
 

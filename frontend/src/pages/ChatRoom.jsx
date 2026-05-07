@@ -5,8 +5,12 @@ import { Input } from "../components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import Navigation from "../components/Navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Send, Users, Crown, Bookmark, ArrowRight } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { ArrowLeft, Send, Users, Crown, Bookmark, ArrowRight, Flag } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../components/ui/dialog";
+import { Label } from "../components/ui/label";
+import { Textarea } from "../components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import { timeAgoVerbose } from "../utils/dateHelpers";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -17,13 +21,22 @@ export default function ChatRoom({ user }) {
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [cooldown, setCooldown] = useState(0); // seconds remaining before next send allowed
+  const cooldownRef = useRef(null);
   const [subscription, setSubscription] = useState(null);
   const [savedMessageIds, setSavedMessageIds] = useState(new Set());
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [friendProfile, setFriendProfile] = useState(null);
   const messagesEndRef = useRef(null);
   const scrollAreaRef = useRef(null);
+  const isAtBottom = useRef(true);
   const MESSAGE_LIMIT = 50;
+
+  // Report state
+  const [reportTarget, setReportTarget]   = useState(null); // { messageId }
+  const [reportReason, setReportReason]   = useState("");
+  const [reportDetails, setReportDetails] = useState("");
 
   useEffect(() => {
     fetchData();
@@ -33,6 +46,24 @@ export default function ChatRoom({ user }) {
     const interval = setInterval(fetchMessages, 3000);
     return () => clearInterval(interval);
   }, [roomId]);
+
+  // Once room loads, fetch the friend's profile for friends_only rooms
+  useEffect(() => {
+    if (room?.room_type === "friends_only" && user) {
+      const friendId = room.participant_ids?.find(id => id !== user.user_id);
+      // Use participants array from server if available
+      if (room.participants) {
+        const fp = room.participants.find(p => p.user_id !== user.user_id);
+        if (fp) { setFriendProfile(fp); return; }
+      }
+      if (friendId) {
+        fetch(`${API_URL}/api/users/${friendId}`, { credentials: "include" })
+          .then(r => r.ok ? r.json() : null)
+          .then(data => { if (data) setFriendProfile(data); })
+          .catch(() => {});
+      }
+    }
+  }, [room, user]);
 
   const fetchSubscription = async () => {
     try {
@@ -45,9 +76,25 @@ export default function ChatRoom({ user }) {
     }
   };
 
+  // Scroll to bottom only when the user is already near the bottom
+  // (i.e. don't yank them down while they're reading history)
   useEffect(() => {
-    scrollToBottom();
+    if (isAtBottom.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages]);
+
+  // Force-scroll on room change — always land at the bottom of a new conversation
+  useEffect(() => {
+    isAtBottom.current = true;
+    messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
+  }, [roomId]);
+
+  const handleScroll = () => {
+    const el = scrollAreaRef.current;
+    if (!el) return;
+    isAtBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  };
 
   const fetchData = async () => {
     try {
@@ -117,10 +164,27 @@ export default function ChatRoom({ user }) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  // Start a per-second countdown after sending so the button stays disabled
+  // for exactly as long as the server's cooldown requires.
+  const startCooldown = (seconds) => {
+    if (!seconds || seconds <= 0) return;
+    setCooldown(seconds);
+    clearInterval(cooldownRef.current);
+    cooldownRef.current = setInterval(() => {
+      setCooldown(prev => {
+        if (prev <= 1) { clearInterval(cooldownRef.current); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  // Clean up ticker on unmount
+  useEffect(() => () => clearInterval(cooldownRef.current), []);
+
   const handleSend = async (e) => {
     e.preventDefault();
     const content = newMessage.trim();
-    if (!content || sending) return;
+    if (!content || sending || cooldown > 0) return;
 
     // Optimistic update: add message immediately with a temp ID so it
     // appears at once and is never wiped by a concurrent polling response
@@ -135,6 +199,7 @@ export default function ChatRoom({ user }) {
       content,
       created_at: new Date().toISOString(),
     };
+    isAtBottom.current = true; // always scroll when you send
     setMessages(prev => [...prev, optimisticMsg]);
     setNewMessage("");
     setSending(true);
@@ -151,6 +216,8 @@ export default function ChatRoom({ user }) {
         const message = await response.json();
         // Swap temp placeholder with the confirmed server message
         setMessages(prev => prev.map(m => m.message_id === tempId ? message : m));
+        // Start cooldown timer so the send button stays locked until ready
+        startCooldown(message.cooldown_seconds || 0);
         fetchSubscription();
       } else if (response.status === 429) {
         // Limit reached — remove optimistic message and restore input
@@ -183,13 +250,7 @@ export default function ChatRoom({ user }) {
     }
   };
 
-  const formatTime = (dateString) => {
-    try {
-      return formatDistanceToNow(new Date(dateString), { addSuffix: true });
-    } catch {
-      return "";
-    }
-  };
+  const formatTime = timeAgoVerbose;
 
   const fetchSavedMessageIds = async () => {
     try {
@@ -221,16 +282,44 @@ export default function ChatRoom({ user }) {
     }
   };
 
+  const handleReportMessage = async () => {
+    if (!reportTarget || !reportReason) return;
+    try {
+      const res = await fetch(`${API_URL}/api/reports`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          content_type: "chat_message",
+          content_id: reportTarget.messageId,
+          reason: reportReason,
+          details: reportDetails,
+        }),
+      });
+      if (res.ok) {
+        toast.success("Report submitted. Thank you for helping keep our community safe.");
+      } else {
+        const err = await res.json();
+        toast.error(err.detail || "Failed to submit report");
+      }
+    } catch {
+      toast.error("Something went wrong");
+    }
+    setReportTarget(null);
+    setReportReason("");
+    setReportDetails("");
+  };
+
   const isOwnMessage = (msg) => msg.author_id === user?.user_id;
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background lg:pl-60">
         <Navigation user={user} />
-        <main className="max-w-4xl mx-auto px-4 pt-20 lg:pt-24">
+        <main className="max-w-4xl mx-auto px-4 pt-16 lg:pt-8">
           <div className="animate-pulse space-y-4">
             <div className="h-6 w-32 bg-muted rounded"></div>
-            <div className="bg-card rounded-2xl h-[60vh] border border-border/50"></div>
+            <div className="village-card h-[60vh]"></div>
           </div>
         </main>
       </div>
@@ -239,9 +328,9 @@ export default function ChatRoom({ user }) {
 
   if (!room) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background lg:pl-60">
         <Navigation user={user} />
-        <main className="max-w-4xl mx-auto px-4 pt-20 lg:pt-24 text-center">
+        <main className="max-w-4xl mx-auto px-4 pt-16 lg:pt-8 text-center">
           <h1 className="font-heading text-2xl font-bold text-foreground">Room not found</h1>
           <Link to="/chat">
             <Button className="mt-4">Back to Chat Rooms</Button>
@@ -252,33 +341,34 @@ export default function ChatRoom({ user }) {
   }
 
   return (
-    <div className="h-screen bg-background flex flex-col overflow-hidden">
+    <div className="h-[100dvh] bg-background flex flex-col overflow-hidden lg:pl-60">
       <Navigation user={user} />
 
-      <main className="flex-1 flex flex-col max-w-4xl mx-auto w-full px-4 pt-20 lg:pt-24 pb-20 lg:pb-4 min-h-0">
+      <main className="flex-1 flex flex-col max-w-4xl mx-auto w-full px-4 pt-16 lg:pt-8 pb-[72px] lg:pb-4 min-h-0">
         {/* Room Header */}
         <div className="flex items-center gap-4 mb-4">
           <Link to="/chat" className="text-muted-foreground hover:text-foreground" data-testid="back-link">
             <ArrowLeft className="h-5 w-5" />
           </Link>
           {room.room_type === "friends_only" ? (
-            (() => {
-              const friendId = room.participant_ids?.find(id => id !== user?.user_id);
-              return (
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-lg font-semibold text-primary">
-                    💬
-                  </div>
-                  <div>
-                    <h1 className="font-heading font-bold text-xl text-foreground">Private Chat</h1>
-                    <p className="text-sm text-muted-foreground flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-green-500 inline-block"></span>
-                      End-to-end private
-                    </p>
-                  </div>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-semibold text-primary overflow-hidden">
+                  {friendProfile?.picture
+                    ? <img src={friendProfile.picture} alt="" className="w-full h-full object-cover" />
+                    : (friendProfile?.nickname || friendProfile?.name || "💬")?.[0]?.toUpperCase()}
                 </div>
-              );
-            })()
+                <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-card ${friendProfile?.is_online ? "bg-green-500" : "bg-muted-foreground/40"}`} />
+              </div>
+              <div>
+                <h1 className="font-heading font-bold text-xl text-foreground">
+                  {friendProfile ? (friendProfile.nickname || friendProfile.name) : "Private Chat"}
+                </h1>
+                <p className={`text-sm flex items-center gap-1 ${friendProfile?.is_online ? "text-green-500" : "text-muted-foreground"}`}>
+                  {friendProfile?.is_online ? "Active now" : "Private chat"}
+                </p>
+              </div>
+            </div>
           ) : (
             <div className="flex items-center gap-3">
               <span className="text-2xl">{room.icon}</span>
@@ -290,9 +380,20 @@ export default function ChatRoom({ user }) {
           )}
         </div>
 
+        {/* Gender restriction banner */}
+        {room.is_gender_restricted && !room.user_can_access && (
+          <div className="mb-4 p-4 bg-amber-500/10 border border-amber-500/30 rounded-[18px] flex items-center gap-3">
+            <span className="text-2xl">{room.icon}</span>
+            <div>
+              <p className="font-medium text-foreground text-sm">This space is for {room.gender_restriction === "female" ? "mums" : "dads"} only</p>
+              <p className="text-xs text-muted-foreground">You can read messages but cannot post in this space.</p>
+            </div>
+          </div>
+        )}
+
         {/* Messages Area */}
-        <div className="flex-1 min-h-0 bg-card rounded-2xl border border-border/50 flex flex-col">
-          <div className="flex-1 min-h-0 overflow-y-auto p-4" ref={scrollAreaRef}>
+        <div className="village-card flex-1 min-h-0 flex flex-col">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4" ref={scrollAreaRef} onScroll={handleScroll}>
             <div className="space-y-4">
               {hasMore && (
                 <div className="text-center pb-2">
@@ -338,11 +439,13 @@ export default function ChatRoom({ user }) {
                           </Link>
                         )}
                         <div className={`flex items-start gap-1 ${isOwnMessage(msg) ? 'flex-row-reverse' : ''}`}>
-                          <div className={`rounded-2xl px-4 py-2 shadow-sm ${
-                            isOwnMessage(msg)
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-secondary text-foreground'
-                          }`}>
+                          <div
+                            className="rounded-2xl px-4 py-2 shadow-sm"
+                            style={isOwnMessage(msg)
+                              ? { background: "hsl(var(--accent))", color: "var(--tv-primary-fg, #f7f2e9)" }
+                              : { background: "var(--paper-2)", border: "1px solid var(--line)", color: "var(--ink)" }
+                            }
+                          >
                             <p className="text-sm break-all whitespace-pre-wrap">{msg.content}</p>
                           </div>
                           <button
@@ -354,6 +457,15 @@ export default function ChatRoom({ user }) {
                           >
                             <Bookmark className={`h-3.5 w-3.5 ${savedMessageIds.has(msg.message_id) ? 'fill-current' : ''}`} />
                           </button>
+                          {!isOwnMessage(msg) && (
+                            <button
+                              onClick={() => setReportTarget({ messageId: msg.message_id })}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg hover:bg-muted flex-shrink-0 text-muted-foreground hover:text-destructive"
+                              title="Report message"
+                            >
+                              <Flag className="h-3.5 w-3.5" />
+                            </button>
+                          )}
                         </div>
                         <p className={`text-xs text-muted-foreground mt-1 ${isOwnMessage(msg) ? 'text-right mr-1' : 'ml-1'}`}>
                           {formatTime(msg.created_at)}
@@ -367,9 +479,9 @@ export default function ChatRoom({ user }) {
             </div>
           </div>
 
-          {/* Message Input */}
+          {/* Message Input — shrink-0 keeps it pinned to the bottom of the card */}
           {room.room_type !== "friends_only" && subscription?.limits_apply && subscription?.chat_messages && !subscription.chat_messages.allowed ? (
-            <div className="p-4 border-t border-border/50">
+            <div className="shrink-0 p-4 border-t border-border/50">
               <Link to="/plus" className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/15 transition-colors group">
                 <Crown className="h-5 w-5 text-amber-500 flex-shrink-0" />
                 <div className="flex-1">
@@ -380,30 +492,45 @@ export default function ChatRoom({ user }) {
               </Link>
             </div>
           ) : (
-            <form onSubmit={handleSend} className="p-4 border-t border-border/50" data-testid="message-form">
+            <form onSubmit={handleSend} className="shrink-0 p-4 border-t border-border/50" data-testid="message-form">
               {subscription?.limits_apply && subscription?.chat_messages && (
                 <p className="text-xs text-muted-foreground mb-2" data-testid="chat-limit-counter">
                   {subscription.chat_messages.limit - subscription.chat_messages.used}/{subscription.chat_messages.limit} messages today
                 </p>
               )}
-              <div className="flex gap-3">
+              <div className="flex gap-2">
                 <Input
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value.slice(0, 1000))}
                   placeholder="Type a message..."
-                  className="flex-1 h-12 rounded-xl bg-secondary border-border/60 focus:border-primary"
+                  className="flex-1 rounded-full"
+                  style={{ height: 44, background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
                   maxLength={1000}
                   data-testid="message-input"
                 />
                 <Button
                   type="submit"
-                  disabled={sending || !newMessage.trim()}
-                  className="h-12 w-12 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 p-0"
+                  disabled={sending || cooldown > 0 || !newMessage.trim()}
+                  className="rounded-full p-0 shrink-0 relative"
+                  style={{
+                    height: 44, width: 44,
+                    background: (cooldown > 0 || sending) ? "var(--line)" : "var(--ink)",
+                    color: "var(--paper)",
+                    transition: "background 0.2s",
+                  }}
                   data-testid="send-btn"
                 >
-                  <Send className="h-5 w-5" />
+                  {cooldown > 0
+                    ? <span className="text-xs font-semibold leading-none">{cooldown}</span>
+                    : <Send className="h-4 w-4" />
+                  }
                 </Button>
               </div>
+              {cooldown > 5 && (
+                <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1.5">
+                  <span>🐢</span> This room is busy — slowing things down so everyone can keep up
+                </p>
+              )}
               {newMessage.length > 800 && (
                 <p className={`text-xs mt-1.5 text-right ${newMessage.length >= 1000 ? 'text-destructive' : 'text-muted-foreground'}`}>
                   {newMessage.length}/1000
@@ -413,6 +540,49 @@ export default function ChatRoom({ user }) {
           )}
         </div>
       </main>
+
+      {/* Report Message Dialog */}
+      <Dialog open={!!reportTarget} onOpenChange={(open) => { if (!open) { setReportTarget(null); setReportReason(""); setReportDetails(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Report Message</DialogTitle>
+            <DialogDescription>
+              Help us keep The Village safe by reporting content that violates our community guidelines.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Reason for reporting</Label>
+              <Select value={reportReason} onValueChange={setReportReason}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a reason" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="harassment">Harassment or bullying</SelectItem>
+                  <SelectItem value="hate_speech">Hate speech</SelectItem>
+                  <SelectItem value="spam">Spam or misleading</SelectItem>
+                  <SelectItem value="inappropriate">Inappropriate content</SelectItem>
+                  <SelectItem value="unsafe">Unsafe or dangerous</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Additional details <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Textarea
+                value={reportDetails}
+                onChange={(e) => setReportDetails(e.target.value)}
+                placeholder="Provide any additional context..."
+                className="min-h-[80px]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setReportTarget(null); setReportReason(""); setReportDetails(""); }}>Cancel</Button>
+            <Button onClick={handleReportMessage} disabled={!reportReason}>Submit Report</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

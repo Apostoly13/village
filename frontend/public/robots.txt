@@ -1,0 +1,27 @@
+User-agent: *
+Allow: /
+
+# Block authenticated/private app routes
+Disallow: /dashboard
+Disallow: /messages
+Disallow: /chat
+Disallow: /admin
+Disallow: /moderator
+Disallow: /settings
+Disallow: /onboarding
+Disallow: /profile
+Disallow: /friends
+Disallow: /saved
+Disallow: /subscription
+
+# Allow public marketing pages
+Allow: /
+Allow: /for-clinicians
+Allow: /community-guidelines
+Allow: /terms
+Allow: /privacy
+Allow: /contact
+Allow: /blog
+Allow: /changelog
+
+Sitemap: https://ourlittlevillage.au/sitemap.xml

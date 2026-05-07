@@ -2,21 +2,39 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import Navigation from "../components/Navigation";
-import { Send, ArrowLeft, MessagesSquare, Search, UserPlus, X, ImageIcon, Users, Lock } from "lucide-react";
+import { Send, ArrowLeft, MessagesSquare, Search, UserPlus, X, ImageIcon, Users, Lock, Flag, ShoppingBag, Calendar, ExternalLink } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../components/ui/dialog";
+import { Label } from "../components/ui/label";
+import { Textarea } from "../components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Crown } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import { timeAgoVerbose } from "../utils/dateHelpers";
+import { parseApiError } from "../utils/apiError";
 import AppFooter from "../components/AppFooter";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
-function formatTime(dateString) {
-  try { return formatDistanceToNow(new Date(dateString), { addSuffix: true }); }
-  catch { return ""; }
+function playDing() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 880;
+    osc.type = "sine";
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.4);
+  } catch {}
 }
 
+const formatTime = timeAgoVerbose;
+
 // ── User search panel ─────────────────────────────────────────────────────────
-function UserSearchPanel({ onClose, onStartChat }) {
+function UserSearchPanel({ onClose, onStartChat, isFree }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -50,7 +68,7 @@ function UserSearchPanel({ onClose, onStartChat }) {
         toast.success("Friend request sent!");
       } else {
         const err = await res.json();
-        toast.info(err.detail || "Request already sent");
+        toast.info(parseApiError(err.detail, "Request already sent"));
       }
     } catch { toast.error("Something went wrong"); }
   };
@@ -93,9 +111,11 @@ function UserSearchPanel({ onClose, onStartChat }) {
               <p className="text-xs text-muted-foreground">{u.is_online ? "Online" : "Parent"}</p>
             </div>
             <div className="flex gap-2 shrink-0">
-              <Button size="sm" variant="outline" className="rounded-full h-8 text-xs px-3" onClick={() => onStartChat(u)}>
-                Message
-              </Button>
+              {!isFree && (
+                <Button size="sm" variant="outline" className="rounded-full h-8 text-xs px-3" onClick={() => onStartChat(u)}>
+                  Message
+                </Button>
+              )}
               <Button
                 size="sm"
                 className="rounded-full h-8 text-xs px-3"
@@ -155,10 +175,10 @@ function DmRow({ conv, active, onClick }) {
 }
 
 // ── Message bubble ─────────────────────────────────────────────────────────────
-function MessageBubble({ msg, isOwn, activeUser }) {
+function MessageBubble({ msg, isOwn, activeUser, onReport }) {
   const isImage = msg.content?.startsWith("data:image/");
   return (
-    <div className={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
+    <div className={`flex group ${isOwn ? "justify-end" : "justify-start"}`}>
       <div className="max-w-[75%] min-w-0 overflow-hidden">
         {!isOwn && (
           <p className="text-xs text-muted-foreground mb-1 ml-1 flex items-center gap-1">
@@ -166,20 +186,31 @@ function MessageBubble({ msg, isOwn, activeUser }) {
             {msg.author_subscription_tier === "premium" && <Crown className="h-2.5 w-2.5 text-amber-500" />}
           </p>
         )}
-        {isImage ? (
-          <div className={`overflow-hidden shadow-sm ${isOwn ? "rounded-2xl rounded-br-sm" : "rounded-2xl rounded-bl-sm"}`}>
-            <img
-              src={msg.content}
-              alt="Shared photo"
-              className="max-w-full max-h-64 object-contain cursor-pointer"
-              onClick={() => window.open(msg.content, "_blank")}
-            />
-          </div>
-        ) : (
-          <div className={`px-4 py-2.5 text-sm shadow-sm break-words overflow-hidden ${isOwn ? "bg-primary text-primary-foreground rounded-2xl rounded-br-sm" : "bg-card border border-border/50 text-foreground rounded-2xl rounded-bl-sm"}`}>
-            {msg.content}
-          </div>
-        )}
+        <div className={`flex items-end gap-1 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
+          {isImage ? (
+            <div className={`overflow-hidden shadow-sm rounded-2xl`}>
+              <img
+                src={msg.content}
+                alt="Shared photo"
+                className="max-w-full max-h-64 object-contain cursor-zoom-in"
+                onClick={() => setLightboxImage(msg.content)}
+              />
+            </div>
+          ) : (
+            <div className={`px-4 py-2.5 text-sm shadow-sm break-words overflow-hidden rounded-2xl ${isOwn ? "bg-primary text-primary-foreground" : "bg-card border border-border/50 text-foreground"}`}>
+              {msg.content}
+            </div>
+          )}
+          {!isOwn && onReport && (
+            <button
+              onClick={() => onReport(msg)}
+              className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mb-1 p-1 rounded text-muted-foreground hover:text-destructive"
+              title="Report message"
+            >
+              <Flag className="h-3 w-3" />
+            </button>
+          )}
+        </div>
         <p className={`text-xs text-muted-foreground mt-1 ${isOwn ? "text-right mr-1" : "ml-1"}`}>
           {formatTime(msg.created_at)}
         </p>
@@ -192,57 +223,122 @@ function MessageBubble({ msg, isOwn, activeUser }) {
 export default function Messages({ user }) {
   const navigate = useNavigate();
 
-  const [sidebarTab, setSidebarTab] = useState("friends"); // "friends" | "dms"
   const [showSearch, setShowSearch] = useState(false);
+  const [inboxTab, setInboxTab] = useState("all"); // "all" | "unread" | "friends" | "stall"
 
   const [friends, setFriends] = useState([]);
   const [loadingFriends, setLoadingFriends] = useState(true);
 
   const [conversations, setConversations] = useState([]);
+  const [messageRequests, setMessageRequests] = useState([]);
   const [loadingConvs, setLoadingConvs] = useState(true);
 
-  const [chatMode, setChatMode] = useState(null); // "friend" | "dm"
+  const [stallConversations, setStallConversations] = useState([]);
+  const [eventConversations, setEventConversations] = useState([]);
+
+  const [chatMode, setChatMode] = useState(null); // "friend" | "dm" | "stall" | "event"
   const [activeRoomId, setActiveRoomId] = useState(null);
   const [activeFriend, setActiveFriend] = useState(null);
   const [activeDmUser, setActiveDmUser] = useState(null);
+  const [activeStallConv, setActiveStallConv] = useState(null);
+  const [activeEventConv, setActiveEventConv] = useState(null);
 
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [openingChat, setOpeningChat] = useState(null);
 
+  // Add friend from DM header
+  const [friendRequestSent, setFriendRequestSent] = useState(false);
+
   // Photo upload
   const [imagePreview, setImagePreview] = useState(null); // data URL
   const [imageFile, setImageFile] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState(null);
+
+  const [loadingMessages, setLoadingMessages] = useState(false);
+
+  // Report flow
+  const [reportTarget, setReportTarget] = useState(null); // { msg, contentType }
+  const [reportReason, setReportReason] = useState("");
+  const [reportDetails, setReportDetails] = useState("");
+  const [reportSubmitting, setReportSubmitting] = useState(false);
 
   const messagesEndRef = useRef(null);
+  const scrollContainerRef = useRef(null);
+  const isAtBottom = useRef(true);
+  const prevMsgCount = useRef(0);
   const inputRef = useRef(null);
   const imageInputRef = useRef(null);
 
-  useEffect(() => { fetchFriends(); fetchConversations(); }, []);
+  useEffect(() => { fetchFriends(); fetchConversations(); fetchStallConversations(); fetchEventConversations(); }, []);
+
+  // When a DM is read in the popout, instantly clear unread counts in this page's list too
+  useEffect(() => {
+    const onDmRead = () => {
+      setConversations(prev => prev.map(c => ({ ...c, unread_count: 0 })));
+    };
+    window.addEventListener("village:dm-read", onDmRead);
+    return () => window.removeEventListener("village:dm-read", onDmRead);
+  }, []);
 
   useEffect(() => {
     if (activeRoomId && chatMode === "friend") {
       fetchRoomMessages();
-      const interval = setInterval(fetchRoomMessages, 5000);
+      const interval = setInterval(fetchRoomMessages, 1500);
       return () => clearInterval(interval);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeRoomId, chatMode]);
 
   useEffect(() => {
+    if (activeStallConv && chatMode === "stall") {
+      fetchStallMessages();
+      const interval = setInterval(fetchStallMessages, 2000);
+      return () => clearInterval(interval);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeStallConv, chatMode]);
+
+  useEffect(() => {
+    if (activeEventConv && chatMode === "event") {
+      fetchEventMessages();
+      const interval = setInterval(fetchEventMessages, 2000);
+      return () => clearInterval(interval);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeEventConv, chatMode]);
+
+  useEffect(() => {
+    setFriendRequestSent(false);
     if (activeDmUser && chatMode === "dm") {
-      fetchDmMessages();
-      const interval = setInterval(fetchDmMessages, 5000);
+      fetchDmMessages(true);
+      const interval = setInterval(fetchDmMessages, 1500);
       return () => clearInterval(interval);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeDmUser, chatMode]);
 
+  // Auto-scroll only when user is already at the bottom
+  // Use scrollTop directly on the container — scrollIntoView can bubble up and scroll the page
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (isAtBottom.current) {
+      const el = scrollContainerRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    }
   }, [messages]);
+
+  // Force scroll to bottom when switching conversations
+  useEffect(() => {
+    isAtBottom.current = true;
+    prevMsgCount.current = 0;
+    setTimeout(() => {
+      const el = scrollContainerRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    }, 0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeRoomId, activeDmUser]);
 
   const fetchFriends = async () => {
     setLoadingFriends(true);
@@ -257,8 +353,16 @@ export default function Messages({ user }) {
     setLoadingConvs(true);
     try {
       const res = await fetch(`${API_URL}/api/messages/conversations`, { credentials: "include" });
-      if (res.ok) setConversations(await res.json());
-    } catch {}
+      if (res.ok) {
+        const all = await res.json();
+        setMessageRequests(all.filter(c => c.is_pending_request));
+        setConversations(all.filter(c => !c.is_pending_request));
+      } else {
+        toast.error("Failed to load conversations", { action: { label: "Retry", onClick: fetchConversations } });
+      }
+    } catch {
+      toast.error("Couldn't reach the server", { action: { label: "Retry", onClick: fetchConversations } });
+    }
     finally { setLoadingConvs(false); }
   };
 
@@ -266,16 +370,123 @@ export default function Messages({ user }) {
     if (!activeRoomId) return;
     try {
       const res = await fetch(`${API_URL}/api/chat/rooms/${activeRoomId}/messages?limit=50`, { credentials: "include" });
-      if (res.ok) setMessages(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        if (prevMsgCount.current > 0 && data.length > prevMsgCount.current) {
+          const lastMsg = data[data.length - 1];
+          if (lastMsg && (lastMsg.author_id || lastMsg.sender_id) !== user?.user_id) playDing();
+        }
+        prevMsgCount.current = data.length;
+        setMessages(data);
+      }
     } catch {}
+    finally { setLoadingMessages(false); }
   };
 
-  const fetchDmMessages = async () => {
+  const fetchDmMessages = async (isInitial = false) => {
     if (!activeDmUser) return;
     try {
       const res = await fetch(`${API_URL}/api/messages/${activeDmUser.user_id}`, { credentials: "include" });
-      if (res.ok) setMessages(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        if (prevMsgCount.current > 0 && data.length > prevMsgCount.current) {
+          const lastMsg = data[data.length - 1];
+          if (lastMsg && lastMsg.sender_id !== user?.user_id) playDing();
+        }
+        prevMsgCount.current = data.length;
+        setMessages(data);
+        // Clear unread count for this conversation immediately in local state
+        setConversations(prev =>
+          prev.map(c => c.other_user_id === activeDmUser.user_id ? { ...c, unread_count: 0 } : c)
+        );
+        if (isInitial) {
+          // Mark DM notifications as read so the bell clears immediately
+          fetch(`${API_URL}/api/notifications/mark-dm-read`, { method: "POST", credentials: "include" }).catch(() => {});
+          // Tell Navigation to re-poll its unread badge right away
+          window.dispatchEvent(new Event("village:dm-read"));
+        }
+      }
     } catch {}
+    finally { setLoadingMessages(false); }
+  };
+
+  const fetchStallConversations = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/stall/messages/conversations`, { credentials: "include" });
+      if (res.ok) setStallConversations(await res.json());
+    } catch {}
+  };
+
+  const fetchEventConversations = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/events/my-chats`, { credentials: "include" });
+      if (res.ok) setEventConversations(await res.json());
+    } catch {}
+  };
+
+  const fetchStallMessages = async () => {
+    if (!activeStallConv) return;
+    try {
+      const res = await fetch(
+        `${API_URL}/api/stall/messages/${activeStallConv.listing_id}/${activeStallConv.other_user_id}`,
+        { credentials: "include" }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (prevMsgCount.current > 0 && data.length > prevMsgCount.current) {
+          const lastMsg = data[data.length - 1];
+          if (lastMsg && lastMsg.sender_id !== user?.user_id) playDing();
+        }
+        prevMsgCount.current = data.length;
+        setMessages(data);
+      }
+    } catch {}
+    finally { setLoadingMessages(false); }
+  };
+
+  const fetchEventMessages = async () => {
+    if (!activeEventConv) return;
+    try {
+      const res = await fetch(`${API_URL}/api/events/${activeEventConv.event_id}/chat`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        if (prevMsgCount.current > 0 && data.length > prevMsgCount.current) {
+          const lastMsg = data[data.length - 1];
+          if (lastMsg && lastMsg.author_id !== user?.user_id) playDing();
+        }
+        prevMsgCount.current = data.length;
+        setMessages(data);
+      }
+    } catch {}
+    finally { setLoadingMessages(false); }
+  };
+
+  const openStallChat = (conv) => {
+    setLoadingMessages(true);
+    prevMsgCount.current = 0;
+    setActiveStallConv(conv);
+    setActiveEventConv(null);
+    setActiveRoomId(null);
+    setActiveFriend(null);
+    setActiveDmUser(null);
+    setChatMode("stall");
+    setMessages([]);
+    clearImageState();
+    setTimeout(() => inputRef.current?.focus(), 100);
+  };
+
+  const openEventChat = (conv) => {
+    setLoadingMessages(true);
+    prevMsgCount.current = 0;
+    setActiveEventConv(conv);
+    setActiveStallConv(null);
+    setActiveRoomId(null);
+    setActiveFriend(null);
+    setActiveDmUser(null);
+    setChatMode("event");
+    setMessages([]);
+    clearImageState();
+    setTimeout(() => inputRef.current?.focus(), 100);
   };
 
   const openFriendChat = async (friend) => {
@@ -289,6 +500,8 @@ export default function Messages({ user }) {
       });
       if (res.ok) {
         const room = await res.json();
+        setLoadingMessages(true);
+        prevMsgCount.current = 0;
         setActiveRoomId(room.room_id);
         setActiveFriend(friend);
         setActiveDmUser(null);
@@ -302,6 +515,8 @@ export default function Messages({ user }) {
   };
 
   const openDmChat = async (dmUser) => {
+    setLoadingMessages(true);
+    prevMsgCount.current = 0;
     setActiveDmUser(dmUser);
     setActiveRoomId(null);
     setActiveFriend(null);
@@ -313,8 +528,53 @@ export default function Messages({ user }) {
 
   const handleSearchStartChat = (u) => {
     setShowSearch(false);
-    setSidebarTab("dms");
     openDmChat({ user_id: u.user_id, name: u.name, nickname: u.nickname, picture: u.picture, is_online: u.is_online });
+  };
+
+  const handleAcceptRequest = async (req) => {
+    try {
+      const res = await fetch(`${API_URL}/api/messages/${req.other_user_id}/accept-request`, {
+        method: "POST", credentials: "include",
+      });
+      if (res.ok) {
+        setMessageRequests(prev => prev.filter(r => r.other_user_id !== req.other_user_id));
+        setConversations(prev => [{ ...req, is_pending_request: false, is_outgoing_request: false }, ...prev]);
+        openDmChat({ user_id: req.other_user_id, name: req.other_user_name, picture: req.other_user_picture });
+        toast.success("Request accepted");
+      }
+    } catch { toast.error("Something went wrong"); }
+  };
+
+  const handleDeclineRequest = async (req) => {
+    try {
+      const res = await fetch(`${API_URL}/api/messages/${req.other_user_id}/decline-request`, {
+        method: "POST", credentials: "include",
+      });
+      if (res.ok) {
+        setMessageRequests(prev => prev.filter(r => r.other_user_id !== req.other_user_id));
+        toast.success("Request declined");
+      }
+    } catch { toast.error("Something went wrong"); }
+  };
+
+  const sendFriendRequestFromChat = async () => {
+    if (!activeDmUser) return;
+    try {
+      const res = await fetch(`${API_URL}/api/friends/request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ to_user_id: activeDmUser.user_id }),
+      });
+      if (res.ok) {
+        setFriendRequestSent(true);
+        toast.success("Friend request sent!");
+      } else {
+        const err = await res.json();
+        toast.info(parseApiError(err.detail, "Request already sent"));
+        setFriendRequestSent(true); // treat as sent regardless
+      }
+    } catch { toast.error("Something went wrong"); }
   };
 
   // ── Image handling ──────────────────────────────────────────────────────────
@@ -357,6 +617,43 @@ export default function Messages({ user }) {
       return null;
     } finally {
       setUploadingImage(false);
+    }
+  };
+
+  // ── Report message ──────────────────────────────────────────────────────────
+  const handleReportMessage = (msg) => {
+    const contentType = chatMode === "dm" ? "direct_message" : "chat_message";
+    setReportTarget({ msg, contentType });
+    setReportReason("");
+    setReportDetails("");
+  };
+
+  const submitReport = async () => {
+    if (!reportReason || !reportTarget) return;
+    setReportSubmitting(true);
+    try {
+      const res = await fetch(`${API_URL}/api/reports`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          content_type: reportTarget.contentType,
+          content_id: reportTarget.msg.message_id || reportTarget.msg.dm_id,
+          reason: reportReason,
+          details: reportDetails,
+        }),
+      });
+      if (res.ok) {
+        toast.success("Report submitted. Our team will review it.");
+        setReportTarget(null);
+      } else {
+        const d = await res.json();
+        toast.error(d.detail || "Could not submit report");
+      }
+    } catch {
+      toast.error("Could not submit report");
+    } finally {
+      setReportSubmitting(false);
     }
   };
 
@@ -426,10 +723,78 @@ export default function Messages({ user }) {
         } else {
           setMessages(prev => prev.filter(m => m.message_id !== tempId));
           setNewMessage(textContent);
+          try {
+            const err = await res.json();
+            const detail = err.detail || {};
+            if (detail.error === "daily_chat_limit") {
+              toast.error(`You've reached your daily message limit. Upgrade to Village+ for unlimited messaging.`, {
+                action: { label: "Upgrade", onClick: () => navigate("/plus") },
+              });
+            } else if (detail.error === "village_plus_required") {
+              toast.error("Village+ is required to start new conversations.", {
+                action: { label: "Upgrade", onClick: () => navigate("/plus") },
+              });
+            } else if (detail.error === "request_pending") {
+              toast.info("Your message request is waiting. You'll be able to send more once they accept.");
+            } else {
+              toast.error("Message failed to send. Please try again.");
+            }
+          } catch {
+            toast.error("Message failed to send. Please try again.");
+          }
         }
       } catch {
         setMessages(prev => prev.filter(m => m.message_id !== tempId));
         setNewMessage(textContent);
+        toast.error("Message failed to send. Please try again.");
+      }
+    } else if (chatMode === "stall" && activeStallConv) {
+      try {
+        const res = await fetch(`${API_URL}/api/stall/messages`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            listing_id: activeStallConv.listing_id,
+            receiver_id: activeStallConv.other_user_id,
+            content,
+          }),
+        });
+        if (res.ok) {
+          const msg = await res.json();
+          setMessages(prev => prev.map(m => m.message_id === tempId ? msg : m));
+          fetchStallConversations();
+        } else {
+          setMessages(prev => prev.filter(m => m.message_id !== tempId));
+          setNewMessage(textContent);
+          toast.error("Message failed to send.");
+        }
+      } catch {
+        setMessages(prev => prev.filter(m => m.message_id !== tempId));
+        setNewMessage(textContent);
+        toast.error("Message failed to send. Please try again.");
+      }
+    } else if (chatMode === "event" && activeEventConv) {
+      try {
+        const res = await fetch(`${API_URL}/api/events/${activeEventConv.event_id}/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ content }),
+        });
+        if (res.ok) {
+          const msg = await res.json();
+          setMessages(prev => prev.map(m => m.message_id === tempId ? msg : m));
+          fetchEventConversations();
+        } else {
+          setMessages(prev => prev.filter(m => m.message_id !== tempId));
+          setNewMessage(textContent);
+          toast.error("Message failed to send.");
+        }
+      } catch {
+        setMessages(prev => prev.filter(m => m.message_id !== tempId));
+        setNewMessage(textContent);
+        toast.error("Message failed to send. Please try again.");
       }
     }
     setSending(false);
@@ -439,23 +804,62 @@ export default function Messages({ user }) {
     setActiveRoomId(null);
     setActiveFriend(null);
     setActiveDmUser(null);
+    setActiveStallConv(null);
+    setActiveEventConv(null);
     setChatMode(null);
     setMessages([]);
     clearImageState();
   };
 
-  const activeUser = chatMode === "friend" ? activeFriend : activeDmUser;
-  const hasActiveChat = !!(chatMode && (activeRoomId || activeDmUser));
+  const activeUser = chatMode === "friend" ? activeFriend : (chatMode === "stall" || chatMode === "event") ? null : activeDmUser;
+  const hasActiveChat = !!(chatMode && (activeRoomId || activeDmUser || activeStallConv || activeEventConv));
 
+  const isFree = user?.subscription_tier === "free";
   const friendIds = new Set(friends.map(f => f.user_id));
+  // conversations state is already filtered (no pending requests) by fetchConversations
   const dmFromFriends = conversations.filter(c => friendIds.has(c.other_user_id));
-  const dmRequests = conversations.filter(c => !friendIds.has(c.other_user_id));
+  // Established DMs from non-friends (accepted conversations, not pending requests)
+  const dmEstablished = conversations.filter(c => !friendIds.has(c.other_user_id));
+  // Is the active DM an outgoing request that's still pending?
+  const activeDmIsOutgoingRequest = chatMode === "dm" && activeDmUser &&
+    conversations.some(c => c.other_user_id === activeDmUser.user_id && c.is_outgoing_request);
+
+  // Unified "Recent" list — DMs (friend + non-friend) + Stall + Events, sorted by last message time
+  const friendDmConvIds = new Set(dmFromFriends.map(c => c.other_user_id));
+  const recentConversations = [
+    ...dmFromFriends.map(c => ({ ...c, _type: "friend_dm" })),
+    ...dmEstablished.map(c => ({ ...c, _type: "dm" })),
+    ...stallConversations.map(c => ({ ...c, _type: "stall", _key: `${c.listing_id}_${c.other_user_id}` })),
+    ...eventConversations.map(c => ({ ...c, _type: "event", _key: `event_${c.event_id}`, unread_count: 0 })),
+  ].sort((a, b) => (b.last_message_time || "").localeCompare(a.last_message_time || ""));
+
+  // Friends with no conversation history at all (no DMs, no stall thread)
+  const friendsContactOnly = friends.filter(
+    f => !friendDmConvIds.has(f.user_id) && !dmEstablished.some(c => c.other_user_id === f.user_id)
+  );
+
+  // Tab-filtered conversation list
+  const filteredRecent = recentConversations.filter(c => {
+    if (inboxTab === "unread")  return (c.unread_count || 0) > 0;
+    if (inboxTab === "friends") return c._type === "friend_dm";
+    if (inboxTab === "stall")   return c._type === "stall";
+    if (inboxTab === "events")  return c._type === "event";
+    return true; // "all"
+  });
+  const showContactsSection = inboxTab === "all";
+
+  // Unread badge counts per tab
+  const unreadTotal = recentConversations.reduce((n, c) => n + (c.unread_count || 0), 0) + messageRequests.length;
+  const unreadFriends = recentConversations.filter(c => c._type === "friend_dm").reduce((n, c) => n + (c.unread_count || 0), 0);
+  const unreadStall = stallConversations.reduce((n, c) => n + (c.unread_count || 0), 0);
+  // Events have no per-message read tracking yet — badge omitted
+  const unreadEvents = 0;
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pb-0">
+    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
       <Navigation user={user} />
 
-      <main className="max-w-5xl mx-auto px-4 pt-20 lg:pt-24">
+      <main className="max-w-5xl mx-auto px-4 pt-16 lg:pt-8">
         <button
           onClick={() => navigate(-1)}
           className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-5 transition-colors text-sm"
@@ -466,7 +870,7 @@ export default function Messages({ user }) {
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-1">Messages</h1>
-            <p className="text-sm text-muted-foreground">Friends chats and private messages</p>
+            <p className="text-sm text-muted-foreground">Your conversations</p>
           </div>
           <Button size="sm" variant="outline" className="rounded-full gap-2" onClick={() => setShowSearch(true)}>
             <Search className="h-4 w-4" />
@@ -474,192 +878,483 @@ export default function Messages({ user }) {
           </Button>
         </div>
 
-        <div className="flex gap-4 h-[calc(100vh-200px)]">
+        <div className="flex gap-4 h-[calc(100dvh-200px)]">
 
           {/* ── Sidebar ─────────────────────────────────────────────────────── */}
           <div className={`${hasActiveChat ? "hidden lg:flex" : "flex"} flex-col w-full lg:w-72 shrink-0`}>
-            <div className="bg-card rounded-2xl border border-border/50 flex flex-col h-full overflow-hidden">
+            <div className="village-card flex flex-col h-full overflow-hidden">
+
+              {/* ── Tab filter bar ── */}
+              {!showSearch && (
+                <div className="flex items-center gap-1 px-2 py-2.5 border-b border-border/30 shrink-0">
+                  {[
+                    { id: "all",     label: "All",     badge: unreadTotal },
+                    { id: "unread",  label: "Unread",  badge: unreadTotal },
+                    { id: "friends", label: "Friends", badge: unreadFriends },
+                    { id: "stall",   label: "Stall",   badge: unreadStall },
+                    { id: "events",  label: "Events",  badge: unreadEvents },
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setInboxTab(tab.id)}
+                      className={`relative flex-1 flex items-center justify-center gap-1 py-1.5 rounded-full text-[11px] font-semibold transition-colors ${
+                        inboxTab === tab.id
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-secondary/60 text-muted-foreground hover:text-foreground hover:bg-secondary"
+                      }`}
+                    >
+                      {tab.label}
+                      {tab.badge > 0 && inboxTab !== tab.id && (
+                        <span className="min-w-[14px] h-3.5 rounded-full bg-red-500 text-white text-[9px] flex items-center justify-center px-0.5 font-bold">
+                          {tab.badge > 9 ? "9+" : tab.badge}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {showSearch ? (
-                <UserSearchPanel onClose={() => setShowSearch(false)} onStartChat={handleSearchStartChat} />
+                <UserSearchPanel onClose={() => setShowSearch(false)} onStartChat={handleSearchStartChat} isFree={isFree} />
               ) : (
-                <>
-                  {/* Tab switcher */}
-                  <div className="p-2 border-b border-border/50">
-                    <div className="flex w-full bg-background border border-border/50 rounded-xl p-1 gap-1">
-                      <button
-                        onClick={() => setSidebarTab("friends")}
-                        className={`flex-1 flex items-center justify-center py-2 text-sm font-medium rounded-lg transition-colors ${sidebarTab === "friends" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                      >
-                        Friend Chats
-                      </button>
-                      <button
-                        onClick={() => setSidebarTab("dms")}
-                        className={`flex-1 flex items-center justify-center py-2 text-sm font-medium rounded-lg transition-colors relative ${sidebarTab === "dms" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                      >
-                        Private Messages
-                        {dmRequests.some(c => c.unread_count > 0) && (
-                          <span className="absolute top-1.5 right-2 w-2 h-2 rounded-full bg-red-500" />
-                        )}
-                      </button>
+                <div className="flex-1 overflow-y-auto">
+                  {(loadingFriends && loadingConvs) ? (
+                    <div className="p-3 space-y-1">
+                      {[1, 2, 3, 4, 5].map(i => (
+                        <div key={i} className="flex items-center gap-3 px-2 py-3 animate-pulse">
+                          <div className="w-10 h-10 rounded-full bg-muted shrink-0" />
+                          <div className="flex-1 min-w-0 space-y-1.5">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="h-3 bg-muted rounded w-28" />
+                              <div className="h-2.5 bg-muted rounded w-10 shrink-0" />
+                            </div>
+                            <div className="h-2.5 bg-muted rounded w-4/5" />
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-
-                  {/* Friends tab */}
-                  {sidebarTab === "friends" && (
-                    <div className="flex-1 overflow-y-auto">
-                      <div className="px-4 py-2 bg-secondary/30 border-b border-border/30">
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Your Friends</p>
-                      </div>
-                      {loadingFriends ? (
-                        <div className="p-4 space-y-3">
-                          {[1,2,3].map(i => <div key={i} className="flex items-center gap-3 animate-pulse"><div className="w-10 h-10 rounded-full bg-muted shrink-0" /><div className="flex-1 h-4 bg-muted rounded" /></div>)}
-                        </div>
-                      ) : friends.length === 0 ? (
-                        <div className="p-6 text-center">
-                          <span className="text-3xl block mb-2">💛</span>
-                          <p className="text-sm text-muted-foreground mb-2">No friends yet.</p>
-                          <button onClick={() => setShowSearch(true)} className="text-xs text-primary hover:underline">
-                            Find parents to connect with →
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="divide-y divide-border/30">
-                          {friends.map(friend => (
-                            <button
-                              key={friend.user_id}
-                              onClick={() => openFriendChat(friend)}
-                              disabled={openingChat === friend.user_id}
-                              className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${activeFriend?.user_id === friend.user_id ? "bg-primary/10" : ""}`}
-                            >
-                              <UserAvatar {...friend} isOnline={friend.is_online} />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-foreground truncate">{friend.nickname || friend.name}</p>
-                                <p className={`text-xs ${friend.is_online ? "text-green-500" : "text-muted-foreground"}`}>
-                                  {friend.is_online ? "Active now" : "Offline"}
-                                </p>
+                  ) : (
+                    <>
+                      {/* Pending message requests — Accept / Decline (All and Unread tabs only) */}
+                      {messageRequests.length > 0 && (inboxTab === "all" || inboxTab === "unread") && (
+                        <>
+                          <div className="px-4 py-2 bg-amber-500/5 border-b border-amber-500/20 flex items-center gap-2">
+                            <span className="text-xs font-semibold text-amber-600 uppercase tracking-wide">Message Requests</span>
+                            <span className="text-xs bg-amber-500/10 text-amber-600 rounded-full px-1.5 font-semibold">{messageRequests.length}</span>
+                          </div>
+                          <div className="divide-y divide-border/30">
+                            {messageRequests.map(req => (
+                              <div key={req.other_user_id} className="px-4 py-3">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-sm font-semibold text-primary overflow-hidden shrink-0">
+                                    {req.other_user_picture
+                                      ? <img src={req.other_user_picture} alt="" className="w-full h-full object-cover" />
+                                      : req.other_user_name?.[0]?.toUpperCase()}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-foreground truncate">{req.other_user_name}</p>
+                                    <p className="text-xs text-muted-foreground truncate">
+                                      {req.request_preview?.startsWith("data:image/") ? "📷 Photo" : req.request_preview}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => handleAcceptRequest(req)}
+                                    className="flex-1 text-xs font-medium py-1.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                                  >
+                                    Accept
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeclineRequest(req)}
+                                    className="flex-1 text-xs font-medium py-1.5 rounded-xl bg-secondary text-foreground hover:bg-secondary/70 transition-colors"
+                                  >
+                                    Decline
+                                  </button>
+                                </div>
                               </div>
-                              {openingChat === friend.user_id && <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />}
-                            </button>
-                          ))}
-                        </div>
+                            ))}
+                          </div>
+                        </>
                       )}
-                    </div>
-                  )}
 
-                  {/* Private Messages tab */}
-                  {sidebarTab === "dms" && (
-                    <div className="flex-1 overflow-y-auto">
-                      {loadingConvs ? (
-                        <div className="p-4 space-y-3">
-                          {[1,2,3].map(i => <div key={i} className="flex items-center gap-3 animate-pulse"><div className="w-10 h-10 rounded-full bg-muted shrink-0" /><div className="flex-1 h-4 bg-muted rounded" /></div>)}
-                        </div>
-                      ) : conversations.length === 0 ? (
-                        <div className="p-6 text-center">
-                          <span className="text-3xl block mb-2">💬</span>
-                          <p className="text-sm text-muted-foreground mb-2">No private messages yet.</p>
-                          <button onClick={() => setShowSearch(true)} className="text-xs text-primary hover:underline">
-                            Message someone →
-                          </button>
-                        </div>
-                      ) : (
-                        <div>
-                          {/* Message Requests */}
-                          {dmRequests.length > 0 && (
+                      {inboxTab === "friends" ? (
+                        // Unified friends view — all friends under one section
+                        (() => {
+                          const allFriendItems = [
+                            // Friends with conversation history
+                            ...dmFromFriends.map(c => {
+                              const friend = friends.find(f => f.user_id === c.other_user_id);
+                              return { type: "conv", conv: c, friend, sortKey: c.last_message_time || "" };
+                            }),
+                            // Friends with no conversation history
+                            ...friendsContactOnly.map(f => ({ type: "contact", friend: f, sortKey: "" })),
+                          ].sort((a, b) => b.sortKey.localeCompare(a.sortKey));
+
+                          if (allFriendItems.length === 0) return (
+                            <div className="p-6 text-center">
+                              <span className="text-3xl block mb-2">👥</span>
+                              <p className="text-sm text-muted-foreground">No friends yet.<br/><span className="text-xs">Add friends to chat privately.</span></p>
+                            </div>
+                          );
+
+                          return (
                             <>
-                              <div className="px-4 py-2 bg-amber-500/5 border-b border-amber-500/20 flex items-center gap-2">
-                                <span className="text-xs font-semibold text-amber-600 uppercase tracking-wide">Message Requests</span>
-                                <span className="text-xs bg-amber-500/10 text-amber-600 rounded-full px-1.5">{dmRequests.length}</span>
+                              <div className="px-4 py-2">
+                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Friends</p>
                               </div>
                               <div className="divide-y divide-border/30">
-                                {dmRequests.map(conv => (
-                                  <DmRow
-                                    key={conv.other_user_id}
-                                    conv={conv}
-                                    active={activeDmUser?.user_id === conv.other_user_id}
-                                    onClick={() => openDmChat({ user_id: conv.other_user_id, name: conv.other_user_name, nickname: null, picture: conv.other_user_picture })}
-                                  />
+                                {allFriendItems.map(item => {
+                                  if (item.type === "conv") {
+                                    const { conv, friend } = item;
+                                    const pic = friend?.picture || conv.other_user_picture;
+                                    const name = friend?.nickname || conv.other_user_name;
+                                    return (
+                                      <button
+                                        key={conv.other_user_id}
+                                        onClick={() => openDmChat({ user_id: conv.other_user_id, name: conv.other_user_name, nickname: friend?.nickname, picture: pic, is_online: friend?.is_online })}
+                                        className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${activeDmUser?.user_id === conv.other_user_id ? "bg-primary/10" : ""}`}
+                                      >
+                                        <div className="relative shrink-0">
+                                          <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-semibold text-primary overflow-hidden">
+                                            {pic ? <img src={pic} alt="" className="w-full h-full object-cover" /> : name?.[0]?.toUpperCase()}
+                                          </div>
+                                          {friend?.is_online && <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-card bg-green-500" />}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center justify-between gap-1">
+                                            <p className="text-sm font-medium text-foreground truncate">{name}</p>
+                                            {conv.unread_count > 0 && (
+                                              <span className="shrink-0 min-w-[18px] h-[18px] rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold px-1">{conv.unread_count}</span>
+                                            )}
+                                          </div>
+                                          <p className="text-xs text-muted-foreground truncate">
+                                            {conv.last_message?.startsWith("data:image/") ? "📷 Photo" : conv.last_message}
+                                          </p>
+                                        </div>
+                                      </button>
+                                    );
+                                  } else {
+                                    const { friend } = item;
+                                    return (
+                                      <button
+                                        key={friend.user_id}
+                                        onClick={() => openFriendChat(friend)}
+                                        disabled={openingChat === friend.user_id}
+                                        className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${activeFriend?.user_id === friend.user_id ? "bg-primary/10" : ""}`}
+                                      >
+                                        <UserAvatar {...friend} isOnline={friend.is_online} />
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-sm font-medium text-foreground truncate">{friend.nickname || friend.name}</p>
+                                          <p className={`text-xs ${friend.is_online ? "text-green-500" : "text-muted-foreground"}`}>
+                                            {friend.is_online ? "Active now" : "Tap to chat"}
+                                          </p>
+                                        </div>
+                                        {openingChat === friend.user_id && <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />}
+                                      </button>
+                                    );
+                                  }
+                                })}
+                              </div>
+                            </>
+                          );
+                        })()
+                      ) : (
+                        // All other tabs — existing rendering
+                        <>
+                          {/* ── Filtered conversations ── */}
+                          {filteredRecent.length > 0 && (
+                            <>
+                              {filteredRecent.map(conv => {
+                                const key = conv._key || conv.other_user_id;
+                                if (conv._type === "event") {
+                                  const isActive = chatMode === "event" && activeEventConv?.event_id === conv.event_id;
+                                  const eventDate = conv.date ? new Date(conv.date).toLocaleDateString("en-AU", { day: "numeric", month: "short" }) : null;
+                                  return (
+                                    <button
+                                      key={key}
+                                      onClick={() => openEventChat(conv)}
+                                      className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${isActive ? "bg-primary/10" : ""}`}
+                                    >
+                                      <div className="relative shrink-0">
+                                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden">
+                                          {conv.image_url
+                                            ? <img src={conv.image_url} alt="" className="w-full h-full object-cover" />
+                                            : <Calendar className="h-4 w-4 text-primary" />}
+                                        </div>
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium text-foreground truncate">{conv.title}</p>
+                                        <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                                          <Calendar className="h-2.5 w-2.5 shrink-0" />
+                                          {eventDate ? eventDate : "Event chat"}
+                                          {conv.last_message && <span className="truncate"> · {conv.last_message}</span>}
+                                        </p>
+                                      </div>
+                                    </button>
+                                  );
+                                }
+                                if (conv._type === "stall") {
+                                  const isActive = chatMode === "stall" && activeStallConv?.listing_id === conv.listing_id && activeStallConv?.other_user_id === conv.other_user_id;
+                                  return (
+                                    <button
+                                      key={key}
+                                      onClick={() => openStallChat(conv)}
+                                      className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${isActive ? "bg-primary/10" : ""}`}
+                                    >
+                                      <div className="relative shrink-0">
+                                        <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center overflow-hidden">
+                                          {conv.listing_image
+                                            ? <img src={conv.listing_image} alt="" className="w-full h-full object-cover" />
+                                            : <ShoppingBag className="h-4 w-4 text-muted-foreground" />}
+                                        </div>
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center justify-between gap-1">
+                                          <p className="text-sm font-medium text-foreground truncate">{conv.other_user_name}</p>
+                                          {conv.unread_count > 0 && (
+                                            <span className="shrink-0 min-w-[18px] h-[18px] rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold px-1">{conv.unread_count}</span>
+                                          )}
+                                        </div>
+                                        <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                                          <ShoppingBag className="h-2.5 w-2.5 shrink-0" />
+                                          {conv.listing_title || "Stall enquiry"}
+                                        </p>
+                                      </div>
+                                    </button>
+                                  );
+                                }
+                                // DM or friend DM
+                                const friend = conv._type === "friend_dm" ? friends.find(f => f.user_id === conv.other_user_id) : null;
+                                const pic = friend?.picture || conv.other_user_picture;
+                                const name = friend?.nickname || conv.other_user_name;
+                                return (
+                                  <button
+                                    key={key}
+                                    onClick={() => conv._type === "friend_dm" && friend
+                                      ? openDmChat({ user_id: conv.other_user_id, name: conv.other_user_name, nickname: friend.nickname, picture: pic, is_online: friend.is_online })
+                                      : openDmChat({ user_id: conv.other_user_id, name: conv.other_user_name, nickname: null, picture: pic })}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${activeDmUser?.user_id === conv.other_user_id ? "bg-primary/10" : ""}`}
+                                  >
+                                    <div className="relative shrink-0">
+                                      <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-semibold text-primary overflow-hidden">
+                                        {pic ? <img src={pic} alt="" className="w-full h-full object-cover" /> : name?.[0]?.toUpperCase()}
+                                      </div>
+                                      {friend?.is_online && <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-card bg-green-500" />}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center justify-between gap-1">
+                                        <p className="text-sm font-medium text-foreground truncate">{name}</p>
+                                        {conv.unread_count > 0 && (
+                                          <span className="shrink-0 min-w-[18px] h-[18px] rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold px-1">{conv.unread_count}</span>
+                                        )}
+                                      </div>
+                                      <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                                        {conv._type === "dm" && <Lock className="h-2.5 w-2.5 shrink-0 opacity-50" />}
+                                        {conv.last_message?.startsWith("data:image/") ? "📷 Photo" : conv.last_message || (conv._type === "dm" ? "Private message" : "")}
+                                      </p>
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </>
+                          )}
+
+                          {/* Friends with no conversation history — contact-only row */}
+                          {showContactsSection && friendsContactOnly.length > 0 && (
+                            <>
+                              {filteredRecent.length > 0 && <div className="h-px bg-border/30 mx-4" />}
+                              <div className="px-4 py-2">
+                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Friends</p>
+                              </div>
+                              <div className="divide-y divide-border/30">
+                                {friendsContactOnly.map(friend => (
+                                  <button
+                                    key={friend.user_id}
+                                    onClick={() => openFriendChat(friend)}
+                                    disabled={openingChat === friend.user_id}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${activeFriend?.user_id === friend.user_id ? "bg-primary/10" : ""}`}
+                                  >
+                                    <UserAvatar {...friend} isOnline={friend.is_online} />
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium text-foreground truncate">{friend.nickname || friend.name}</p>
+                                      <p className={`text-xs ${friend.is_online ? "text-green-500" : "text-muted-foreground"}`}>
+                                        {friend.is_online ? "Active now" : "Tap to chat"}
+                                      </p>
+                                    </div>
+                                    {openingChat === friend.user_id && <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />}
+                                  </button>
                                 ))}
                               </div>
                             </>
                           )}
-                          {/* From Friends */}
-                          {dmFromFriends.length > 0 && (
-                            <>
-                              <div className="px-4 py-2 bg-secondary/30 border-b border-border/30">
-                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">From Friends</p>
-                              </div>
-                              <div className="divide-y divide-border/30">
-                                {dmFromFriends.map(conv => (
-                                  <DmRow
-                                    key={conv.other_user_id}
-                                    conv={conv}
-                                    active={activeDmUser?.user_id === conv.other_user_id}
-                                    onClick={() => openDmChat({ user_id: conv.other_user_id, name: conv.other_user_name, nickname: null, picture: conv.other_user_picture })}
-                                  />
-                                ))}
-                              </div>
-                            </>
+
+                          {/* Empty state — tab-aware */}
+                          {filteredRecent.length === 0 && !(showContactsSection && friendsContactOnly.length > 0) && !(inboxTab === "all" && messageRequests.length > 0) && (
+                            <div className="p-6 text-center">
+                              <span className="text-3xl block mb-2">
+                                {inboxTab === "stall" ? "🛒" : inboxTab === "unread" ? "✅" : inboxTab === "events" ? "📅" : "💬"}
+                              </span>
+                              {inboxTab === "unread" && <p className="text-sm text-muted-foreground">All caught up!</p>}
+                              {inboxTab === "stall" && <p className="text-sm text-muted-foreground">No Stall enquiries yet.<br/><span className="text-xs">Browse the Stall and message a seller to get started.</span></p>}
+                              {inboxTab === "events" && <p className="text-sm text-muted-foreground">No event chats yet.<br/><span className="text-xs">RSVP to an event to join its group chat.</span></p>}
+                              {inboxTab === "all" && friends.length === 0 && conversations.length === 0 && messageRequests.length === 0 && stallConversations.length === 0 && (
+                                isFree ? (
+                                  <>
+                                    <p className="text-sm text-muted-foreground mb-1">No messages yet.</p>
+                                    <p className="text-xs text-muted-foreground mb-3">When another parent messages you, you can reply here for free.</p>
+                                    <button onClick={() => navigate("/plus")} className="text-xs text-primary hover:underline">Upgrade to Village+ to message anyone →</button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <p className="text-sm text-muted-foreground mb-2">No conversations yet.</p>
+                                    <button onClick={() => setShowSearch(true)} className="text-xs text-primary hover:underline">Find parents to connect with →</button>
+                                  </>
+                                )
+                              )}
+                            </div>
                           )}
-                        </div>
+                        </>
                       )}
-                    </div>
+                    </>
                   )}
-                </>
+                </div>
               )}
             </div>
           </div>
 
           {/* ── Chat panel ──────────────────────────────────────────────────── */}
           <div className={`${hasActiveChat ? "flex" : "hidden lg:flex"} flex-1 flex-col min-w-0`}>
-            <div className="bg-card rounded-2xl border border-border/50 flex flex-col h-full overflow-hidden">
-              {hasActiveChat && activeUser ? (
+            <div className="village-card flex flex-col h-full overflow-hidden">
+              {hasActiveChat && (chatMode === "stall" ? activeStallConv : chatMode === "event" ? activeEventConv : activeUser) ? (
                 <>
                   {/* Chat header */}
                   <div className="flex items-center gap-3 px-4 py-3 border-b border-border/50 shrink-0">
                     <button onClick={clearChat} className="lg:hidden p-1 text-muted-foreground hover:text-foreground">
                       <ArrowLeft className="h-5 w-5" />
                     </button>
-                    <UserAvatar picture={activeUser.picture} name={activeUser.name} nickname={activeUser.nickname} isOnline={activeUser.is_online} />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-foreground text-sm">{activeUser.nickname || activeUser.name}</p>
-                      <p className={`text-xs ${activeUser.is_online ? "text-green-500" : "text-muted-foreground"}`}>
-                        {chatMode === "friend" ? (activeUser.is_online ? "Active now" : "Offline") : "Private message"}
-                      </p>
-                    </div>
-                    {/* Chat type badge */}
-                    {chatMode === "friend" ? (
-                      <span className="flex items-center gap-1 text-xs bg-primary/10 text-primary border border-primary/20 rounded-full px-2.5 py-1 font-medium shrink-0">
-                        <Users className="h-3 w-3" /> Friend Chat
-                      </span>
+                    {chatMode === "event" ? (
+                      <>
+                        <button
+                          onClick={() => navigate(`/events?event=${activeEventConv?.event_id}`)}
+                          className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden shrink-0 hover:opacity-80 transition-opacity"
+                          title="View event"
+                        >
+                          {activeEventConv?.image_url
+                            ? <img src={activeEventConv.image_url} alt="" className="w-full h-full object-cover" />
+                            : <Calendar className="h-4 w-4 text-primary" />}
+                        </button>
+                        <button onClick={() => navigate(`/events?event=${activeEventConv?.event_id}`)} className="flex-1 min-w-0 text-left group">
+                          <p className="font-medium text-foreground text-sm truncate group-hover:underline">{activeEventConv?.title}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {activeEventConv?.date ? new Date(activeEventConv.date).toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" }) : "Event chat"}
+                          </p>
+                        </button>
+                        <button
+                          onClick={() => navigate(`/events?event=${activeEventConv?.event_id}`)}
+                          className="flex items-center gap-1 text-xs bg-primary/10 text-primary border border-primary/20 rounded-full px-2.5 py-1 font-medium hover:bg-primary/20 transition-colors shrink-0"
+                          title="View event"
+                        >
+                          <ExternalLink className="h-3 w-3" /> View Event
+                        </button>
+                      </>
+                    ) : chatMode === "stall" ? (
+                      <>
+                        <button
+                          onClick={() => navigate(`/stall/listing/${activeStallConv.listing_id}`)}
+                          className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center overflow-hidden shrink-0 hover:opacity-80 transition-opacity"
+                          title="View listing"
+                        >
+                          {activeStallConv.listing_image
+                            ? <img src={activeStallConv.listing_image} alt="" className="w-full h-full object-cover" />
+                            : <ShoppingBag className="h-4 w-4 text-muted-foreground" />}
+                        </button>
+                        <button onClick={() => navigate(`/stall/listing/${activeStallConv.listing_id}`)} className="flex-1 min-w-0 text-left group">
+                          <p className="font-medium text-foreground text-sm truncate group-hover:underline">{activeStallConv.other_user_name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{activeStallConv.listing_title || "Stall enquiry"}</p>
+                        </button>
+                        <button
+                          onClick={() => navigate(`/stall/listing/${activeStallConv.listing_id}`)}
+                          className="flex items-center gap-1 text-xs bg-secondary text-muted-foreground border border-border/50 rounded-full px-2.5 py-1 font-medium hover:bg-secondary/70 transition-colors shrink-0"
+                          title="View listing"
+                        >
+                          <ExternalLink className="h-3 w-3" /> View Listing
+                        </button>
+                      </>
                     ) : (
-                      <span className={`flex items-center gap-1 text-xs rounded-full px-2.5 py-1 font-medium shrink-0 border ${friendIds.has(activeUser.user_id) ? "bg-primary/10 text-primary border-primary/20" : "bg-amber-500/10 text-amber-600 border-amber-500/20"}`}>
-                        <Lock className="h-3 w-3" />
-                        {friendIds.has(activeUser.user_id) ? "Private" : "Message Request"}
-                      </span>
+                      <>
+                        {/* Clickable avatar → profile */}
+                        <button onClick={() => navigate(`/profile/${activeUser.user_id}`)} className="shrink-0 rounded-full focus:outline-none focus:ring-2 focus:ring-primary/30">
+                          <UserAvatar picture={activeUser.picture} name={activeUser.name} nickname={activeUser.nickname} isOnline={activeUser.is_online} />
+                        </button>
+                        {/* Clickable name → profile */}
+                        <button onClick={() => navigate(`/profile/${activeUser.user_id}`)} className="flex-1 min-w-0 text-left group">
+                          <p className="font-medium text-foreground text-sm group-hover:underline truncate">{activeUser.nickname || activeUser.name}</p>
+                          <p className={`text-xs ${activeUser.is_online ? "text-green-500" : "text-muted-foreground"}`}>
+                            {chatMode === "friend" ? (activeUser.is_online ? "Active now" : "Offline") : "Private message"}
+                          </p>
+                        </button>
+                        {/* Right side: badge or Add Friend button */}
+                        {chatMode === "friend" || friendIds.has(activeUser.user_id) ? (
+                          <span className="flex items-center gap-1 text-xs bg-primary/10 text-primary border border-primary/20 rounded-full px-2.5 py-1 font-medium shrink-0">
+                            <Users className="h-3 w-3" /> {chatMode === "friend" ? "Friend Chat" : "Friends"}
+                          </span>
+                        ) : activeDmIsOutgoingRequest ? (
+                          <span className="flex items-center gap-1 text-xs bg-amber-500/10 text-amber-600 border border-amber-500/20 rounded-full px-2.5 py-1 font-medium shrink-0">
+                            <Lock className="h-3 w-3" /> Request Pending
+                          </span>
+                        ) : friendRequestSent ? (
+                          <span className="flex items-center gap-1 text-xs bg-green-500/10 text-green-600 border border-green-500/20 rounded-full px-2.5 py-1 font-medium shrink-0">
+                            <UserPlus className="h-3 w-3" /> Sent ✓
+                          </span>
+                        ) : (
+                          <button
+                            onClick={sendFriendRequestFromChat}
+                            className="flex items-center gap-1 text-xs bg-primary text-primary-foreground rounded-full px-3 py-1.5 font-medium hover:bg-primary/90 transition-colors shrink-0"
+                          >
+                            <UserPlus className="h-3 w-3" /> Add Friend
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
 
                   {/* Messages */}
-                  <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
-                    {messages.length === 0 && (
-                      <div className="text-center py-8">
-                        <MessagesSquare className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
-                        <p className="text-sm text-muted-foreground">No messages yet. Say hi!</p>
+                  <div
+                    ref={scrollContainerRef}
+                    onScroll={() => {
+                      const el = scrollContainerRef.current;
+                      if (el) isAtBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+                    }}
+                    className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0"
+                  >
+                    {loadingMessages ? (
+                      <div className="flex items-center justify-center py-12">
+                        <div className="w-5 h-5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
                       </div>
+                    ) : (
+                      <>
+                        {messages.length === 0 && (
+                          <div className="text-center py-8">
+                            <MessagesSquare className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+                            <p className="text-sm text-muted-foreground">No messages yet. Say hi!</p>
+                          </div>
+                        )}
+                        {messages.map((msg, idx) => {
+                          const isOwn = (msg.author_id || msg.sender_id) === user?.user_id;
+                          return (
+                            <MessageBubble
+                              key={msg.message_id || msg.dm_id || idx}
+                              msg={msg}
+                              isOwn={isOwn}
+                              activeUser={activeUser}
+                              onReport={handleReportMessage}
+                            />
+                          );
+                        })}
+                        <div ref={messagesEndRef} />
+                      </>
                     )}
-                    {messages.map((msg, idx) => {
-                      const isOwn = (msg.author_id || msg.sender_id) === user?.user_id;
-                      return (
-                        <MessageBubble
-                          key={msg.message_id || msg.dm_id || idx}
-                          msg={msg}
-                          isOwn={isOwn}
-                          activeUser={activeUser}
-                        />
-                      );
-                    })}
-                    <div ref={messagesEndRef} />
                   </div>
 
                   {/* Image preview */}
@@ -674,6 +1369,13 @@ export default function Messages({ user }) {
                           <X className="h-3 w-3" />
                         </button>
                       </div>
+                    </div>
+                  )}
+
+                  {/* Outgoing request pending banner */}
+                  {activeDmIsOutgoingRequest && (
+                    <div className="px-4 py-2.5 bg-amber-500/5 border-t border-amber-500/20 shrink-0 text-center">
+                      <p className="text-xs text-amber-600 font-medium">Message request sent · waiting for them to accept</p>
                     </div>
                   )}
 
@@ -700,7 +1402,12 @@ export default function Messages({ user }) {
                       ref={inputRef}
                       value={newMessage}
                       onChange={e => setNewMessage(e.target.value.slice(0, 1000))}
-                      placeholder={imageFile ? "Add a caption (optional)..." : `Message ${activeUser.nickname || activeUser.name}...`}
+                      placeholder={
+                        imageFile ? "Add a caption (optional)..." :
+                        chatMode === "event" ? `Chat in ${activeEventConv?.title || "this event"}...` :
+                        chatMode === "stall" ? `Message about ${activeStallConv?.listing_title || "this listing"}...` :
+                        `Message ${activeUser?.nickname || activeUser?.name}...`
+                      }
                       className="flex-1 bg-secondary/50 rounded-full px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/30"
                       maxLength={1000}
                       disabled={sending || uploadingImage}
@@ -720,20 +1427,14 @@ export default function Messages({ user }) {
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
                   <MessagesSquare className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                  <h3 className="font-heading font-semibold text-foreground mb-1">Start a conversation</h3>
+                  <h3 className="font-heading font-semibold text-foreground mb-1">Select a conversation</h3>
                   <p className="text-sm text-muted-foreground max-w-xs mb-6">
-                    Pick a friend from <strong>Friend Chats</strong>, or view your <strong>Private Messages</strong> from other parents.
+                    Choose a friend from the list, or find someone new to connect with.
                   </p>
-                  <div className="flex gap-3">
-                    <Button size="sm" variant="outline" className="rounded-full gap-2" onClick={() => setSidebarTab("friends")}>
-                      <Users className="h-4 w-4" />
-                      Friend Chats
-                    </Button>
-                    <Button size="sm" variant="outline" className="rounded-full gap-2" onClick={() => setSidebarTab("dms")}>
-                      <Lock className="h-4 w-4" />
-                      Private Messages
-                    </Button>
-                  </div>
+                  <Button size="sm" variant="outline" className="rounded-full gap-2" onClick={() => setShowSearch(true)}>
+                    <Search className="h-4 w-4" />
+                    Find a parent
+                  </Button>
                 </div>
               )}
             </div>
@@ -742,6 +1443,71 @@ export default function Messages({ user }) {
         </div>
         <AppFooter />
       </main>
+
+      {/* Report Message Dialog */}
+      <Dialog open={!!reportTarget} onOpenChange={(o) => !o && setReportTarget(null)}>
+        <DialogContent className="bg-card border-border/50 max-w-md [&>button]:hidden">
+          <DialogHeader>
+            <DialogTitle>Report Message</DialogTitle>
+            <DialogDescription>
+              This report will be reviewed by our moderation team. Please only report genuine concerns.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Reason</Label>
+              <Select value={reportReason} onValueChange={setReportReason}>
+                <SelectTrigger className="bg-secondary/50 border-border/50">
+                  <SelectValue placeholder="Select a reason…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="harassment">Harassment or bullying</SelectItem>
+                  <SelectItem value="spam">Spam</SelectItem>
+                  <SelectItem value="inappropriate">Inappropriate content</SelectItem>
+                  <SelectItem value="hate_speech">Hate speech or discrimination</SelectItem>
+                  <SelectItem value="unsafe">Unsafe or dangerous content</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Additional details <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Textarea
+                value={reportDetails}
+                onChange={e => setReportDetails(e.target.value.slice(0, 500))}
+                placeholder="Tell us more about what happened…"
+                className="bg-secondary/50 border-border/50 resize-none text-sm"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setReportTarget(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={submitReport}
+              disabled={!reportReason || reportSubmitting}
+            >
+              {reportSubmitting ? "Submitting…" : "Submit Report"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Image lightbox */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center cursor-zoom-out p-4"
+          onClick={() => setLightboxImage(null)}
+        >
+          <img
+            src={lightboxImage}
+            alt="Full size"
+            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }

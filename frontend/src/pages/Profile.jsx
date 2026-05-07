@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
+import { parseApiError } from "../utils/apiError";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
@@ -9,12 +10,52 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Switch } from "../components/ui/switch";
 import { Badge } from "../components/ui/badge";
 import Navigation from "../components/Navigation";
+import LocationButton from "../components/LocationButton";
+import { ThemeToggle } from "../useTheme";
 import { toast } from "sonner";
-import { ArrowLeft, Edit2, MessageCircle, Save, X, Heart, UserPlus, UserCheck, Clock, Users, ChevronRight, MapPin, Bell, Camera, Search, AlertCircle, Crown, Shield, Handshake, Stethoscope, Ban, Moon, Sun } from "lucide-react";
+import { ArrowLeft, Edit2, MessageCircle, Save, X, Heart, UserPlus, UserCheck, Clock, Users, ChevronRight, MapPin, Bell, Camera, Search, AlertCircle, Crown, Shield, Handshake, Stethoscope, Ban, Moon, Sun, ChevronDown } from "lucide-react";
 import AppFooter from "../components/AppFooter";
+
+// Collapsible accordion section — works on all screen sizes
+function ProfileSection({ title, icon, children, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="rounded-xl border border-border/40 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 bg-secondary/30 hover:bg-secondary/50 transition-colors"
+      >
+        <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          {icon && <span className="text-primary">{icon}</span>}
+          {title}
+        </span>
+        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="px-4 py-4 space-y-4">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 const AUSTRALIAN_STATES = ["NSW", "VIC", "QLD", "WA", "SA", "TAS", "ACT", "NT"];
+
+const PRO_TYPE_LABELS = {
+  midwife: "Midwife",
+  doctor: "Doctor (GP)",
+  obstetrician: "Obstetrician",
+  nurse: "Nurse",
+  psychologist: "Psychologist / Counsellor",
+  lactation_consultant: "Lactation Consultant",
+  pediatrician: "Paediatrician",
+  social_worker: "Social Worker",
+  physiotherapist: "Physiotherapist",
+  other: "Health Professional",
+};
 const INTEREST_OPTIONS = [
   "Sleep & Settling", "Feeding", "Toddler Activities", "School Age",
   "Mental Health", "Dad Talk", "Mum Talk", "Local Events",
@@ -42,7 +83,6 @@ function ProfilePage({ user }) {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [darkMode, setDarkMode] = useState(document.documentElement.classList.contains('dark'));
   const [friendStatus, setFriendStatus] = useState(null);
   const [friendActionLoading, setFriendActionLoading] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
@@ -67,7 +107,16 @@ function ProfilePage({ user }) {
   const [isSingleParent, setIsSingleParent] = useState(false);
   const [isMultipleBirth, setIsMultipleBirth] = useState(false);
   const [anonymousByDefault, setAnonymousByDefault] = useState(false);
+  const [showLocationOnProfile, setShowLocationOnProfile] = useState(true);
+  const [showFullName, setShowFullName] = useState(false);
   const [picture, setPicture] = useState("");
+
+  // Professional verification
+  const [proType, setProType] = useState("");
+  const [proCredentials, setProCredentials] = useState("");
+  const [proWorkplace, setProWorkplace] = useState("");
+  const [proServicesUrl, setProServicesUrl] = useState("");
+  const [proLoading, setProLoading] = useState(false);
   const [emailPrefs, setEmailPrefs] = useState({
     notify_replies: true,
     notify_dms: true,
@@ -86,6 +135,10 @@ function ProfilePage({ user }) {
   const [locationSearch, setLocationSearch] = useState("");
   const [locationResults, setLocationResults] = useState([]);
   const [searchingLocation, setSearchingLocation] = useState(false);
+
+  // Posts
+  const [userPosts, setUserPosts] = useState([]);
+  const [postsLoading, setPostsLoading] = useState(false);
 
   const genderOptions = [
     { id: "female", text: "Female" },
@@ -132,6 +185,8 @@ function ProfilePage({ user }) {
           setMixedAgeGroups(data.mixed_age_groups || []);
           setInterests(data.interests || []);
           setLocationSearch(data.suburb || data.location || "");
+          setShowLocationOnProfile(data.show_location_on_profile !== false);
+          setShowFullName(data.show_full_name || false);
           setEmailPrefs(data.email_preferences || {
             notify_replies: true,
             notify_dms: true,
@@ -188,15 +243,50 @@ function ProfilePage({ user }) {
       }
     };
     
+    const fetchUserPosts = async () => {
+      const id = profileUserId || user?.user_id;
+      if (!id) return;
+      setPostsLoading(true);
+      try {
+        const res = await fetch(`${API_URL}/api/posts?author_id=${id}&limit=5`, { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          setUserPosts(Array.isArray(data) ? data : (data.posts || []));
+        }
+      } catch {}
+      finally { setPostsLoading(false); }
+    };
+
     fetchProfile();
     fetchFriendStatus();
     fetchBlockStatus();
     fetchFriends();
+    fetchUserPosts();
     // Compute badges for own profile
     if (!profileUserId || profileUserId === user?.user_id) {
       fetch(`${API_URL}/api/users/compute-badges`, { method: "POST", credentials: "include" }).catch(() => {});
     }
   }, [profileUserId, user?.user_id, isOwnProfile]);
+
+  const submitProfessionalApp = async () => {
+    if (!proType) { toast.error("Please select your professional type"); return; }
+    if (!proWorkplace.trim()) { toast.error("Please enter your workplace or organisation"); return; }
+    if (!proCredentials.trim()) { toast.error("Please describe your credentials"); return; }
+    if (!proServicesUrl.trim()) { toast.error("Please provide a link to your professional services page"); return; }
+    setProLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/users/professional-apply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ professional_type: proType, professional_credentials: proCredentials.trim(), professional_workplace: proWorkplace.trim(), professional_services_url: proServicesUrl.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok) { toast.success("Application submitted! A moderator will review it shortly."); }
+      else { toast.error(data.detail || "Something went wrong"); }
+    } catch { toast.error("Failed to submit"); }
+    finally { setProLoading(false); }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -220,6 +310,8 @@ function ProfilePage({ user }) {
           is_single_parent: isSingleParent,
           is_multiple_birth: parentingStage === "multiples" || (parentingStage === "mixed" && isMultipleBirth),
           anonymous_by_default: anonymousByDefault,
+          show_location_on_profile: showLocationOnProfile,
+          show_full_name: showFullName,
           picture: picture,
           email_preferences: emailPrefs,
           parenting_stage: parentingStage,
@@ -233,6 +325,15 @@ function ProfilePage({ user }) {
         setProfile(updated);
         setEditing(false);
         toast.success("Profile updated!");
+
+        // Sync localStorage so other pages see fresh data on next mount
+        try {
+          const stored = JSON.parse(localStorage.getItem("user") || "{}");
+          const merged = { ...stored, ...updated };
+          localStorage.setItem("user", JSON.stringify(merged));
+          // Notify any mounted pages (ChatRooms, Forums, etc.) to re-render immediately
+          window.dispatchEvent(new CustomEvent("village:profileUpdated", { detail: merged }));
+        } catch {}
       } else {
         toast.error("Failed to update profile");
       }
@@ -379,7 +480,7 @@ function ProfilePage({ user }) {
         setFriendStatus({ status: "request_sent" });
       } else {
         const error = await response.json();
-        toast.error(error.detail || "Failed to send request");
+        toast.error(parseApiError(error.detail, "Failed to send request"));
       }
     } catch (error) {
       toast.error("Something went wrong");
@@ -440,9 +541,9 @@ function ProfilePage({ user }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background pb-20 lg:pb-0">
+      <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
         <Navigation user={user} />
-        <main className="max-w-2xl mx-auto px-4 pt-20 lg:pt-24">
+        <main className="max-w-2xl mx-auto px-4 pt-16 lg:pt-8">
           <div className="animate-pulse space-y-6">
             <div className="flex items-center gap-4">
               <div className="w-20 h-20 rounded-full bg-muted"></div>
@@ -459,9 +560,9 @@ function ProfilePage({ user }) {
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-background pb-20 lg:pb-0">
+      <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
         <Navigation user={user} />
-        <main className="max-w-2xl mx-auto px-4 pt-20 lg:pt-24 text-center">
+        <main className="max-w-2xl mx-auto px-4 pt-16 lg:pt-8 text-center">
           <h1 className="font-heading text-2xl font-bold text-foreground">Profile not found</h1>
         </main>
       </div>
@@ -545,10 +646,10 @@ function ProfilePage({ user }) {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pb-0">
+    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
       <Navigation user={user} />
       
-      <main className="max-w-2xl mx-auto px-4 pt-20 lg:pt-24">
+      <main className="max-w-2xl mx-auto px-4 pt-16 lg:pt-8">
         {!isOwnProfile && (
           <button 
             onClick={() => navigate(-1)}
@@ -562,7 +663,7 @@ function ProfilePage({ user }) {
 
         {/* Profile Incomplete Banner */}
         {isOwnProfile && !editing && profile && !profile.onboarding_complete && (
-          <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 mb-6 flex items-center gap-4">
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-[18px] p-4 mb-6 flex items-center gap-4">
             <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
               <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
             </div>
@@ -576,7 +677,7 @@ function ProfilePage({ user }) {
           </div>
         )}
 
-        <div className="bg-card rounded-2xl p-6 border border-border/50 shadow-sm border-l-2 border-l-primary/20 mb-6">
+        <div className="village-card p-6 border-l-2 border-l-primary/20 mb-6">
           <div className="flex items-start justify-between mb-6">
             <div className="flex items-center gap-4">
               <div className="relative">
@@ -638,13 +739,23 @@ function ProfilePage({ user }) {
                     </Badge>
                   )}
                 </div>
+                {/* Show full real name if opted in */}
+                {profile.show_full_name && profile.first_name && (
+                  <p className="text-sm text-muted-foreground">
+                    {profile.first_name} {profile.last_name || ""}
+                  </p>
+                )}
                 {genderLabel && (
                   <p className="text-muted-foreground">{genderLabel}</p>
                 )}
-                {profile.location && (
+                {/* Show location: respect show_location_on_profile */}
+                {profile.location && (profile.show_location_on_profile !== false || isOwnProfile) && (
                   <p className="text-sm text-muted-foreground flex items-center gap-1">
-                    <MapPin className="h-3 w-3" /> {profile.location}
-                    {profile.state && <span className="text-xs">({profile.state})</span>}
+                    <MapPin className="h-3 w-3" />
+                    {profile.show_location_on_profile !== false
+                      ? <>{profile.location}{profile.state && <span className="text-xs ml-1">({profile.state})</span>}</>
+                      : <span className="italic text-xs">Location hidden · <button onClick={() => setEditing(true)} className="text-primary hover:underline">Update in settings</button></span>
+                    }
                   </p>
                 )}
               </div>
@@ -684,72 +795,75 @@ function ProfilePage({ user }) {
           </div>
 
           {editing ? (
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="display-name" className="text-foreground">Display Name</Label>
-                <Input
-                  id="display-name"
-                  value={nickname}
-                  onChange={(e) => setNickname(e.target.value)}
-                  placeholder="How should we call you?"
-                  className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
-                  data-testid="nickname-input"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="bio" className="text-foreground">Bio</Label>
-                <Textarea
-                  id="bio"
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value.slice(0, 300))}
-                  placeholder="Tell other parents about yourself..."
-                  className="min-h-[100px] rounded-xl bg-secondary/50 border-transparent focus:border-primary resize-none"
-                  data-testid="bio-input"
-                  maxLength={300}
-                />
-                <p className="text-xs text-muted-foreground text-right">{bio.length}/300</p>
-              </div>
-
-              {/* Parenting Stage */}
-              <div className="space-y-2">
-                <Label className="text-foreground">Where are you at?</Label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {[
-                    { id: "expecting", label: "Expecting", emoji: "🤰" },
-                    { id: "newborn", label: "Newborn", emoji: "👶" },
-                    { id: "infant", label: "Infant", emoji: "🧒" },
-                    { id: "toddler", label: "Toddler", emoji: "🚶" },
-                    { id: "school_age", label: "School Age", emoji: "🎒" },
-                    { id: "teenager", label: "Teenager", emoji: "🧑" },
-                    { id: "multiples", label: "Twins/Triplets", emoji: "👶👶" },
-                    { id: "mixed", label: "Mixed ages", emoji: "👨‍👩‍👧‍👦" },
-                  ].map(stage => (
-                    <button
-                      key={stage.id}
-                      type="button"
-                      onClick={() => setParentingStage(stage.id)}
-                      className={`rounded-xl py-2.5 px-2 text-center border-2 transition-all ${
-                        parentingStage === stage.id
-                          ? "border-primary bg-primary/10"
-                          : "border-border/50 bg-secondary/30 hover:border-primary/40"
-                      }`}
-                    >
-                      <span className="text-lg block">{stage.emoji}</span>
-                      <span className="text-xs font-medium text-foreground">{stage.label}</span>
-                    </button>
-                  ))}
+            <div className="space-y-3">
+              {/* Sticky save bar */}
+              <div className="sticky top-16 z-10 -mx-4 px-4 py-2 bg-background/95 backdrop-blur border-b border-border/30 flex items-center justify-between gap-3 mb-1">
+                <p className="text-xs text-muted-foreground">Editing profile</p>
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => setEditing(false)} className="rounded-full h-8 px-3">Cancel</Button>
+                  <Button size="sm" onClick={handleSave} disabled={saving} className="rounded-full h-8 px-4 bg-primary text-primary-foreground hover:bg-primary/90">
+                    {saving ? "Saving…" : <><Save className="h-3.5 w-3.5 mr-1.5" />Save</>}
+                  </Button>
                 </div>
               </div>
 
-              {/* Mixed / Multiples age group sub-selection */}
-              {(parentingStage === "mixed" || parentingStage === "multiples") && (
-                <div className="space-y-2 pl-3 border-l-2 border-primary/30">
-                  <Label className="text-foreground text-sm">
-                    {parentingStage === "multiples" ? "How old are your multiples?" : "Which age groups do you have?"}{" "}
-                    <span className="text-muted-foreground font-normal">(select all that apply)</span>
-                  </Label>
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+              {/* About You */}
+              <ProfileSection title="About You" icon="👤" defaultOpen={true}>
+                <div className="space-y-2">
+                  <Label htmlFor="display-name" className="text-foreground">Display Name</Label>
+                  <Input
+                    id="display-name"
+                    value={nickname}
+                    onChange={(e) => setNickname(e.target.value)}
+                    placeholder="How should we call you?"
+                    className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
+                    data-testid="nickname-input"
+                  />
+                  <p className="text-xs text-muted-foreground">This is how other members see you. Your real name stays private unless you choose to share it.</p>
+                </div>
+
+                {/* Show full name toggle */}
+                <div
+                  className={`flex items-center justify-between p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                    showFullName ? "border-primary/30 bg-primary/5" : "border-border/40 bg-secondary/30"
+                  }`}
+                  onClick={() => setShowFullName(p => !p)}
+                >
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Show my full name on my profile</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {showFullName
+                        ? `Your real name (${profile?.first_name || ""} ${profile?.last_name || ""}) will be visible on your profile`
+                        : "Only your display name is visible — your real name stays private"}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={showFullName}
+                    onCheckedChange={setShowFullName}
+                    onClick={e => e.stopPropagation()}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="bio" className="text-foreground">Bio</Label>
+                  <Textarea
+                    id="bio"
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value.slice(0, 300))}
+                    placeholder="Tell other parents about yourself..."
+                    className="min-h-[100px] rounded-xl bg-secondary/50 border-transparent focus:border-primary resize-none"
+                    data-testid="bio-input"
+                    maxLength={300}
+                  />
+                  <p className="text-xs text-muted-foreground text-right">{bio.length}/300</p>
+                </div>
+              </ProfileSection>
+
+              {/* Parenting Stage */}
+              <ProfileSection title="Parenting Stage" icon="👶" defaultOpen={false}>
+                <div className="space-y-2">
+                  <Label className="text-foreground">Where are you at?</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {[
                       { id: "expecting", label: "Expecting", emoji: "🤰" },
                       { id: "newborn", label: "Newborn", emoji: "👶" },
@@ -757,55 +871,104 @@ function ProfilePage({ user }) {
                       { id: "toddler", label: "Toddler", emoji: "🚶" },
                       { id: "school_age", label: "School Age", emoji: "🎒" },
                       { id: "teenager", label: "Teenager", emoji: "🧑" },
-                    ].map(stage => {
-                      const active = mixedAgeGroups.includes(stage.id);
-                      return (
-                        <button
-                          key={stage.id}
-                          type="button"
-                          onClick={() => setMixedAgeGroups(prev =>
-                            prev.includes(stage.id) ? prev.filter(g => g !== stage.id) : [...prev, stage.id]
-                          )}
-                          className={`rounded-xl py-2.5 px-2 text-center border-2 transition-all ${
-                            active ? "border-primary bg-primary/10" : "border-border/50 bg-secondary/30 hover:border-primary/40"
-                          }`}
-                        >
-                          <span className="text-base block">{stage.emoji}</span>
-                          <span className="text-xs font-medium text-foreground">{stage.label}</span>
-                        </button>
-                      );
-                    })}
+                      { id: "multiples", label: "Twins/Triplets", emoji: "👶👶" },
+                      { id: "mixed", label: "Mixed ages", emoji: "👨‍👩‍👧‍👦" },
+                    ].map(stage => (
+                      <button
+                        key={stage.id}
+                        type="button"
+                        onClick={() => setParentingStage(stage.id)}
+                        className={`rounded-xl py-2.5 px-2 text-center border-2 transition-all ${
+                          parentingStage === stage.id
+                            ? "border-primary bg-primary/10"
+                            : "border-border/50 bg-secondary/30 hover:border-primary/40"
+                        }`}
+                      >
+                        <span className="text-lg block">{stage.emoji}</span>
+                        <span className="text-xs font-medium text-foreground">{stage.label}</span>
+                      </button>
+                    ))}
                   </div>
-
-                  {parentingStage === "mixed" && (
-                    <button
-                      type="button"
-                      onClick={() => setIsMultipleBirth(p => !p)}
-                      className={`w-full rounded-xl px-3 py-2.5 border-2 flex items-center gap-3 transition-all text-left ${
-                        isMultipleBirth ? "border-primary bg-primary/10" : "border-border/50 bg-secondary/30 hover:border-primary/40"
-                      }`}
-                    >
-                      <span className="text-base">👶👶</span>
-                      <span className="text-xs font-medium text-foreground flex-1">Some of these include twins or triplets</span>
-                      {isMultipleBirth && <span className="text-primary text-xs font-bold">✓</span>}
-                    </button>
-                  )}
                 </div>
-              )}
 
-              <div className="space-y-2">
-                <Label className="text-foreground flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  Suburb / Postcode
-                </Label>
+                {/* Mixed / Multiples age group sub-selection */}
+                {(parentingStage === "mixed" || parentingStage === "multiples") && (
+                  <div className="space-y-2 pl-3 border-l-2 border-primary/30">
+                    <Label className="text-foreground text-sm">
+                      {parentingStage === "multiples" ? "How old are your multiples?" : "Which age groups do you have?"}{" "}
+                      <span className="text-muted-foreground font-normal">(select all that apply)</span>
+                    </Label>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                      {[
+                        { id: "expecting", label: "Expecting", emoji: "🤰" },
+                        { id: "newborn", label: "Newborn", emoji: "👶" },
+                        { id: "infant", label: "Infant", emoji: "🧒" },
+                        { id: "toddler", label: "Toddler", emoji: "🚶" },
+                        { id: "school_age", label: "School Age", emoji: "🎒" },
+                        { id: "teenager", label: "Teenager", emoji: "🧑" },
+                      ].map(stage => {
+                        const active = mixedAgeGroups.includes(stage.id);
+                        return (
+                          <button
+                            key={stage.id}
+                            type="button"
+                            onClick={() => setMixedAgeGroups(prev =>
+                              prev.includes(stage.id) ? prev.filter(g => g !== stage.id) : [...prev, stage.id]
+                            )}
+                            className={`rounded-xl py-2.5 px-2 text-center border-2 transition-all ${
+                              active ? "border-primary bg-primary/10" : "border-border/50 bg-secondary/30 hover:border-primary/40"
+                            }`}
+                          >
+                            <span className="text-base block">{stage.emoji}</span>
+                            <span className="text-xs font-medium text-foreground">{stage.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {parentingStage === "mixed" && (
+                      <button
+                        type="button"
+                        onClick={() => setIsMultipleBirth(p => !p)}
+                        className={`w-full rounded-xl px-3 py-2.5 border-2 flex items-center gap-3 transition-all text-left ${
+                          isMultipleBirth ? "border-primary bg-primary/10" : "border-border/50 bg-secondary/30 hover:border-primary/40"
+                        }`}
+                      >
+                        <span className="text-base">👶👶</span>
+                        <span className="text-xs font-medium text-foreground flex-1">Some of these include twins or triplets</span>
+                        {isMultipleBirth && <span className="text-primary text-xs font-bold">✓</span>}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </ProfileSection>
+
+              {/* Location */}
+              <ProfileSection title="Location" icon={<MapPin className="h-4 w-4" />} defaultOpen={false}>
+                {/* Suburb / Postcode search */}
                 <div className="relative">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <Label className="text-sm text-muted-foreground">Suburb or postcode</Label>
+                    <LocationButton
+                      onLocation={({ suburb, postcode, state: newState, latitude, longitude }) => {
+                        setSuburb(suburb);
+                        setPostcode(postcode);
+                        setState(newState);
+                        setLatitude(latitude);
+                        setLongitude(longitude);
+                        setUserLocation(suburb);
+                        setLocationSearch(`${suburb}${postcode ? ", " + postcode : ""}`);
+                        setLocationResults([]);
+                      }}
+                    />
+                  </div>
                   <Input
                     value={locationSearch}
                     onChange={(e) => {
                       setLocationSearch(e.target.value);
                       searchLocation(e.target.value);
                     }}
-                    placeholder="e.g. Bondi, 2026, Fitzroy..."
+                    placeholder="Suburb or postcode — e.g. Bondi, 2026"
                     className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
                     autoComplete="off"
                     data-testid="location-input"
@@ -841,202 +1004,190 @@ function ProfilePage({ user }) {
                     </p>
                   )}
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label className="text-foreground">I am a</Label>
-                <Select value={gender} onValueChange={setGender}>
-                  <SelectTrigger className="h-12 rounded-xl bg-secondary/50 border-transparent" data-testid="gender-select">
-                    <SelectValue placeholder="Select gender" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border/50">
-                    {genderOptions.map((opt) => (
-                      <SelectItem key={opt.id} value={opt.id}>
-                        {opt.text}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex items-center justify-between p-4 rounded-xl bg-pink-500/5 border border-pink-500/20">
-                <div className="flex items-center gap-3">
-                  <Heart className="h-5 w-5 text-pink-500" />
-                  <div>
-                    <Label htmlFor="single-parent" className="font-medium text-foreground cursor-pointer">I'm a single parent</Label>
-                    <p className="text-xs text-muted-foreground">Connect with other single parents in our community</p>
-                  </div>
-                </div>
-                <Switch
-                  id="single-parent"
-                  checked={isSingleParent}
-                  onCheckedChange={setIsSingleParent}
-                  data-testid="single-parent-toggle"
-                />
-              </div>
-
-
-              <div className="flex items-center justify-between p-4 rounded-xl bg-secondary/30 border border-border/30">
-                <div className="flex items-center gap-3">
-                  <span className="text-xl">👤</span>
-                  <div>
-                    <Label htmlFor="anonymous-default" className="font-medium text-foreground cursor-pointer">Post anonymously by default</Label>
-                    <p className="text-xs text-muted-foreground">Your name and avatar won't show on new posts — you can still override per post</p>
-                  </div>
-                </div>
-                <Switch
-                  id="anonymous-default"
-                  checked={anonymousByDefault}
-                  onCheckedChange={setAnonymousByDefault}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-foreground">I want to connect with</Label>
-                <Select value={connectWith} onValueChange={setConnectWith}>
-                  <SelectTrigger className="h-12 rounded-xl bg-secondary/50 border-transparent" data-testid="connect-with-select">
-                    <SelectValue placeholder="Select preference" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border/50">
-                    {connectWithOptions.map((opt) => (
-                      <SelectItem key={opt.id} value={opt.id}>
-                        {opt.text}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  This helps filter who you see in chat rooms and can message you
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-foreground flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  State (for local chat rooms)
-                </Label>
+                {/* State selector */}
                 <Select value={state} onValueChange={setState}>
-                  <SelectTrigger className="h-12 rounded-xl bg-secondary/50 border-transparent" data-testid="state-select">
-                    <SelectValue placeholder="Select your state" />
+                  <SelectTrigger className="h-11 rounded-xl bg-secondary/50 border-transparent" data-testid="state-select">
+                    <SelectValue placeholder="State" />
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border/50">
                     {AUSTRALIAN_STATES.map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {s}
-                      </SelectItem>
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground">
-                  This helps you connect with local parents and shows you local chat rooms
-                </p>
-              </div>
 
-              {/* Interests */}
-              <div id="identity" className="space-y-2">
-                <Label className="text-foreground">Your Interests</Label>
-                <p className="text-xs text-muted-foreground">Select topics you care about — we'll recommend relevant circles.</p>
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {INTEREST_OPTIONS.map((interest) => (
-                    <button
-                      key={interest}
-                      type="button"
-                      onClick={() => setInterests(prev =>
-                        prev.includes(interest) ? prev.filter(i => i !== interest) : [...prev, interest]
-                      )}
-                      className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
-                        interests.includes(interest)
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "border-border/50 text-muted-foreground hover:border-primary/40 hover:text-foreground"
-                      }`}
-                    >
-                      {interest}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Email Notification Preferences */}
-              <div className="p-4 rounded-xl bg-secondary/30 border border-border/30 space-y-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Bell className="h-5 w-5 text-primary" />
-                  <Label className="font-medium text-foreground">Email Notifications</Label>
-                </div>
-                
-                <div className="flex items-center justify-between">
+                {/* Show location on profile toggle */}
+                <div
+                  className={`flex items-center justify-between p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                    showLocationOnProfile ? "border-primary/30 bg-primary/5" : "border-border/40 bg-secondary/30"
+                  }`}
+                  onClick={() => setShowLocationOnProfile(p => !p)}
+                >
                   <div>
-                    <Label htmlFor="notify-replies" className="text-sm text-foreground cursor-pointer">New replies to my posts</Label>
-                  </div>
-                  <Switch 
-                    id="notify-replies"
-                    checked={emailPrefs.notify_replies}
-                    onCheckedChange={(checked) => setEmailPrefs(prev => ({ ...prev, notify_replies: checked }))}
-                  />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label htmlFor="notify-dms" className="text-sm text-foreground cursor-pointer">New direct messages</Label>
-                  </div>
-                  <Switch 
-                    id="notify-dms"
-                    checked={emailPrefs.notify_dms}
-                    onCheckedChange={(checked) => setEmailPrefs(prev => ({ ...prev, notify_dms: checked }))}
-                  />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label htmlFor="notify-friends" className="text-sm text-foreground cursor-pointer">Friend requests</Label>
-                  </div>
-                  <Switch 
-                    id="notify-friends"
-                    checked={emailPrefs.notify_friend_requests}
-                    onCheckedChange={(checked) => setEmailPrefs(prev => ({ ...prev, notify_friend_requests: checked }))}
-                  />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label htmlFor="notify-digest" className="text-sm text-foreground cursor-pointer">Weekly digest</Label>
-                    <p className="text-xs text-muted-foreground">Summary of activity in your community</p>
-                  </div>
-                  <Switch 
-                    id="notify-digest"
-                    checked={emailPrefs.weekly_digest}
-                    onCheckedChange={(checked) => setEmailPrefs(prev => ({ ...prev, weekly_digest: checked }))}
-                  />
-                </div>
-              </div>
-
-              {/* Appearance */}
-              <div className="p-4 rounded-xl bg-secondary/30 border border-border/30 space-y-4">
-                <div className="flex items-center gap-2 mb-2">
-                  {darkMode ? <Moon className="h-5 w-5 text-primary" /> : <Sun className="h-5 w-5 text-primary" />}
-                  <Label className="font-medium text-foreground">Appearance</Label>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-sm text-foreground">Dark mode</Label>
-                    <p className="text-xs text-muted-foreground">Easier on the eyes at night</p>
+                    <p className="text-sm font-medium text-foreground">Show area on my profile</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {showLocationOnProfile ? "Your suburb/area is visible to other members" : "Your area is hidden from your profile"}
+                    </p>
                   </div>
                   <Switch
-                    checked={darkMode}
-                    onCheckedChange={(checked) => {
-                      setDarkMode(checked);
-                      if (checked) {
-                        document.documentElement.classList.add('dark');
-                        localStorage.setItem('theme', 'dark');
-                      } else {
-                        document.documentElement.classList.remove('dark');
-                        localStorage.setItem('theme', 'light');
-                      }
-                    }}
+                    checked={showLocationOnProfile}
+                    onCheckedChange={setShowLocationOnProfile}
+                    onClick={e => e.stopPropagation()}
                   />
                 </div>
-              </div>
+                <p className="text-xs text-muted-foreground px-1">
+                  🔒 Your location is never shared publicly — only used to connect you with nearby parents and local chat rooms.
+                </p>
+              </ProfileSection>
 
-              <div className="flex gap-4 pt-4">
+              {/* Preferences */}
+              <ProfileSection title="Preferences" icon="⚙️" defaultOpen={false}>
+                <div className="space-y-2">
+                  <Label className="text-foreground">I am a</Label>
+                  <Select value={gender} onValueChange={setGender}>
+                    <SelectTrigger className="h-12 rounded-xl bg-secondary/50 border-transparent" data-testid="gender-select">
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border/50">
+                      {genderOptions.map((opt) => (
+                        <SelectItem key={opt.id} value={opt.id}>
+                          {opt.text}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-center justify-between p-4 rounded-xl bg-pink-500/5 border border-pink-500/20">
+                  <div className="flex items-center gap-3">
+                    <Heart className="h-5 w-5 text-pink-500" />
+                    <div>
+                      <Label htmlFor="single-parent" className="font-medium text-foreground cursor-pointer">I'm a single parent</Label>
+                      <p className="text-xs text-muted-foreground">Connect with other single parents in our community</p>
+                    </div>
+                  </div>
+                  <Switch
+                    id="single-parent"
+                    checked={isSingleParent}
+                    onCheckedChange={setIsSingleParent}
+                    data-testid="single-parent-toggle"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-4 rounded-xl bg-secondary/30 border border-border/30">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">👤</span>
+                    <div>
+                      <Label htmlFor="anonymous-default" className="font-medium text-foreground cursor-pointer">Post anonymously by default</Label>
+                      <p className="text-xs text-muted-foreground">Your name and avatar won't show on new posts — you can still override per post</p>
+                    </div>
+                  </div>
+                  <Switch
+                    id="anonymous-default"
+                    checked={anonymousByDefault}
+                    onCheckedChange={setAnonymousByDefault}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-foreground">I want to connect with</Label>
+                  <Select value={connectWith} onValueChange={setConnectWith}>
+                    <SelectTrigger className="h-12 rounded-xl bg-secondary/50 border-transparent" data-testid="connect-with-select">
+                      <SelectValue placeholder="Select preference" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border/50">
+                      {connectWithOptions.map((opt) => (
+                        <SelectItem key={opt.id} value={opt.id}>
+                          {opt.text}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    This helps filter who you see in chat rooms and can message you
+                  </p>
+                </div>
+              </ProfileSection>
+
+              {/* Interests */}
+              <ProfileSection title="Interests" icon="💡" defaultOpen={false}>
+                <div id="identity" className="space-y-2">
+                  <p className="text-xs text-muted-foreground">Select topics you care about — we'll recommend relevant circles.</p>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {INTEREST_OPTIONS.map((interest) => (
+                      <button
+                        key={interest}
+                        type="button"
+                        onClick={() => setInterests(prev =>
+                          prev.includes(interest) ? prev.filter(i => i !== interest) : [...prev, interest]
+                        )}
+                        className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
+                          interests.includes(interest)
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "border-border/50 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                        }`}
+                      >
+                        {interest}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </ProfileSection>
+
+              {/* Notifications */}
+              <ProfileSection title="Email Notifications" icon={<Bell className="h-4 w-4" />} defaultOpen={false}>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="notify-replies" className="text-sm text-foreground cursor-pointer">New replies to my posts</Label>
+                    <Switch
+                      id="notify-replies"
+                      checked={emailPrefs.notify_replies}
+                      onCheckedChange={(checked) => setEmailPrefs(prev => ({ ...prev, notify_replies: checked }))}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="notify-dms" className="text-sm text-foreground cursor-pointer">New direct messages</Label>
+                    <Switch
+                      id="notify-dms"
+                      checked={emailPrefs.notify_dms}
+                      onCheckedChange={(checked) => setEmailPrefs(prev => ({ ...prev, notify_dms: checked }))}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="notify-friends" className="text-sm text-foreground cursor-pointer">Friend requests</Label>
+                    <Switch
+                      id="notify-friends"
+                      checked={emailPrefs.notify_friend_requests}
+                      onCheckedChange={(checked) => setEmailPrefs(prev => ({ ...prev, notify_friend_requests: checked }))}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label htmlFor="notify-digest" className="text-sm text-foreground cursor-pointer">Weekly digest</Label>
+                      <p className="text-xs text-muted-foreground">Summary of activity in your community</p>
+                    </div>
+                    <Switch
+                      id="notify-digest"
+                      checked={emailPrefs.weekly_digest}
+                      onCheckedChange={(checked) => setEmailPrefs(prev => ({ ...prev, weekly_digest: checked }))}
+                    />
+                  </div>
+                </div>
+              </ProfileSection>
+
+              {/* Appearance */}
+              <ProfileSection title="Appearance" icon={<Sun className="h-4 w-4" />} defaultOpen={false}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-sm text-foreground">Theme</Label>
+                    <p className="text-xs text-muted-foreground">Day, Night, or follows your device</p>
+                  </div>
+                  <ThemeToggle />
+                </div>
+              </ProfileSection>
+
+              <div className="flex gap-4 pt-2">
                 <Button
                   variant="outline"
                   onClick={() => setEditing(false)}
@@ -1045,7 +1196,7 @@ function ProfilePage({ user }) {
                 >
                   Cancel
                 </Button>
-                <Button 
+                <Button
                   onClick={handleSave}
                   disabled={saving}
                   className="flex-1 h-12 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90"
@@ -1061,26 +1212,80 @@ function ProfilePage({ user }) {
               </div>
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-5">
+              {/* Bio */}
               {profile.bio ? (
                 <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">About</h3>
-                  <p className="text-foreground">{profile.bio}</p>
+                  <p className="text-sm font-medium text-muted-foreground mb-1.5">About</p>
+                  <p className="text-foreground leading-relaxed">{profile.bio}</p>
                 </div>
               ) : isOwnProfile ? (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground mb-4">Complete your profile to help other parents connect with you!</p>
-                  <Button onClick={() => setEditing(true)} className="rounded-full" data-testid="complete-profile-btn">
+                <div className="text-center py-6 bg-secondary/20 rounded-xl border border-border/30">
+                  <p className="text-muted-foreground text-sm mb-3">Complete your profile to help other parents connect with you!</p>
+                  <Button onClick={() => setEditing(true)} size="sm" className="rounded-full" data-testid="complete-profile-btn">
                     <Edit2 className="h-4 w-4 mr-2" />
                     Complete Profile
                   </Button>
                 </div>
               ) : null}
 
-              {profile.connect_with && profile.connect_with !== "all" && (
+              {/* Verified Professional info — visible to all viewers */}
+              {profile.professional_verification_status === "approved" && (
+                <div className="flex items-start gap-3 p-4 rounded-[18px] bg-green-500/8 border border-green-500/20">
+                  <Stethoscope className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-foreground">
+                      {PRO_TYPE_LABELS[profile.professional_type] || "Verified Professional"}
+                    </p>
+                    {profile.professional_workplace && (
+                      <p className="text-xs text-muted-foreground mt-0.5">{profile.professional_workplace}</p>
+                    )}
+                    {profile.professional_services_url && (
+                      <a
+                        href={profile.professional_services_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary hover:underline mt-1 inline-block"
+                      >
+                        Professional profile →
+                      </a>
+                    )}
+                  </div>
+                  <span className="text-xs text-green-600 dark:text-green-400 font-semibold whitespace-nowrap shrink-0">✓ Verified</span>
+                </div>
+              )}
+
+              {/* Quick-info chips */}
+              {(() => {
+                const STAGE_LABELS = {
+                  expecting: "🤰 Expecting", newborn: "👶 Newborn", infant: "🧒 Infant",
+                  toddler: "🚶 Toddler", school_age: "🎒 School Age", teenager: "🧑 Teenager",
+                  multiples: "👶👶 Twins/Triplets", mixed: "👨‍👩‍👧‍👦 Mixed Ages",
+                };
+                const chips = [];
+                if (profile.parenting_stage) chips.push(STAGE_LABELS[profile.parenting_stage] || profile.parenting_stage);
+                if (profile.is_single_parent) chips.push("❤️ Single Parent");
+                if (profile.connect_with && profile.connect_with !== "all") {
+                  chips.push(`🤝 Connects with ${connectWithOptions.find(o => o.id === profile.connect_with)?.text || profile.connect_with}`);
+                }
+                return chips.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {chips.map(c => (
+                      <span key={c} className="text-xs px-2.5 py-1 rounded-full bg-secondary/60 border border-border/40 text-foreground">{c}</span>
+                    ))}
+                  </div>
+                ) : null;
+              })()}
+
+              {/* Interests */}
+              {profile.interests?.length > 0 && (
                 <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">Connection Preference</h3>
-                  <p className="text-foreground">{connectWithOptions.find(o => o.id === profile.connect_with)?.text}</p>
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Interests</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {profile.interests.map(interest => (
+                      <span key={interest} className="text-xs px-2.5 py-1 rounded-full bg-primary/8 border border-primary/20 text-primary/80">{interest}</span>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -1088,7 +1293,7 @@ function ProfilePage({ user }) {
         </div>
 
         {/* Trust Badges */}
-        <div className="bg-card rounded-2xl p-6 border border-border/50 shadow-sm border-l-2 border-l-primary/20 mb-6">
+        <div className="village-card p-6 border-l-2 border-l-primary/20 mb-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-heading font-bold text-lg text-foreground flex items-center gap-2">
               <Shield className="h-5 w-5 text-primary" />
@@ -1148,7 +1353,7 @@ function ProfilePage({ user }) {
 
         {/* Friends Section - Only show on own profile */}
         {isOwnProfile && (
-          <div className="bg-card rounded-2xl p-6 border border-border/50 shadow-sm border-l-2 border-l-primary/20">
+          <div className="village-card p-6 border-l-2 border-l-primary/20 mb-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-heading font-bold text-lg text-foreground flex items-center gap-2">
                 <Users className="h-5 w-5 text-primary" />
@@ -1206,9 +1411,152 @@ function ProfilePage({ user }) {
             )}
           </div>
         )}
+        {/* Recent Posts */}
+        {(postsLoading || userPosts.length > 0) && (
+          <div className="village-card p-6 mb-6">
+            <h2 className="font-heading font-bold text-lg text-foreground flex items-center gap-2 mb-4">
+              <MessageCircle className="h-5 w-5 text-primary" />
+              Recent Posts
+            </h2>
+            {postsLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="h-16 rounded-[14px] bg-secondary/40 animate-pulse" />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {userPosts.map(post => (
+                  <Link
+                    key={post.post_id || post.id}
+                    to={`/forums/post/${post.post_id || post.id}`}
+                    className="block p-4 rounded-[14px] bg-secondary/20 border border-border/30 hover:bg-secondary/40 transition-colors"
+                  >
+                    <p className="text-sm font-semibold text-foreground line-clamp-1 mb-1">
+                      {post.title || post.content?.slice(0, 80)}
+                    </p>
+                    {post.title && post.content && (
+                      <p className="text-xs text-muted-foreground line-clamp-2">{post.content}</p>
+                    )}
+                    <p className="text-[11px] text-muted-foreground mt-1.5">
+                      {post.space_name && <span className="mr-2">in {post.space_name}</span>}
+                      {post.created_at && (
+                        <span>{Math.round((Date.now() - new Date(post.created_at)) / (1000 * 60 * 60 * 24))}d ago</span>
+                      )}
+                    </p>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Professional Verification — own profile only */}
+        {isOwnProfile && (
+          <div className="village-card p-5 mb-6 space-y-4">
+            <div className="flex items-center gap-2">
+              <Stethoscope className="h-5 w-5" style={{ color: "hsl(var(--accent))" }} />
+              <h2 className="font-heading font-semibold text-foreground">Professional Verification</h2>
+              {profile?.professional_verification_status === "approved" && (
+                <span className="ml-auto flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400">
+                  ✓ Verified
+                </span>
+              )}
+              {profile?.professional_verification_status === "pending" && (
+                <span className="ml-auto flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400">
+                  ⏳ Under review
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Are you a health professional? Verified professionals get a badge on their profile, helping parents know they're getting advice from a credentialed practitioner.
+            </p>
+            {profile?.professional_verification_status === "approved" ? (
+              <div className="rounded-xl p-4 bg-green-500/10 border border-green-500/20">
+                <p className="text-sm font-medium text-green-700 dark:text-green-400">✓ Your professional status is verified</p>
+                <p className="text-xs text-muted-foreground mt-1">A verified badge appears on your profile and posts.</p>
+              </div>
+            ) : profile?.professional_verification_status === "pending" ? (
+              <div className="rounded-xl p-4 bg-amber-500/10 border border-amber-500/20">
+                <p className="text-sm font-medium text-amber-700 dark:text-amber-400">⏳ Application under review</p>
+                <p className="text-xs text-muted-foreground mt-1">We'll notify you once a moderator has reviewed your credentials.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1.5 block">Professional type</label>
+                  <Select value={proType} onValueChange={setProType}>
+                    <SelectTrigger className="rounded-xl" style={{ height: 40, background: "var(--paper)", border: "1px solid var(--line)" }}>
+                      <SelectValue placeholder="Select your role…" />
+                    </SelectTrigger>
+                    <SelectContent style={{ background: "var(--paper-2)", border: "1px solid var(--line)" }}>
+                      {[
+                        { value: "midwife", label: "Midwife" },
+                        { value: "doctor", label: "Doctor (GP)" },
+                        { value: "obstetrician", label: "Obstetrician" },
+                        { value: "nurse", label: "Nurse" },
+                        { value: "psychologist", label: "Psychologist / Counsellor" },
+                        { value: "lactation_consultant", label: "Lactation Consultant" },
+                        { value: "pediatrician", label: "Paediatrician" },
+                        { value: "social_worker", label: "Social Worker" },
+                        { value: "physiotherapist", label: "Physiotherapist" },
+                        { value: "other", label: "Other Health Professional" },
+                      ].map(t => (
+                        <SelectItem key={t.value} value={t.value} style={{ color: "var(--ink)" }}>{t.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1.5 block">Workplace / Organisation</label>
+                  <input
+                    value={proWorkplace}
+                    onChange={e => setProWorkplace(e.target.value)}
+                    placeholder="e.g. Royal Hospital for Women, private practice"
+                    className="w-full rounded-xl px-3 py-2 text-sm"
+                    style={{ height: 40, background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)", outline: "none" }}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1.5 block">Credentials &amp; experience</label>
+                  <Textarea
+                    value={proCredentials}
+                    onChange={e => setProCredentials(e.target.value)}
+                    placeholder="Describe your qualifications, registration number, years of experience. This is reviewed by our team."
+                    className="rounded-xl resize-none"
+                    rows={4}
+                    maxLength={2000}
+                    style={{ background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1 text-right">{proCredentials.length}/2000</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1.5 block">Professional services link</label>
+                  <input
+                    value={proServicesUrl}
+                    onChange={e => setProServicesUrl(e.target.value)}
+                    placeholder="e.g. https://yourwebsite.com.au, hospital profile, LinkedIn"
+                    className="w-full rounded-xl px-3 py-2 text-sm"
+                    style={{ height: 40, background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)", outline: "none" }}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Link to your website, hospital/clinic profile, or professional directory listing.</p>
+                </div>
+                <Button
+                  onClick={submitProfessionalApp}
+                  disabled={proLoading || !proType || !proWorkplace.trim() || !proCredentials.trim() || !proServicesUrl.trim()}
+                  className="rounded-full"
+                  style={{ background: "var(--ink)", color: "var(--paper)", height: 40 }}
+                >
+                  {proLoading ? "Submitting…" : "Apply for Verification"}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Danger Zone — own profile only */}
         {isOwnProfile && (
-          <div className="bg-card rounded-2xl border-2 border-red-500/40 border-l-4 border-l-red-500 mb-6 overflow-hidden shadow-sm shadow-red-500/5">
+          <div className="rounded-[18px] border-2 border-red-500/40 border-l-4 border-l-red-500 mb-6 overflow-hidden shadow-sm shadow-red-500/5" style={{ background: "hsl(var(--card))" }}>
             <div className="px-6 pt-5 pb-4">
               <h2 className="font-heading font-bold text-base text-red-500 mb-1">Danger Zone</h2>
               <p className="text-sm text-muted-foreground">These actions are permanent and cannot be undone.</p>

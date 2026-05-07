@@ -1,0 +1,59 @@
+@import './tokens.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-ui);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    letter-spacing: -0.005em;
+    text-wrap: pretty;
+  }
+  ::selection {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  /* Scrollbar — subtle, warm */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 999px; border: 2px solid var(--paper); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--ink-faint); }
+}
+
+@layer components {
+  .village-card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    box-shadow: var(--shadow-card);
+  }
+  .village-card-hover {
+    transition: transform 200ms ease-out, box-shadow 200ms ease-out;
+  }
+  .village-card-hover:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-float);
+  }
+  .village-focus {
+    outline: none;
+  }
+  .village-focus:focus-visible {
+    box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px color-mix(in oklab, var(--accent) 40%, transparent);
+    border-radius: 10px;
+  }
+}
+
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.55; transform: scale(0.9); }
+}
+.animate-live-pulse { animation: live-pulse 2s ease-in-out infinite; }

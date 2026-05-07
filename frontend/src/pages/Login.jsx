@@ -1,12 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { toast } from "sonner";
 import { ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { parseApiError } from "../utils/apiError";
+import { Wordmark } from "../components/Wordmark";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
+const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
 export default function Login() {
   const navigate = useNavigate();
@@ -14,6 +17,8 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const googleReady = useRef(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -34,7 +39,7 @@ export default function Login() {
         toast.success("Welcome back! 🦉");
         navigate("/dashboard");
       } else {
-        toast.error(data.detail || "Invalid credentials");
+        toast.error(parseApiError(data.detail, "Invalid credentials"));
       }
     } catch (error) {
       toast.error("Something went wrong. Please try again.");
@@ -43,8 +48,54 @@ export default function Login() {
     }
   };
 
+  useEffect(() => {
+    const initGoogle = () => {
+      if (googleReady.current || !window.google?.accounts?.id || !GOOGLE_CLIENT_ID) return;
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        auto_select: false,
+        callback: async ({ credential }) => {
+          setGoogleLoading(true);
+          try {
+            const res = await fetch(`${API_URL}/api/auth/session`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({ credential }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+              localStorage.setItem("user", JSON.stringify(data));
+              toast.success("Welcome back!");
+              navigate(data.onboarding_complete ? "/dashboard" : "/onboarding");
+            } else {
+              toast.error(data.detail || "Google sign-in failed. Please try again.");
+            }
+          } catch {
+            toast.error("Something went wrong. Please try again.");
+          } finally {
+            setGoogleLoading(false);
+          }
+        },
+      });
+      googleReady.current = true;
+    };
+    initGoogle();
+    const script = document.querySelector('script[src*="accounts.google.com/gsi/client"]');
+    script?.addEventListener("load", initGoogle);
+    return () => script?.removeEventListener("load", initGoogle);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleGoogleLogin = () => {
-    toast.error("Google login is not yet configured for local development");
+    if (!googleReady.current || !window.google?.accounts?.id) {
+      toast.error("Google sign-in is loading — please try again in a moment.");
+      return;
+    }
+    window.google.accounts.id.prompt((notification) => {
+      if (notification.isNotDisplayed()) {
+        toast.error("Google sign-in couldn't open. Try disabling any pop-up blockers.");
+      }
+    });
   };
 
   const handleFacebookLogin = () => {
@@ -52,45 +103,85 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex">
-      {/* Left side - Image */}
-      <div className="hidden lg:flex lg:w-1/2 relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-background via-transparent to-transparent z-10"></div>
-        <img 
-          src="https://images.unsplash.com/photo-1766393030567-2204662b0be2?w=800&h=1200&fit=crop" 
-          alt="Cozy atmosphere"
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute bottom-12 left-12 z-20 max-w-md">
-          <p className="text-2xl font-heading font-bold text-foreground mb-2">
+    <div className="min-h-screen flex" style={{ background: "var(--paper)" }}>
+      {/* Left panel — 40% paper + blob + Wordmark */}
+      <div
+        className="hidden lg:flex lg:w-[40%] flex-col justify-between relative overflow-hidden px-12 py-10"
+        style={{ background: "var(--paper)" }}
+      >
+        {/* Watercolour blob */}
+        <svg
+          className="absolute top-0 right-0 w-full opacity-40 pointer-events-none"
+          viewBox="0 0 480 520" fill="none" aria-hidden="true"
+        >
+          <ellipse cx="360" cy="160" rx="200" ry="180" fill="hsl(var(--accent))" fillOpacity="0.20" />
+          <ellipse cx="420" cy="80" rx="140" ry="110" fill="hsl(var(--accent))" fillOpacity="0.14" />
+          <ellipse cx="260" cy="240" rx="160" ry="120" fill="var(--honey)" fillOpacity="0.10" />
+        </svg>
+
+        {/* Wordmark */}
+        <div className="relative z-10">
+          <Wordmark size={26} />
+        </div>
+
+        {/* Quote */}
+        <div className="relative z-10 mb-8">
+          <p
+            style={{
+              fontFamily: "var(--serif)",
+              fontSize: "clamp(18px, 2vw, 24px)",
+              fontStyle: "italic",
+              fontWeight: 400,
+              letterSpacing: "-0.02em",
+              lineHeight: 1.5,
+              color: "var(--ink)",
+            }}
+          >
             "Finally found my village at 3am"
           </p>
-          <p className="text-muted-foreground">— Sarah, mom of twins</p>
+          <p className="mt-2 text-sm" style={{ color: "var(--ink-3)" }}>— Sarah, mum of twins</p>
         </div>
       </div>
 
-      {/* Right side - Form */}
-      <div className="w-full lg:w-1/2 flex flex-col justify-center px-8 py-12 lg:px-16">
-        <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8 transition-colors">
+      {/* Right panel — 60% form on paper-2 */}
+      <div
+        className="flex-1 flex flex-col justify-center px-8 py-12 lg:px-14"
+        style={{ background: "var(--paper-2)" }}
+      >
+        <Link
+          to="/"
+          className="inline-flex items-center gap-2 mb-8 transition-opacity opacity-60 hover:opacity-100 text-sm"
+          style={{ color: "var(--ink)" }}
+        >
           <ArrowLeft className="h-4 w-4" />
           Back to home
         </Link>
 
         <div className="max-w-md w-full mx-auto">
-          <div className="flex items-center justify-center mb-8">
-            <img src="/BG Removed- Main Logo.png" alt="The Village" className="h-64 w-auto" />
+          {/* Mobile wordmark */}
+          <div className="lg:hidden mb-8">
+            <Wordmark size={22} />
           </div>
 
-          <h1 className="font-heading text-3xl font-bold text-foreground mb-2">Welcome back</h1>
-          <p className="text-muted-foreground mb-8">Sign in to continue to your community</p>
+          <h1
+            className="font-heading text-3xl font-bold mb-1"
+            style={{ fontFamily: "var(--serif)", color: "var(--ink)" }}
+          >
+            Welcome back
+          </h1>
+          <p className="mb-8 text-sm" style={{ color: "var(--ink-2)" }}>
+            Sign in to continue to your community
+          </p>
 
           {/* Social Login */}
           <div className="space-y-3 mb-6">
             <Button
               type="button"
               variant="outline"
-              className="w-full h-12 rounded-xl border-border/50 hover:bg-secondary"
+              className="w-full rounded-full border-[var(--line)] hover:bg-[var(--paper)]"
+              style={{ height: 44, color: "var(--ink)", background: "var(--paper)" }}
               onClick={handleGoogleLogin}
+              disabled={googleLoading}
               data-testid="google-login-btn"
             >
               <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
@@ -99,12 +190,13 @@ export default function Login() {
                 <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
               </svg>
-              Continue with Google
+              {googleLoading ? "Signing in…" : "Continue with Google"}
             </Button>
             <Button
               type="button"
               variant="outline"
-              className="w-full h-12 rounded-xl border-border/50 hover:bg-secondary"
+              className="w-full rounded-full border-[var(--line)] hover:bg-[var(--paper)]"
+              style={{ height: 44, color: "var(--ink)", background: "var(--paper)" }}
               onClick={handleFacebookLogin}
             >
               <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="#1877F2">
@@ -116,23 +208,26 @@ export default function Login() {
 
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-border/50"></div>
+              <div className="w-full border-t" style={{ borderColor: "var(--line)" }} />
             </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-background text-muted-foreground">or sign in with email</span>
+            <div className="relative flex justify-center text-xs">
+              <span className="px-4 text-[var(--ink-3)]" style={{ background: "var(--paper-2)" }}>
+                or sign in with email
+              </span>
             </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-foreground">Email</Label>
-              <Input 
+              <Label htmlFor="email" style={{ color: "var(--ink)" }}>Email</Label>
+              <Input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
+                className="rounded-xl"
+                style={{ height: 44, background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
                 required
                 data-testid="email-input"
               />
@@ -140,32 +235,38 @@ export default function Login() {
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="password" className="text-foreground">Password</Label>
+                <Label htmlFor="password" style={{ color: "var(--ink)" }}>Password</Label>
+                <Link to="/forgot-password" className="text-xs hover:underline" style={{ color: "hsl(var(--accent))" }}>
+                  Forgot password?
+                </Link>
               </div>
               <div className="relative">
-                <Input 
+                <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary pr-10"
+                  className="rounded-xl pr-10"
+                  style={{ height: 44, background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
                   required
                   data-testid="password-input"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 hover:opacity-80 transition-opacity"
+                  style={{ color: "var(--ink)" }}
                 >
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
             </div>
 
-            <Button 
-              type="submit" 
-              className="w-full h-12 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_15px_rgba(245,197,66,0.3)]"
+            <Button
+              type="submit"
+              className="w-full rounded-full"
+              style={{ height: 44, background: "var(--ink)", color: "var(--paper)" }}
               disabled={loading}
               data-testid="login-submit-btn"
             >
@@ -173,9 +274,9 @@ export default function Login() {
             </Button>
           </form>
 
-          <p className="text-center text-muted-foreground mt-6">
+          <p className="text-center mt-6 text-sm" style={{ color: "var(--ink-2)" }}>
             Don't have an account?{" "}
-            <Link to="/register" className="text-primary hover:underline font-medium" data-testid="register-link">
+            <Link to="/register" className="font-medium hover:underline" style={{ color: "hsl(var(--accent))" }} data-testid="register-link">
               Join free
             </Link>
           </p>

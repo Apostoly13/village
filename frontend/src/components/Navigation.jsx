@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Wordmark } from "./Wordmark";
+import { useTheme } from "../useTheme";
 import { Button } from "./ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import {
@@ -10,7 +12,10 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { ScrollArea } from "./ui/scroll-area";
-import { Home, MessageSquare, Users, Mail, User, LogOut, Menu, X, Moon, Sun, UserPlus, Bell, Bookmark, Shield, ScrollText, BookOpen, Calendar, Heart, Lock, FileText, Settings, Crown } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import { Mail, User, LogOut, Menu, X, UserPlus, Bell, Shield, ScrollText, Lock, FileText, Settings, ChevronDown } from "lucide-react";
+import { IconHome, IconChat, IconCal, IconHeart, IconMail, IconShield, IconCog, IconSpaces, IconMoon, IconSun } from "../icons";
+import { Village, Stall, Sparkle, Quill, ParentChild, ThreeAmMoon } from "./village/icons";
 import { toast } from "sonner";
 import { FEATURES } from "../config/features";
 
@@ -20,21 +25,55 @@ export default function Navigation({ user }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [darkMode, setDarkMode] = useState(document.documentElement.classList.contains('dark'));
+  const [themeSetting, setThemeSetting, themeResolved] = useTheme();
+  const darkMode = themeResolved === "night";
   const [friendRequestCount, setFriendRequestCount] = useState(0);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [unreadMessages, setUnreadMessages] = useState(0);
+  const prevUnreadCountRef = useRef(null);
+  const notificationsOpenRef = useRef(false);
+  const fetchNotificationsRef = useRef(null);
+
+  const showNewNotificationToast = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/notifications?limit=1`, { credentials: "include" });
+      if (!res.ok) return;
+      const [notif] = await res.json();
+      if (!notif || notif.is_read) return;
+      const MAP = {
+        reply:          { msg: "New reply to your post",      link: notif.link },
+        like:           { msg: "Someone liked your post",     link: null },
+        dm:              { msg: "New message",                 link: "/messages" },
+        message_request: { msg: "New message request",        link: "/messages" },
+        friend_request:  { msg: "New friend request",         link: "/friends" },
+        stall_enquiry:  { msg: "New enquiry on your listing", link: notif.link },
+      };
+      const entry = MAP[notif.type];
+      if (!entry) return;
+      const label = notif.title || entry.msg;
+      if (entry.link) {
+        toast(label, { action: { label: "View", onClick: () => navigate(entry.link) } });
+      } else {
+        toast(label);
+      }
+    } catch {}
+  };
 
   useEffect(() => {
-    // Single polling loop: badge counts every 45s + heartbeat piggybacked every 3rd tick (135s)
+    // Single polling loop: badge counts every 20s + heartbeat piggybacked every 6th tick (120s)
+    // Pauses automatically when the browser tab is hidden to reduce server load
     let tickCount = 0;
     const poll = async () => {
+      // Skip poll entirely when tab is hidden
+      if (document.hidden) return;
       tickCount++;
       try {
-        const [friendsRes, notifCountRes] = await Promise.all([
+        const [friendsRes, notifCountRes, msgRes] = await Promise.all([
           fetch(`${API_URL}/api/friends/requests`, { credentials: "include" }),
-          fetch(`${API_URL}/api/notifications/unread-count`, { credentials: "include" })
+          fetch(`${API_URL}/api/notifications/unread-count`, { credentials: "include" }),
+          fetch(`${API_URL}/api/messages/unread-count`, { credentials: "include" }),
         ]);
         if (friendsRes.ok) {
           const data = await friendsRes.json();
@@ -42,18 +81,63 @@ export default function Navigation({ user }) {
         }
         if (notifCountRes.ok) {
           const data = await notifCountRes.json();
-          setUnreadCount(data.count);
+          const newCount = data.count;
+          setUnreadCount(newCount);
+          if (prevUnreadCountRef.current !== null && newCount > prevUnreadCountRef.current) {
+            showNewNotificationToast();
+          }
+          prevUnreadCountRef.current = newCount;
         }
+        if (msgRes.ok) {
+          const data = await msgRes.json();
+          setUnreadMessages(data.count);
+        }
+        // Let other components (e.g. ChatPopout) piggyback on this poll cycle
+        window.dispatchEvent(new Event("village:nav-poll"));
       } catch {}
-      // Heartbeat every 3rd tick (~135s) — fire-and-forget
-      if (tickCount % 3 === 0) {
+      // Heartbeat every 6th tick (~120s) — fire-and-forget
+      if (tickCount % 6 === 0) {
         fetch(`${API_URL}/api/users/heartbeat`, { method: "POST", credentials: "include" }).catch(() => {});
       }
     };
 
+    // Resume immediately when tab becomes visible again
+    const onVisibilityChange = () => { if (!document.hidden) poll(); };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    // Instant update when a DM is read elsewhere (popout, Messages page)
+    // React state setters and refs are stable — safe to call from this stale closure
+    const onDmRead = () => {
+      // 1. Count how many DM notifications are currently unread in local state,
+      //    then mark them all as read and decrement the bell count by that exact delta.
+      //    Both happen inside setNotifications so we read current state synchronously.
+      setNotifications(prev => {
+        const unreadDmCount = prev.filter(
+          n => (n.type === "dm" || n.type === "message_request") && !n.is_read
+        ).length;
+        if (unreadDmCount > 0) {
+          setUnreadCount(c => Math.max(0, c - unreadDmCount));
+        }
+        return prev.map(n =>
+          n.type === "dm" || n.type === "message_request" ? { ...n, is_read: true } : n
+        );
+      });
+      // 2. If the panel is open right now, also re-fetch for a fully fresh server list
+      if (notificationsOpenRef.current && fetchNotificationsRef.current) {
+        fetchNotificationsRef.current();
+      }
+      // 3. Re-poll to sync the true server count (corrects any local/server drift)
+      poll();
+    };
+    window.addEventListener("village:dm-read", onDmRead);
+
     poll();
-    const interval = setInterval(poll, 45000);
-    return () => clearInterval(interval);
+    const interval = setInterval(poll, 20000);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("village:dm-read", onDmRead);
+    };
   }, []);
 
   const fetchNotifications = async () => {
@@ -66,8 +150,11 @@ export default function Navigation({ user }) {
       console.error("Error fetching notifications:", error);
     }
   };
+  // Keep ref in sync so the dm-read handler can call it from a stale closure
+  fetchNotificationsRef.current = fetchNotifications;
 
   const handleNotificationsOpen = (open) => {
+    notificationsOpenRef.current = open;
     setNotificationsOpen(open);
     if (open) {
       fetchNotifications();
@@ -99,25 +186,44 @@ export default function Navigation({ user }) {
   };
 
   const isAdmin = user?.role === "admin" || user?.role === "moderator";
+  const isFree = user?.subscription_tier === "free" && !isAdmin;
+
+  // Desktop nav — full list including Group Chats
   const navItems = [
-    { icon: Home, label: "Home", href: "/dashboard", testId: "nav-home" },
-    { icon: MessageSquare, label: "Support Spaces", href: "/forums", testId: "nav-forums" },
-    { icon: Users, label: "Chat Circles", href: "/chat", testId: "nav-chat" },
-    { icon: Calendar, label: "Events", href: "/events", testId: "nav-events" },
-    { icon: Mail, label: "Messages", href: "/messages", testId: "nav-messages" },
-    ...(FEATURES.BLOG ? [{ icon: BookOpen, label: "Blog", href: "/blog", testId: "nav-blog" }] : []),
-    ...(isAdmin ? [{ icon: Shield, label: "Admin", href: "/admin", testId: "nav-admin" }] : []),
+    { icon: IconHome, label: "Home", href: "/dashboard", testId: "nav-home" },
+    {
+      icon: IconSpaces, label: "Spaces", href: "/forums", testId: "nav-forums",
+      subItems: [
+        { label: "All Spaces",  href: "/forums" },
+        { label: "Create Post", href: "/create-post" },
+        { label: "Saved Posts", href: "/saved" },
+      ],
+    },
+    {
+      icon: IconChat, label: "Group Chats", href: "/chat", testId: "nav-chat",
+      subItems: [
+        { label: "All Australia", href: "/chat?tab=village" },
+        { label: "Local Chats",   href: "/chat?tab=local" },
+        { label: "Friends",       href: "/chat?tab=friends" },
+      ],
+    },
+    { icon: IconCal, label: "Events", href: isFree ? "/plus" : "/events", testId: "nav-events", locked: isFree },
+    { icon: IconMail, label: "Messages", href: isFree ? "/plus" : "/messages", testId: "nav-messages", locked: isFree, badge: isFree ? 0 : unreadMessages },
+    ...(FEATURES.BLOG ? [{ icon: Quill, label: "Blog", href: "/blog", testId: "nav-blog" }] : []),
+    ...(isAdmin ? [{ icon: IconShield, label: "Admin", href: "/admin", testId: "nav-admin" }] : []),
+  ];
+
+  // Mobile bottom tab bar — 5 focused tabs including Group Chats for direct access
+  const mobileNavItems = [
+    { icon: IconHome,      label: "Home",     href: "/dashboard",                        testId: "nav-home" },
+    { icon: IconSpaces,    label: "Spaces",   href: "/forums",                           testId: "nav-forums" },
+    { icon: IconChat,      label: "Chats",    href: "/chat",                             testId: "nav-chat" },
+    { icon: Mail,          label: "Messages", href: isFree ? "/plus" : "/messages",      testId: "nav-messages",  locked: isFree, badge: isFree ? 0 : unreadMessages },
+    { icon: User,          label: "Me",       href: "/profile",                          testId: "nav-me" },
   ];
 
   const toggleTheme = () => {
-    setDarkMode(!darkMode);
-    if (!darkMode) {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
-    }
+    setThemeSetting(darkMode ? "day" : "night");
   };
 
   const handleLogout = async () => {
@@ -137,221 +243,262 @@ export default function Navigation({ user }) {
 
   return (
     <>
-      {/* Desktop Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/30 hidden lg:block">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center">
-          {/* Left spacer to balance right icons */}
-          <div className="flex-1" />
+      {/* ── Desktop Left Sidebar ─────────────────────────────────── */}
+      <aside
+        className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 z-50 w-60"
+        style={{ background: "var(--paper)", borderRight: "1px solid var(--line-2)" }}
+      >
+        {/* Wordmark */}
+        <div className="px-6 pt-6 pb-4 shrink-0">
+          <Link to="/dashboard" data-testid="nav-logo">
+            <Wordmark size={22} />
+          </Link>
+        </div>
 
-          {/* Center: logo + nav items */}
-          <div className="flex items-center gap-3">
-            <Link to="/dashboard" className="flex items-center" data-testid="nav-logo">
-              <img src="/BG Removed- Main Logo - ps edit.png" alt="The Village" className="h-14 w-auto" />
-            </Link>
-            <div className="flex items-center gap-1 ml-6">
-              {navItems.map((item) => {
-                const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
-                return (
-                  <Link key={item.href} to={item.href} data-testid={item.testId}>
-                    <Button
-                      variant="ghost"
-                      className={`rounded-full px-4 ${isActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-                    >
-                      <item.icon className="h-4 w-4 mr-2" />
-                      {item.label}
-                    </Button>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
+        {/* Primary nav */}
+        <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">
+          {[
+            { Icon: IconHome,   label: "Home",      href: "/dashboard",                     testId: "nav-home" },
+            { Icon: IconSpaces, label: "Spaces",    href: "/forums",                        testId: "nav-forums",   subItems: [
+              { label: "All Spaces",    href: "/forums" },
+              { label: "Create Post",   href: "/create-post" },
+              { label: "Saved Posts",   href: "/saved" },
+            ]},
+            { Icon: IconChat,   label: "Chat Rooms", href: "/chat",                          testId: "nav-chat",     subItems: [
+              { label: "All Australia", href: "/chat" },
+              { label: "Local Rooms",   href: "/chat?tab=local" },
+              { label: "Live now",      href: "/chat?tab=live" },
+            ]},
+            { Icon: Village,    label: "Communities", href: isFree ? "/plus" : "/forums?tab=communities", testId: "nav-communities", locked: isFree,
+              ...(!isFree ? { subItems: [
+                { label: "Browse Communities", href: "/forums?tab=communities" },
+                { label: "My Communities",     href: "/forums?tab=communities&filter=joined" },
+                { label: "Create Community",   href: "/create-community" },
+              ]} : {}),
+            },
+            { Icon: IconCal,    label: "Events",    href: isFree ? "/plus" : "/events",     testId: "nav-events",   locked: isFree,
+              ...(!isFree ? { subItems: [
+                { label: "Browse Events", href: "/events" },
+                { label: "Create Event",  href: "/events?action=create" },
+                { label: "My RSVPs",      href: "/events?tab=rsvp" },
+              ]} : {}),
+            },
+            { Icon: Stall,      label: "Stall",     href: isFree ? "/plus" : "/stall",      testId: "nav-stall",    locked: isFree,
+              ...(!isFree ? { subItems: [
+                { label: "Browse Stall",    href: "/stall" },
+                { label: "Sell Something",  href: "/stall/new" },
+                { label: "My Listings",     href: "/stall?tab=my" },
+                { label: "Donation Groups", href: "/stall?tab=groups" },
+              ]} : {}),
+            },
+            { Icon: IconMail,   label: "Messages",  href: isFree ? "/plus" : "/messages",   testId: "nav-messages", locked: isFree, badge: isFree ? 0 : unreadMessages },
+            { Icon: ParentChild, label: "Friends",  href: "/friends",                        testId: "nav-friends-link", badge: friendRequestCount,
+              subItems: [
+                { label: "My Friends",      href: "/friends" },
+                { label: "Friend Requests", href: "/friends?tab=requests", badge: friendRequestCount },
+                { label: "Sent Requests",   href: "/friends?tab=sent" },
+              ],
+            },
+            { Icon: IconHeart,  label: "Saved",     href: "/saved",                         testId: "nav-saved" },
+            ...(FEATURES.BLOG  ? [{ Icon: Quill,       label: "Blog",      href: "/blog",      testId: "nav-blog"  }] : []),
+            ...(user?.role === "moderator" ? [{ Icon: IconShield, label: "Moderator",  href: "/moderator", testId: "nav-mod"   }] : []),
+            ...(user?.role === "admin"     ? [{ Icon: IconShield, label: "Admin",      href: "/admin",     testId: "nav-admin" }] : []),
+          ].map((item) => {
+            const hrefBase  = item.href.split("?")[0];
+            const hrefQuery = item.href.includes("?") ? item.href.split("?")[1] : null;
+            const onCommunities = location.pathname === "/forums" && location.search === "?tab=communities";
+            const active = hrefQuery
+              // Items with a query string (Communities → /forums?tab=communities): exact match only
+              ? location.pathname === hrefBase && location.search === `?${hrefQuery}`
+              // Items without a query string: prefix match, but never activate when a more-specific query-string route owns this path
+              : !onCommunities &&
+                (location.pathname === item.href ||
+                  (item.href !== "/dashboard" && location.pathname.startsWith(hrefBase)));
+            const itemStyle = active
+              ? { background: "var(--paper-2)", color: "var(--ink)" }
+              : { color: "var(--ink-2)" };
 
-          {/* Right: actions */}
-          <div className="flex-1 flex justify-end items-center gap-2">
+            const inner = (
+              <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors cursor-pointer" style={itemStyle}
+                onMouseEnter={e => { if (!active) e.currentTarget.style.background = "var(--paper-2)"; }}
+                onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}
+              >
+                <item.Icon size={18} style={{ color: active ? "hsl(var(--accent))" : "var(--ink-3)", flexShrink: 0 }} />
+                <span className="text-sm font-medium flex-1">{item.label}</span>
+                {item.locked && <Lock className="h-3 w-3 opacity-40 shrink-0" />}
+                {item.badge > 0 && !item.locked && (
+                  <span className="min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center px-1 font-medium shrink-0">
+                    {item.badge > 9 ? "9+" : item.badge}
+                  </span>
+                )}
+              </div>
+            );
+
+            if (item.subItems) {
+              return (
+                <DropdownMenu key={item.testId}>
+                  <div className="flex items-center gap-0">
+                    <Link to={item.href} data-testid={item.testId} className="flex-1 min-w-0">{inner}</Link>
+                    <DropdownMenuTrigger asChild>
+                      <button className="p-1.5 rounded-lg opacity-40 hover:opacity-100 transition-opacity" style={{ color: "var(--ink-2)" }}>
+                        <ChevronDown className="h-3 w-3" />
+                      </button>
+                    </DropdownMenuTrigger>
+                  </div>
+                  <DropdownMenuContent side="right" align="start" className="w-48" style={{ background: "var(--paper-2)", border: "1px solid var(--line)" }}>
+                    {item.subItems.map(sub => (
+                      <DropdownMenuItem key={sub.href} asChild>
+                        <Link to={sub.href} className="cursor-pointer text-sm flex items-center gap-2 w-full" style={{ color: "var(--ink)" }}>
+                          <span className="flex-1">{sub.label}</span>
+                          {sub.locked && <Lock className="h-3 w-3 opacity-40 shrink-0" />}
+                          {sub.badge > 0 && !sub.locked && (
+                            <span className="min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center px-1 font-medium shrink-0">
+                              {sub.badge > 9 ? "9+" : sub.badge}
+                            </span>
+                          )}
+                        </Link>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
+            if (item.locked) {
+              return (
+                <TooltipProvider key={item.testId} delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Link to={item.href} data-testid={item.testId} className="block">{inner}</Link>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="text-xs">Village+ feature</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              );
+            }
+            return <Link key={item.testId} to={item.href} data-testid={item.testId} className="block">{inner}</Link>;
+          })}
+        </nav>
+
+        {/* Bottom: notifications + theme + user */}
+        <div className="shrink-0 px-3 pb-4 pt-2 space-y-1" style={{ borderTop: "1px solid var(--line-2)" }}>
+
+          {/* Village+ nav row */}
+          <Link
+            to="/plus"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors"
+            style={{ color: isFree ? "hsl(var(--accent))" : "var(--ink-2)" }}
+            onMouseEnter={e => e.currentTarget.style.background = "var(--paper-2)"}
+            onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+          >
+            <Sparkle size={18} style={{ color: isFree ? "hsl(var(--accent))" : "var(--ink-3)", flexShrink: 0 }} />
+            <span className="text-sm font-medium flex-1">
+              {isFree ? "Village+" : "Manage Village+"}
+            </span>
+          </Link>
+
+          <div className="flex items-center gap-1 px-1">
             {/* Notifications */}
             <DropdownMenu open={notificationsOpen} onOpenChange={handleNotificationsOpen}>
               <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  className="rounded-full relative"
+                <button className="relative p-2 rounded-lg transition-colors" style={{ color: "var(--ink-2)" }}
                   data-testid="nav-notifications"
+                  onMouseEnter={e => e.currentTarget.style.background = "var(--paper-2)"}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                 >
-                  <Bell className="h-5 w-5" />
+                  <Bell className="h-4.5 w-4.5" style={{ width: 18, height: 18 }} />
                   {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center font-medium">
-                      {unreadCount > 9 ? '9+' : unreadCount}
+                    <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] flex items-center justify-center font-medium">
+                      {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
                   )}
-                </Button>
+                </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-80 bg-card border-border/50">
-                <div className="flex items-center justify-between px-3 py-2 border-b border-border/50">
-                  <span className="font-medium text-foreground">Notifications</span>
+              <DropdownMenuContent side="right" align="end" className="w-80" style={{ background: "var(--paper-2)", border: "1px solid var(--line)" }}>
+                <div className="flex items-center justify-between px-3 py-2" style={{ borderBottom: "1px solid var(--line)" }}>
+                  <span className="font-medium text-sm" style={{ color: "var(--ink)" }}>Notifications</span>
                   {unreadCount > 0 && (
-                    <Button variant="ghost" size="sm" onClick={markAllRead} className="text-xs h-7">
-                      Mark all read
-                    </Button>
+                    <Button variant="ghost" size="sm" onClick={markAllRead} className="text-xs h-7">Mark all read</Button>
                   )}
                 </div>
                 <ScrollArea className="h-[300px]">
                   {notifications.length === 0 ? (
-                    <div className="p-4 text-center text-muted-foreground text-sm">
-                      No notifications yet
-                    </div>
+                    <div className="p-4 text-center text-sm" style={{ color: "var(--ink-3)" }}>No notifications yet</div>
                   ) : (
                     notifications.map((notif) => (
-                      <div
+                      <button
                         key={notif.notification_id}
                         onClick={() => handleNotificationClick(notif)}
-                        className={`p-3 cursor-pointer hover:bg-secondary/50 border-b border-border/30 ${!notif.is_read ? 'bg-primary/5' : ''}`}
+                        className={`w-full text-left p-3 cursor-pointer transition-colors focus:outline-none ${!notif.is_read ? "bg-primary/5" : ""}`}
+                        style={{ borderBottom: "1px solid var(--line-2)" }}
+                        onMouseEnter={e => e.currentTarget.style.background = "var(--paper-3)"}
+                        onMouseLeave={e => e.currentTarget.style.background = notif.is_read ? "transparent" : ""}
                       >
-                        <div className="flex items-start gap-2">
-                          <span className="text-base mt-0.5 flex-shrink-0">
-                            {notif.type === "reply" ? "💬" : notif.type === "like" ? "❤️" : notif.type === "friend_request" || notif.type === "friend_accept" ? "👋" : notif.type === "moderation" ? "🛡️" : "🔔"}
-                          </span>
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-foreground">{notif.title}</p>
-                            <p className="text-xs text-muted-foreground line-clamp-2">{notif.message}</p>
-                          </div>
-                        </div>
-                      </div>
+                        <p className="text-xs font-medium mb-0.5" style={{ color: "var(--ink)" }}>{notif.title}</p>
+                        <p className="text-xs line-clamp-2" style={{ color: "var(--ink-3)" }}>{notif.message}</p>
+                      </button>
                     ))
                   )}
                 </ScrollArea>
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Link to="/friends" data-testid="nav-friends">
-              <Button 
-                variant="ghost" 
-                size="icon"
-                className="rounded-full relative"
-              >
-                <UserPlus className="h-5 w-5" />
-                {friendRequestCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center font-medium" data-testid="friend-request-badge">
-                    {friendRequestCount > 9 ? '9+' : friendRequestCount}
-                  </span>
-                )}
-              </Button>
-            </Link>
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={toggleTheme}
-              className="rounded-full"
-              data-testid="theme-toggle-nav"
+            {/* Theme toggle */}
+            <button className="p-2 rounded-lg transition-colors" style={{ color: "var(--ink-2)" }}
+              onClick={toggleTheme} data-testid="theme-toggle-nav"
+              onMouseEnter={e => e.currentTarget.style.background = "var(--paper-2)"}
+              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
             >
-              {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-            </Button>
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="rounded-full p-0" data-testid="nav-profile-dropdown">
-                  <Avatar className="h-9 w-9">
-                    <AvatarImage src={user?.picture} />
-                    <AvatarFallback className="bg-primary/20 text-primary">
-                      {user?.name?.[0]?.toUpperCase() || 'U'}
-                    </AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 bg-card border-border/50">
-                <div className="px-2 py-1.5">
-                  <p className="font-medium text-foreground">{user?.name}</p>
-                  <p className="text-sm text-muted-foreground truncate">{user?.email}</p>
-                </div>
-                <DropdownMenuSeparator className="bg-border/50" />
-                <DropdownMenuItem asChild>
-                  <Link to="/profile" className="cursor-pointer" data-testid="dropdown-profile">
-                    <User className="h-4 w-4 mr-2" />
-                    Profile
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/settings" className="cursor-pointer">
-                    <Settings className="h-4 w-4 mr-2" />
-                    Settings
-                  </Link>
-                </DropdownMenuItem>
-                {user?.subscription_tier !== "premium" && (
-                  <DropdownMenuItem asChild>
-                    <Link to="/plus" className="cursor-pointer text-primary font-medium">
-                      <Crown className="h-4 w-4 mr-2 text-primary" />
-                      Village+
-                    </Link>
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuItem asChild>
-                  <Link to="/friends" className="cursor-pointer" data-testid="dropdown-friends">
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Friends
-                    {friendRequestCount > 0 && (
-                      <span className="ml-auto w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
-                        {friendRequestCount}
-                      </span>
-                    )}
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/saved" className="cursor-pointer" data-testid="dropdown-bookmarks">
-                    <Bookmark className="h-4 w-4 mr-2" />
-                    Saved
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/changelog" className="cursor-pointer" data-testid="dropdown-changelog">
-                    <ScrollText className="h-4 w-4 mr-2" />
-                    What's New
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/suggestions" className="cursor-pointer">
-                    <Heart className="h-4 w-4 mr-2" />
-                    Suggestions
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/community-guidelines" className="cursor-pointer">
-                    <Shield className="h-4 w-4 mr-2" />
-                    Community Guidelines
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/terms" className="cursor-pointer">
-                    <FileText className="h-4 w-4 mr-2" />
-                    Terms
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/privacy" className="cursor-pointer">
-                    <Lock className="h-4 w-4 mr-2" />
-                    Privacy
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/contact" className="cursor-pointer">
-                    <Mail className="h-4 w-4 mr-2" />
-                    Contact
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-border/50" />
-                <DropdownMenuItem onClick={handleLogout} className="text-destructive cursor-pointer" data-testid="dropdown-logout">
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Log out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+              {darkMode ? <IconSun size={18} /> : <ThreeAmMoon size={18} />}
+            </button>
+
+            {/* Settings */}
+            <Link to="/settings" className="p-2 rounded-lg transition-colors block" style={{ color: "var(--ink-2)" }}
+              onMouseEnter={e => e.currentTarget.style.background = "var(--paper-2)"}
+              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+            >
+              <Settings style={{ width: 18, height: 18 }} />
+            </Link>
           </div>
+
+          {/* User row */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="w-full flex items-center gap-3 px-2 py-2 rounded-xl transition-colors text-left"
+                style={{ color: "var(--ink)" }}
+                onMouseEnter={e => e.currentTarget.style.background = "var(--paper-2)"}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                data-testid="nav-profile-dropdown"
+              >
+                <Avatar className="h-8 w-8 shrink-0">
+                  <AvatarImage src={user?.picture} />
+                  <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                    {(user?.nickname || user?.name || user?.email || "V")[0].toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>{user?.nickname || user?.name}</p>
+                  <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{user?.email}</p>
+                </div>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="right" align="end" className="w-52" style={{ background: "var(--paper-2)", border: "1px solid var(--line)" }}>
+              <DropdownMenuItem asChild><Link to="/profile" className="cursor-pointer" data-testid="dropdown-profile"><User className="h-4 w-4 mr-2" />Profile</Link></DropdownMenuItem>
+              <DropdownMenuItem asChild><Link to="/settings" className="cursor-pointer"><Settings className="h-4 w-4 mr-2" />Settings</Link></DropdownMenuItem>
+              <DropdownMenuItem asChild><Link to="/plus" className="cursor-pointer"><Sparkle className="h-4 w-4 mr-2 text-primary" />{user?.subscription_tier === "premium" ? "Manage Village+" : "Village+"}</Link></DropdownMenuItem>
+              <DropdownMenuItem asChild><Link to="/changelog" className="cursor-pointer" data-testid="dropdown-changelog"><ScrollText className="h-4 w-4 mr-2" />What's New</Link></DropdownMenuItem>
+              <DropdownMenuItem asChild><Link to="/suggestions" className="cursor-pointer"><Mail className="h-4 w-4 mr-2" />Suggestions</Link></DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleLogout} className="text-destructive cursor-pointer" data-testid="dropdown-logout"><LogOut className="h-4 w-4 mr-2" />Log out</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-      </nav>
+      </aside>
 
       {/* Mobile Navigation - Top Bar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/30 lg:hidden">
+      <nav className="fixed top-0 left-0 right-0 z-50 lg:hidden" style={{ background: "var(--paper)", borderBottom: "1px solid var(--line-2)" }}>
         <div className="px-4 h-14 flex items-center justify-between">
           <Link to="/dashboard" className="flex items-center">
-            <img src="/BG Removed- Main Logo.png" alt="The Village" className="h-14 w-auto" />
+            <Wordmark size={20} />
           </Link>
 
           <div className="flex items-center gap-2">
@@ -361,7 +508,7 @@ export default function Navigation({ user }) {
               onClick={toggleTheme}
               className="rounded-full"
             >
-              {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              {darkMode ? <IconSun size={20} /> : <ThreeAmMoon size={20} />}
             </Button>
             <Button 
               variant="ghost" 
@@ -374,141 +521,219 @@ export default function Navigation({ user }) {
           </div>
         </div>
 
-        {/* Mobile Menu Dropdown */}
+        {/* Mobile Menu — fixed overlay between top bar and bottom bar */}
         {mobileMenuOpen && (
-          <div className="absolute top-14 left-0 right-0 bg-card border-b border-border/50 p-4 space-y-2 animate-fade-in">
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/50">
-              <Avatar className="h-10 w-10">
-                <AvatarImage src={user?.picture} />
-                <AvatarFallback className="bg-primary/20 text-primary">
-                  {user?.name?.[0]?.toUpperCase() || 'U'}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <p className="font-medium text-foreground">{user?.name}</p>
-                <p className="text-sm text-muted-foreground truncate">{user?.email}</p>
+          <div
+            className="fixed left-0 right-0 flex flex-col animate-fade-in"
+            style={{
+              top: 56,
+              bottom: 58,
+              background: "var(--paper-2)",
+              zIndex: 49,
+              borderBottom: "1px solid var(--line)",
+            }}
+          >
+            {/* Scrollable content */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/50">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={user?.picture} />
+                  <AvatarFallback className="bg-primary/20 text-primary">
+                    {(user?.nickname || user?.name || user?.email || 'V')[0].toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-medium text-foreground">{user?.name}</p>
+                  <p className="text-sm text-muted-foreground truncate">{user?.email}</p>
+                </div>
               </div>
-            </div>
-            
-            <Link 
-              to="/profile" 
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
-            >
-              <User className="h-5 w-5" />
-              Profile
-            </Link>
-            
-            <Link 
-              to="/friends" 
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
-            >
-              <UserPlus className="h-5 w-5" />
-              Friends
-              {friendRequestCount > 0 && (
-                <span className="ml-auto w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
-                  {friendRequestCount}
-                </span>
-              )}
-            </Link>
-            
-            <Link
-              to="/saved"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
-            >
-              <Bookmark className="h-5 w-5" />
-              Saved
-            </Link>
 
-            <Link
-              to="/settings"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
-            >
-              <Settings className="h-5 w-5" />
-              Settings
-            </Link>
+              <Link
+                to="/profile"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
+              >
+                <User className="h-5 w-5" />
+                Profile
+              </Link>
 
-            {user?.subscription_tier !== "premium" && (
+              <Link
+                to="/friends"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
+              >
+                <UserPlus className="h-5 w-5" />
+                Friends
+                {friendRequestCount > 0 && (
+                  <span className="ml-auto w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
+                    {friendRequestCount}
+                  </span>
+                )}
+              </Link>
+
+              <Link
+                to={isFree ? "/plus" : "/events"}
+                onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 ${isFree ? "text-muted-foreground/60" : "text-foreground"}`}
+              >
+                <IconCal size={20} />
+                Events
+                {isFree && <Lock className="h-3.5 w-3.5 ml-auto opacity-60" />}
+              </Link>
+
+              <Link
+                to={isFree ? "/plus" : "/stall"}
+                onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 ${isFree ? "text-muted-foreground/60" : "text-foreground"}`}
+              >
+                <Stall size={20} />
+                Stall
+                {isFree && <Lock className="h-3.5 w-3.5 ml-auto opacity-60" />}
+              </Link>
+
+              <Link
+                to={isFree ? "/plus" : "/forums?tab=communities"}
+                onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 ${isFree ? "text-muted-foreground/60" : "text-foreground"}`}
+              >
+                <Village className="h-5 w-5" />
+                Communities
+                {isFree && <Lock className="h-3.5 w-3.5 ml-auto opacity-60" />}
+              </Link>
+
+              <Link
+                to="/saved"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
+              >
+                <IconHeart size={20} />
+                Saved
+              </Link>
+
+              <Link
+                to="/settings"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
+              >
+                <Settings className="h-5 w-5" />
+                Settings
+              </Link>
+
               <Link
                 to="/plus"
                 onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 p-3 rounded-xl bg-primary/10 border border-primary/20 text-primary font-medium"
+                className={`flex items-center gap-3 p-3 rounded-xl font-medium ${
+                  user?.subscription_tier === "premium"
+                    ? "hover:bg-secondary/50 text-foreground"
+                    : "bg-primary/10 border border-primary/20 text-primary"
+                }`}
               >
-                <Crown className="h-5 w-5" />
-                Village+
+                <Sparkle className="h-5 w-5" />
+                {user?.subscription_tier === "premium" ? "Manage Village+" : "Village+"}
               </Link>
-            )}
 
-            <Link
-              to="/changelog"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
-            >
-              <ScrollText className="h-5 w-5" />
-              What's New
-            </Link>
+              <Link
+                to="/changelog"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
+              >
+                <ScrollText className="h-5 w-5" />
+                What's New
+              </Link>
 
-            <div className="border-t border-border/30 my-1" />
+              {isAdmin && (
+                <>
+                  <div className="border-t border-border/30 my-1" />
+                  <Link
+                    to="/admin"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
+                  >
+                    <Shield className="h-5 w-5 text-blue-500" />
+                    Admin Portal
+                  </Link>
+                  {user?.role === "moderator" && (
+                    <Link
+                      to="/moderator"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
+                    >
+                      <Shield className="h-5 w-5 text-purple-500" />
+                      Moderator Dashboard
+                    </Link>
+                  )}
+                </>
+              )}
 
-            <Link
-              to="/community-guidelines"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
-            >
-              <Shield className="h-5 w-5" />
-              Community Guidelines
-            </Link>
+              <div className="border-t border-border/30 my-1" />
 
-            <Link
-              to="/privacy"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-muted-foreground text-sm"
-            >
-              <FileText className="h-4 w-4" />
-              Privacy Policy
-            </Link>
+              <Link
+                to="/community-guidelines"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-muted-foreground text-sm"
+              >
+                <Shield className="h-4 w-4" />
+                Community Guidelines
+              </Link>
 
-            <Link
-              to="/terms"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-muted-foreground text-sm"
-            >
-              <FileText className="h-4 w-4" />
-              Terms of Service
-            </Link>
+              <Link
+                to="/privacy"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-muted-foreground text-sm"
+              >
+                <FileText className="h-4 w-4" />
+                Privacy Policy
+              </Link>
 
-            <div className="border-t border-border/30 my-1" />
+              <Link
+                to="/terms"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-muted-foreground text-sm"
+              >
+                <FileText className="h-4 w-4" />
+                Terms of Service
+              </Link>
+            </div>
 
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-destructive w-full"
-            >
-              <LogOut className="h-5 w-5" />
-              Log out
-            </button>
+            {/* Sign out — always visible, pinned at bottom */}
+            <div className="shrink-0 px-4 py-3" style={{ borderTop: "1px solid var(--line-2)" }}>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-secondary/50 text-destructive"
+              >
+                <LogOut className="h-5 w-5" />
+                Log out
+              </button>
+            </div>
           </div>
         )}
       </nav>
 
       {/* Mobile Navigation - Bottom Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 glass border-t border-border/30 lg:hidden pb-safe">
-        <div className="flex items-center justify-around h-16">
-          {navItems.map((item) => {
+      <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden pb-safe" style={{ background: "var(--paper)", borderTop: "1px solid var(--line-2)" }}>
+        <div className="flex items-center justify-around h-[58px]">
+          {mobileNavItems.map((item) => {
             const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
             return (
               <Link
-                key={item.href}
+                key={item.testId}
                 to={item.href}
-                className={`flex items-center justify-center p-1.5 transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground'}`}
+                className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors ${isActive ? 'text-primary' : item.locked ? 'text-muted-foreground/50' : 'text-muted-foreground'}`}
                 data-testid={`mobile-${item.testId}`}
                 aria-label={item.label}
               >
-                <div className={isActive ? 'bg-primary/15 rounded-xl px-3 py-1.5' : 'px-3 py-1.5'}>
-                  <item.icon className="h-5 w-5" />
+                <div className="relative">
+                  <item.icon className="h-[22px] w-[22px]" />
+                  {item.locked && <Lock className="absolute -bottom-0.5 -right-1 h-2.5 w-2.5 text-muted-foreground/70" />}
+                  {item.badge > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] rounded-full bg-red-500 text-white text-[9px] flex items-center justify-center px-1 font-medium">
+                      {item.badge > 9 ? '9+' : item.badge}
+                    </span>
+                  )}
                 </div>
+                <span className={`text-[10px] font-medium leading-none ${isActive ? 'text-primary' : ''}`}>
+                  {item.label}
+                </span>
               </Link>
             );
           })}
