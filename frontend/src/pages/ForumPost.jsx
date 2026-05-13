@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
@@ -26,8 +26,10 @@ import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
 import MarkdownContent from "../components/MarkdownContent";
 import MarkdownToolbar from "../components/MarkdownToolbar";
+import { CrisisSupportBanner } from "../components/village/CrisisSupportBanner";
 import { toast } from "sonner";
-import { ArrowLeft, Heart, MessageCircle, Eye, Clock, Send, Bookmark, BookmarkCheck, MoreVertical, Edit2, Trash2, Flag, Reply, MapPin, Crown, X } from "lucide-react";
+import { ArrowLeft, Heart, MessageCircle, Eye, Clock, Bookmark, BookmarkCheck, MoreVertical, Edit2, Trash2, Reply, MapPin, Sparkles, X, SearchX } from "lucide-react";
+import { SendIcon, ReportIcon, EditIcon, DeleteIcon } from "../components/village/VillageLineIcons";
 import VerifiedBadge from "../components/VerifiedBadge";
 import { parseApiError } from "../utils/apiError";
 import { timeAgoVerbose } from "../utils/dateHelpers";
@@ -396,9 +398,9 @@ export default function ForumPost({ user }) {
     const bgClass = isEven ? 'bg-card' : 'bg-secondary dark:bg-secondary/80';
 
     return (
-      <div key={reply.reply_id} className={depth > 0 ? 'ml-4 border-l-2 border-primary/40 pl-3' : 'border-l-2 border-l-primary/20 pl-3 rounded-l-sm'}>
+      <div key={reply.reply_id} className={depth > 0 ? 'ml-4 border-l-2 border-[var(--line)] pl-3' : 'pl-3 rounded-l-sm'}>
         <div
-          className={`${bgClass} rounded-[18px] p-4 border mb-3 ${isEven ? 'border-border/40' : 'border-primary/20'}`}
+          className={`${bgClass} rounded-[18px] p-4 border mb-3 ${isEven ? 'border-border/40' : 'border-[var(--line)]'}`}
           data-testid={`reply-${reply.reply_id}`}
         >
           <div className="flex items-start gap-3">
@@ -406,14 +408,14 @@ export default function ForumPost({ user }) {
               <Link to={`/profile/${reply.author_id}`}>
                 <Avatar className="h-10 w-10 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
                   <AvatarImage src={reply.author_picture} />
-                  <AvatarFallback className="bg-primary/20 text-primary">
+                  <AvatarFallback>
                     {reply.author_name?.[0]?.toUpperCase() || '?'}
                   </AvatarFallback>
                 </Avatar>
               </Link>
             ) : (
               <Avatar className="h-10 w-10">
-                <AvatarFallback className="bg-primary/20 text-primary">?</AvatarFallback>
+                <AvatarFallback>?</AvatarFallback>
               </Avatar>
             )}
             <div className="flex-1 min-w-0 overflow-hidden">
@@ -434,8 +436,8 @@ export default function ForumPost({ user }) {
                   </button>
                   {reply.author_id !== "anonymous" ? (
                     <Link to={`/profile/${reply.author_id}`} className="hover:underline flex items-center gap-1 flex-wrap" onClick={e => e.stopPropagation()}>
-                      <span className="font-medium text-foreground hover:text-primary transition-colors">{reply.author_name}</span>
-                      {reply.author_subscription_tier === "premium" && !reply.is_anonymous && <Crown className="h-3 w-3 text-amber-500" />}
+                      <span className="font-medium text-foreground hover:text-foreground transition-colors">{reply.author_name}</span>
+                      {reply.author_subscription_tier === "premium" && !reply.is_anonymous && <Sparkles className="h-3 w-3" style={{ color: "hsl(var(--accent))" }} />}
                       {reply.author_is_verified_partner && !reply.is_anonymous && <VerifiedBadge occupation={reply.author_professional_type} />}
                     </Link>
                   ) : (
@@ -473,7 +475,7 @@ export default function ForumPost({ user }) {
                       </>
                     )}
                     <DropdownMenuItem onClick={() => { setReportTarget({ type: 'reply', id: reply.reply_id }); setReportModal(true); }}>
-                      <Flag className="h-4 w-4 mr-2" />
+                      <ReportIcon size={16} className="mr-2" />
                       Report
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -485,7 +487,7 @@ export default function ForumPost({ user }) {
                   <Textarea
                     value={editReplyContent}
                     onChange={(e) => setEditReplyContent(e.target.value)}
-                    className="min-h-[80px] bg-secondary/50 border-transparent focus:border-primary rounded-xl"
+                    className="min-h-[80px] bg-secondary/50 border-transparent focus:border-[var(--line-2)] rounded-xl"
                   />
                   <div className="flex gap-2">
                     <Button size="sm" onClick={() => handleEditReply(reply.reply_id)} className="rounded-xl">Save</Button>
@@ -533,7 +535,7 @@ export default function ForumPost({ user }) {
 
         {/* Inline reply form — appears directly below this reply, uses own state so bottom box stays accessible */}
         {!isCollapsed && replyingTo?.reply_id === reply.reply_id && (
-          <div className="mt-1 mb-3 ml-4 pl-3 border-l-2 border-primary/40">
+          <div className="mt-1 mb-3 ml-4 pl-3 border-l-2 border-[var(--line)]">
             <form onSubmit={handleInlineReply} className="village-card overflow-hidden p-0 space-y-0">
               <MarkdownToolbar textareaRef={inlineReplyRef} value={inlineReplyContent} onChange={(v) => setInlineReplyContent(v.slice(0, MAX_CONTENT_LENGTH))} />
               <div className="relative p-4 pb-3">
@@ -556,7 +558,7 @@ export default function ForumPost({ user }) {
               </div>
               {subscription?.limits_apply && subscription?.forum_replies && (
                 <Link to="/plus" className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors mb-1">
-                  <Crown className="h-3 w-3 text-amber-500" />
+                  <Sparkles className="h-3 w-3" style={{ color: "hsl(var(--accent))" }} />
                   {subscription.forum_replies.limit - subscription.forum_replies.used}/{subscription.forum_replies.limit} replies today
                 </Link>
               )}
@@ -575,7 +577,7 @@ export default function ForumPost({ user }) {
                   disabled={submitting || !inlineReplyContent.trim() || (subscription?.limits_apply && subscription?.forum_replies && !subscription.forum_replies.allowed)}
                   className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl h-8 text-xs"
                 >
-                  {submitting ? "Posting..." : <><Send className="h-3 w-3 mr-1" />Post Reply</>}
+                  {submitting ? "Posting..." : <><SendIcon size={12} className="mr-1" />Post Reply</>}
                 </Button>
               </div>
             </form>
@@ -589,7 +591,7 @@ export default function ForumPost({ user }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
+      <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
         <Navigation user={user} />
         <main className="max-w-4xl mx-auto px-4 pt-16 lg:pt-8">
           <div className="animate-pulse space-y-6">
@@ -613,13 +615,13 @@ export default function ForumPost({ user }) {
 
   if (!post) {
     return (
-      <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
+      <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
         <Navigation user={user} />
         <main className="max-w-4xl mx-auto px-4 pt-16 lg:pt-8">
           <div className="text-center py-16 village-card">
-            <span className="text-4xl mb-4 block">🔍</span>
-            <h1 className="font-heading text-xl font-bold text-foreground mb-2">Post not found</h1>
-            <p className="text-sm text-muted-foreground mb-6">This post may have been removed or the link is incorrect.</p>
+            <SearchX size={28} style={{ color: "var(--ink-3)", margin: "0 auto 12px" }} />
+            <h1 className="font-heading text-xl font-bold mb-2" style={{ color: "var(--ink)" }}>Post not found</h1>
+            <p className="mb-6" style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 13, color: "var(--ink-3)" }}>This post may have been removed or the link is incorrect.</p>
             <Link to="/forums">
               <Button className="rounded-xl">Back to Spaces</Button>
             </Link>
@@ -630,7 +632,7 @@ export default function ForumPost({ user }) {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
+    <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
       <Navigation user={user} />
       
       <main className="max-w-4xl mx-auto px-4 pt-16 lg:pt-8">
@@ -649,55 +651,33 @@ export default function ForumPost({ user }) {
           const id   = (post.category_id   || "").toLowerCase();
           const keywords = ["mental health", "wellbeing", "anxiety", "depression", "postnatal", "perinatal", "emotional", "mum", "parent well"];
           if (!keywords.some(kw => name.includes(kw) || id.includes(kw))) return null;
-          return (
-            <div className="mb-5 rounded-2xl bg-sky-500/5 border border-sky-500/20 p-4 flex items-start gap-3">
-              <span className="text-xl shrink-0">💙</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground mb-1">Support is available — you're not alone</p>
-                <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                  If you're in crisis or need to talk to someone right now, these free services are available 24/7:
-                </p>
-                <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs">
-                  <a href="tel:1300726306" className="font-semibold text-sky-600 dark:text-sky-400 hover:underline">PANDA — 1300 726 306</a>
-                  <a href="tel:131114"     className="font-semibold text-sky-600 dark:text-sky-400 hover:underline">Lifeline — 13 11 14</a>
-                  <a href="tel:1300224636" className="font-semibold text-sky-600 dark:text-sky-400 hover:underline">Beyond Blue — 1300 22 4636</a>
-                </div>
-              </div>
-              <button
-                onClick={() => setCrisisDismissed(true)}
-                className="text-muted-foreground hover:text-foreground shrink-0 p-0.5 transition-colors"
-                aria-label="Dismiss"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          );
+          return <CrisisSupportBanner onDismiss={() => setCrisisDismissed(true)} />;
         })()}
 
         {/* Main Post */}
-        <article className="village-card p-6 border-l-2 border-l-primary/20 mb-6" data-testid="post-content">
+        <article className="village-card p-6 mb-6" data-testid="post-content">
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
               {post.author_id !== "anonymous" ? (
                 <Link to={`/profile/${post.author_id}`}>
                   <Avatar className="h-12 w-12 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
                     <AvatarImage src={post.author_picture} />
-                    <AvatarFallback className="bg-primary/20 text-primary text-lg">
+                    <AvatarFallback className="text-lg">
                       {post.author_name?.[0]?.toUpperCase() || '?'}
                     </AvatarFallback>
                   </Avatar>
                 </Link>
               ) : (
                 <Avatar className="h-12 w-12">
-                  <AvatarFallback className="bg-primary/20 text-primary text-lg">?</AvatarFallback>
+                  <AvatarFallback className="text-lg">?</AvatarFallback>
                 </Avatar>
               )}
               <div>
                 {post.author_id !== "anonymous" ? (
                   <Link to={`/profile/${post.author_id}`} className="hover:underline">
-                    <p className="font-medium text-foreground hover:text-primary transition-colors flex items-center gap-1 flex-wrap">
+                    <p className="font-medium text-foreground hover:text-foreground transition-colors flex items-center gap-1 flex-wrap">
                       {post.author_name}
-                      {post.author_subscription_tier === "premium" && !post.is_anonymous && <Crown className="h-3 w-3 text-amber-500" />}
+                      {post.author_subscription_tier === "premium" && !post.is_anonymous && <Sparkles className="h-3 w-3" style={{ color: "hsl(var(--accent))" }} />}
                       {post.author_is_verified_partner && !post.is_anonymous && <VerifiedBadge occupation={post.author_professional_type} />}
                     </p>
                   </Link>
@@ -737,7 +717,7 @@ export default function ForumPost({ user }) {
                     </>
                   )}
                   <DropdownMenuItem onClick={() => { setReportTarget({ type: 'post', id: post.post_id }); setReportModal(true); }}>
-                    <Flag className="h-4 w-4 mr-2" />
+                    <ReportIcon size={16} className="mr-2" />
                     Report Post
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -750,14 +730,14 @@ export default function ForumPost({ user }) {
               <Input
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
-                className="text-xl font-bold bg-secondary/50 border-transparent focus:border-primary"
+                className="text-xl font-bold bg-secondary/50 border-transparent focus:border-[var(--line-2)]"
                 placeholder="Post title"
               />
               <div className="relative">
                 <Textarea
                   value={editContent}
                   onChange={(e) => setEditContent(e.target.value.slice(0, MAX_CONTENT_LENGTH))}
-                  className="min-h-[150px] bg-secondary/50 border-transparent focus:border-primary rounded-xl"
+                  className="min-h-[150px] bg-secondary/50 border-transparent focus:border-[var(--line-2)] rounded-xl"
                   placeholder="Post content"
                 />
                 <span className="absolute bottom-2 right-2 text-xs text-muted-foreground">
@@ -837,9 +817,9 @@ export default function ForumPost({ user }) {
           
           {replies.length === 0 ? (
             <div className="text-center py-10 village-card">
-              <span className="text-3xl mb-3 block">💬</span>
-              <h3 className="font-heading font-semibold text-foreground mb-1">No replies yet</h3>
-              <p className="text-sm text-muted-foreground">Be the first to share your thoughts or support.</p>
+              <MessageCircle size={28} style={{ color: "var(--ink-3)", margin: "0 auto 12px" }} />
+              <h3 className="font-heading font-semibold mb-1" style={{ color: "var(--ink)" }}>No replies yet</h3>
+              <p style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 13, color: "var(--ink-3)" }}>Be the first to share your thoughts or support.</p>
             </div>
           ) : (
             topLevelReplies.map(reply => renderReply(reply))
@@ -847,7 +827,7 @@ export default function ForumPost({ user }) {
         </div>
 
         {/* Bottom reply form — only for top-level replies (not replying to a specific reply) */}
-        <div className="village-card p-6 border-l-2 border-l-primary/20 mb-8" data-testid="reply-form">
+        <div className="village-card p-6 mb-8" data-testid="reply-form">
           <h3 className="font-heading font-bold text-lg text-foreground mb-4">Add a Reply</h3>
           <form onSubmit={handleReply} className="space-y-4">
             <div className="relative">
@@ -862,7 +842,7 @@ export default function ForumPost({ user }) {
                 }}
                 onKeyDown={(e) => handleListKeyDown(e, replyContent, setReplyContent)}
                 placeholder="Share your thoughts or support..."
-                className="min-h-[44px] bg-secondary/50 border-transparent focus:border-primary rounded-xl"
+                className="min-h-[44px] bg-secondary/50 border-transparent focus:border-[var(--line-2)] rounded-xl"
                 style={{ overflow: 'hidden', resize: 'none' }}
                 data-testid="reply-input"
               />
@@ -872,7 +852,7 @@ export default function ForumPost({ user }) {
             </div>
             {subscription?.limits_apply && subscription?.forum_replies && (
               <Link to="/plus" className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors -mt-1">
-                <Crown className="h-3 w-3 text-amber-500" />
+                <Sparkles className="h-3 w-3" style={{ color: "hsl(var(--accent))" }} />
                 {subscription.forum_replies.limit - subscription.forum_replies.used}/{subscription.forum_replies.limit} replies today
               </Link>
             )}
@@ -896,7 +876,7 @@ export default function ForumPost({ user }) {
               >
                 {submitting ? "Posting..." : (
                   <>
-                    <Send className="h-4 w-4 mr-2" />
+                    <SendIcon size={16} className="mr-2" />
                     Reply
                   </>
                 )}

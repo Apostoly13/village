@@ -44,6 +44,15 @@ html[data-theme="day"], [data-theme="day"] {
   --peach:        #e8a898;
   --peach-wash:   #f7dfd7;
 
+  --danger:       #c0392b;
+  --danger-wash:  #f9dbd8;
+
+  /* Semantic aliases — use these in component code */
+  --status-online:  var(--sage);
+  --status-offline: var(--ink-3);
+  --status-live:    var(--sage);
+  --badge-danger:   var(--danger);
+
   /* Named aliases for components */
   --tv-accent-hex:    #c96a4a;   /* clay/terracotta — CTA highlight, italic accent */
   --tv-primary-hex:   #2a1f17;   /* dark brown — primary buttons, headlines */
@@ -51,9 +60,10 @@ html[data-theme="day"], [data-theme="day"] {
 
   --glow: none;
 
-  --shadow-sm: 0 1px 2px rgba(42,31,23,0.05), 0 1px 1px rgba(42,31,23,0.03);
-  --shadow-md: 0 6px 20px rgba(42,31,23,0.07), 0 2px 6px rgba(42,31,23,0.04);
-  --shadow-lg: 0 24px 60px rgba(42,31,23,0.14), 0 6px 18px rgba(42,31,23,0.07);
+  --shadow-sm:   0 1px 2px rgba(42,31,23,0.05), 0 1px 1px rgba(42,31,23,0.03);
+  --shadow-md:   0 6px 20px rgba(42,31,23,0.07), 0 2px 6px rgba(42,31,23,0.04);
+  --shadow-lg:   0 24px 60px rgba(42,31,23,0.14), 0 6px 18px rgba(42,31,23,0.07);
+  --shadow-card: 0 1px 3px rgba(42,31,23,0.06), 0 1px 2px rgba(42,31,23,0.04);
 
   /* ── shadcn/Tailwind bridge (bare HSL triplets — used as hsl(var(--x))) ── */
   --background:          37 45% 94%;    /* #f7f2e9 */
@@ -114,6 +124,15 @@ html[data-theme="night"], [data-theme="night"] {
 
   --peach:        #f0b5a3;
   --peach-wash:   rgba(240, 181, 163, 0.12);
+
+  --danger:       #e05c4e;
+  --danger-wash:  rgba(224, 92, 78, 0.14);
+
+  /* Semantic aliases — use these in component code */
+  --status-online:  var(--sage);
+  --status-offline: var(--ink-3);
+  --status-live:    var(--sage);
+  --badge-danger:   var(--danger);
 
   /* Named aliases */
   --tv-accent-hex:    #e08968;

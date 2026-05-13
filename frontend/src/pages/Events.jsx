@@ -1,13 +1,14 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+﻿import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
-import { Crown } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import Navigation from "../components/Navigation";
 import LocationButton from "../components/LocationButton";
-import { Calendar, MapPin, Clock, Users, Plus, Download, Check, Pencil, UserPlus, X, Send, MessageCircle, ExternalLink, Image, Upload } from "lucide-react";
+import { Calendar, MapPin, Clock, Users, Plus, Download, Check, Pencil, UserPlus, X, MessageCircle, ExternalLink, Image, Upload } from "lucide-react";
+import { SendIcon } from "../components/village/VillageLineIcons";
 import { toast } from "sonner";
 import { parseApiError } from "../utils/apiError";
 import AppFooter from "../components/AppFooter";
@@ -21,7 +22,7 @@ const CATEGORIES = EVENT_CATEGORIES;
 
 const AU_STATES = ["NSW", "VIC", "QLD", "WA", "SA", "TAS", "ACT", "NT"];
 
-const INPUT_CLASS = "w-full rounded-xl border border-border bg-card text-foreground px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 dark:[color-scheme:dark]";
+const INPUT_CLASS = "w-full rounded-xl border border-border bg-card text-foreground px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-border/50 dark:[color-scheme:dark]";
 
 // formatEventDate imported from utils/dateHelpers
 
@@ -313,7 +314,7 @@ function EventCard({ event, onRsvp, onUpdated, user, onOpenDetail }) {
   return (
     <>
     <article
-      className="village-card village-card-hover border-l-2 border-l-primary/20 p-5 flex gap-4 cursor-pointer"
+      className="village-card village-card-hover p-5 flex gap-4 cursor-pointer"
       onClick={() => onOpenDetail && onOpenDetail(event)}
     >
       {/* Date chip — colored by category */}
@@ -329,7 +330,7 @@ function EventCard({ event, onRsvp, onUpdated, user, onOpenDetail }) {
       <div className="flex-1 min-w-0 overflow-hidden">
         <div className="flex items-start justify-between gap-2 mb-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${catStyle}`}>{catLabel}</span>
+            <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={catStyle}>{catLabel}</span>
             {event.is_private && (
               <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600">🔒 Private</span>
             )}
@@ -360,7 +361,7 @@ function EventCard({ event, onRsvp, onUpdated, user, onOpenDetail }) {
         <div className="flex items-center gap-2 mb-3">
           <Avatar className="h-5 w-5">
             <AvatarImage src={event.organiser_picture} />
-            <AvatarFallback className="bg-primary/20 text-primary text-xs">
+            <AvatarFallback className="text-xs">
               {event.organiser_name?.[0]?.toUpperCase() || "?"}
             </AvatarFallback>
           </Avatar>
@@ -385,7 +386,7 @@ function EventCard({ event, onRsvp, onUpdated, user, onOpenDetail }) {
             {event.user_has_rsvp ? (
               <><Check className="h-3 w-3 mr-1" /> Going</>
             ) : (
-              "RSVP"
+"RSVP"
             )}
           </Button>
 
@@ -655,7 +656,7 @@ function CreateEventForm({ onCreated, onClose }) {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploadingImage}
-            className="w-full border-2 border-dashed border-border/50 rounded-xl py-5 flex flex-col items-center gap-2 text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-secondary/30 transition-all"
+            className="w-full border-2 border-dashed border-border/50 rounded-xl py-5 flex flex-col items-center gap-2 text-muted-foreground hover:border-border hover:text-foreground hover:bg-secondary/30 transition-all"
           >
             {uploadingImage ? (
               <><Upload className="h-5 w-5 animate-pulse" /><span className="text-sm">Uploading...</span></>
@@ -882,6 +883,7 @@ function EventDetailModal({ event, user, onClose, onRsvp, onUpdated }) {
   const [editOpen, setEditOpen] = useState(false);
   const [localEvent, setLocalEvent] = useState(event);
   const messagesEndRef = useRef(null);
+  const chatScrollRef  = useRef(null);
   const inputRef = useRef(null);
   const dateInfo = formatEventDate(localEvent.date);
   const catStyle = CATEGORY_STYLES[localEvent.category] || CATEGORY_STYLES.general;
@@ -905,7 +907,8 @@ function EventDetailModal({ event, user, onClose, onRsvp, onUpdated }) {
   }, [fetchMessages]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = chatScrollRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
   const handleSend = async (e) => {
@@ -965,7 +968,7 @@ function EventDetailModal({ event, user, onClose, onRsvp, onUpdated }) {
         {/* Header bar */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border/50 shrink-0">
           <div className="flex items-center gap-3">
-            <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${catStyle}`}>{catLabel}</span>
+            <span className="text-xs font-medium px-2.5 py-1 rounded-full" style={catStyle}>{catLabel}</span>
             {localEvent.is_private && (
               <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-600">🔒 Private</span>
             )}
@@ -1030,7 +1033,7 @@ function EventDetailModal({ event, user, onClose, onRsvp, onUpdated }) {
             <div className="flex items-center gap-2 mb-4 pb-4 border-b border-border/30">
               <Avatar className="h-7 w-7">
                 <AvatarImage src={localEvent.organiser_picture} />
-                <AvatarFallback className="bg-primary/20 text-primary text-xs">{localEvent.organiser_name?.[0]?.toUpperCase() || "?"}</AvatarFallback>
+                <AvatarFallback className="text-xs">{localEvent.organiser_name?.[0]?.toUpperCase() || "?"}</AvatarFallback>
               </Avatar>
               <span className="text-sm text-muted-foreground">Organised by <span className="text-foreground font-medium">{localEvent.organiser_name}</span></span>
             </div>
@@ -1066,7 +1069,8 @@ function EventDetailModal({ event, user, onClose, onRsvp, onUpdated }) {
                 <Button
                   onClick={handleRsvp}
                   disabled={rsvping || (localEvent.rsvp_limit && localEvent.rsvp_count >= localEvent.rsvp_limit && !localEvent.user_has_rsvp)}
-                  className={`rounded-xl h-9 text-sm px-5 ${localEvent.user_has_rsvp ? "bg-green-500/10 text-green-600 border border-green-500/40 hover:bg-green-500/20" : "bg-primary text-primary-foreground hover:bg-primary/90"}`}
+                  className={`rounded-xl h-9 text-sm px-5 ${localEvent.user_has_rsvp ? "border" : "bg-primary text-primary-foreground hover:bg-primary/90"}`}
+                  style={localEvent.user_has_rsvp ? { background: "var(--sage-wash)", color: "var(--sage-deep)", borderColor: "rgba(var(--sage-deep-rgb, 74,113,85),0.3)" } : {}}
                 >
                   {localEvent.user_has_rsvp ? <><Check className="h-4 w-4 mr-1.5" /> Going</> : "RSVP"}
                 </Button>
@@ -1091,11 +1095,11 @@ function EventDetailModal({ event, user, onClose, onRsvp, onUpdated }) {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
+            <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
               {messages.length === 0 && (
                 <div className="text-center py-8">
-                  <span className="text-3xl block mb-2">💬</span>
-                  <p className="text-sm text-muted-foreground">No messages yet. Be the first to say hi!</p>
+                  <MessageCircle size={28} style={{ color: "var(--ink-3)", margin: "0 auto 12px" }} />
+                  <p style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 13, color: "var(--ink-3)" }}>No messages yet. Be the first to say hi!</p>
                 </div>
               )}
               {messages.map((msg, idx) => {
@@ -1106,7 +1110,7 @@ function EventDetailModal({ event, user, onClose, onRsvp, onUpdated }) {
                       {!isOwn && (
                         <p className="text-xs text-muted-foreground mb-1 ml-1 flex items-center gap-1">
                           {msg.author_name}
-                          {msg.author_subscription_tier === "premium" && <Crown className="h-2.5 w-2.5 text-amber-500" />}
+                          {msg.author_subscription_tier === "premium" && <Sparkles className="h-2.5 w-2.5" style={{ color: "hsl(var(--accent))" }} />}
                         </p>
                       )}
                       <div className={`px-3 py-2 text-sm rounded-2xl shadow-sm break-words ${isOwn ? "bg-primary text-primary-foreground" : "bg-secondary/60 text-foreground"}`}>
@@ -1130,7 +1134,7 @@ function EventDetailModal({ event, user, onClose, onRsvp, onUpdated }) {
                   value={newMsg}
                   onChange={e => setNewMsg(e.target.value.slice(0, 500))}
                   placeholder="Message the group..."
-                  className="flex-1 bg-secondary/50 rounded-full px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/30"
+                  className="flex-1 bg-secondary/50 rounded-full px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50"
                   maxLength={500}
                   disabled={sending}
                 />
@@ -1139,7 +1143,7 @@ function EventDetailModal({ event, user, onClose, onRsvp, onUpdated }) {
                   disabled={!newMsg.trim() || sending}
                   className="w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-50 shrink-0"
                 >
-                  <Send className="h-4 w-4" />
+                  <SendIcon size={16} />
                 </button>
               </form>
             ) : (
@@ -1283,11 +1287,11 @@ export default function Events({ user }) {
 
   if (isFree) {
     return (
-      <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
+      <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
         <Navigation user={user} />
         <main className="max-w-lg mx-auto px-4 pt-24 pb-16 text-center">
-          <div className="w-16 h-16 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center mx-auto mb-5">
-            <Crown className="h-8 w-8 text-primary" />
+          <div className="w-16 h-16 rounded-full bg-[var(--honey-wash)] border border-[var(--line)] flex items-center justify-center mx-auto mb-5">
+            <Sparkles className="h-8 w-8" style={{ color: "hsl(var(--accent))" }} />
           </div>
           <h1 className="font-heading text-2xl font-bold text-foreground mb-2">Events are a Village+ feature</h1>
           <p className="text-muted-foreground text-sm mb-6">
@@ -1295,7 +1299,7 @@ export default function Events({ user }) {
           </p>
           <Link to="/plus">
             <Button className="rounded-xl px-8">
-              <Crown className="h-4 w-4 mr-2" />
+              <Sparkles className="h-4 w-4 mr-2" style={{ color: "hsl(var(--accent))" }} />
               Upgrade to Village+
             </Button>
           </Link>
@@ -1305,7 +1309,7 @@ export default function Events({ user }) {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-8">
+    <div className="min-h-screen bg-background  lg:pl-60 lg:pb-8">
       <Navigation user={user} />
 
       <main className="max-w-5xl mx-auto px-4 pt-16 lg:pt-8">
@@ -1367,16 +1371,16 @@ export default function Events({ user }) {
             </div>
 
             {/* Time filter chips */}
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1 flex-wrap p-1 rounded-full" style={{ background: "var(--paper-2)", border: "1px solid var(--line)" }}>
               {TIME_FILTERS.map(f => (
                 <button
                   key={f.id}
                   onClick={() => setTimeFilter(f.id)}
-                  className={`h-8 px-4 rounded-full text-sm font-medium transition-colors ${
-                    timeFilter === f.id
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-card border border-border/50 text-muted-foreground hover:text-foreground hover:border-primary/30"
-                  }`}
+                  className="rounded-full px-4 py-1.5 text-sm font-medium transition-all focus-visible:outline-none"
+                  style={timeFilter === f.id
+                    ? { background: "var(--ink)", color: "var(--paper)", boxShadow: "var(--shadow-sm)" }
+                    : { color: "var(--ink-3)" }
+                  }
                 >
                   {f.label}
                 </button>
@@ -1390,11 +1394,12 @@ export default function Events({ user }) {
                   <button
                     key={cat.id}
                     onClick={() => setActiveCategory(cat.id)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
                       activeCategory === cat.id
-                        ? "bg-primary/15 text-primary border border-primary/30"
-                        : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                        ? "border-[var(--sage)]/30 sage-pill-active"
+                        : "border-transparent text-[var(--ink-3)] hover:text-[var(--ink)]"
                     }`}
+                    style={activeCategory === cat.id ? { background: "var(--sage-wash)", color: "var(--sage-deep)" } : {}}
                   >
                     {cat.label}
                   </button>
@@ -1443,11 +1448,11 @@ export default function Events({ user }) {
               </div>
             ) : filteredByTime.length === 0 ? (
               <div className="text-center py-14 village-card">
-                <span className="text-5xl mb-4 block">📅</span>
-                <h3 className="font-heading font-bold text-lg text-foreground mb-2">
+                <Calendar size={28} style={{ color: "var(--ink-3)", margin: "0 auto 12px" }} />
+                <h3 className="font-heading font-bold text-lg mb-2" style={{ color: "var(--ink)" }}>
                   {timeFilter === "going" ? "No upcoming RSVPs" : "No events found"}
                 </h3>
-                <p className="text-sm text-muted-foreground mb-6">
+                <p className="mb-6" style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 13, color: "var(--ink-3)" }}>
                   {timeFilter === "going"
                     ? "RSVP to an event to see it here."
                     : "Be the first to organise something in your area."}
@@ -1499,7 +1504,7 @@ export default function Events({ user }) {
                         onClick={() => setSelectedEvent(e)}
                         className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/50 transition-colors text-left"
                       >
-                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex flex-col items-center justify-center shrink-0">
+                        <div className="w-10 h-10 rounded-lg bg-[var(--paper-3)] flex flex-col items-center justify-center shrink-0">
                           <span className="text-sm font-bold text-primary leading-none">{d ? d.getDate() : "?"}</span>
                           <span className="text-[9px] uppercase tracking-wide text-muted-foreground">{d ? d.toLocaleString("en-AU", { month: "short" }) : ""}</span>
                         </div>

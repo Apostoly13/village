@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -50,7 +50,7 @@ export default function ForgotPassword() {
         <div className="bg-card border border-border/50 rounded-2xl p-8">
           {sent ? (
             <div className="text-center">
-              <div className="w-14 h-14 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center mx-auto mb-5">
+              <div className="w-14 h-14 rounded-full bg-[var(--honey-wash)] border border-[var(--line)] flex items-center justify-center mx-auto mb-5">
                 <CheckCircle2 className="h-7 w-7 text-primary" />
               </div>
               <h1 className="font-heading text-2xl font-bold text-foreground mb-2">Check your inbox</h1>
@@ -64,7 +64,7 @@ export default function ForgotPassword() {
             </div>
           ) : (
             <>
-              <div className="w-12 h-12 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center mb-5">
+              <div className="w-12 h-12 rounded-full bg-[var(--honey-wash)] border border-[var(--line)] flex items-center justify-center mb-5">
                 <Mail className="h-6 w-6 text-primary" />
               </div>
               <h1 className="font-heading text-2xl font-bold text-foreground mb-1">Forgot your password?</h1>
@@ -81,7 +81,7 @@ export default function ForgotPassword() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@example.com"
-                    className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
+                    className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-[var(--line-2)]"
                     required
                     autoFocus
                   />

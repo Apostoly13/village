@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { MapPin, Search } from "lucide-react";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -72,8 +72,8 @@ export default function SuburbSearch({
   };
 
   const BASE_INPUT = [
-    "w-full rounded-xl border bg-card text-foreground px-3 py-2.5 text-sm",
-    "focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground",
+"w-full rounded-xl border bg-card text-foreground px-3 py-2.5 text-sm",
+"focus:outline-none focus:ring-2 focus:ring-border/50 placeholder:text-muted-foreground",
     error ? "border-destructive" : "border-border",
     inputClass,
   ].join(" ");
@@ -90,7 +90,7 @@ export default function SuburbSearch({
           className={`${BASE_INPUT} pl-9`}
         />
         {loading && (
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full border-2 border-[var(--line)] border-t-[var(--ink-2)] animate-spin" />
         )}
       </div>
 

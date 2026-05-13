@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -63,7 +63,7 @@ function WriteArticleDialog({ onSubmitted }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="rounded-full border-primary text-primary hover:bg-primary/10">
+        <Button variant="outline" className="rounded-full border-[var(--sage)] text-primary hover:bg-muted/50">
           <PenLine className="h-4 w-4 mr-2" />
           Write for the Village
         </Button>
@@ -186,7 +186,7 @@ export default function Blog({ user }) {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
+    <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
       <Navigation user={user} />
 
       <main className="max-w-4xl mx-auto px-4 pt-16 lg:pt-8">
@@ -245,11 +245,11 @@ export default function Blog({ user }) {
               <Link key={post.blog_id || idx} to={`/blog/${post.slug}`} className="block">
                 {idx === 0 ? (
                   /* Featured / hero card for the first post */
-                  <article className="village-card village-card-hover border-l-4 border-l-primary/60 hover:border-l-primary overflow-hidden">
+                  <article className="village-card village-card-hover overflow-hidden">
                     <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent px-6 py-5">
                       <div className="flex items-center gap-2 mb-3">
-                        <span className="text-xs font-semibold uppercase tracking-widest text-primary/80">Featured</span>
-                        <span className="w-1 h-1 rounded-full bg-primary/30" />
+                        <span className="text-xs font-semibold uppercase tracking-widest text-[var(--ink-2)]">Featured</span>
+                        <span className="w-1 h-1 rounded-full bg-[var(--honey-wash)]" />
                         <span className="text-xs text-muted-foreground">{formatDate(post.created_at)}</span>
                       </div>
                       <h2 className="font-heading font-bold text-xl sm:text-2xl text-foreground mb-2 leading-snug">
@@ -269,7 +269,7 @@ export default function Blog({ user }) {
                       {post.tags?.length > 0 && (
                         <div className="flex items-center gap-1.5 mt-3 flex-wrap">
                           {post.tags.map(tag => (
-                            <span key={tag} className="text-xs px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium">
+                            <span key={tag} className="text-xs px-2.5 py-0.5 rounded-full bg-[var(--paper-3)] text-primary border border-[var(--line)] font-medium">
                               {tag}
                             </span>
                           ))}
@@ -279,9 +279,9 @@ export default function Blog({ user }) {
                   </article>
                 ) : (
                   /* Standard post card */
-                  <article className="bg-card rounded-2xl p-5 border border-border/40 card-elevated border-l-2 border-l-primary/20 hover:shadow-md hover:border-l-primary/40 transition-all">
+                  <article className="bg-card rounded-2xl p-5 border border-border/40 card-elevated hover:shadow-md transition-all">
                     <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                      <div className="w-10 h-10 rounded-xl bg-[var(--paper-3)] flex items-center justify-center shrink-0 mt-0.5">
                         <BookOpen className="h-5 w-5 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -324,7 +324,7 @@ export default function Blog({ user }) {
             <p className="font-heading font-semibold text-xs uppercase tracking-widest text-muted-foreground mb-4">My submissions</p>
             <div className="space-y-3">
               {ownDrafts.map((post, idx) => (
-                <div key={post.blog_id || idx} className="bg-card rounded-2xl p-5 border border-border/50 border-l-2 border-l-primary/20 shadow-sm">
+                <div key={post.blog_id || idx} className="bg-card rounded-2xl p-5 border border-border/50 shadow-sm">
                   <div className="flex items-start justify-between gap-3 mb-1">
                     <h3 className="font-heading font-semibold text-foreground leading-snug">{post.title}</h3>
                     {statusBadge(post.status)}
@@ -344,7 +344,7 @@ export default function Blog({ user }) {
 
         {/* Info card */}
         {posts.length > 0 && (
-          <div className="mt-8 p-5 rounded-2xl bg-primary/5 border border-primary/20">
+          <div className="mt-8 p-5 rounded-2xl bg-[var(--paper-3)] border border-[var(--line)]">
             <div className="flex items-start gap-3">
               <Sparkles className="h-5 w-5 text-primary mt-0.5 shrink-0" />
               <p className="text-sm text-muted-foreground">

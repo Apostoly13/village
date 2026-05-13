@@ -1,18 +1,18 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { MapPin, Loader2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { toast } from "sonner";
 
 // Maps full Australian state names from Nominatim to abbreviations
 const AU_STATE_MAP = {
-  "New South Wales": "NSW",
-  "Victoria": "VIC",
-  "Queensland": "QLD",
-  "Western Australia": "WA",
-  "South Australia": "SA",
-  "Tasmania": "TAS",
-  "Australian Capital Territory": "ACT",
-  "Northern Territory": "NT",
+"New South Wales": "NSW",
+"Victoria": "VIC",
+"Queensland": "QLD",
+"Western Australia": "WA",
+"South Australia": "SA",
+"Tasmania": "TAS",
+"Australian Capital Territory": "ACT",
+"Northern Territory": "NT",
 };
 
 /**
@@ -65,7 +65,7 @@ export default function LocationButton({ onLocation, className = "", size = "sm"
             addr.village ||
             addr.municipality ||
             addr.county ||
-            "";
+"";
           const postcode = addr.postcode || "";
           const stateRaw = addr.state || "";
           const state = AU_STATE_MAP[stateRaw] || stateRaw;
@@ -99,7 +99,7 @@ export default function LocationButton({ onLocation, className = "", size = "sm"
       type="button"
       variant="outline"
       size={size}
-      className={`rounded-xl gap-1.5 text-xs font-medium border-primary/30 text-primary hover:bg-primary/5 hover:border-primary/50 ${className}`}
+      className={`rounded-xl gap-1.5 text-xs font-medium border-[var(--line)] text-primary hover:bg-muted/30 hover:border-border ${className}`}
       onClick={handleClick}
       disabled={loading}
     >

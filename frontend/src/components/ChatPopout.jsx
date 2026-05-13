@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+﻿import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Crown, X, MessagesSquare, Send, Search, UserPlus, Lock } from "lucide-react";
+import { Sparkles, X, MessagesSquare, Send, Search, UserPlus, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { timeAgoVerbose } from "../utils/dateHelpers";
 import { parseApiError } from "../utils/apiError";
@@ -23,7 +23,7 @@ export default function ChatPopout({ user }) {
   const [open, setOpen] = useState(saved?.open ?? false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // view: "list" | "chat"  listTab: "friends" | "dms" | "search"
+  // view: "list" | "chat"listTab: "friends" | "dms" | "search"
   const [view, setView] = useState("list");
   const [listTab, setListTab] = useState("friends");
 
@@ -349,7 +349,7 @@ export default function ChatPopout({ user }) {
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/30 bg-card/95 shrink-0">
               {view === "chat" ? (
                 <>
-                  <button onClick={() => setView("list")} className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">← Back</button>
+                  <button onClick={() => setView("list")} className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">← Back</button>
                   <p className="font-medium text-foreground text-sm truncate mx-3 flex-1 text-center">{activeDmUser?.nickname || activeDmUser?.name}</p>
                 </>
               ) : (
@@ -391,7 +391,7 @@ export default function ChatPopout({ user }) {
                           onClick={() => openDmChat({ user_id: conv.other_user_id, name: conv.other_user_name, nickname: null, picture: conv.other_user_picture })}
                           className="w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left"
                         >
-                          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold text-primary overflow-hidden shrink-0">
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold overflow-hidden shrink-0" style={{ background: "var(--paper-2)", color: "var(--ink-2)" }}>
                             {conv.other_user_picture ? <img src={conv.other_user_picture} alt="" className="w-full h-full object-cover" /> : conv.other_user_name?.[0]?.toUpperCase()}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -435,7 +435,7 @@ export default function ChatPopout({ user }) {
                     value={newMessage}
                     onChange={e => setNewMessage(e.target.value.slice(0, 500))}
                     placeholder={`Reply to ${activeDmUser?.name}…`}
-                    className="flex-1 bg-secondary/50 rounded-full px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/30"
+                    className="flex-1 bg-secondary/50 rounded-full px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50"
                     disabled={sending}
                   />
                   <button type="submit" disabled={!newMessage.trim() || sending} className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-50 shrink-0">
@@ -459,7 +459,7 @@ export default function ChatPopout({ user }) {
           >
             <MessagesSquare className="h-5 w-5 shrink-0" />
             <span className="text-sm font-semibold">Messages</span>
-            {totalUnread > 0 && <span className="min-w-[20px] h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center font-bold px-1.5">{totalUnread > 9 ? "9+" : totalUnread}</span>}
+            {totalUnread > 0 && <span className="min-w-[20px] h-5 rounded-full text-white text-xs flex items-center justify-center font-bold px-1.5" style={{ background: "var(--badge-danger)" }}>{totalUnread > 9 ? "9+" : totalUnread}</span>}
           </button>
         )}
       </div>
@@ -477,7 +477,7 @@ export default function ChatPopout({ user }) {
               <>
                 <button
                   onClick={() => { setView("list"); setListTab(chatMode === "dm" ? "dms" : "friends"); }}
-                  className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
                 >
                   ← Back
                 </button>
@@ -509,14 +509,14 @@ export default function ChatPopout({ user }) {
             <div className="flex flex-col flex-1 min-h-0">
               {/* Sub-tab bar */}
               <div className="flex border-b border-border/40 shrink-0">
-                <button onClick={() => setListTab("friends")} className={`flex-1 py-2 text-xs font-medium transition-colors ${listTab === "friends" ? "text-primary border-b-2 border-primary" : "text-muted-foreground hover:text-foreground"}`}>
+                <button onClick={() => setListTab("friends")} className={`flex-1 py-2 text-xs font-medium transition-colors ${listTab === "friends" ? "border-b-2 border-[var(--ink)] text-[var(--ink)]" : "text-muted-foreground hover:text-foreground"}`}>
                   Friends
                 </button>
-                <button onClick={() => setListTab("dms")} className={`flex-1 py-2 text-xs font-medium relative transition-colors ${listTab === "dms" ? "text-primary border-b-2 border-primary" : "text-muted-foreground hover:text-foreground"}`}>
+                <button onClick={() => setListTab("dms")} className={`flex-1 py-2 text-xs font-medium relative transition-colors ${listTab === "dms" ? "border-b-2 border-[var(--ink)] text-[var(--ink)]" : "text-muted-foreground hover:text-foreground"}`}>
                   Messages
-                  {conversations.some(c => (c.unread_count || 0) > 0) && <span className="absolute top-1.5 right-3 w-1.5 h-1.5 rounded-full bg-red-500" />}
+                  {conversations.some(c => (c.unread_count || 0) > 0) && <span className="absolute top-1.5 right-3 w-1.5 h-1.5 rounded-full" style={{ background: "var(--badge-danger)" }} />}
                 </button>
-                <button onClick={() => setListTab("search")} className={`flex-1 py-2 text-xs font-medium transition-colors ${listTab === "search" ? "text-primary border-b-2 border-primary" : "text-muted-foreground hover:text-foreground"}`}>
+                <button onClick={() => setListTab("search")} className={`flex-1 py-2 text-xs font-medium transition-colors ${listTab === "search" ? "border-b-2 border-[var(--ink)] text-[var(--ink)]" : "text-muted-foreground hover:text-foreground"}`}>
                   Search
                 </button>
               </div>
@@ -537,16 +537,16 @@ export default function ChatPopout({ user }) {
                         <button key={friend.user_id} onClick={() => openFriendChat(friend.user_id)} disabled={openingChat === friend.user_id}
                           className="w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left">
                           <div className="relative shrink-0">
-                            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold text-primary overflow-hidden">
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold overflow-hidden" style={{ background: "var(--paper-2)", color: "var(--ink-2)" }}>
                               {friend.picture ? <img src={friend.picture} alt="" className="w-full h-full object-cover" /> : (friend.nickname || friend.name)?.[0]?.toUpperCase()}
                             </div>
-                            <span className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border border-card ${friend.is_online ? "bg-green-500" : "bg-muted-foreground/40"}`} />
+                            <span className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border border-card ${friend.is_online ? "" : "bg-muted-foreground/40"}`} style={friend.is_online ? { background: "var(--status-online)" } : {}} />
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-foreground truncate">{friend.nickname || friend.name}</p>
-                            <p className={`text-xs ${friend.is_online ? "text-green-500" : "text-muted-foreground"}`}>{friend.is_online ? "Online" : "Offline"}</p>
+                            <p className="text-xs text-muted-foreground" style={friend.is_online ? { color: "var(--status-online)" } : {}}>{friend.is_online ? "Online" : "Offline"}</p>
                           </div>
-                          {openingChat === friend.user_id && <div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />}
+                          {openingChat === friend.user_id && <div className="w-3.5 h-3.5 border-2 border-[var(--ink-2)] border-t-transparent rounded-full animate-spin shrink-0" />}
                         </button>
                       ))}
                     </div>
@@ -588,7 +588,7 @@ export default function ChatPopout({ user }) {
                             }`}>
                             {f.label}
                             {inboxFilter !== f.id && hasUnreadFor(f.id) && (
-                              <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+                              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "var(--badge-danger)" }} />
                             )}
                           </button>
                         ))}
@@ -641,7 +641,7 @@ export default function ChatPopout({ user }) {
                     <div className="divide-y divide-border/30">
                       {searchResults.map(u => (
                         <div key={u.user_id} className="flex items-center gap-2 px-3 py-2.5">
-                          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold text-primary overflow-hidden shrink-0">
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold overflow-hidden shrink-0" style={{ background: "var(--paper-2)", color: "var(--ink-2)" }}>
                             {u.picture ? <img src={u.picture} alt="" className="w-full h-full object-cover" /> : (u.nickname || u.name)?.[0]?.toUpperCase()}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -652,7 +652,7 @@ export default function ChatPopout({ user }) {
                               Msg
                             </button>
                             <button onClick={() => sendFriendRequest(u.user_id)} disabled={!!friendRequests[u.user_id]}
-                              className="text-xs bg-primary/10 hover:bg-primary/20 text-primary rounded-full px-2 py-1 disabled:opacity-50">
+                              className="text-xs bg-[var(--paper-3)] hover:bg-muted/50 text-primary rounded-full px-2 py-1 disabled:opacity-50">
                               {friendRequests[u.user_id] ? "✓" : <UserPlus className="h-3 w-3" />}
                             </button>
                           </div>
@@ -685,7 +685,7 @@ export default function ChatPopout({ user }) {
                         {!isOwn && (
                           <p className="text-xs text-muted-foreground mb-1 ml-1 flex items-center gap-1">
                             {msg.author_name || activeDmUser?.name}
-                            {msg.author_subscription_tier === "premium" && <Crown className="h-2.5 w-2.5 text-amber-500" />}
+                            {msg.author_subscription_tier === "premium" && <Sparkles className="h-2.5 w-2.5" style={{ color: "hsl(var(--accent))" }} />}
                           </p>
                         )}
                         <div className={`rounded-2xl px-3 py-2 text-sm shadow-sm break-all whitespace-pre-wrap ${isOwn ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground"}`}>
@@ -701,7 +701,7 @@ export default function ChatPopout({ user }) {
               <form onSubmit={handleSend} className="flex gap-2 p-3 border-t border-border/40 shrink-0">
                 <input ref={inputRef} value={newMessage} onChange={e => setNewMessage(e.target.value.slice(0, 1000))}
                   placeholder="Message..." disabled={sending} maxLength={1000}
-                  className="flex-1 bg-secondary/50 rounded-full px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/30" />
+                  className="flex-1 bg-secondary/50 rounded-full px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50" />
                 <button type="submit" disabled={!newMessage.trim() || sending}
                   className="w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-50 shrink-0">
                   <Send className="h-4 w-4" />
@@ -747,7 +747,7 @@ function PopoutDmRow({ conv, onClick }) {
 
   return (
     <button onClick={onClick} className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-secondary/50 transition-colors text-left">
-      <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold text-primary overflow-hidden shrink-0">
+      <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold overflow-hidden shrink-0" style={{ background: "var(--paper-2)", color: "var(--ink-2)" }}>
         {avatarIcon
           ? <span className="text-base">{avatarIcon}</span>
           : conv.other_user_picture

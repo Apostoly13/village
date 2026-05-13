@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Navigation from "../components/Navigation";
 import { Button } from "../components/ui/button";
@@ -173,7 +173,7 @@ export default function CreateDonationGroup({ user }) {
                 </button>
               </div>
             ) : (
-              <label className="flex flex-col items-center justify-center gap-2 aspect-video rounded-xl border-2 border-dashed border-border/50 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors">
+              <label className="flex flex-col items-center justify-center gap-2 aspect-video rounded-xl border-2 border-dashed border-border/50 cursor-pointer hover:border-border hover:bg-muted/30 transition-colors">
                 <Upload className="h-8 w-8 text-muted-foreground/50" />
                 <span className="text-sm text-muted-foreground">Click to upload a cover photo</span>
                 <span className="text-xs text-muted-foreground/60">PNG, JPG up to 5MB</span>
@@ -195,7 +195,7 @@ export default function CreateDonationGroup({ user }) {
                 value={form.name}
                 onChange={e => set("name", e.target.value.slice(0, 80))}
                 placeholder="e.g. Winter Warmth Drive — Bondi Mums"
-                className={`w-full bg-background border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/30 transition ${errors.name ? "border-destructive" : "border-border/50"}`}
+                className={`w-full bg-background border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition ${errors.name ? "border-destructive" : "border-border/50"}`}
               />
               <div className="flex items-center justify-between mt-1">
                 {errors.name
@@ -215,7 +215,7 @@ export default function CreateDonationGroup({ user }) {
                 onChange={e => set("description", e.target.value.slice(0, 500))}
                 rows={4}
                 placeholder="Tell people what this group is for, who benefits, and what items you're collecting…"
-                className={`w-full bg-background border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/30 transition resize-none ${errors.description ? "border-destructive" : "border-border/50"}`}
+                className={`w-full bg-background border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition resize-none ${errors.description ? "border-destructive" : "border-border/50"}`}
               />
               <div className="flex items-center justify-between mt-1">
                 {errors.description
@@ -240,7 +240,7 @@ export default function CreateDonationGroup({ user }) {
                 value={form.suburb}
                 onChange={e => set("suburb", e.target.value.slice(0, 60))}
                 placeholder="e.g. Bondi Beach, NSW"
-                className={`w-full bg-background border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/30 transition ${errors.suburb ? "border-destructive" : "border-border/50"}`}
+                className={`w-full bg-background border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition ${errors.suburb ? "border-destructive" : "border-border/50"}`}
               />
               {errors.suburb && (
                 <p className="text-xs text-destructive mt-1 flex items-center gap-1">
@@ -260,7 +260,7 @@ export default function CreateDonationGroup({ user }) {
                 value={form.end_date}
                 onChange={e => set("end_date", e.target.value)}
                 min={new Date(Date.now() + 86400000).toISOString().split("T")[0]}
-                className={`w-full bg-background border rounded-xl px-4 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30 transition ${errors.end_date ? "border-destructive" : "border-border/50"}`}
+                className={`w-full bg-background border rounded-xl px-4 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-border/50 transition ${errors.end_date ? "border-destructive" : "border-border/50"}`}
               />
               {errors.end_date && (
                 <p className="text-xs text-destructive mt-1 flex items-center gap-1">
@@ -296,7 +296,7 @@ export default function CreateDonationGroup({ user }) {
               className="flex-1 rounded-xl gap-2"
             >
               {submitting || uploadingCover
-                ? <><div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />Creating…</>
+                ? <><div className="w-4 h-4 border-2 border-[var(--paper)] border-t-transparent rounded-full animate-spin" />Creating…</>
                 : <><Heart className="h-4 w-4" />Create Group</>}
             </Button>
           </div>

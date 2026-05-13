@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+﻿import { Link } from "react-router-dom";
 import PublicNav from "../components/PublicNav";
 import AppFooter from "../components/AppFooter";
 import { ArrowLeft } from "lucide-react";
@@ -8,49 +8,49 @@ const GUIDELINES = [
     emoji: "🤝",
     title: "Be kind and respectful",
     description:
-      "Parenting is hard enough. Offer support, not judgment. You're welcome to hold a different view — just express it with respect. Remember there's a real person behind every post, navigating the same chaos you are. A moment of empathy can change someone's whole day.",
+"Parenting is hard enough. Offer support, not judgment. You're welcome to hold a different view — just express it with respect. Remember there's a real person behind every post, navigating the same chaos you are. A moment of empathy can change someone's whole day.",
   },
   {
     emoji: "🔒",
     title: "Protect each other's privacy",
     description:
-      "What's shared in The Village stays here. Never share another parent's personal details, photos, location, or posts outside the platform — not in a screenshot, not in a group chat, not anywhere. Trust is the foundation of this community. Protect it.",
+"What's shared in The Village stays here. Never share another parent's personal details, photos, location, or posts outside the platform — not in a screenshot, not in a group chat, not anywhere. Trust is the foundation of this community. Protect it.",
   },
   {
     emoji: "🤫",
     title: "Anonymous posting is sacred",
     description:
-      "Never attempt to identify, speculate about, or expose anonymous posters. When someone posts without their name, that decision is theirs alone. Trying to unmask or hint at who posted anonymously — even indirectly — is a serious violation and will result in immediate account suspension with no appeal.",
+"Never attempt to identify, speculate about, or expose anonymous posters. When someone posts without their name, that decision is theirs alone. Trying to unmask or hint at who posted anonymously — even indirectly — is a serious violation and will result in immediate account suspension with no appeal.",
   },
   {
     emoji: "🛡️",
     title: "Zero tolerance for harmful content",
     description:
-      "There is no place in The Village for harassment, hate speech, abuse, threats, or content that puts children or families at risk. This includes: discriminatory language based on race, religion, gender, sexuality, disability, or parenting choices; any sexual content involving minors; and targeted campaigns against individual members. Zero tolerance means zero exceptions.",
+"There is no place in The Village for harassment, hate speech, abuse, threats, or content that puts children or families at risk. This includes: discriminatory language based on race, religion, gender, sexuality, disability, or parenting choices; any sexual content involving minors; and targeted campaigns against individual members. Zero tolerance means zero exceptions.",
   },
   {
     emoji: "🚫",
     title: "No spam or unsolicited promotion",
     description:
-      "The Village is not a marketplace or advertising platform. Do not post unsolicited commercial content, MLM promotions, referral codes, or repeated links to external sites. Sharing a genuine recommendation in context is fine — bulk promotion is not. Repeated violations will result in account removal.",
+"The Village is not a marketplace or advertising platform. Do not post unsolicited commercial content, MLM promotions, referral codes, or repeated links to external sites. Sharing a genuine recommendation in context is fine — bulk promotion is not. Repeated violations will result in account removal.",
   },
   {
     emoji: "📢",
     title: "Post in the right space",
     description:
-      "Each circle and forum exists for a reason. Sleep questions go in Sleep Support. Local event ideas go in Local Meetups. Feeding questions go in Feeding Circle. Keeping posts on topic makes The Village genuinely useful — not just for you, but for every parent who comes looking for help later.",
+"Each circle and forum exists for a reason. Sleep questions go in Sleep Support. Local event ideas go in Local Meetups. Feeding questions go in Feeding Circle. Keeping posts on topic makes The Village genuinely useful — not just for you, but for every parent who comes looking for help later.",
   },
   {
     emoji: "🏥",
     title: "Medical and professional information",
     description:
-      "You can share your own experiences, but please don't present personal opinions as medical or professional advice. Always encourage others to consult a qualified health professional for medical decisions. Our For Clinicians section is for verified professionals — impersonating a clinician is a serious breach.",
+"You can share your own experiences, but please don't present personal opinions as medical or professional advice. Always encourage others to consult a qualified health professional for medical decisions. Our For Clinicians section is for verified professionals — impersonating a clinician is a serious breach.",
   },
   {
     emoji: "⚠️",
     title: "Safeguarding — child and family safety",
     description:
-      "If you see content that suggests a child or parent is in immediate danger, contact emergency services first. Then report the content immediately using the ⋯ menu on any post or message. Every report is reviewed by a real person. Our safeguarding responsibility extends to every family in this community — do not hesitate to report.",
+"If you see content that suggests a child or parent is in immediate danger, contact emergency services first. Then report the content immediately using the ⋯ menu on any post or message. Every report is reviewed by a real person. Our safeguarding responsibility extends to every family in this community — do not hesitate to report.",
   },
 ];
 
@@ -63,7 +63,7 @@ const CONSEQUENCES = [
 
 export default function CommunityGuidelines() {
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
+    <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
       <PublicNav />
 
       <main className="max-w-3xl mx-auto px-4 pt-16 lg:pt-8">
@@ -100,7 +100,7 @@ export default function CommunityGuidelines() {
         <div className="space-y-4">
           {GUIDELINES.map((guideline) => (
             <div key={guideline.title} className="bg-card rounded-2xl p-6 border border-border/50 flex items-start gap-5">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-2xl shrink-0">
+              <div className="w-12 h-12 rounded-xl bg-[var(--paper-3)] flex items-center justify-center text-2xl shrink-0">
                 {guideline.emoji}
               </div>
               <div>

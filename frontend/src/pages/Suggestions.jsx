@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Link } from "react-router-dom";
 import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
@@ -8,12 +8,14 @@ import { Textarea } from "../components/ui/textarea";
 import { ArrowLeft, Lightbulb } from "lucide-react";
 import { toast } from "sonner";
 
+const API_URL = process.env.REACT_APP_BACKEND_URL;
+
 const CATEGORIES = [
-  "New Feature",
-  "Improvement",
-  "Bug Report",
-  "Content Request",
-  "Other",
+"New Feature",
+"Improvement",
+"Bug Report",
+"Content Request",
+"Other",
 ];
 
 const PRIORITIES = [
@@ -41,21 +43,38 @@ export default function Suggestions({ user }) {
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     if (!form.title.trim() || !form.description.trim()) return;
     setSubmitting(true);
-    setTimeout(() => {
+    try {
+      const res = await fetch(`${API_URL}/api/suggestions`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: form.category,
+          title: form.title.trim(),
+          description: form.description.trim(),
+        }),
+      });
+      if (res.ok) {
+        setForm(EMPTY_FORM);
+        toast.success("Thank you — your suggestion has been sent to the team!");
+      } else {
+        toast.error("Something went wrong. Please try again.");
+      }
+    } catch {
+      toast.error("Could not connect — please try again later.");
+    } finally {
       setSubmitting(false);
-      setForm(EMPTY_FORM);
-      toast.success("Thank you — your suggestion has been noted.");
-    }, 1000);
+    }
   }
 
   const charsLeft = CHAR_LIMIT - form.description.length;
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
+    <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
       <Navigation user={user} />
 
       <main className="max-w-3xl mx-auto px-4 pt-16 lg:pt-8">
@@ -68,7 +87,7 @@ export default function Suggestions({ user }) {
         </Link>
 
         <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-[var(--honey-wash)] flex items-center justify-center">
             <Lightbulb className="h-5 w-5 text-primary" />
           </div>
           <h1 className="font-heading text-3xl font-bold text-foreground">Shape the Village</h1>
@@ -103,7 +122,7 @@ export default function Suggestions({ user }) {
               name="category"
               value={form.category}
               onChange={handleChange}
-              className="w-full rounded-lg border border-border/50 bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition"
+              className="w-full rounded-lg border border-border/50 bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-border/50 transition"
             >
               {CATEGORIES.map((c) => (
                 <option key={c} value={c}>
@@ -141,7 +160,7 @@ export default function Suggestions({ user }) {
                   key={p.value}
                   className={`flex items-start gap-3 rounded-xl border p-3.5 cursor-pointer transition-colors ${
                     form.priority === p.value
-                      ? "border-primary/50 bg-primary/5"
+                      ? "border-[var(--line)] bg-[var(--paper-3)]"
                       : "border-border/50 bg-background hover:border-border"
                   }`}
                 >

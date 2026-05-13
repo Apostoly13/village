@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link, useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -14,9 +14,10 @@ import {
 } from "../components/ui/dropdown-menu";
 import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
+import { CrisisSupportBanner } from "../components/village/CrisisSupportBanner";
 import { toast } from "sonner";
 import { parseApiError } from "../utils/apiError";
-import { ArrowLeft, Plus, MessageCircle, Heart, Eye, Clock, Filter, ChevronLeft, ChevronRight, HelpCircle, MapPin, Compass, Crown, MoreVertical, Edit2, Trash2, Pin, Lock, Users, X } from "lucide-react";
+import { ArrowLeft, Plus, MessageCircle, Heart, Eye, Clock, Filter, ChevronLeft, ChevronRight, HelpCircle, MapPin, Compass, Sparkles, MoreVertical, Edit2, Trash2, Pin, Lock, Users, X, SearchX } from "lucide-react";
 import VerifiedBadge from "../components/VerifiedBadge";
 import { timeAgoVerbose } from "../utils/dateHelpers";
 
@@ -255,13 +256,13 @@ export default function ForumCategory({ user }) {
 
   const PostCard = ({ post, index }) => (
     <article
-      className="bg-card rounded-2xl px-4 py-3 border border-border/40 card-elevated border-l-2 border-l-primary/20 hover:border-primary/30 hover:shadow-md hover:border-l-primary/40 transition-all"
+      className="bg-card rounded-2xl px-4 py-3 border border-border/40 card-elevated hover:border-border/80 hover:shadow-md transition-all"
       data-testid={`post-card-${index}`}
     >
       {/* Top row: badges */}
       {(post.is_pinned || post.is_anonymous || post.reply_count === 0) && (
         <div className="flex items-center gap-1.5 mb-1.5">
-          {post.is_pinned && <span className="text-xs px-1.5 py-0 rounded-full bg-primary/15 text-primary font-medium">📌 Pinned</span>}
+          {post.is_pinned && <span className="text-xs px-1.5 py-0 rounded-full font-medium" style={{ background: "var(--honey-wash)", color: "var(--honey)" }}>📌 Pinned</span>}
           {post.is_anonymous && <span className="text-xs px-1.5 py-0 rounded-full bg-secondary text-muted-foreground">Anonymous</span>}
           {post.reply_count === 0 && (
             <span className="text-xs px-1.5 py-0 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400">Needs reply</span>
@@ -271,7 +272,7 @@ export default function ForumCategory({ user }) {
 
       {/* Title */}
       <Link to={`/forums/post/${post.post_id}`} className="block group">
-        <h3 className="font-semibold text-sm text-foreground mb-1 group-hover:text-primary transition-colors leading-snug">{post.title}</h3>
+        <h3 className="font-semibold text-sm text-foreground mb-1 group-hover:text-foreground transition-colors leading-snug">{post.title}</h3>
         <p className="text-xs text-muted-foreground line-clamp-1 leading-relaxed mb-2">{post.content}</p>
       </Link>
 
@@ -282,11 +283,11 @@ export default function ForumCategory({ user }) {
             <Link to={`/profile/${post.author_id}`} onClick={e => e.stopPropagation()} className="flex items-center gap-1.5 min-w-0">
               <Avatar className="h-5 w-5 flex-shrink-0">
                 <AvatarImage src={post.author_picture} />
-                <AvatarFallback className="bg-primary/20 text-primary text-xs">{post.author_name?.[0]?.toUpperCase() || '?'}</AvatarFallback>
+                <AvatarFallback className="text-xs">{post.author_name?.[0]?.toUpperCase() || '?'}</AvatarFallback>
               </Avatar>
               <span className="text-xs text-muted-foreground truncate hover:text-foreground transition-colors">
                 {post.author_name}
-                {post.author_subscription_tier === "premium" && !post.is_anonymous && <Crown className="h-2.5 w-2.5 text-amber-500 inline ml-0.5" />}
+                {post.author_subscription_tier === "premium" && !post.is_anonymous && <Sparkles className="h-2.5 w-2.5 inline ml-0.5" style={{ color: "hsl(var(--accent))" }} />}
               </span>
               {post.author_is_verified_partner && !post.is_anonymous && <VerifiedBadge />}
             </Link>
@@ -310,7 +311,7 @@ export default function ForumCategory({ user }) {
           {canManageCommunity && (
             <button
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); handlePinPost(post.post_id, post.is_pinned); }}
-              className="text-xs text-muted-foreground hover:text-primary transition-colors"
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
               title={post.is_pinned ? "Unpin" : "Pin"}
             >
               <Pin className="h-3 w-3" />
@@ -322,7 +323,7 @@ export default function ForumCategory({ user }) {
   );
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
+    <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
       <Navigation user={user} />
       
       <main className="max-w-4xl mx-auto px-4 pt-16 lg:pt-8">
@@ -351,14 +352,14 @@ export default function ForumCategory({ user }) {
                     <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground">{getSpaceName(category.name)}</h1>
                     {category.is_private && <Lock className="h-5 w-5 text-muted-foreground" />}
                     {category.community_subtype === "local" && (
-                      <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary font-medium">Local</span>
+                      <span className="text-xs px-2 py-1 rounded-full font-medium" style={{ background: "var(--clay-wash)", color: "var(--clay-deep)" }}>Local</span>
                     )}
                   </div>
                   <p className="text-sm text-muted-foreground mt-0.5">{category.description}</p>
                   <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                     {category.is_user_created && category.created_by_name && (
                       <span className="flex items-center gap-1">
-                        <Crown className="h-3 w-3 text-amber-500" />
+                        <Sparkles className="h-3 w-3" style={{ color: "hsl(var(--accent))" }} />
                         <Link to={`/profile/${category.created_by}`} className="hover:underline text-foreground">
                           {category.created_by_name}
                         </Link>
@@ -477,29 +478,7 @@ export default function ForumCategory({ user }) {
               const id   = (category.category_id || "").toLowerCase();
               const keywords = ["mental health", "wellbeing", "anxiety", "depression", "postnatal", "perinatal", "emotional", "mum", "parent well"];
               if (!keywords.some(kw => name.includes(kw) || id.includes(kw))) return null;
-              return (
-                <div className="mb-5 rounded-2xl bg-sky-500/5 border border-sky-500/20 p-4 flex items-start gap-3">
-                  <span className="text-xl shrink-0">💙</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-foreground mb-1">Support is available — you're not alone</p>
-                    <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                      If you're in crisis or need to talk to someone right now, these free services are available 24/7:
-                    </p>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs">
-                      <a href="tel:1300726306" className="font-semibold text-sky-600 dark:text-sky-400 hover:underline">PANDA — 1300 726 306</a>
-                      <a href="tel:131114"     className="font-semibold text-sky-600 dark:text-sky-400 hover:underline">Lifeline — 13 11 14</a>
-                      <a href="tel:1300224636" className="font-semibold text-sky-600 dark:text-sky-400 hover:underline">Beyond Blue — 1300 22 4636</a>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setCrisisDismissed(true)}
-                    className="text-muted-foreground hover:text-foreground shrink-0 p-0.5 transition-colors"
-                    aria-label="Dismiss"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              );
+              return <CrisisSupportBanner onDismiss={() => setCrisisDismissed(true)} />;
             })()}
 
           {loading ? (
@@ -517,14 +496,14 @@ export default function ForumCategory({ user }) {
               </div>
             ) : posts.length === 0 ? (
               <div className="text-center py-12 village-card">
-                <span className="text-4xl mb-3 block">💬</span>
-                <h3 className="font-heading font-semibold text-foreground mb-1">
+                <MessageCircle size={28} style={{ color: "var(--ink-3)", margin: "0 auto 12px" }} />
+                <h3 className="font-heading font-semibold mb-1" style={{ color: "var(--ink)" }}>
                   {filterType === "unanswered" ? "No unanswered posts" : "No posts yet"}
                 </h3>
-                <p className="text-muted-foreground mb-4">
-                  {filterType === "unanswered" 
-                    ? "All posts have been answered! 🎉" 
-                    : "Be the first to start a conversation!"}
+                <p className="mb-4" style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 13, color: "var(--ink-3)" }}>
+                  {filterType === "unanswered"
+                    ? "All posts have been answered!"
+                    : "Be the first to start a conversation."}
                 </p>
                 {filterType === "all" && (
                   <Link to={`/create-post?category=${categoryId}`}>
@@ -574,7 +553,8 @@ export default function ForumCategory({ user }) {
                             variant={currentPage === pageNum ? "default" : "outline"}
                             size="sm"
                             onClick={() => setCurrentPage(pageNum)}
-                            className={`rounded-full w-9 h-9 ${currentPage === pageNum ? 'bg-primary text-primary-foreground' : ''}`}
+                            className="rounded-full w-9 h-9"
+                            style={currentPage === pageNum ? { background: "var(--ink)", color: "var(--paper)" } : {}}
                           >
                             {pageNum}
                           </Button>
@@ -598,9 +578,9 @@ export default function ForumCategory({ user }) {
           </>
         ) : (
           <div className="text-center py-12 village-card">
-            <span className="text-4xl mb-3 block">🔍</span>
-            <h3 className="font-heading font-semibold text-foreground">Category not found</h3>
-            <p className="text-sm text-muted-foreground mt-1 mb-4">This space may have been removed.</p>
+            <SearchX size={28} style={{ color: "var(--ink-3)", margin: "0 auto 12px" }} />
+            <h3 className="font-heading font-semibold" style={{ color: "var(--ink)" }}>Category not found</h3>
+            <p className="mt-1 mb-4" style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 13, color: "var(--ink-3)" }}>This space may have been removed.</p>
             <Link to="/forums">
               <Button variant="outline" className="rounded-xl">Back to Spaces</Button>
             </Link>

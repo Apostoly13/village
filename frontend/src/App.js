@@ -59,22 +59,32 @@ const EditStallListing    = lazy(() => import("./pages/EditStallListing"));
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 // ── Email verification page ────────────────────────────────────────────────────
+// Two modes:
+//   ?token=xxx  → verify the token from the link in the email
+//   (no token)  → holding page shown to unverified users gated by ProtectedRoute
 function VerifyEmailPage() {
-  const [status, setStatus] = useState("loading"); // loading | success | error
+  const [status, setStatus] = useState("idle"); // idle | loading | success | error | sending
   const [msg, setMsg]       = useState("");
   const navigate            = useNavigate();
   const params              = new URLSearchParams(window.location.search);
   const token               = params.get("token");
 
+  // Get user email from localStorage for the holding page display
+  const storedEmail = (() => {
+    try { return JSON.parse(localStorage.getItem("user") || "{}").email || ""; } catch { return ""; }
+  })();
+
+  // If a token is present, auto-verify on mount
   useEffect(() => {
-    if (!token) { setStatus("error"); setMsg("No verification token found."); return; }
+    if (!token) { setStatus("idle"); return; }
+    setStatus("loading");
     fetch(`${API_URL}/api/auth/verify-email?token=${encodeURIComponent(token)}`)
       .then(r => r.json())
       .then(d => {
         if (d.message) {
           setStatus("success");
           setMsg(d.message);
-          // Update cached user so banner disappears
+          // Update cached user so the gate lifts on next navigation
           try {
             const u = JSON.parse(localStorage.getItem("user") || "{}");
             u.email_verified = true;
@@ -88,87 +98,106 @@ function VerifyEmailPage() {
       .catch(() => { setStatus("error"); setMsg("Could not connect — please try again."); });
   }, [token]);
 
-  return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="bg-card border border-border/50 rounded-2xl p-8 max-w-sm w-full text-center shadow-sm">
-        {status === "loading" && (
-          <>
-            <div className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin mx-auto mb-4" />
-            <p className="text-muted-foreground text-sm">Verifying your email…</p>
-          </>
-        )}
-        {status === "success" && (
-          <>
-            <div className="text-4xl mb-4">✅</div>
-            <h2 className="text-lg font-semibold text-foreground mb-2">Email verified!</h2>
-            <p className="text-muted-foreground text-sm mb-6">{msg}</p>
-            <button
-              onClick={() => navigate("/dashboard")}
-              className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
-            >
-              Go to dashboard
-            </button>
-          </>
-        )}
-        {status === "error" && (
-          <>
-            <div className="text-4xl mb-4">⚠️</div>
-            <h2 className="text-lg font-semibold text-foreground mb-2">Couldn't verify</h2>
-            <p className="text-muted-foreground text-sm mb-6">{msg}</p>
-            <button
-              onClick={() => navigate("/dashboard")}
-              className="w-full py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-secondary/50 transition-colors"
-            >
-              Go to dashboard
-            </button>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── Email verification banner ─────────────────────────────────────────────────
-// Shown inside protected pages when user.email_verified === false
-function VerifyEmailBanner({ user }) {
-  const [dismissed, setDismissed] = useState(false);
-  const [sending, setSending]     = useState(false);
-
-  // Don't show if already verified, dismissed, or no user
-  if (!user || user.email_verified !== false || dismissed) return null;
-
   const resend = async () => {
-    setSending(true);
+    setStatus("sending");
     try {
       const r = await fetch(`${API_URL}/api/auth/resend-verification`, {
         method: "POST", credentials: "include",
       });
       const d = await r.json();
-      toast.success(d.message || "Verification email sent");
+      toast.success(d.message || "Verification email sent — check your inbox");
     } catch {
       toast.error("Could not send — please try again later");
     } finally {
-      setSending(false);
+      setStatus("idle");
     }
   };
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-[60] lg:left-60">
-      <div className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm"
-        style={{ background: "hsl(var(--accent))", color: "#1a1208" }}>
-        <span className="font-medium">
-          📬 Please verify your email address to keep your account secure.
-        </span>
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            onClick={resend}
-            disabled={sending}
-            className="underline underline-offset-2 text-sm hover:no-underline disabled:opacity-50"
-          >
-            {sending ? "Sending…" : "Resend email"}
-          </button>
-          <button onClick={() => setDismissed(true)} className="opacity-70 hover:opacity-100 ml-1" aria-label="Dismiss">✕</button>
-        </div>
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "var(--paper)" }}>
+      <div className="rounded-2xl p-8 max-w-sm w-full text-center shadow-sm" style={{ background: "var(--paper-2)", border: "1px solid var(--line)" }}>
+
+        {/* ── Token verification states ── */}
+        {token && status === "loading" && (
+          <>
+            <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin mx-auto mb-4" style={{ borderColor: "var(--ink-3)", borderTopColor: "var(--ink)" }} />
+            <p className="text-sm" style={{ color: "var(--ink-3)" }}>Verifying your email…</p>
+          </>
+        )}
+        {token && status === "success" && (
+          <>
+            <div className="text-4xl mb-4">✅</div>
+            <h2 className="font-heading text-lg font-semibold mb-2" style={{ color: "var(--ink)" }}>Email verified!</h2>
+            <p className="text-sm mb-6" style={{ color: "var(--ink-3)" }}>{msg}</p>
+            <button
+              onClick={() => navigate("/dashboard")}
+              className="w-full py-2.5 rounded-xl text-sm font-medium transition-opacity hover:opacity-90"
+              style={{ background: "var(--ink)", color: "var(--paper)" }}
+            >
+              Go to The Village →
+            </button>
+          </>
+        )}
+        {token && status === "error" && (
+          <>
+            <div className="text-4xl mb-4">⚠️</div>
+            <h2 className="font-heading text-lg font-semibold mb-2" style={{ color: "var(--ink)" }}>Couldn't verify</h2>
+            <p className="text-sm mb-6" style={{ color: "var(--ink-3)" }}>{msg}</p>
+            <button
+              onClick={resend}
+              className="w-full py-2.5 rounded-xl text-sm font-medium mb-3 transition-opacity hover:opacity-90"
+              style={{ background: "var(--ink)", color: "var(--paper)" }}
+            >
+              Resend verification email
+            </button>
+            <button
+              onClick={() => navigate("/dashboard")}
+              className="w-full py-2.5 rounded-xl text-sm font-medium transition-colors"
+              style={{ color: "var(--ink-3)", border: "1px solid var(--line)" }}
+            >
+              Back to dashboard
+            </button>
+          </>
+        )}
+
+        {/* ── Holding page — no token, gated by ProtectedRoute ── */}
+        {!token && (
+          <>
+            <div className="text-4xl mb-5">📬</div>
+            <h2 className="font-heading text-xl font-semibold mb-2" style={{ color: "var(--ink)" }}>
+              Check your inbox
+            </h2>
+            <p className="text-sm mb-1" style={{ color: "var(--ink-3)" }}>
+              We sent a verification link to
+            </p>
+            {storedEmail && (
+              <p className="text-sm font-semibold mb-4" style={{ color: "var(--ink)" }}>
+                {storedEmail}
+              </p>
+            )}
+            <p className="text-xs mb-6" style={{ color: "var(--ink-3)" }}>
+              Click the link in the email to access The Village. Check your spam folder if you don't see it.
+            </p>
+            <button
+              onClick={resend}
+              disabled={status === "sending"}
+              className="w-full py-2.5 rounded-xl text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50 mb-3"
+              style={{ background: "var(--ink)", color: "var(--paper)" }}
+            >
+              {status === "sending" ? "Sending…" : "Resend verification email"}
+            </button>
+            <button
+              onClick={() => {
+                localStorage.removeItem("user");
+                navigate("/login");
+              }}
+              className="w-full py-2 text-xs transition-colors"
+              style={{ color: "var(--ink-3)" }}
+            >
+              Sign in with a different account
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -308,14 +337,18 @@ const ProtectedRoute = ({ children }) => {
     return null;
   }
 
-  // Incomplete onboarding → redirect to the onboarding page
+  // Incomplete onboarding → redirect to the onboarding page (allow before email gate)
   if (user && !user.onboarding_complete && location.pathname !== "/onboarding") {
     return <Navigate to="/onboarding" replace />;
   }
 
+  // Email not yet verified → hold at the verify-email page
+  if (user && user.email_verified === false && location.pathname !== "/verify-email") {
+    return <Navigate to="/verify-email" replace />;
+  }
+
   return (
     <>
-      <VerifyEmailBanner user={user} />
       {typeof children === 'function' ? children({ user }) : children}
     </>
   );

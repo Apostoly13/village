@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 
 /**
@@ -62,7 +62,7 @@ export default function PWAInstallBanner() {
     <div className="fixed bottom-16 lg:bottom-4 left-3 right-3 lg:left-auto lg:right-4 lg:w-80 z-40 animate-fade-in">
       <div className="bg-card border border-border/60 rounded-2xl p-4 shadow-xl flex items-start gap-3">
         {/* App icon */}
-        <div className="w-11 h-11 rounded-xl bg-primary/20 flex items-center justify-center shrink-0 overflow-hidden">
+        <div className="w-11 h-11 rounded-xl bg-[var(--honey-wash)] flex items-center justify-center shrink-0 overflow-hidden">
           <img src="/BG Removed- Main Logo.png" alt="The Village" className="w-full h-full object-cover" />
         </div>
 

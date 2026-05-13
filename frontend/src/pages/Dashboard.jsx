@@ -1,11 +1,11 @@
-import { useState, useEffect, useMemo } from "react";
+﻿import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import Navigation from "../components/Navigation";
 // OnboardingModal removed — onboarding is now a standalone page at /onboarding
-import { Search, Plus, MessageCircle, Heart, Eye, Crown, X, Compass, Bell, HelpingHand, Users, EyeOff, HelpCircle } from "lucide-react";
+import { Search, Plus, MessageCircle, Heart, Eye, Sparkles, X, Compass, Bell, HelpingHand, Users, EyeOff, HelpCircle, Moon, ChevronRight } from "lucide-react";
 import RecommendedSpaces from "../components/RecommendedSpaces";
 import AppFooter from "../components/AppFooter";
 import { timeAgoVerbose } from "../utils/dateHelpers";
@@ -56,7 +56,7 @@ function QuickThreadView({ post, liked, likeCount, onLike, onClose, onReplied, a
             <Link
               to={`/forums/post/${post.post_id}`}
               onClick={onClose}
-              className="text-xs text-primary font-medium hover:underline px-2 py-1 rounded-lg hover:bg-primary/10 transition-colors"
+              className="text-xs text-primary font-medium hover:underline px-2 py-1 rounded-lg hover:bg-muted/50 transition-colors"
             >
               Open post →
             </Link>
@@ -72,7 +72,7 @@ function QuickThreadView({ post, liked, likeCount, onLike, onClose, onReplied, a
             <div className="flex items-center gap-2 mb-2">
               <Avatar className="h-7 w-7">
                 <AvatarImage src={post.author_picture} />
-                <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                <AvatarFallback className="text-xs">
                   {post.is_anonymous ? "?" : post.author_name?.[0]?.toUpperCase()}
                 </AvatarFallback>
               </Avatar>
@@ -118,7 +118,7 @@ function QuickThreadView({ post, liked, likeCount, onLike, onClose, onReplied, a
           ) : (
             <div className="space-y-3">
               {replies.map((reply, idx) => (
-                <div key={reply.reply_id || idx} className={`flex gap-2.5 ${reply.depth > 0 ? "ml-6 pl-3 border-l-2 border-primary/30" : ""}`}>
+                <div key={reply.reply_id || idx} className={`flex gap-2.5 ${reply.depth > 0 ? "ml-6 pl-3 border-l-2 border-[var(--line)]" : ""}`}>
                   <Avatar className="h-6 w-6 shrink-0 mt-0.5">
                     <AvatarImage src={reply.author_picture} />
                     <AvatarFallback className="bg-secondary text-muted-foreground text-xs">
@@ -183,7 +183,7 @@ function QuickReplyBox({ postId, onDone, apiUrl }) {
         onChange={e => setText(e.target.value)}
         onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
         placeholder="Write a quick reply..."
-        className="flex-1 bg-secondary/50 rounded-xl px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/30 border border-transparent focus:border-primary/30"
+        className="flex-1 bg-secondary/50 rounded-xl px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-border/50 border border-transparent focus:border-border"
       />
       <button
         onClick={handleSend}
@@ -210,8 +210,8 @@ const FEED_FILTERS = [
 
 const DASH_MODES = [
   { id: "need-help", icon: HelpingHand, label: "I need help" },
-  { id: "browse",    icon: Compass,     label: "Browse"      },
-  { id: "catch-up",  icon: Bell,        label: "Catch up"    },
+  { id: "browse",    icon: Compass,     label: "Browse"},
+  { id: "catch-up",  icon: Bell,        label: "Catch up"},
 ];
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -467,7 +467,7 @@ export default function Dashboard({ user }) {
           const restriction = r.gender_restriction;
           if (!restriction) return true;
           if (restriction === "female" && g !== "female") return false;
-          if (restriction === "male"   && g !== "male")   return false;
+          if (restriction === "male"&& g !== "male")   return false;
           return true;
         });
 
@@ -609,7 +609,7 @@ export default function Dashboard({ user }) {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-8">
+    <div className="min-h-screen bg-background  lg:pl-60 lg:pb-8">
       <Navigation user={user} />
 
       <main className="max-w-5xl mx-auto px-4 pt-16 lg:pt-8">
@@ -618,7 +618,7 @@ export default function Dashboard({ user }) {
         {pinnedAnnouncements
           .filter(a => !dismissedAnnouncements.includes(a.announcement_id))
           .map(a => (
-            <div key={a.announcement_id} className="mb-4 rounded-2xl p-4 bg-primary/8 border border-primary/20 shadow-sm">
+            <div key={a.announcement_id} className="mb-4 rounded-2xl p-4 bg-[var(--paper-3)] border border-[var(--line)] shadow-sm">
               <div className="flex items-start gap-3">
                 <span className="text-xl shrink-0">📢</span>
                 <div className="flex-1 min-w-0">
@@ -748,32 +748,44 @@ export default function Dashboard({ user }) {
         {/* ── Night Owl 3am Club banner ── */}
         {nightOwl3amRoom && (
           <Link to={nightOwl3amRoom.href} className="block mb-5">
-            <div className="rounded-2xl p-4 bg-primary/10 border border-primary/25 hover:border-primary/40 hover:bg-primary/15 transition-all flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center text-2xl shrink-0">🌙</div>
+            <div
+              className="rounded-2xl p-4 flex items-center gap-4 transition-all"
+              style={{
+                background: "var(--honey-wash)",
+                border: "1px solid rgba(217,161,91,0.35)",
+                boxShadow: "var(--glow, none)",
+              }}
+            >
+              <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: "rgba(217,161,91,0.18)" }}
+              >
+                <Moon size={22} style={{ color: "var(--honey)" }} />
+              </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shrink-0" />
-                  <span className="text-xs font-semibold text-primary uppercase tracking-wide">Night Owl hours · Active now</span>
+                  <span className="w-1.5 h-1.5 rounded-full animate-pulse shrink-0" style={{ background: "var(--honey)" }} />
+                  <span className="font-mono text-[10px] uppercase tracking-[0.14em]" style={{ color: "var(--honey)" }}>Night Owl hours · Active now</span>
                 </div>
-                <p className="font-heading font-bold text-foreground text-sm">The 3am Club is active</p>
-                <p className="text-xs text-muted-foreground">Late-night company for those who can't sleep. You're not alone.</p>
+                <p className="font-heading font-semibold text-sm" style={{ color: "var(--ink)" }}>The 3am Club is active</p>
+                <p className="text-xs" style={{ color: "var(--ink-2)" }}>Late-night company for those who can't sleep. You're not alone.</p>
               </div>
-              <span className="text-muted-foreground shrink-0">→</span>
+              <ChevronRight size={16} style={{ color: "var(--honey)", flexShrink: 0 }} />
             </div>
           </Link>
         )}
 
         {/* ── Mode switcher ── */}
-        <div className="mb-5 flex bg-card rounded-full border border-border/50 p-1 gap-1">
+        <div className="mb-5 flex rounded-full p-1 gap-1" style={{ background: "var(--paper-2)", border: "1px solid var(--line)" }}>
           {DASH_MODES.map(({ id, icon: Icon, label }) => (
             <button
               key={id}
               onClick={() => switchMode(id)}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-full text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
-                dashMode === id
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-full text-xs font-semibold transition-all focus-visible:outline-none"
+              style={dashMode === id
+                ? { background: "var(--ink)", color: "var(--paper)", boxShadow: "var(--shadow-sm)" }
+                : { color: "var(--ink-3)" }
+              }
             >
               <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
               <span>{label}</span>
@@ -794,14 +806,14 @@ export default function Dashboard({ user }) {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Link
                 to="/chat"
-                className="village-card p-5 hover:border-primary/40 hover:bg-primary/5 transition-colors text-center group"
+                className="village-card p-5 hover:border-border hover:bg-muted/30 transition-colors text-center group"
               >
                 <div className="flex justify-center mb-2.5">
                   <span className="w-10 h-10 rounded-full bg-sage-wash flex items-center justify-center text-sage-deep" style={{ background: "var(--sage-wash)", color: "var(--sage-deep)" }}>
                     <Users className="h-5 w-5" />
                   </span>
                 </div>
-                <p className="font-heading font-semibold text-sm text-foreground group-hover:text-primary transition-colors">
+                <p className="font-heading font-semibold text-sm text-foreground group-hover:text-foreground transition-colors">
                   Talk in a Group Chat
                 </p>
                 <p className="text-xs text-muted-foreground mt-1.5 leading-snug">
@@ -811,14 +823,14 @@ export default function Dashboard({ user }) {
 
               <Link
                 to="/create-post"
-                className="village-card p-5 hover:border-primary/40 hover:bg-primary/5 transition-colors text-center group"
+                className="village-card p-5 hover:border-border hover:bg-muted/30 transition-colors text-center group"
               >
                 <div className="flex justify-center mb-2.5">
                   <span className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "var(--dusk-wash)", color: "var(--dusk)" }}>
                     <EyeOff className="h-5 w-5" />
                   </span>
                 </div>
-                <p className="font-heading font-semibold text-sm text-foreground group-hover:text-primary transition-colors">
+                <p className="font-heading font-semibold text-sm text-foreground group-hover:text-foreground transition-colors">
                   Post anonymously
                 </p>
                 <p className="text-xs text-muted-foreground mt-1.5 leading-snug">
@@ -828,14 +840,14 @@ export default function Dashboard({ user }) {
 
               <Link
                 to="/create-post"
-                className="village-card p-5 hover:border-primary/40 hover:bg-primary/5 transition-colors text-center group"
+                className="village-card p-5 hover:border-border hover:bg-muted/30 transition-colors text-center group"
               >
                 <div className="flex justify-center mb-2.5">
                   <span className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "var(--clay-wash)", color: "var(--clay-deep)" }}>
                     <HelpCircle className="h-5 w-5" />
                   </span>
                 </div>
-                <p className="font-heading font-semibold text-sm text-foreground group-hover:text-primary transition-colors">
+                <p className="font-heading font-semibold text-sm text-foreground group-hover:text-foreground transition-colors">
                   Ask a question
                 </p>
                 <p className="text-xs text-muted-foreground mt-1.5 leading-snug">
@@ -849,7 +861,7 @@ export default function Dashboard({ user }) {
               <div className="village-card p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-heading font-semibold text-sm text-foreground flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse inline-block shrink-0" />
+                    <span className="w-2 h-2 rounded-full animate-pulse inline-block shrink-0" style={{ background: "var(--status-online)" }} />
                     Active right now
                   </h3>
                   <Link to="/chat" className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">See all</Link>
@@ -858,12 +870,12 @@ export default function Dashboard({ user }) {
                   {namedRooms.map(r => (
                     <Link key={r.href} to={r.href} className="flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-secondary/50 transition-colors group">
                       <span className="text-base w-7 text-center shrink-0">{r.icon}</span>
-                      <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors flex-1 truncate">{r.name}</p>
+                      <p className="text-sm font-medium text-foreground group-hover:text-foreground transition-colors flex-1 truncate">{r.name}</p>
                       {r.count > 0 ? (
                         <span className="text-xs text-muted-foreground shrink-0">{r.count} online</span>
                       ) : (
-                        <span className="flex items-center gap-1 text-xs text-green-500 shrink-0">
-                          <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                        <span className="flex items-center gap-1 text-xs shrink-0" style={{ color: "var(--status-online)" }}>
+                          <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--status-online)" }} />
                           Active
                         </span>
                       )}
@@ -898,7 +910,7 @@ export default function Dashboard({ user }) {
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
                     placeholder="Search posts and spaces..."
-                    className="pl-11 h-11 rounded-xl bg-card border-border/50 focus:border-primary"
+                    className="pl-11 h-11 rounded-xl bg-card border-border/50 focus:border-[var(--line-2)]"
                     data-testid="search-input"
                   />
                 </form>
@@ -914,24 +926,24 @@ export default function Dashboard({ user }) {
               </div>
 
               {/* Feed filter pills */}
-              <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none">
+              <div className="flex gap-1 overflow-x-auto pb-0.5 scrollbar-none p-1 rounded-full" style={{ background: "var(--paper-2)", border: "1px solid var(--line)" }}>
                 {FEED_FILTERS.map(f => (
                   <button
                     key={f.id}
                     onClick={() => { setFeedFilter(f.id); setVisibleCount(8); }}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
-                      feedFilter === f.id
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "bg-card border border-border/50 text-muted-foreground hover:text-foreground hover:border-primary/30"
-                    }`}
+                    className="rounded-full px-3.5 py-1.5 text-xs font-medium whitespace-nowrap transition-all shrink-0 focus-visible:outline-none"
+                    style={feedFilter === f.id
+                      ? { background: "var(--ink)", color: "var(--paper)", boxShadow: "var(--shadow-sm)" }
+                      : { color: "var(--ink-3)" }
+                    }
                   >
                     {f.label}
                   </button>
                 ))}
                 {/* Online count — real platform presence via heartbeat */}
                 {onlineCount !== null && onlineCount > 0 && (
-                  <span className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap shrink-0 bg-green-500/10 border border-green-500/30 text-green-700 dark:text-green-400">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse inline-block" />
+                  <span className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap shrink-0" style={{ background: "var(--sage-wash)", color: "var(--sage-deep)", border: "1px solid rgba(74,113,85,0.3)" }}>
+                    <span className="w-1.5 h-1.5 rounded-full animate-pulse inline-block" style={{ background: "var(--status-online)" }} />
                     {onlineCount} online
                   </span>
                 )}
@@ -943,7 +955,7 @@ export default function Dashboard({ user }) {
               <div className="flex gap-2 mb-4 flex-wrap">
                 <button
                   onClick={() => switchMode("catch-up")}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-medium hover:bg-primary/15 transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--paper-3)] border border-[var(--line)] text-primary text-xs font-medium hover:bg-muted/50 transition-colors"
                 >
                   <span>🔔</span>
                   {unreadActivity.length} unread
@@ -958,11 +970,11 @@ export default function Dashboard({ user }) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="font-heading font-semibold text-foreground text-base">
-                    {feedFilter === "latest"   && "Latest conversations"}
+                    {feedFilter === "latest"&& "Latest conversations"}
                     {feedFilter === "trending" && "Trending discussions"}
-                    {feedFilter === "nearby"   && "Near you"}
-                    {feedFilter === "support"  && "Support needed"}
-                    {feedFilter === "unread"   && "Unread"}
+                    {feedFilter === "nearby"&& "Near you"}
+                    {feedFilter === "support"&& "Support needed"}
+                    {feedFilter === "unread"&& "Unread"}
                   </h2>
                   {feedFilter !== "latest" && (
                     <button
@@ -991,11 +1003,11 @@ export default function Dashboard({ user }) {
                   </div>
                 ) : filteredPosts.length === 0 ? (
                   <div className="text-center py-12 village-card">
-                    <span className="text-4xl mb-3 block">📝</span>
-                    <h3 className="font-heading font-semibold text-foreground mb-1">
+                    <MessageCircle size={28} style={{ color: "var(--ink-3)", margin: "0 auto 12px" }} />
+                    <h3 className="font-heading font-semibold mb-1" style={{ color: "var(--ink)" }}>
                       {feedFilter !== "latest" ? "Nothing here right now" : "Nothing here yet"}
                     </h3>
-                    <p className="text-xs text-muted-foreground mb-4">
+                    <p className="mb-4" style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 13, color: "var(--ink-3)" }}>
                       {feedFilter !== "latest"
                         ? "Try a different filter or check back later."
                         : "Be the first to share something with the village."}
@@ -1041,7 +1053,7 @@ export default function Dashboard({ user }) {
                               >
                                 <Avatar className="h-7 w-7 hover:ring-2 hover:ring-primary/40 transition-all">
                                   <AvatarImage src={post.author_picture} />
-                                  <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                                  <AvatarFallback className="text-xs">
                                     {post.author_name?.[0]?.toUpperCase() || "?"}
                                   </AvatarFallback>
                                 </Avatar>
@@ -1053,14 +1065,14 @@ export default function Dashboard({ user }) {
                               ) : (
                                 <Link
                                   to={`/profile/${post.author_id}`}
-                                  className="text-sm font-medium text-foreground hover:text-primary transition-colors truncate"
+                                  className="text-sm font-medium text-foreground hover:text-foreground transition-colors truncate"
                                   onClick={e => e.stopPropagation()}
                                 >
                                   {post.author_name}
                                 </Link>
                               )}
                               {post.author_subscription_tier === "premium" && !isAnon && (
-                                <Crown className="h-3 w-3 text-amber-500 shrink-0" />
+                                <Sparkles className="h-3 w-3 shrink-0" style={{ color: "hsl(var(--accent))" }} />
                               )}
                               <span
                                 className="font-mono text-[9px] uppercase tracking-[0.12em] shrink-0 hidden sm:inline"
@@ -1114,7 +1126,7 @@ export default function Dashboard({ user }) {
                             <button
                               onClick={e => { e.stopPropagation(); setSelectedPost(post); }}
                               aria-label="View replies"
-                              className="flex items-center gap-1.5 hover:text-primary transition-colors rounded focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40"
+                              className="flex items-center gap-1.5 hover:text-foreground transition-colors rounded focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40"
                             >
                               <MessageCircle className="h-3.5 w-3.5" />
                               {post.reply_count || 0}
@@ -1151,7 +1163,7 @@ export default function Dashboard({ user }) {
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-heading font-semibold text-sm text-foreground">Activity</h3>
                     {unreadActivity.length > 0 && (
-                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-primary/15 text-primary">
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[var(--honey-wash)] text-[var(--honey)]">
                         {unreadActivity.length} new
                       </span>
                     )}
@@ -1163,10 +1175,10 @@ export default function Dashboard({ user }) {
                           key={n.notification_id || i}
                           to={n.link || "#"}
                           onClick={() => n.notification_id && markNotificationRead(n.notification_id)}
-                          className="flex items-start gap-2.5 p-2.5 rounded-xl bg-primary/5 border border-primary/10 hover:bg-primary/10 transition-colors group"
+                          className="flex items-start gap-2.5 p-2.5 rounded-xl bg-[var(--paper-3)] border border-[var(--sage)]/10 hover:bg-muted/50 transition-colors group"
                         >
                           <span className="text-sm shrink-0 mt-0.5">{typeEmoji(n.type)}</span>
-                          <p className="text-xs text-foreground line-clamp-2 flex-1 leading-relaxed group-hover:text-primary transition-colors">{n.message}</p>
+                          <p className="text-xs text-foreground line-clamp-2 flex-1 leading-relaxed group-hover:text-foreground transition-colors">{n.message}</p>
                         </Link>
                       ))}
                       {unreadActivity.length > 3 && (
@@ -1177,7 +1189,7 @@ export default function Dashboard({ user }) {
                     </div>
                   ) : (
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground px-1 py-2">
-                      <span className="text-green-500">✓</span>
+                      <span style={{ color: "var(--status-online)" }}>✓</span>
                       <span>You're all caught up</span>
                     </div>
                   )}
@@ -1187,7 +1199,7 @@ export default function Dashboard({ user }) {
                 <div className="village-card p-4">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-heading font-semibold text-sm text-foreground flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse inline-block shrink-0" />
+                      <span className="w-2 h-2 rounded-full animate-pulse inline-block shrink-0" style={{ background: "var(--status-online)" }} />
                       Live now
                     </h3>
                     <Link to="/chat" className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">See all</Link>
@@ -1198,11 +1210,11 @@ export default function Dashboard({ user }) {
                     ) : namedRooms.slice(0, 3).map(r => (
                       <Link key={r.href} to={r.href} className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-secondary/50 transition-colors group">
                         <span className="text-base w-7 text-center shrink-0">{r.icon}</span>
-                        <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors flex-1 truncate">{r.name}</p>
+                        <p className="text-sm font-medium text-foreground group-hover:text-foreground transition-colors flex-1 truncate">{r.name}</p>
                         {r.count > 0 ? (
                           <span className="text-xs text-muted-foreground shrink-0">{r.count}</span>
                         ) : (
-                          <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shrink-0" />
+                          <span className="w-1.5 h-1.5 rounded-full animate-pulse shrink-0" style={{ background: "var(--status-online)" }} />
                         )}
                       </Link>
                     ))}
@@ -1253,10 +1265,10 @@ export default function Dashboard({ user }) {
                       key={n.notification_id || i}
                       to={n.link || "#"}
                       onClick={() => n.notification_id && markNotificationRead(n.notification_id)}
-                      className="flex items-start gap-2.5 p-2.5 rounded-xl bg-primary/5 border border-primary/10 hover:bg-primary/10 transition-colors group"
+                      className="flex items-start gap-2.5 p-2.5 rounded-xl bg-[var(--paper-3)] border border-[var(--sage)]/10 hover:bg-muted/50 transition-colors group"
                     >
                       <span className="text-sm shrink-0 mt-0.5">{typeEmoji(n.type)}</span>
-                      <p className="text-xs line-clamp-2 flex-1 leading-relaxed text-foreground group-hover:text-primary transition-colors">
+                      <p className="text-xs line-clamp-2 flex-1 leading-relaxed text-foreground group-hover:text-foreground transition-colors">
                         {n.message}
                       </p>
                       <span className="text-[10px] text-muted-foreground/60 shrink-0 whitespace-nowrap mt-0.5">{fmtRelative(n.created_at)}</span>
@@ -1278,7 +1290,7 @@ export default function Dashboard({ user }) {
                     <Link key={post.post_id} to={`/forums/post/${post.post_id}`} className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-secondary/50 transition-colors group">
                       <span className="text-sm font-bold text-muted-foreground/30 shrink-0 mt-0.5 w-4 text-right">{i + 1}</span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-snug">
+                        <p className="text-sm font-medium text-foreground group-hover:text-foreground transition-colors line-clamp-2 leading-snug">
                           {post.title}
                         </p>
                         <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground">
@@ -1313,12 +1325,12 @@ export default function Dashboard({ user }) {
                       const mon = dateObj ? dateObj.toLocaleString("en-AU", { month: "short" }) : "";
                       return (
                         <Link key={ev.event_id || i} to="/events" className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-secondary/50 transition-colors group">
-                          <div className="w-9 h-9 rounded-lg bg-primary/15 text-primary flex flex-col items-center justify-center shrink-0">
+                          <div className="w-9 h-9 rounded-lg bg-[var(--honey-wash)] text-[var(--honey)] flex flex-col items-center justify-center shrink-0">
                             <span className="text-xs font-bold leading-none">{day}</span>
                             <span className="text-[9px] uppercase">{mon}</span>
                           </div>
                           <div className="min-w-0">
-                            <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">{ev.title}</p>
+                            <p className="text-sm font-medium text-foreground truncate group-hover:text-foreground transition-colors">{ev.title}</p>
                             <p className="text-xs text-muted-foreground truncate">
                               {ev.suburb || ev.venue_name || ""}{ev.distance_km ? ` · ${Math.round(ev.distance_km)} km away` : ""}
                             </p>
@@ -1343,7 +1355,7 @@ export default function Dashboard({ user }) {
                     {userCommunities.slice(0, 4).map(c => (
                       <Link key={c.category_id} to={`/community/${c.category_id}`} className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-secondary/50 transition-colors group">
                         <span className="text-base w-7 text-center shrink-0">{c.icon || "💬"}</span>
-                        <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors flex-1 truncate">{c.name}</p>
+                        <p className="text-sm font-medium text-foreground group-hover:text-foreground transition-colors flex-1 truncate">{c.name}</p>
                         {c.member_count > 0 && (
                           <span className="text-xs text-muted-foreground shrink-0">{c.member_count}</span>
                         )}
@@ -1364,7 +1376,7 @@ export default function Dashboard({ user }) {
               <div className="village-card p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-heading font-semibold text-sm text-foreground flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse inline-block shrink-0" />
+                    <span className="w-2 h-2 rounded-full animate-pulse inline-block shrink-0" style={{ background: "var(--status-online)" }} />
                     Group Chats — live now
                   </h3>
                   <Link to="/chat" className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">See all</Link>
@@ -1373,12 +1385,12 @@ export default function Dashboard({ user }) {
                   {namedRooms.slice(0, 3).map(r => (
                     <Link key={r.href} to={r.href} className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-secondary/50 transition-colors group">
                       <span className="text-base w-7 text-center shrink-0">{r.icon}</span>
-                      <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors flex-1 truncate">{r.name}</p>
+                      <p className="text-sm font-medium text-foreground group-hover:text-foreground transition-colors flex-1 truncate">{r.name}</p>
                       {r.count > 0 ? (
                         <span className="text-xs text-muted-foreground shrink-0">{r.count} online</span>
                       ) : (
-                        <span className="flex items-center gap-1 text-xs text-green-500 shrink-0">
-                          <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                        <span className="flex items-center gap-1 text-xs shrink-0" style={{ color: "var(--status-online)" }}>
+                          <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--status-online)" }} />
                           Active
                         </span>
                       )}

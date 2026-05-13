@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+﻿import { useState, useEffect, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import Navigation from "../components/Navigation";
 import { toast } from "sonner";
 import {
-  Shield, Users, MessageSquare, Flag, Crown, Ban, Search,
+  Shield, Users, MessageSquare, Flag, Sparkles, Ban, Search,
   ChevronLeft, ChevronRight, BarChart3, Eye, UserCheck, Heart,
   HelpCircle, TrendingUp, BookOpen, Check, X, Activity,
   Trophy, RefreshCw, MessageCircle, Repeat2,
@@ -39,11 +39,12 @@ function TimePeriodToggle({ value, onChange }) {
         <button
           key={p.value}
           onClick={() => onChange(p.value)}
-          className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+          className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${
             value === p.value
-              ? "bg-primary text-primary-foreground"
-              : "bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80"
+              ? "border-[var(--sage)]/30 sage-pill-active"
+              : "border-transparent text-[var(--ink-3)] hover:text-[var(--ink)]"
           }`}
+          style={value === p.value ? { background: "var(--sage-wash)", color: "var(--sage-deep)" } : {}}
         >
           {p.label}
         </button>
@@ -410,7 +411,7 @@ export default function AdminDashboard({ user }) {
   };
 
   const tierBadge = (tier) => {
-    if (tier === "premium") return <Badge className="bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30"><Crown className="h-3 w-3 mr-1" />Village+</Badge>;
+    if (tier === "premium") return <Badge className="bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30"><Sparkles className="h-3 w-3 mr-1" />Village+</Badge>;
     if (tier === "trial") return <Badge className="bg-green-500/20 text-green-600 dark:text-green-400 border-green-500/30">Trial</Badge>;
     return <Badge variant="outline" className="text-muted-foreground">Free</Badge>;
   };
@@ -420,7 +421,7 @@ export default function AdminDashboard({ user }) {
   // Clickable stat card
   const StatCard = ({ label, value, icon: Icon, color = "text-primary", drilldownType, sub }) => (
     <div
-      className={`bg-card rounded-2xl p-5 border border-border/40 card-elevated border-l-2 border-l-primary/20 ${drilldownType ? "cursor-pointer hover:border-primary/40 hover:shadow hover:border-l-primary/40 transition-all group" : ""}`}
+      className={`bg-card rounded-2xl p-5 border border-border/40 card-elevated border-l-2 border-l-[var(--line)] ${drilldownType ? "cursor-pointer hover:border-border hover:shadow hover:border-l-[var(--line-2)] transition-all group" : ""}`}
       onClick={drilldownType ? () => openDrilldown(drilldownType) : undefined}
     >
       <div className="flex items-center justify-between mb-2">
@@ -459,7 +460,7 @@ export default function AdminDashboard({ user }) {
       </span>
       <Avatar className="h-8 w-8 shrink-0">
         <AvatarImage src={u?.picture} />
-        <AvatarFallback className="bg-primary/20 text-primary text-xs">{u?.name?.[0]?.toUpperCase() || "?"}</AvatarFallback>
+        <AvatarFallback className="text-xs">{u?.name?.[0]?.toUpperCase() || "?"}</AvatarFallback>
       </Avatar>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-foreground truncate">{u?.nickname || u?.name || "Deleted"}</p>
@@ -475,17 +476,17 @@ export default function AdminDashboard({ user }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
+      <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
         <Navigation user={user} />
         <main className="max-w-6xl mx-auto px-4 pt-16 lg:pt-8 flex items-center justify-center py-20">
-          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <div className="w-10 h-10 border-4 border-[var(--ink-2)] border-t-transparent rounded-full animate-spin" />
         </main>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
+    <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
       <Navigation user={user} />
 
       <main className="max-w-6xl mx-auto px-4 pt-16 lg:pt-8">
@@ -520,7 +521,7 @@ export default function AdminDashboard({ user }) {
                 { value: "revenue",      icon: DollarSign, label: "Revenue" },
                 { value: "content",      icon: Layers,     label: "Content" },
               ].map(t => (
-                <TabsTrigger key={t.value} value={t.value} className="rounded-lg px-3 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-1.5 whitespace-nowrap text-sm">
+                <TabsTrigger key={t.value} value={t.value} className="rounded-lg px-3 py-1.5 data-[state=active]:bg-[var(--ink)] data-[state=active]:text-[var(--paper)] data-[state=active]:shadow-sm flex items-center gap-1.5 whitespace-nowrap text-sm">
                   <t.icon className="h-4 w-4" />
                   {t.label}
                 </TabsTrigger>
@@ -541,7 +542,7 @@ export default function AdminDashboard({ user }) {
                 { value: "announcements", icon: Megaphone,   label: "Announcements" },
                 { value: "blog",          icon: BookOpen,    label: "Blog" },
               ].map(t => (
-                <TabsTrigger key={t.value} value={t.value} className="rounded-lg px-3 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-1.5 whitespace-nowrap text-sm">
+                <TabsTrigger key={t.value} value={t.value} className="rounded-lg px-3 py-1.5 data-[state=active]:bg-[var(--ink)] data-[state=active]:text-[var(--paper)] data-[state=active]:shadow-sm flex items-center gap-1.5 whitespace-nowrap text-sm">
                   <t.icon className="h-4 w-4" />
                   {t.label}
                   {t.badge > 0 && (
@@ -557,7 +558,7 @@ export default function AdminDashboard({ user }) {
           <TabsContent value="overview" className="mt-0 space-y-6">
 
             {/* Moderation hero */}
-            <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20 flex flex-col lg:flex-row gap-6">
+            <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)] flex flex-col lg:flex-row gap-6">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-10 h-10 rounded-xl bg-blue-500/15 flex items-center justify-center shrink-0">
@@ -574,14 +575,14 @@ export default function AdminDashboard({ user }) {
                     <p className="text-2xl font-bold font-heading text-foreground">{analytics?.moderation?.kindness_health ?? 100}%</p>
                   </div>
                   <div
-                    className="bg-secondary/50 rounded-xl p-4 border border-border/30 cursor-pointer hover:border-primary/40 transition-colors group"
+                    className="bg-secondary/50 rounded-xl p-4 border border-border/30 cursor-pointer hover:border-border transition-colors group"
                     onClick={() => openDrilldown("unanswered")}
                   >
                     <div className="flex items-center gap-2 mb-1"><HelpCircle className="h-4 w-4 text-amber-500" /><span className="text-xs text-muted-foreground font-medium">Unanswered (24h)</span><Chevron className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 ml-auto" /></div>
                     <p className="text-2xl font-bold font-heading text-foreground">{analytics?.moderation?.unanswered_tonight ?? 0}</p>
                   </div>
                   <div
-                    className="bg-secondary/50 rounded-xl p-4 border border-border/30 cursor-pointer hover:border-primary/40 transition-colors group"
+                    className="bg-secondary/50 rounded-xl p-4 border border-border/30 cursor-pointer hover:border-border transition-colors group"
                     onClick={() => openDrilldown("reported")}
                   >
                     <div className="flex items-center gap-2 mb-1"><Flag className="h-4 w-4 text-red-500" /><span className="text-xs text-muted-foreground font-medium">Pending reports</span><Chevron className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 ml-auto" /></div>
@@ -614,20 +615,20 @@ export default function AdminDashboard({ user }) {
             {/* Platform stats — all clickable */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard label="Total Users" value={analytics?.users?.total} icon={Users} drilldownType="mau" sub="click to view all active" />
-              <div className="bg-card rounded-2xl p-5 border border-border/40 card-elevated border-l-2 border-l-primary/20">
+              <div className="bg-card rounded-2xl p-5 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
                 <p className="text-sm text-muted-foreground mb-2">DAU / WAU / MAU</p>
                 <div className="flex gap-2 items-end">
-                  <button onClick={() => openDrilldown("dau")} className="text-center hover:text-primary transition-colors cursor-pointer">
+                  <button onClick={() => openDrilldown("dau")} className="text-center hover:text-foreground transition-colors cursor-pointer">
                     <p className="text-xl font-bold">{analytics?.active_users?.dau || 0}</p>
                     <p className="text-xs text-muted-foreground">Day</p>
                   </button>
                   <span className="text-muted-foreground mb-1">/</span>
-                  <button onClick={() => openDrilldown("wau")} className="text-center hover:text-primary transition-colors cursor-pointer">
+                  <button onClick={() => openDrilldown("wau")} className="text-center hover:text-foreground transition-colors cursor-pointer">
                     <p className="text-xl font-bold">{analytics?.active_users?.wau || 0}</p>
                     <p className="text-xs text-muted-foreground">Week</p>
                   </button>
                   <span className="text-muted-foreground mb-1">/</span>
-                  <button onClick={() => openDrilldown("mau")} className="text-center hover:text-primary transition-colors cursor-pointer">
+                  <button onClick={() => openDrilldown("mau")} className="text-center hover:text-foreground transition-colors cursor-pointer">
                     <p className="text-xl font-bold">{analytics?.active_users?.mau || 0}</p>
                     <p className="text-xs text-muted-foreground">Month</p>
                   </button>
@@ -639,7 +640,7 @@ export default function AdminDashboard({ user }) {
             </div>
 
             {/* Subscription breakdown — clickable tiles */}
-            <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20">
+            <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
               <h3 className="font-heading font-bold text-foreground mb-4">Subscription Breakdown <span className="text-xs text-muted-foreground font-normal ml-2">click to see members</span></h3>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {[
@@ -670,10 +671,10 @@ export default function AdminDashboard({ user }) {
                     { label: "This Week",  value: analytics?.users?.new_this_week || 0,  type: "new_week" },
                     { label: "This Month", value: analytics?.users?.new_this_month || 0, type: "new_month" },
                   ].map(r => (
-                    <div key={r.type} className="flex items-center justify-between cursor-pointer hover:text-primary transition-colors group" onClick={() => openDrilldown(r.type)}>
+                    <div key={r.type} className="flex items-center justify-between cursor-pointer hover:text-foreground transition-colors group" onClick={() => openDrilldown(r.type)}>
                       <span className="text-muted-foreground">{r.label}</span>
                       <div className="flex items-center gap-1">
-                        <span className="font-bold text-foreground group-hover:text-primary">{r.value}</span>
+                        <span className="font-bold text-foreground group-hover:text-foreground">{r.value}</span>
                         <Chevron className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100" />
                       </div>
                     </div>
@@ -689,10 +690,10 @@ export default function AdminDashboard({ user }) {
                     { label: "Chat Messages",  value: analytics?.content?.total_chat_messages || 0,  type: "chat_messages" },
                     { label: "Direct Messages",value: analytics?.content?.total_dms || 0,            type: "dms" },
                   ].map(r => (
-                    <div key={r.type} className="flex items-center justify-between cursor-pointer hover:text-primary transition-colors group" onClick={() => openDrilldown(r.type)}>
+                    <div key={r.type} className="flex items-center justify-between cursor-pointer hover:text-foreground transition-colors group" onClick={() => openDrilldown(r.type)}>
                       <span className="text-muted-foreground">{r.label}</span>
                       <div className="flex items-center gap-1">
-                        <span className="font-bold text-foreground group-hover:text-primary">{r.value}</span>
+                        <span className="font-bold text-foreground group-hover:text-foreground">{r.value}</span>
                         <Chevron className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100" />
                       </div>
                     </div>
@@ -702,7 +703,7 @@ export default function AdminDashboard({ user }) {
             </div>
 
             {/* User growth chart — 30 days */}
-            <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20">
+            <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
               <h3 className="font-heading font-bold text-foreground mb-4">Signup Growth (30 days)</h3>
               <div className="space-y-1.5">
                 {growth.slice(-14).map(day => (
@@ -721,7 +722,7 @@ export default function AdminDashboard({ user }) {
 
             {/* Top forum categories */}
             {analytics?.categories?.length > 0 && (
-              <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20">
+              <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
                 <h3 className="font-heading font-bold text-foreground mb-4">Forum Categories by Activity</h3>
                 <div className="space-y-2">
                   {analytics.categories.slice(0, 10).map(cat => {
@@ -731,7 +732,7 @@ export default function AdminDashboard({ user }) {
                         <span className="text-xl w-8 shrink-0">{cat.icon}</span>
                         <span className="w-40 text-sm text-foreground truncate shrink-0">{cat.name}</span>
                         <div className="flex-1 bg-muted rounded-full h-4">
-                          <div className="bg-primary/60 rounded-full h-4" style={{ width: `${Math.max((cat.post_count / max) * 100, cat.post_count > 0 ? 5 : 0)}%` }} />
+                          <div className="bg-[var(--honey)] rounded-full h-4" style={{ width: `${Math.max((cat.post_count / max) * 100, cat.post_count > 0 ? 5 : 0)}%` }} />
                         </div>
                         <span className="text-xs text-muted-foreground w-16 text-right shrink-0">{cat.post_count || 0} posts</span>
                       </div>
@@ -746,13 +747,13 @@ export default function AdminDashboard({ user }) {
           <TabsContent value="engagement" className="mt-0 space-y-6">
 
             {/* What DAU/WAU/MAU means */}
-            <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20">
+            <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
               <h3 className="font-heading font-bold text-foreground mb-4">Active User Metrics</h3>
               <p className="text-sm text-muted-foreground mb-4">These measure how many unique users performed <em>any</em> action (post, reply, message) in each time window. Click a number to see who they are.</p>
               <div className="grid grid-cols-3 gap-4">
                 {[
                   { abbr: "DAU", full: "Daily Active Users", desc: "Unique users active today", value: retention?.counts?.dau ?? analytics?.active_users?.dau ?? 0, type: "dau", color: "bg-blue-500/10 border-blue-500/20 text-blue-600" },
-                  { abbr: "WAU", full: "Weekly Active Users", desc: "Unique users active in last 7 days", value: retention?.counts?.wau ?? analytics?.active_users?.wau ?? 0, type: "wau", color: "bg-primary/10 border-primary/20 text-primary" },
+                  { abbr: "WAU", full: "Weekly Active Users", desc: "Unique users active in last 7 days", value: retention?.counts?.wau ?? analytics?.active_users?.wau ?? 0, type: "wau", color: "bg-[var(--paper-3)] border-[var(--line)] text-primary" },
                   { abbr: "MAU", full: "Monthly Active Users", desc: "Unique users active in last 30 days", value: retention?.counts?.mau ?? analytics?.active_users?.mau ?? 0, type: "mau", color: "bg-amber-500/10 border-amber-500/20 text-amber-600" },
                 ].map(m => (
                   <div key={m.type} className={`rounded-xl p-4 border cursor-pointer hover:scale-[1.02] transition-transform ${m.color}`} onClick={() => openDrilldown(m.type)}>
@@ -773,7 +774,7 @@ export default function AdminDashboard({ user }) {
               </div>
             ) : (
               <>
-                <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20">
+                <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="font-heading font-bold text-foreground">Retention Rates</h3>
                     <button onClick={fetchRetention} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"><RefreshCw className="h-3 w-3" />Refresh</button>
@@ -807,14 +808,14 @@ export default function AdminDashboard({ user }) {
                 </div>
 
                 {/* Daily activity chart — 30 days */}
-                <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20">
+                <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
                   <h3 className="font-heading font-bold text-foreground mb-4">Daily Active Users (30 days)</h3>
                   <div className="space-y-1.5">
                     {retention.daily_activity.slice(-14).map(day => (
                       <div key={day.date} className="flex items-center gap-3 text-sm">
                         <span className="w-12 text-muted-foreground font-mono text-xs shrink-0">{day.date.slice(5)}</span>
                         <div className="flex-1 bg-muted rounded-full h-5">
-                          <div className="bg-primary/70 rounded-full h-5 flex items-center justify-end px-2 text-xs text-primary-foreground font-medium transition-all"
+                          <div className="bg-[var(--honey)] rounded-full h-5 flex items-center justify-end px-2 text-xs text-primary-foreground font-medium transition-all"
                             style={{ width: `${Math.max((day.active_users / maxActivity) * 100, day.active_users > 0 ? 8 : 0)}%` }}>
                             {day.active_users > 0 ? day.active_users : ""}
                           </div>
@@ -863,7 +864,7 @@ export default function AdminDashboard({ user }) {
               <>
                 <div className="grid sm:grid-cols-2 gap-6">
                   {/* Top Posters */}
-                  <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20">
+                  <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
                     <div className="flex items-center gap-2 mb-4">
                       <MessageSquare className="h-5 w-5 text-primary" />
                       <h3 className="font-heading font-bold text-foreground">Top Support Space Posters</h3>
@@ -877,7 +878,7 @@ export default function AdminDashboard({ user }) {
                   </div>
 
                   {/* Top Repliers */}
-                  <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20">
+                  <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
                     <div className="flex items-center gap-2 mb-4">
                       <Repeat2 className="h-5 w-5 text-primary" />
                       <h3 className="font-heading font-bold text-foreground">Most Thread Replies</h3>
@@ -891,7 +892,7 @@ export default function AdminDashboard({ user }) {
                   </div>
 
                   {/* Top Chatters */}
-                  <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20">
+                  <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
                     <div className="flex items-center gap-2 mb-4">
                       <MessageCircle className="h-5 w-5 text-primary" />
                       <h3 className="font-heading font-bold text-foreground">Most Chat Messages</h3>
@@ -905,7 +906,7 @@ export default function AdminDashboard({ user }) {
                   </div>
 
                   {/* Top Community Creators */}
-                  <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20">
+                  <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
                     <div className="flex items-center gap-2 mb-4">
                       <Users className="h-5 w-5 text-primary" />
                       <h3 className="font-heading font-bold text-foreground">Most Communities Created</h3>
@@ -921,7 +922,7 @@ export default function AdminDashboard({ user }) {
 
                 {/* Most liked & replied posts */}
                 <div className="grid sm:grid-cols-2 gap-6">
-                  <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20">
+                  <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
                     <div className="flex items-center gap-2 mb-4">
                       <Heart className="h-5 w-5 text-red-500" />
                       <h3 className="font-heading font-bold text-foreground">Most Liked Posts</h3>
@@ -932,7 +933,7 @@ export default function AdminDashboard({ user }) {
                           <div key={post.post_id} className="flex items-start gap-2 py-2 border-b border-border/30 last:border-0">
                             <span className="text-sm text-muted-foreground w-5 shrink-0">{i + 1}.</span>
                             <div className="flex-1 min-w-0">
-                              <Link to={`/forums/post/${post.post_id}`} className="text-sm font-medium text-foreground hover:text-primary line-clamp-1">{post.title}</Link>
+                              <Link to={`/forums/post/${post.post_id}`} className="text-sm font-medium text-foreground hover:text-foreground line-clamp-1">{post.title}</Link>
                               <p className="text-xs text-muted-foreground">by {post.author_name} · {fmtDate(post.created_at)}</p>
                             </div>
                             <div className="flex items-center gap-1 shrink-0 text-red-500">
@@ -944,7 +945,7 @@ export default function AdminDashboard({ user }) {
                     }
                   </div>
 
-                  <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20">
+                  <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
                     <div className="flex items-center gap-2 mb-4">
                       <MessageSquare className="h-5 w-5 text-primary" />
                       <h3 className="font-heading font-bold text-foreground">Most Replied Posts</h3>
@@ -955,7 +956,7 @@ export default function AdminDashboard({ user }) {
                           <div key={post.post_id} className="flex items-start gap-2 py-2 border-b border-border/30 last:border-0">
                             <span className="text-sm text-muted-foreground w-5 shrink-0">{i + 1}.</span>
                             <div className="flex-1 min-w-0">
-                              <Link to={`/forums/post/${post.post_id}`} className="text-sm font-medium text-foreground hover:text-primary line-clamp-1">{post.title}</Link>
+                              <Link to={`/forums/post/${post.post_id}`} className="text-sm font-medium text-foreground hover:text-foreground line-clamp-1">{post.title}</Link>
                               <p className="text-xs text-muted-foreground">by {post.author_name} · {fmtDate(post.created_at)}</p>
                             </div>
                             <div className="flex items-center gap-1 shrink-0 text-primary">
@@ -984,7 +985,7 @@ export default function AdminDashboard({ user }) {
               <Button onClick={() => { setUserFilter(""); fetchUsers(1, userSearch, ""); }} className="rounded-xl">Search</Button>
             </div>
 
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-1 flex-wrap p-1 rounded-2xl" style={{ background: "var(--paper-2)", border: "1px solid var(--line)" }}>
               {[
                 { label: "All",            value: "" },
                 { label: "Free",           value: "tier:free" },
@@ -996,8 +997,14 @@ export default function AdminDashboard({ user }) {
                 { label: "Auto-suspended", value: "auto_suspended" },
                 { label: "Banned",         value: "banned" },
               ].map(f => (
-                <Button key={f.value} size="sm" variant={userFilter === f.value ? "default" : "outline"} className="rounded-full text-xs h-7"
-                  onClick={() => { setUserFilter(f.value); fetchUsers(1, userSearch, f.value); }}>{f.label}</Button>
+                <button key={f.value}
+                  onClick={() => { setUserFilter(f.value); fetchUsers(1, userSearch, f.value); }}
+                  className="rounded-full px-3 py-1 text-xs font-medium transition-all focus-visible:outline-none"
+                  style={userFilter === f.value
+                    ? { background: "var(--ink)", color: "var(--paper)", boxShadow: "var(--shadow-sm)" }
+                    : { color: "var(--ink-3)" }
+                  }
+                >{f.label}</button>
               ))}
             </div>
 
@@ -1005,11 +1012,11 @@ export default function AdminDashboard({ user }) {
 
             <div className="space-y-3">
               {users.map(u => (
-                <div key={u.user_id} className="bg-card rounded-2xl p-4 border border-border/40 card-elevated border-l-2 border-l-primary/20 hover:shadow hover:border-l-primary/40 transition-all flex flex-col sm:flex-row sm:items-center gap-4">
+                <div key={u.user_id} className="bg-card rounded-2xl p-4 border border-border/40 card-elevated border-l-2 border-l-[var(--line)] hover:shadow hover:border-l-[var(--line-2)] transition-all flex flex-col sm:flex-row sm:items-center gap-4">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <Avatar className="h-10 w-10 shrink-0">
                       <AvatarImage src={u.picture} />
-                      <AvatarFallback className="bg-primary/20 text-primary">{u.name?.[0]?.toUpperCase() || "?"}</AvatarFallback>
+                      <AvatarFallback>{u.name?.[0]?.toUpperCase() || "?"}</AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -1100,9 +1107,9 @@ export default function AdminDashboard({ user }) {
                   <div
                     key={report.report_id}
                     className={`bg-card rounded-2xl p-5 border border-border/40 card-elevated border-l-2 transition-all ${
-                      reportStatus === "pending"   ? "border-l-amber-500/50" :
-                      reportStatus === "resolved"  ? "border-l-green-500/40" :
-                      "border-l-muted"
+                      reportStatus === "pending"? "border-l-amber-500/50" :
+                      reportStatus === "resolved"? "border-l-green-500/40" :
+"border-l-muted"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-4 mb-3">
@@ -1193,7 +1200,7 @@ export default function AdminDashboard({ user }) {
                     { label: "Replies this week",  value: contentHealth.replies_this_week,  icon: Repeat2,       color: "text-green-500" },
                     { label: "Unanswered (48h)",   value: contentHealth.unanswered_48h,     icon: HelpCircle,    color: "text-amber-500" },
                   ].map(s => (
-                    <div key={s.label} className="bg-card rounded-2xl p-5 border border-border/40 card-elevated border-l-2 border-l-primary/20">
+                    <div key={s.label} className="bg-card rounded-2xl p-5 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-xs text-muted-foreground">{s.label}</span>
                         <s.icon className={`h-4 w-4 ${s.color}`} />
@@ -1205,7 +1212,7 @@ export default function AdminDashboard({ user }) {
 
                 <div className="grid sm:grid-cols-2 gap-6">
                   {/* Engagement stats */}
-                  <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20">
+                  <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
                     <h3 className="font-heading font-bold text-foreground mb-4">Engagement Metrics</h3>
                     <div className="space-y-3">
                       {[
@@ -1232,7 +1239,7 @@ export default function AdminDashboard({ user }) {
                   </div>
 
                   {/* Posts by space */}
-                  <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20">
+                  <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
                     <h3 className="font-heading font-bold text-foreground mb-4">Posts by Space</h3>
                     <div className="space-y-2">
                       {(contentHealth.posts_by_category || []).slice(0, 8).map(cat => {
@@ -1242,7 +1249,7 @@ export default function AdminDashboard({ user }) {
                             <span className="text-base w-6 shrink-0">{cat.icon}</span>
                             <span className="text-xs text-foreground w-28 truncate shrink-0">{cat.name}</span>
                             <div className="flex-1 bg-muted rounded-full h-3">
-                              <div className="bg-primary/60 rounded-full h-3 transition-all" style={{ width: `${Math.max((cat.post_count / max) * 100, cat.post_count > 0 ? 5 : 0)}%` }} />
+                              <div className="bg-[var(--honey)] rounded-full h-3 transition-all" style={{ width: `${Math.max((cat.post_count / max) * 100, cat.post_count > 0 ? 5 : 0)}%` }} />
                             </div>
                             <span className="text-xs text-muted-foreground w-10 text-right shrink-0">{cat.post_count}</span>
                           </div>
@@ -1280,9 +1287,9 @@ export default function AdminDashboard({ user }) {
                   <p className="text-muted-foreground">No communities found</p>
                 </div>
               ) : adminCommunities.map(c => (
-                <div key={c.category_id} className="bg-card rounded-2xl p-4 border border-border/40 card-elevated border-l-2 border-l-primary/20 flex flex-col sm:flex-row sm:items-center gap-3">
+                <div key={c.category_id} className="bg-card rounded-2xl p-4 border border-border/40 card-elevated border-l-2 border-l-[var(--line)] flex flex-col sm:flex-row sm:items-center gap-3">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 text-xl">{c.icon || "🏡"}</div>
+                    <div className="w-10 h-10 rounded-xl bg-[var(--paper-3)] flex items-center justify-center shrink-0 text-xl">{c.icon || "🏡"}</div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-0.5">
                         <span className="font-bold text-foreground">{c.name}</span>
@@ -1347,7 +1354,7 @@ export default function AdminDashboard({ user }) {
                 </div>
 
                 {/* Subscription breakdown */}
-                <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20">
+                <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
                   <h3 className="font-heading font-bold text-foreground mb-4">Subscription Tier Breakdown</h3>
                   <div className="grid grid-cols-3 gap-4">
                     {[
@@ -1364,7 +1371,7 @@ export default function AdminDashboard({ user }) {
                 </div>
 
                 {/* Growth & conversion */}
-                <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20">
+                <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
                   <h3 className="font-heading font-bold text-foreground mb-4">Growth & Conversion</h3>
                   <div className="space-y-3">
                     {[
@@ -1427,7 +1434,7 @@ export default function AdminDashboard({ user }) {
                       <div className="flex items-start gap-4">
                         <Avatar className="h-12 w-12 shrink-0">
                           <AvatarImage src={u.picture} />
-                          <AvatarFallback className="bg-primary/20 text-primary">{u.name?.[0]?.toUpperCase() || "?"}</AvatarFallback>
+                          <AvatarFallback>{u.name?.[0]?.toUpperCase() || "?"}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -1482,7 +1489,7 @@ export default function AdminDashboard({ user }) {
                     <div key={u.user_id} className="bg-card rounded-2xl p-4 border border-border/40 card-elevated flex flex-col sm:flex-row gap-3 sm:items-center">
                       <Avatar className="h-10 w-10 shrink-0">
                         <AvatarImage src={u.picture} />
-                        <AvatarFallback className="bg-primary/20 text-primary text-sm">{u.name?.[0]?.toUpperCase() || "?"}</AvatarFallback>
+                        <AvatarFallback className="text-sm">{u.name?.[0]?.toUpperCase() || "?"}</AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-0.5">
@@ -1536,7 +1543,7 @@ export default function AdminDashboard({ user }) {
           {/* ══════════ ANNOUNCEMENTS TAB ══════════ */}
           <TabsContent value="announcements" className="mt-0 space-y-6">
             {/* Compose */}
-            <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20">
+            <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
               <div className="flex items-center gap-2 mb-4">
                 <Megaphone className="h-5 w-5 text-primary" />
                 <h3 className="font-heading font-bold text-foreground">Send Platform Announcement</h3>
@@ -1593,7 +1600,7 @@ export default function AdminDashboard({ user }) {
                   </div>
                 </div>
                 {announcementPinDays > 0 && (
-                  <p className="text-xs text-primary/80 mt-2">📌 This announcement will appear as a banner on the dashboard for all eligible users for {announcementPinDays} day{announcementPinDays !== 1 ? "s" : ""}. Users can dismiss it.</p>
+                  <p className="text-xs text-[var(--ink-2)] mt-2">📌 This announcement will appear as a banner on the dashboard for all eligible users for {announcementPinDays} day{announcementPinDays !== 1 ? "s" : ""}. Users can dismiss it.</p>
                 )}
               </div>
             </div>
@@ -1636,7 +1643,7 @@ export default function AdminDashboard({ user }) {
             )}
 
             {/* Sent history */}
-            <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-primary/20">
+            <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-heading font-bold text-foreground">Sent History</h3>
                 <button onClick={fetchAnnouncements} className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground"><RefreshCw className="h-3.5 w-3.5" /></button>
@@ -1783,7 +1790,7 @@ export default function AdminDashboard({ user }) {
             ) : (
               <div className="space-y-4">
                 {pendingBlogPosts.map(post => (
-                  <div key={post.blog_id} className="bg-card rounded-2xl p-5 border border-border/40 card-elevated border-l-2 border-l-primary/20">
+                  <div key={post.blog_id} className="bg-card rounded-2xl p-5 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
                     <div className="flex items-start justify-between gap-3 mb-2">
                       <h3 className="font-heading font-semibold text-foreground leading-snug">{post.title}</h3>
                       <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 font-medium shrink-0">Pending</span>
@@ -1811,9 +1818,9 @@ export default function AdminDashboard({ user }) {
               Report Details
               {selectedReport && (
                 <span className={`ml-2 text-xs px-2 py-0.5 rounded-full font-medium ${
-                  reportStatus === "pending"   ? "bg-amber-500/15 text-amber-600" :
-                  reportStatus === "resolved"  ? "bg-green-500/15 text-green-600 dark:text-green-400" :
-                  "bg-secondary text-muted-foreground"
+                  reportStatus === "pending"? "bg-amber-500/15 text-amber-600" :
+                  reportStatus === "resolved"? "bg-green-500/15 text-green-600 dark:text-green-400" :
+"bg-secondary text-muted-foreground"
                 }`}>
                   {reportStatus === "pending" ? "Pending review" : reportStatus === "resolved" ? "Resolved" : "Dismissed"}
                 </span>
@@ -1925,7 +1932,7 @@ export default function AdminDashboard({ user }) {
 
           {drilldownLoading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+              <div className="w-8 h-8 border-4 border-[var(--ink-2)] border-t-transparent rounded-full animate-spin" />
             </div>
           ) : (
             <div className="space-y-2 mt-2">
@@ -1935,7 +1942,7 @@ export default function AdminDashboard({ user }) {
                 <div key={u.user_id} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/40 border border-border/30">
                   <Avatar className="h-9 w-9 shrink-0">
                     <AvatarImage src={u.picture} />
-                    <AvatarFallback className="bg-primary/20 text-primary text-sm">{u.name?.[0]?.toUpperCase() || "?"}</AvatarFallback>
+                    <AvatarFallback className="text-sm">{u.name?.[0]?.toUpperCase() || "?"}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -1954,7 +1961,7 @@ export default function AdminDashboard({ user }) {
               {drilldown.posts.length > 0 && drilldown.posts.map(p => (
                 <div key={p.post_id || p.report_id} className="p-3 rounded-xl bg-secondary/40 border border-border/30">
                   {p.title && (
-                    <Link to={p.post_id ? `/forums/post/${p.post_id}` : "#"} className="font-medium text-foreground text-sm hover:text-primary line-clamp-1">{p.title}</Link>
+                    <Link to={p.post_id ? `/forums/post/${p.post_id}` : "#"} className="font-medium text-foreground text-sm hover:text-foreground line-clamp-1">{p.title}</Link>
                   )}
                   {p.content && <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{p.content}</p>}
                   <p className="text-xs text-muted-foreground mt-1">

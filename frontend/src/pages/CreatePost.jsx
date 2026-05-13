@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -10,7 +10,7 @@ import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
 import MarkdownToolbar from "../components/MarkdownToolbar";
 import { toast } from "sonner";
-import { ArrowLeft, Image, X, Upload, Crown, MapPin, ArrowRight } from "lucide-react";
+import { ArrowLeft, Image, X, Upload, Sparkles, MapPin, ArrowRight } from "lucide-react";
 import { parseApiError } from "../utils/apiError";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -206,7 +206,7 @@ export default function CreatePost({ user }) {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
+    <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
       <Navigation user={user} />
       
       <main className="max-w-2xl mx-auto px-4 pt-16 lg:pt-8">
@@ -225,21 +225,19 @@ export default function CreatePost({ user }) {
           {subscription && subscription.limits_apply && subscription.forum_posts && (() => {
             const remaining = Math.max(0, subscription.forum_posts.limit - subscription.forum_posts.used);
             return (
-              <div className={`rounded-xl p-4 mb-6 flex items-center gap-3 ${
-                remaining === 0
-                  ? 'bg-red-500/10 border border-red-500/30'
-                  : remaining <= 2
-                    ? 'bg-amber-500/10 border border-amber-500/30'
-                    : 'bg-secondary/50 border border-border/30'
-              }`} data-testid="post-limit-banner">
+              <div
+                className={`rounded-xl p-4 mb-6 flex items-center gap-3 ${remaining > 2 ? "bg-secondary/50 border border-border/30" : ""}`}
+                style={remaining <= 2 ? { background: "var(--honey-wash)", border: "1px solid rgba(245,197,66,0.3)" } : {}}
+                data-testid="post-limit-banner"
+              >
                 {remaining === 0 ? (
                   <Link to="/plus" className="flex items-center gap-3 w-full group">
-                    <Crown className="h-5 w-5 text-amber-500 flex-shrink-0" />
+                    <Sparkles className="h-5 w-5 flex-shrink-0" style={{ color: "hsl(var(--accent))" }} />
                     <div className="flex-1">
                       <p className="font-medium text-foreground text-sm">Monthly post limit reached</p>
                       <p className="text-xs text-muted-foreground">Upgrade to Village+ for unlimited posts</p>
                     </div>
-                    <ArrowRight className="h-4 w-4 text-amber-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "hsl(var(--accent))" }} />
                   </Link>
                 ) : (
                   <>
@@ -249,7 +247,7 @@ export default function CreatePost({ user }) {
                       </p>
                     </div>
                     {remaining <= 2 && (
-                      <Crown className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                      <Sparkles className="h-4 w-4 flex-shrink-0" style={{ color: "hsl(var(--accent))" }} />
                     )}
                   </>
                 )}
@@ -291,7 +289,7 @@ export default function CreatePost({ user }) {
                 value={title}
                 onChange={(e) => { setTitle(e.target.value.slice(0, 200)); setTouched(t => ({ ...t, title: true })); }}
                 placeholder="What's on your mind?"
-                className={`h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary ${touched.title && !title.trim() ? "border-destructive/50 focus:border-destructive" : ""}`}
+                className={`h-12 rounded-xl bg-secondary/50 border-transparent focus:border-[var(--line-2)] ${touched.title && !title.trim() ? "border-destructive/50 focus:border-destructive" : ""}`}
                 maxLength={200}
                 data-testid="title-input"
               />
@@ -305,7 +303,7 @@ export default function CreatePost({ user }) {
 
             <div className="space-y-2">
               <Label htmlFor="content" className="text-foreground">Content <span className="text-destructive">*</span></Label>
-              <div className={`rounded-xl overflow-hidden border bg-secondary/50 focus-within:border-primary transition-colors ${touched.content && !content.trim() ? "border-destructive/50" : "border-transparent"}`}>
+              <div className={`rounded-xl overflow-hidden border bg-secondary/50 focus-within:border-[var(--line-2)] transition-colors ${touched.content && !content.trim() ? "border-destructive/50" : "border-transparent"}`}>
                 <MarkdownToolbar textareaRef={contentRef} value={content} onChange={(v) => { setContent(v.slice(0, MAX_CONTENT_LENGTH)); setTouched(t => ({ ...t, content: true })); }} />
                 <Textarea
                   ref={contentRef}
@@ -351,7 +349,7 @@ export default function CreatePost({ user }) {
               ) : (
                 <div 
                   onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-border/50 rounded-xl p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                  className="border-2 border-dashed border-border/50 rounded-xl p-8 text-center cursor-pointer hover:border-border transition-colors"
                 >
                   <input
                     ref={fileInputRef}
@@ -363,7 +361,7 @@ export default function CreatePost({ user }) {
                   />
                   {uploadingImage ? (
                     <div className="flex flex-col items-center gap-2">
-                      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                      <div className="w-8 h-8 border-2 border-[var(--ink-2)] border-t-transparent rounded-full animate-spin"></div>
                       <span className="text-sm text-muted-foreground">Uploading...</span>
                     </div>
                   ) : (
@@ -431,7 +429,7 @@ export default function CreatePost({ user }) {
                     type="button"
                     onClick={() => setVisibility(opt.id)}
                     className={`flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${
-                      visibility === opt.id ? "border-primary bg-primary/10" : "border-border/50 bg-card hover:border-primary/40"
+                      visibility === opt.id ? "border-[var(--sage)] bg-[var(--paper-3)]" : "border-border/50 bg-card hover:border-border"
                     }`}
                   >
                     <span className="text-lg flex-shrink-0">{opt.icon}</span>

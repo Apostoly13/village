@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
 import { toast } from "sonner";
-import { Users, MapPin, Search, Plus, Check, X } from "lucide-react";
+import { Users, MapPin, Search, Plus, Check, X, MessagesSquare, SearchX, Moon } from "lucide-react";
 import LocationButton from "../components/LocationButton";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -268,9 +268,9 @@ export default function ChatRooms({ user }) {
 
   const RoomCard = ({ room, idx, showDistance = false }) => (
     <Link to={`/chat/${room.room_id}`} className="block" data-testid={`room-card-${idx}`}>
-      <div className="village-card village-card-hover p-4 border-l-2 border-l-primary/20 h-full">
+      <div className="village-card village-card-hover p-4 h-full">
         <div className="flex items-start gap-3">
-          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-2xl flex-shrink-0">
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0" style={{ background: "var(--paper-3)" }}>
             {room.icon}
           </div>
           <div className="flex-1 min-w-0">
@@ -279,7 +279,7 @@ export default function ChatRooms({ user }) {
                 <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                   <h3 className="font-heading font-bold text-base text-foreground">{room.name}</h3>
                   {showDistance && room.distance_km !== undefined && (
-                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-600 dark:text-green-400 flex items-center gap-1">
+                    <span className="text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1" style={{ background: "var(--sage-wash)", color: "var(--sage-deep)" }}>
                       <MapPin className="h-2.5 w-2.5" />{room.distance_km}km
                     </span>
                   )}
@@ -294,8 +294,8 @@ export default function ChatRooms({ user }) {
                 </div>
                 <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{room.description}</p>
                 {room.last_activity_at && room.last_activity_at >= fortyFiveMinAgo ? (
-                  <span className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse inline-block" />
+                  <span className="text-xs flex items-center gap-1" style={{ color: "var(--status-online)" }}>
+                    <span className="w-1.5 h-1.5 rounded-full animate-pulse inline-block" style={{ background: "var(--status-online)" }} />
                     Active now
                   </span>
                 ) : room.member_count > 0 ? (
@@ -304,11 +304,12 @@ export default function ChatRooms({ user }) {
                   </span>
                 ) : null}
               </div>
-              <span className={`shrink-0 text-xs font-medium px-2.5 py-1 rounded-full whitespace-nowrap mt-0.5 ${
-                room.last_activity_at && room.last_activity_at >= fortyFiveMinAgo
-                  ? "bg-green-500/15 text-green-700 dark:text-green-400"
-                  : "bg-primary/10 text-primary"
-              }`}>
+              <span
+                className="shrink-0 text-xs font-medium px-2.5 py-1 rounded-full whitespace-nowrap mt-0.5"
+                style={room.last_activity_at && room.last_activity_at >= fortyFiveMinAgo
+                  ? { background: "var(--sage-wash)", color: "var(--sage-deep)" }
+                  : { background: "var(--paper-3)", color: "var(--ink-3)" }}
+              >
                 {room.last_activity_at && room.last_activity_at >= fortyFiveMinAgo ? "Drop in" : "Open"}
               </span>
             </div>
@@ -363,9 +364,10 @@ export default function ChatRooms({ user }) {
                     <Users className="h-3.5 w-3.5" />{room.active_users || 0} online
                   </span>
                 </div>
-                <span className={`shrink-0 text-xs font-medium px-2.5 py-1 rounded-full whitespace-nowrap mt-0.5 ${
-                  (room.active_users || 0) > 0 ? "bg-green-500/15 text-green-700 dark:text-green-400" : dropInBg
-                }`}>
+                <span
+                  className={`shrink-0 text-xs font-medium px-2.5 py-1 rounded-full whitespace-nowrap mt-0.5 ${(room.active_users || 0) > 0 ? "" : dropInBg}`}
+                  style={(room.active_users || 0) > 0 ? { background: "var(--sage-wash)", color: "var(--sage-deep)" } : {}}
+                >
                   {(room.active_users || 0) > 0 ? "Drop in" : "Open"}
                 </span>
               </div>
@@ -379,7 +381,7 @@ export default function ChatRooms({ user }) {
   // ── Render ────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
+    <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
       <Navigation user={user} />
 
       <main className="max-w-5xl mx-auto px-4 pt-16 lg:pt-8">
@@ -396,30 +398,42 @@ export default function ChatRooms({ user }) {
           <div className="min-w-0 space-y-6">
 
             {/* Primary filter chips */}
-            <div className="flex items-center gap-2 flex-wrap">
-              {FILTERS.map(f => (
-                <button
-                  key={f.id}
-                  onClick={() => {
-                    setActiveFilter(f.id);
-                    if (f.id === "local") setRoomTypeFilter("all");
-                    // Only persist "local" in URL — "all" and "live" are not persisted
-                    // because "live" is time-sensitive (empty on back-nav looks like a bug).
-                    setSearchParams(f.id === "local" ? { tab: "local" } : {}, { replace: true });
-                  }}
-                  data-testid={`filter-${f.id}`}
-                  className={`inline-flex items-center gap-1.5 h-8 px-4 rounded-full text-sm font-medium transition-colors ${
-                    activeFilter === f.id
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-card border border-border/50 text-muted-foreground hover:text-foreground hover:border-primary/30"
-                  }`}
-                >
-                  {f.id === "live" && (
-                    <span className={`w-1.5 h-1.5 rounded-full ${activeFilter === "live" ? "bg-green-400" : "bg-green-500"} animate-pulse`} />
-                  )}
-                  {f.label}
-                </button>
-              ))}
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* All / Local — ink/paper section selector */}
+              <div className="flex items-center gap-1 p-1 rounded-full" style={{ background: "var(--paper-2)", border: "1px solid var(--line)" }}>
+                {FILTERS.filter(f => f.id !== "live").map(f => (
+                  <button
+                    key={f.id}
+                    onClick={() => {
+                      setActiveFilter(f.id);
+                      if (f.id === "local") setRoomTypeFilter("all");
+                      setSearchParams(f.id === "local" ? { tab: "local" } : {}, { replace: true });
+                    }}
+                    data-testid={`filter-${f.id}`}
+                    className="rounded-full px-4 py-1.5 text-sm font-medium transition-all focus-visible:outline-none"
+                    style={activeFilter === f.id
+                      ? { background: "var(--ink)", color: "var(--paper)", boxShadow: "var(--shadow-sm)" }
+                      : { color: "var(--ink-3)" }
+                    }
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+              {/* Live now — special standalone sage pill */}
+              <button
+                onClick={() => { setActiveFilter("live"); setSearchParams({}, { replace: true }); }}
+                data-testid="filter-live"
+                className={`inline-flex items-center gap-1.5 h-8 px-4 rounded-full text-sm font-medium transition-colors border ${
+                  activeFilter === "live"
+                    ? "border-[var(--sage)]/30 sage-pill-active"
+                    : "border-[var(--line)] text-[var(--ink-3)] hover:text-[var(--ink)] hover:border-[var(--sage)]/30"
+                }`}
+                style={activeFilter === "live" ? { background: "var(--sage-wash)", color: "var(--sage-deep)" } : {}}
+              >
+                <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--status-online)" }} />
+                Live now
+              </button>
             </div>
 
             {/* Secondary type filter — shown when not in Local view */}
@@ -429,11 +443,12 @@ export default function ChatRooms({ user }) {
                   <button
                     key={f.id}
                     onClick={() => setRoomTypeFilter(f.id)}
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors border ${
                       roomTypeFilter === f.id
-                        ? "bg-secondary text-foreground border border-border"
-                        : "text-muted-foreground hover:text-foreground"
+                        ? "border-[var(--sage)]/30 sage-pill-active"
+                        : "border-transparent text-[var(--ink-3)] hover:text-[var(--ink)]"
                     }`}
+                    style={roomTypeFilter === f.id ? { background: "var(--sage-wash)", color: "var(--sage-deep)" } : {}}
                   >
                     {f.label}
                   </button>
@@ -443,11 +458,11 @@ export default function ChatRooms({ user }) {
 
             {/* Night Owl banner */}
             {nightOwl && (activeFilter === "all" || activeFilter === "live") && (
-              <div className="p-4 rounded-[18px] bg-primary/10 border border-primary/20 flex items-center gap-3">
-                <span className="text-2xl">🌙</span>
+              <div className="p-4 rounded-[18px] flex items-center gap-3" style={{ background: "var(--honey-wash)", border: "1px solid rgba(217,161,91,0.35)" }}>
+                <Moon size={20} style={{ color: "var(--honey)", flexShrink: 0 }} />
                 <div>
-                  <p className="text-sm font-medium text-foreground">Night Owl hours — you're not alone</p>
-                  <p className="text-xs text-muted-foreground">The 3am Club is active right now. Join for late-night company.</p>
+                  <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>Night Owl hours — you're not alone</p>
+                  <p className="text-xs" style={{ color: "var(--ink-2)" }}>The 3am Club is active right now. Join for late-night company.</p>
                 </div>
               </div>
             )}
@@ -458,7 +473,7 @@ export default function ChatRooms({ user }) {
               liveRooms.length > 0 ? (
                 <section>
                   <h2 className="font-heading text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                    <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--status-online)" }} />
                     Live now
                   </h2>
                   <div className="grid sm:grid-cols-2 gap-4">
@@ -477,9 +492,9 @@ export default function ChatRooms({ user }) {
                 </section>
               ) : activeFilter === "live" ? (
                 <div className="text-center py-12 village-card">
-                  <span className="text-4xl mb-3 block">💬</span>
-                  <h3 className="font-heading font-semibold text-foreground mb-1">No rooms live right now</h3>
-                  <p className="text-sm text-muted-foreground mb-4">Most rooms are active evenings and weekends. Drop into any room — your message starts the conversation.</p>
+                  <MessagesSquare size={28} style={{ color: "var(--ink-3)", margin: "0 auto 12px" }} />
+                  <h3 className="font-heading font-semibold mb-1" style={{ color: "var(--ink)" }}>No rooms live right now</h3>
+                  <p className="mb-4" style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 13, color: "var(--ink-3)" }}>Most rooms are active evenings and weekends. Drop into any room — your message starts the conversation.</p>
                   <button
                     onClick={() => { setActiveFilter("all"); setSearchParams({}, { replace: true }); }}
                     className="inline-flex items-center gap-1.5 h-8 px-4 rounded-full text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
@@ -500,9 +515,9 @@ export default function ChatRooms({ user }) {
                   <LoadingSkeleton count={4} />
                 ) : allAustraliaRooms.length === 0 ? (
                   <div className="text-center py-12 village-card">
-                    <span className="text-4xl mb-3 block">🇦🇺</span>
-                    <h3 className="font-heading font-semibold text-foreground mb-1">No rooms available</h3>
-                    <p className="text-sm text-muted-foreground">Check back soon!</p>
+                    <MessagesSquare size={28} style={{ color: "var(--ink-3)", margin: "0 auto 12px" }} />
+                    <h3 className="font-heading font-semibold mb-1" style={{ color: "var(--ink)" }}>No rooms available</h3>
+                    <p style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 13, color: "var(--ink-3)" }}>Check back soon.</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -519,7 +534,7 @@ export default function ChatRooms({ user }) {
                       return (
                         <div className={`grid gap-4 ${isSingle ? "" : "sm:grid-cols-2"}`}>
                           {mumChat && <FeaturedGenderCard room={mumChat} gender="female" />}
-                          {dadChat  && <FeaturedGenderCard room={dadChat}  gender="male"   />}
+                          {dadChat  && <FeaturedGenderCard room={dadChat}  gender="male"/>}
                         </div>
                       );
                     })()}
@@ -529,14 +544,16 @@ export default function ChatRooms({ user }) {
                       const club = allAustraliaRooms.find(r => r.name?.toLowerCase().includes("3am"));
                       return club ? (
                         <Link to={`/chat/${club.room_id}`} className="block">
-                          <div className="rounded-[18px] p-4 bg-primary/10 border border-primary/30 hover:border-primary/50 village-card-hover flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center text-2xl shrink-0">🌙</div>
+                          <div className="rounded-[18px] p-4 village-card-hover flex items-center gap-4" style={{ background: "var(--honey-wash)", border: "1px solid rgba(217,161,91,0.35)" }}>
+                            <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(217,161,91,0.18)" }}>
+                              <Moon size={22} style={{ color: "var(--honey)" }} />
+                            </div>
                             <div className="flex-1 min-w-0">
-                              <span className="text-xs font-semibold uppercase tracking-wide text-primary block mb-0.5">Active now · Night Owl hours</span>
+                              <span className="font-mono text-[10px] uppercase tracking-[0.14em] block mb-0.5" style={{ color: "var(--honey)" }}>Active now · Night Owl hours</span>
                               <h3 className="font-heading font-bold text-foreground">{club.name}</h3>
                               <p className="text-xs text-muted-foreground">{club.description}</p>
                             </div>
-                            <span className="shrink-0 text-xs font-medium px-2.5 py-1 rounded-full bg-green-500/15 text-green-700 dark:text-green-400">Drop in</span>
+                            <span className="shrink-0 text-xs font-medium px-2.5 py-1 rounded-full" style={{ background: "var(--sage-wash)", color: "var(--sage-deep)" }}>Drop in</span>
                           </div>
                         </Link>
                       ) : null;
@@ -551,7 +568,7 @@ export default function ChatRooms({ user }) {
                           if (nightOwl && r.name?.toLowerCase().includes("3am")) return false;
                           if (r.gender_restriction) {
                             if (liveGender !== "female" && r.gender_restriction === "female") return false;
-                            if (liveGender !== "male"   && r.gender_restriction === "male")   return false;
+                            if (liveGender !== "male"&& r.gender_restriction === "male")   return false;
                           }
                           // Secondary type filter
                           if (roomTypeFilter !== "all") {
@@ -595,9 +612,9 @@ export default function ChatRooms({ user }) {
                       </div>
                     ) : (
                       <div className="village-card p-5 text-center">
-                        <span className="text-4xl mb-3 block">📍</span>
-                        <h3 className="font-heading font-semibold text-foreground mb-1">Find your local room</h3>
-                        <p className="text-sm text-muted-foreground mb-4">Add your suburb or postcode in your profile and we'll connect you to your local parents' chat automatically.</p>
+                        <MapPin size={28} style={{ color: "var(--ink-3)", margin: "0 auto 12px" }} />
+                        <h3 className="font-heading font-semibold mb-1" style={{ color: "var(--ink)" }}>Find your local room</h3>
+                        <p className="mb-4" style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 13, color: "var(--ink-3)" }}>Add your suburb or postcode in your profile and we'll connect you to your local parents' chat automatically.</p>
                         <div className="flex flex-wrap gap-2 justify-center">
                           <LocationButton onLocation={saveLocation} size="default" />
                           <Link to="/profile">
@@ -638,7 +655,7 @@ export default function ChatRooms({ user }) {
                           value={areaSearch}
                           onChange={(e) => setAreaSearch(e.target.value)}
                           placeholder="Search by area name (e.g. Manly, Yarra, Geelong)..."
-                          className="h-10 pl-10 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
+                          className="h-10 pl-10 rounded-xl bg-secondary/50 border-transparent focus:border-[var(--line-2)]"
                           data-testid="area-search-input"
                         />
                       </div>
@@ -656,7 +673,7 @@ export default function ChatRooms({ user }) {
                                 key={result.area_name}
                                 className="village-card p-3 flex items-center gap-3"
                               >
-                                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-lg shrink-0">📍</div>
+                                <div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg shrink-0" style={{ background: "var(--clay-wash)" }}>📍</div>
                                 <div className="flex-1 min-w-0">
                                   <p className="font-medium text-sm text-foreground leading-tight">
                                     {result.area_name} Parents
@@ -705,8 +722,8 @@ export default function ChatRooms({ user }) {
                         </div>
                       ) : areaSearch.trim() ? (
                         <div className="text-center py-8 village-card">
-                          <span className="text-4xl mb-3 block">📭</span>
-                          <p className="text-sm text-muted-foreground">No areas found for "{areaSearch}"</p>
+                          <SearchX size={28} style={{ color: "var(--ink-3)", margin: "0 auto 12px" }} />
+                          <p style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 13, color: "var(--ink-3)" }}>No areas found for "{areaSearch}"</p>
                         </div>
                       ) : null}
                     </div>

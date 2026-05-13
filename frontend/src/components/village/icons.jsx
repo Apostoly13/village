@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Village Icons — extended pack
  * ─────────────────────────────────────────────────────
  * Custom icons that Lucide doesn't ship, in the same line-art /
@@ -95,7 +95,7 @@ export const SupportHand = (props) => (
 export const Whisper = (props) => (
   <Base {...props}>
     <path d="M21 11.5a8.5 8.5 0 0 1-12.7 7.4L4 20l1.1-3.6A8.5 8.5 0 1 1 21 11.5Z" />
-    <circle cx="9"  cy="11.5" r=".7" fill="currentColor" stroke="none" />
+    <circle cx="9"cy="11.5" r=".7" fill="currentColor" stroke="none" />
     <circle cx="12" cy="11.5" r=".7" fill="currentColor" stroke="none" />
     <circle cx="15" cy="11.5" r=".7" fill="currentColor" stroke="none" />
   </Base>
@@ -152,14 +152,12 @@ export const CalendarSparkle = (props) => (
   </Base>
 );
 
-// ─── Stall / Marketplace tag ─────────────────────────────
+// ─── Stall / Shopping bag ────────────────────────────────
 export const Stall = (props) => (
   <Base {...props}>
-    <path d="M3 9l1.5-4h15L21 9" />
-    <path d="M3 9v11h18V9" />
-    <path d="M3 9h18" />
-    <path d="M9 9v3a3 3 0 0 0 6 0V9" />
-    <path d="M9 14h6v6H9z" />
+    <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+    <path d="M3 6h18" />
+    <path d="M16 10a4 4 0 0 1-8 0" />
   </Base>
 );
 
@@ -202,7 +200,7 @@ export const GlobeAu = (props) => (
     <path d="M12 3a13 13 0 0 1 0 18" />
     <path d="M12 3a13 13 0 0 0 0 18" />
     <circle cx="14.5" cy="14.5" r=".7" fill="currentColor" stroke="none" />
-    <circle cx="9.5"  cy="10"   r=".7" fill="currentColor" stroke="none" />
+    <circle cx="9.5"cy="10"r=".7" fill="currentColor" stroke="none" />
   </Base>
 );
 

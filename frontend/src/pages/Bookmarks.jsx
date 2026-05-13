@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
@@ -48,7 +48,7 @@ export default function Bookmarks({ user }) {
   const formatDate = timeAgoVerbose;
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
+    <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
       <Navigation user={user} />
       
       <main className="max-w-4xl mx-auto px-4 pt-16 lg:pt-8">
@@ -94,7 +94,7 @@ export default function Bookmarks({ user }) {
             {bookmarks.map((post, idx) => (
               <article 
                 key={post.post_id}
-                className="bg-card rounded-2xl p-6 border border-border/50 hover:border-primary/30 transition-all"
+                className="bg-card rounded-2xl p-6 border border-border/50 hover:border-border/80 transition-all"
                 data-testid={`bookmark-${idx}`}
               >
                 <div className="flex items-start justify-between mb-4">
@@ -103,14 +103,14 @@ export default function Bookmarks({ user }) {
                       <Link to={`/profile/${post.author_id}`}>
                         <Avatar className="h-10 w-10 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
                           <AvatarImage src={post.author_picture} />
-                          <AvatarFallback className="bg-primary/20 text-primary">
+                          <AvatarFallback>
                             {post.author_name?.[0]?.toUpperCase() || '?'}
                           </AvatarFallback>
                         </Avatar>
                       </Link>
                     ) : (
                       <Avatar className="h-10 w-10">
-                        <AvatarFallback className="bg-primary/20 text-primary">?</AvatarFallback>
+                        <AvatarFallback>?</AvatarFallback>
                       </Avatar>
                     )}
                     <div>
@@ -136,7 +136,7 @@ export default function Bookmarks({ user }) {
                 </div>
 
                 <Link to={`/forums/post/${post.post_id}`}>
-                  <h3 className="font-heading font-bold text-lg text-foreground mb-2 hover:text-primary transition-colors">{post.title}</h3>
+                  <h3 className="font-heading font-bold text-lg text-foreground mb-2 hover:text-foreground transition-colors">{post.title}</h3>
                   <p className="text-muted-foreground line-clamp-2 mb-4">{post.content}</p>
                 </Link>
 

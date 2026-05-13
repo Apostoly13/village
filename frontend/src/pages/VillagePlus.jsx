@@ -1,6 +1,6 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Crown, Check, ArrowRight, Loader2, ExternalLink, CreditCard, XCircle, Settings, CheckCircle2 } from "lucide-react";
+import { Sparkles, Check, ArrowRight, Loader2, ExternalLink, CreditCard, XCircle, Settings, CheckCircle2 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
@@ -24,7 +24,7 @@ const PREMIUM_FEATURES = [
   { label: "Create & manage community spaces" },
   { label: "Create & RSVP to local events" },
   { label: "Unlimited direct messages" },
-  { label: "Crown badge on your profile" },
+  { label: "Village+ badge on your profile" },
   { label: "Priority support & early feature access" },
   { label: "The Village Stall — buy, sell & swap locally" },
 ];
@@ -39,7 +39,7 @@ const COMPARISON = [
   { feature: "Create communities",      free: "—",         plus: "✓" },
   { feature: "Anonymous posting",       free: "✓",         plus: "✓" },
   { feature: "Read all posts",          free: "✓",         plus: "✓" },
-  { feature: "Crown badge",             free: "—",         plus: "✓" },
+  { feature: "Village+ badge",          free: "—",         plus: "✓" },
   { feature: "The Village Stall",        free: "—",         plus: "✓" },
 ];
 
@@ -50,25 +50,31 @@ function PremiumManagement({ user, onPortal, portalLoading, error }) {
 
       {/* Status */}
       <div className="text-center mb-8">
-        <div className="w-16 h-16 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center mb-4 mx-auto">
-          <Crown className="h-8 w-8 text-primary" />
+        <div
+          className="w-16 h-16 rounded-full flex items-center justify-center mb-4 mx-auto"
+          style={{ background: "var(--honey-wash)", border: "1px solid rgba(217,161,91,0.35)" }}
+        >
+          <Sparkles className="h-8 w-8" style={{ color: "var(--honey)" }} />
         </div>
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 mb-3">
-          <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-          <span className="text-xs font-bold text-primary">Active subscription</span>
+        <div
+          className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-3"
+          style={{ background: "var(--sage-wash)", border: "1px solid rgba(74,113,85,0.25)" }}
+        >
+          <CheckCircle2 className="h-3.5 w-3.5" style={{ color: "var(--sage-deep)" }} />
+          <span className="text-xs font-bold" style={{ color: "var(--sage-deep)" }}>Active subscription</span>
         </div>
-        <h1 className="font-heading text-2xl font-bold text-foreground mb-1">You're on Village+</h1>
-        <p className="text-sm text-muted-foreground">All limits lifted. Thank you for supporting The Village.</p>
+        <h1 className="font-heading text-2xl font-bold mb-1" style={{ color: "var(--ink)" }}>You're on Village+</h1>
+        <p className="text-sm" style={{ color: "var(--ink-2)" }}>All limits lifted. Thank you for supporting The Village.</p>
       </div>
 
       {/* What's included */}
-      <div className="bg-card border border-border/50 rounded-2xl p-5 mb-4">
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4">Your plan includes</p>
+      <div className="village-card p-5 mb-4">
+        <p className="font-mono text-[10px] uppercase tracking-[0.14em] mb-4" style={{ color: "var(--ink-3)" }}>Your plan includes</p>
         <div className="space-y-2.5">
           {PREMIUM_FEATURES.map(({ label }, i) => (
-            <div key={i} className="flex items-center gap-3 text-sm text-foreground">
-              <div className="w-4 h-4 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                <Check className="h-2.5 w-2.5 text-primary" />
+            <div key={i} className="flex items-center gap-3 text-sm" style={{ color: "var(--ink)" }}>
+              <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0" style={{ background: "var(--sage-wash)" }}>
+                <Check className="h-2.5 w-2.5" style={{ color: "var(--sage-deep)" }} />
               </div>
               {label}
             </div>
@@ -77,7 +83,7 @@ function PremiumManagement({ user, onPortal, portalLoading, error }) {
       </div>
 
       {/* Manage billing */}
-      <div className="bg-card border border-border/50 rounded-2xl p-5 mb-4">
+      <div className="village-card p-5 mb-4">
         <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Manage your subscription</p>
         <p className="text-sm text-muted-foreground mb-4">Update payment details, view invoices, or cancel — all managed securely through Stripe.</p>
 
@@ -163,7 +169,7 @@ export default function VillagePlus({ user }) {
   // Premium users get the management view, not the upsell page
   if (isPremium) {
     return (
-      <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
+      <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
         <Navigation user={user} />
         <PremiumManagement user={user} onPortal={handleManageBilling} portalLoading={portalLoading} error={error} />
         <AppFooter />
@@ -172,7 +178,7 @@ export default function VillagePlus({ user }) {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
+    <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
       <Navigation user={user} />
 
       <main className="max-w-3xl mx-auto px-4 pt-16 lg:pt-8 pb-16">
@@ -192,7 +198,7 @@ export default function VillagePlus({ user }) {
               className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6"
               style={{ background: "rgba(245,197,66,0.15)", border: "1px solid rgba(245,197,66,0.35)" }}
             >
-              <Crown className="h-4 w-4" style={{ color: "#f5c542" }} />
+              <Sparkles className="h-4 w-4" style={{ color: "#f5c542" }} />
               <span className="text-sm font-bold tracking-wide" style={{ color: "#f5c542" }}>Village+</span>
             </div>
             <h1
@@ -228,27 +234,27 @@ export default function VillagePlus({ user }) {
         {/* Billing toggle */}
         {!isPremium && (
           <div className="flex justify-center mb-8">
-            <div className="inline-flex items-center bg-secondary/60 border border-border/50 rounded-full p-1 gap-1">
+            <div className="inline-flex items-center rounded-full p-1 gap-1" style={{ background: "var(--paper-2)", border: "1px solid var(--line)" }}>
               <button
                 onClick={() => setBilling("monthly")}
-                className={`px-5 py-2 rounded-full text-sm font-semibold transition-all ${
-                  billing === "monthly"
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+                className="px-5 py-2 rounded-full text-sm font-semibold transition-all"
+                style={billing === "monthly"
+                  ? { background: "var(--paper)", color: "var(--ink)", boxShadow: "var(--shadow-sm)" }
+                  : { color: "var(--ink-3)" }
+                }
               >
                 Monthly
               </button>
               <button
                 onClick={() => setBilling("annual")}
-                className={`px-5 py-2 rounded-full text-sm font-semibold transition-all flex items-center gap-2 ${
-                  billing === "annual"
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+                className="px-5 py-2 rounded-full text-sm font-semibold transition-all flex items-center gap-2"
+                style={billing === "annual"
+                  ? { background: "var(--paper)", color: "var(--ink)", boxShadow: "var(--shadow-sm)" }
+                  : { color: "var(--ink-3)" }
+                }
               >
                 Annual
-                <span className="text-[10px] font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--sage-wash)", color: "var(--sage-deep)" }}>
                   Save 20%
                 </span>
               </button>
@@ -267,26 +273,26 @@ export default function VillagePlus({ user }) {
         <div className="grid sm:grid-cols-2 gap-6 mb-12">
 
           {/* Free */}
-          <div className="bg-card border border-border/50 shadow-sm rounded-2xl p-6 flex flex-col">
+          <div className="village-card p-6 flex flex-col">
             <div className="mb-5">
-              <p className="font-heading font-semibold text-xs uppercase tracking-widest text-muted-foreground mb-2">Free</p>
-              <p className="font-heading text-4xl font-bold text-foreground">$0</p>
-              <p className="text-sm text-muted-foreground mt-1">Always free, forever</p>
+              <p className="font-mono text-[10px] uppercase tracking-[0.14em] mb-2" style={{ color: "var(--ink-3)" }}>Free</p>
+              <p className="font-heading text-4xl font-bold" style={{ color: "var(--ink)" }}>$0</p>
+              <p className="text-sm mt-1" style={{ color: "var(--ink-2)" }}>Always free, forever</p>
             </div>
             <ul className="space-y-3 mb-6 flex-1">
               {FREE_FEATURES.map(({ label }, i) => (
-                <li key={i} className="flex items-start gap-3 text-sm text-foreground">
-                  <div className="w-5 h-5 rounded-full bg-secondary flex items-center justify-center shrink-0 mt-0.5">
-                    <Check className="h-3 w-3 text-muted-foreground" />
+                <li key={i} className="flex items-start gap-3 text-sm" style={{ color: "var(--ink)" }}>
+                  <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ background: "var(--paper-3)" }}>
+                    <Check className="h-3 w-3" style={{ color: "var(--ink-3)" }} />
                   </div>
                   {label}
                 </li>
               ))}
             </ul>
             {isPremium ? (
-              <p className="text-sm text-muted-foreground text-center py-2">Your previous plan</p>
+              <p className="text-sm text-center py-2" style={{ color: "var(--ink-3)" }}>Your previous plan</p>
             ) : !isTrial && user?.subscription_tier === "free" ? (
-              <div className="flex items-center justify-center gap-2 py-2.5 bg-secondary/60 rounded-xl text-muted-foreground font-semibold text-sm border border-border/40">
+              <div className="flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-sm" style={{ background: "var(--paper-3)", color: "var(--ink-2)", border: "1px solid var(--line)" }}>
                 <Check className="h-4 w-4" />
                 Your current plan
               </div>
@@ -298,45 +304,48 @@ export default function VillagePlus({ user }) {
           </div>
 
           {/* Village+ */}
-          <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-2 border-primary/40 rounded-2xl p-6 relative overflow-hidden flex flex-col shadow-md">
-            <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-primary/20 blur-2xl pointer-events-none" />
+          <div
+            className="rounded-2xl p-6 relative overflow-hidden flex flex-col"
+            style={{ background: "var(--honey-wash)", border: "2px solid rgba(217,161,91,0.5)", boxShadow: "var(--shadow-md)" }}
+          >
+            <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full blur-2xl pointer-events-none" style={{ background: "rgba(217,161,91,0.20)" }} />
             <div className="absolute top-4 right-4 z-10">
-              <span className="text-xs font-bold bg-primary text-primary-foreground px-2.5 py-1 rounded-full shadow-sm">
+              <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: "var(--honey)", color: "var(--ink)" }}>
                 Most popular
               </span>
             </div>
             <div className="mb-5 relative z-10">
-              <p className="font-heading font-semibold text-xs uppercase tracking-widest text-primary mb-2 flex items-center gap-1.5">
-                <Crown className="h-3.5 w-3.5" /> Village+
+              <p className="font-mono text-[10px] uppercase tracking-[0.14em] mb-2 flex items-center gap-1.5" style={{ color: "var(--honey)" }}>
+                <Sparkles className="h-3.5 w-3.5" style={{ color: "var(--honey)" }} /> Village+
               </p>
               {billing === "annual" ? (
                 <>
                   <div className="flex items-end gap-2">
-                    <p className="font-heading text-4xl font-bold text-foreground">${PRICE_ANNUAL_MONTHLY}</p>
-                    <p className="text-sm text-muted-foreground mb-1.5">/mo</p>
+                    <p className="font-heading text-4xl font-bold" style={{ color: "var(--ink)" }}>${PRICE_ANNUAL_MONTHLY}</p>
+                    <p className="text-sm mb-1.5" style={{ color: "var(--ink-2)" }}>/mo</p>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    <span className="text-foreground font-medium">A${PRICE_ANNUAL_TOTAL}</span> billed once per year
+                  <p className="text-sm mt-1" style={{ color: "var(--ink-2)" }}>
+                    <span className="font-medium" style={{ color: "var(--ink)" }}>A${PRICE_ANNUAL_TOTAL}</span> billed once per year
                   </p>
-                  <p className="text-xs text-primary font-medium mt-1">You save A$23.88 vs monthly</p>
+                  <p className="text-xs font-medium mt-1" style={{ color: "var(--sage-deep)" }}>You save A$23.88 vs monthly</p>
                 </>
               ) : (
                 <>
                   <div className="flex items-end gap-2">
-                    <p className="font-heading text-4xl font-bold text-foreground">${PRICE_MONTHLY}</p>
-                    <p className="text-sm text-muted-foreground mb-1.5">/month</p>
+                    <p className="font-heading text-4xl font-bold" style={{ color: "var(--ink)" }}>${PRICE_MONTHLY}</p>
+                    <p className="text-sm mb-1.5" style={{ color: "var(--ink-2)" }}>/month</p>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    or <span className="text-foreground font-medium">${PRICE_ANNUAL_MONTHLY}/mo</span> billed annually
+                  <p className="text-sm mt-1" style={{ color: "var(--ink-2)" }}>
+                    or <span className="font-medium" style={{ color: "var(--ink)" }}>${PRICE_ANNUAL_MONTHLY}/mo</span> billed annually
                   </p>
                 </>
               )}
             </div>
             <ul className="space-y-3 mb-6 flex-1 relative z-10">
               {PREMIUM_FEATURES.map(({ label }, i) => (
-                <li key={i} className="flex items-start gap-3 text-sm text-foreground">
-                  <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mt-0.5">
-                    <Crown className="h-3 w-3 text-primary" />
+                <li key={i} className="flex items-start gap-3 text-sm" style={{ color: "var(--ink)" }}>
+                  <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ background: "rgba(217,161,91,0.25)" }}>
+                    <Sparkles className="h-3 w-3" style={{ color: "var(--honey)" }} />
                   </div>
                   {label}
                 </li>
@@ -345,7 +354,7 @@ export default function VillagePlus({ user }) {
             <div className="relative z-10 space-y-3">
               {isPremium ? (
                 <>
-                  <div className="flex items-center justify-center gap-2 py-2.5 bg-primary/10 rounded-xl text-primary font-semibold text-sm border border-primary/20 mb-2">
+                  <div className="flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-sm mb-2" style={{ background: "rgba(217,161,91,0.25)", color: "var(--ink)", border: "1px solid rgba(217,161,91,0.4)" }}>
                     <Check className="h-4 w-4" />
                     You're on Village+
                   </div>
@@ -368,7 +377,8 @@ export default function VillagePlus({ user }) {
                 </>
               ) : (
                 <Button
-                  className="w-full rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all"
+                  className="w-full rounded-xl transition-all"
+                  style={{ background: "var(--ink)", color: "var(--paper)", boxShadow: "var(--shadow-md)" }}
                   onClick={handleUpgrade}
                   disabled={loading}
                 >
@@ -386,38 +396,43 @@ export default function VillagePlus({ user }) {
 
         {/* Comparison table */}
         <div className="mb-4">
-          <p className="font-heading font-semibold text-xs uppercase tracking-widest text-muted-foreground mb-4">Compare plans</p>
+          <p className="font-mono text-[10px] uppercase tracking-[0.14em] mb-4" style={{ color: "var(--ink-3)" }}>Compare plans</p>
         </div>
-        <div className="bg-card border border-border/50 shadow-sm rounded-2xl overflow-hidden mb-6">
-          <div className="grid grid-cols-3 bg-secondary/60 px-6 py-3.5 text-xs font-semibold text-muted-foreground uppercase tracking-widest border-b border-border/40">
+        <div className="village-card overflow-hidden mb-6">
+          <div className="grid grid-cols-3 px-6 py-3.5 font-mono text-[10px] uppercase tracking-[0.14em]" style={{ background: "var(--paper-3)", color: "var(--ink-3)", borderBottom: "1px solid var(--line)" }}>
             <span>Feature</span>
             <span className="text-center">Free</span>
-            <span className="text-center text-primary flex items-center justify-center gap-1">
-              <Crown className="h-3 w-3" /> Village+
+            <span className="flex items-center justify-center gap-1" style={{ color: "var(--honey)" }}>
+              <Sparkles className="h-3 w-3" style={{ color: "var(--honey)" }} /> Village+
             </span>
           </div>
           {COMPARISON.map((row, i) => (
             <div
               key={row.feature}
-              className={`grid grid-cols-3 px-6 py-3.5 text-sm border-t border-border/40 transition-colors hover:bg-secondary/10 ${i % 2 === 0 ? "" : "bg-secondary/20"}`}
+              className="grid grid-cols-3 px-6 py-3.5 text-sm transition-colors"
+              style={{
+                borderTop: "1px solid var(--line)",
+                background: i % 2 === 0 ? "transparent" : "var(--paper-2)",
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = "var(--paper-3)"}
+              onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? "transparent" : "var(--paper-2)"}
             >
-              <span className="text-foreground font-medium">{row.feature}</span>
-              <span className="text-center text-muted-foreground">{row.free}</span>
-              <span className={`text-center font-semibold ${row.plus === "—" ? "text-muted-foreground/50" : "text-primary"}`}>
+              <span className="font-medium" style={{ color: "var(--ink)" }}>{row.feature}</span>
+              <span className="text-center" style={{ color: "var(--ink-3)" }}>{row.free}</span>
+              <span className="text-center font-semibold" style={{ color: row.plus === "—" ? "var(--ink-3)" : "var(--honey)" }}>
                 {row.plus}
               </span>
             </div>
           ))}
         </div>
 
-
         {/* Trust / FAQ */}
-        <div className="text-center py-6 px-6 rounded-2xl bg-secondary/30 border border-border/30 space-y-2 text-sm text-muted-foreground">
-          <p className="font-medium text-foreground">Cancel any time. No lock-in, no nonsense.</p>
+        <div className="text-center py-6 px-6 rounded-2xl space-y-2 text-sm" style={{ background: "var(--paper-2)", border: "1px solid var(--line)", color: "var(--ink-2)" }}>
+          <p className="font-medium" style={{ color: "var(--ink)" }}>Cancel any time. No lock-in, no nonsense.</p>
           <p>Payments are processed securely by Stripe. We never store your card details.</p>
           <p>
             Questions?{" "}
-            <Link to="/contact" className="text-primary hover:underline underline-offset-2 font-medium">
+            <Link to="/contact" className="font-medium hover:underline underline-offset-2" style={{ color: "hsl(var(--accent))" }}>
               Get in touch
             </Link>
           </p>

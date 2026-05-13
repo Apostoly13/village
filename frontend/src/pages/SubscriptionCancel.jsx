@@ -1,16 +1,16 @@
-import { Link } from "react-router-dom";
-import { Crown, ArrowLeft } from "lucide-react";
+﻿import { Link } from "react-router-dom";
+import { Sparkles, ArrowLeft } from "lucide-react";
 import { Button } from "../components/ui/button";
 import Navigation from "../components/Navigation";
 
 export default function SubscriptionCancel({ user }) {
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
+    <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
       <Navigation user={user} />
       <main className="max-w-lg mx-auto px-4 pt-24 pb-16 flex flex-col items-center text-center">
 
         <div className="w-20 h-20 rounded-full bg-secondary flex items-center justify-center mb-6">
-          <Crown className="h-10 w-10 text-muted-foreground" />
+          <Sparkles className="h-10 w-10 text-muted-foreground" />
         </div>
 
         <h1 className="font-heading text-3xl font-bold text-foreground mb-3">
@@ -24,7 +24,7 @@ export default function SubscriptionCancel({ user }) {
         <div className="flex flex-col sm:flex-row gap-3 w-full justify-center">
           <Button asChild className="rounded-xl">
             <Link to="/plus">
-              <Crown className="h-4 w-4 mr-2" />
+              <Sparkles className="h-4 w-4 mr-2" style={{ color: "hsl(var(--accent))" }} />
               Back to Village+
             </Link>
           </Button>

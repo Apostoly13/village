@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -137,7 +137,7 @@ export default function Login() {
               color: "var(--ink)",
             }}
           >
-            "Finally found my village at 3am"
+"Finally found my village at 3am"
           </p>
           <p className="mt-2 text-sm" style={{ color: "var(--ink-3)" }}>— Sarah, mum of twins</p>
         </div>

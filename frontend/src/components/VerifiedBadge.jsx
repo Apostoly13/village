@@ -1,4 +1,4 @@
-import { ShieldCheck } from "lucide-react";
+﻿import { ShieldCheck } from "lucide-react";
 
 /**
  * Verified healthcare professional badge.
@@ -12,16 +12,16 @@ import { ShieldCheck } from "lucide-react";
  */
 
 const OCCUPATION_LABELS = {
-  midwife:              "Midwife",
-  doctor:               "GP",
-  obstetrician:         "Obstetrician",
-  nurse:                "Nurse",
-  psychologist:         "Psychologist",
+  midwife:"Midwife",
+  doctor:"GP",
+  obstetrician:"Obstetrician",
+  nurse:"Nurse",
+  psychologist:"Psychologist",
   lactation_consultant: "Lactation Consultant",
-  pediatrician:         "Paediatrician",
-  social_worker:        "Social Worker",
-  physiotherapist:      "Physiotherapist",
-  other:                "Professional",
+  pediatrician:"Paediatrician",
+  social_worker:"Social Worker",
+  physiotherapist:"Physiotherapist",
+  other:"Professional",
 };
 
 export default function VerifiedBadge({ occupation = "", className = "" }) {

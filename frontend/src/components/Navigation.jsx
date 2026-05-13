@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Wordmark } from "./Wordmark";
 import { useTheme } from "../useTheme";
@@ -13,9 +13,10 @@ import {
 } from "./ui/dropdown-menu";
 import { ScrollArea } from "./ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
-import { Mail, User, LogOut, Menu, X, UserPlus, Bell, Shield, ScrollText, Lock, FileText, Settings, ChevronDown } from "lucide-react";
-import { IconHome, IconChat, IconCal, IconHeart, IconMail, IconShield, IconCog, IconSpaces, IconMoon, IconSun } from "../icons";
+import { Mail, User, LogOut, UserPlus, Bell, Shield, ScrollText, Lock, FileText, Settings, ChevronDown } from "lucide-react";
+import { IconHome, IconChat, IconCal, IconMail, IconShield, IconCog, IconSpaces, IconMoon, IconSun } from "../icons";
 import { Village, Stall, Sparkle, Quill, ParentChild, ThreeAmMoon } from "./village/icons";
+import { MenuIcon, CloseIcon, BackIcon, SavedIcon } from "./village/VillageLineIcons";
 import { toast } from "sonner";
 import { FEATURES } from "../config/features";
 
@@ -299,10 +300,10 @@ export default function Navigation({ user }) {
                 { label: "Sent Requests",   href: "/friends?tab=sent" },
               ],
             },
-            { Icon: IconHeart,  label: "Saved",     href: "/saved",                         testId: "nav-saved" },
-            ...(FEATURES.BLOG  ? [{ Icon: Quill,       label: "Blog",      href: "/blog",      testId: "nav-blog"  }] : []),
-            ...(user?.role === "moderator" ? [{ Icon: IconShield, label: "Moderator",  href: "/moderator", testId: "nav-mod"   }] : []),
-            ...(user?.role === "admin"     ? [{ Icon: IconShield, label: "Admin",      href: "/admin",     testId: "nav-admin" }] : []),
+            { Icon: SavedIcon,  label: "Saved",     href: "/saved",                         testId: "nav-saved" },
+            ...(FEATURES.BLOG  ? [{ Icon: Quill,       label: "Blog",      href: "/blog",      testId: "nav-blog"}] : []),
+            ...(user?.role === "moderator" ? [{ Icon: IconShield, label: "Moderator",  href: "/moderator", testId: "nav-mod"}] : []),
+            ...(user?.role === "admin"? [{ Icon: IconShield, label: "Admin",      href: "/admin",     testId: "nav-admin" }] : []),
           ].map((item) => {
             const hrefBase  = item.href.split("?")[0];
             const hrefQuery = item.href.includes("?") ? item.href.split("?")[1] : null;
@@ -327,7 +328,7 @@ export default function Navigation({ user }) {
                 <span className="text-sm font-medium flex-1">{item.label}</span>
                 {item.locked && <Lock className="h-3 w-3 opacity-40 shrink-0" />}
                 {item.badge > 0 && !item.locked && (
-                  <span className="min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center px-1 font-medium shrink-0">
+                  <span className="min-w-[18px] h-[18px] rounded-full text-white text-[10px] flex items-center justify-center px-1 font-medium shrink-0" style={{ background: "var(--badge-danger)" }}>
                     {item.badge > 9 ? "9+" : item.badge}
                   </span>
                 )}
@@ -352,7 +353,7 @@ export default function Navigation({ user }) {
                           <span className="flex-1">{sub.label}</span>
                           {sub.locked && <Lock className="h-3 w-3 opacity-40 shrink-0" />}
                           {sub.badge > 0 && !sub.locked && (
-                            <span className="min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center px-1 font-medium shrink-0">
+                            <span className="min-w-[18px] h-[18px] rounded-full text-white text-[10px] flex items-center justify-center px-1 font-medium shrink-0" style={{ background: "var(--badge-danger)" }}>
                               {sub.badge > 9 ? "9+" : sub.badge}
                             </span>
                           )}
@@ -407,7 +408,7 @@ export default function Navigation({ user }) {
                 >
                   <Bell className="h-4.5 w-4.5" style={{ width: 18, height: 18 }} />
                   {unreadCount > 0 && (
-                    <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] flex items-center justify-center font-medium">
+                    <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full text-white text-[9px] flex items-center justify-center font-medium" style={{ background: "var(--badge-danger)" }}>
                       {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
                   )}
@@ -428,7 +429,7 @@ export default function Navigation({ user }) {
                       <button
                         key={notif.notification_id}
                         onClick={() => handleNotificationClick(notif)}
-                        className={`w-full text-left p-3 cursor-pointer transition-colors focus:outline-none ${!notif.is_read ? "bg-primary/5" : ""}`}
+                        className={`w-full text-left p-3 cursor-pointer transition-colors focus:outline-none ${!notif.is_read ? "bg-[var(--paper-3)]" : ""}`}
                         style={{ borderBottom: "1px solid var(--line-2)" }}
                         onMouseEnter={e => e.currentTarget.style.background = "var(--paper-3)"}
                         onMouseLeave={e => e.currentTarget.style.background = notif.is_read ? "transparent" : ""}
@@ -471,7 +472,7 @@ export default function Navigation({ user }) {
               >
                 <Avatar className="h-8 w-8 shrink-0">
                   <AvatarImage src={user?.picture} />
-                  <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                  <AvatarFallback className="text-xs">
                     {(user?.nickname || user?.name || user?.email || "V")[0].toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
@@ -501,36 +502,45 @@ export default function Navigation({ user }) {
             <Wordmark size={20} />
           </Link>
 
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="ghost" 
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => { navigate("/dashboard"); setMobileMenuOpen(false); }}
+              className="rounded-full"
+              data-testid="mobile-home"
+              aria-label="Home"
+            >
+              <IconHome size={20} />
+            </Button>
+            <Button
+              variant="ghost"
               size="icon"
               onClick={toggleTheme}
               className="rounded-full"
             >
               {darkMode ? <IconSun size={20} /> : <ThreeAmMoon size={20} />}
             </Button>
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               data-testid="mobile-menu-toggle"
             >
-              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              {mobileMenuOpen ? <CloseIcon size={20} /> : <MenuIcon size={20} />}
             </Button>
           </div>
         </div>
 
-        {/* Mobile Menu — fixed overlay between top bar and bottom bar */}
+        {/* Mobile Menu — full-screen drawer */}
         {mobileMenuOpen && (
           <div
             className="fixed left-0 right-0 flex flex-col animate-fade-in"
             style={{
               top: 56,
-              bottom: 58,
+              bottom: 0,
               background: "var(--paper-2)",
               zIndex: 49,
-              borderBottom: "1px solid var(--line)",
             }}
           >
             {/* Scrollable content */}
@@ -538,7 +548,7 @@ export default function Navigation({ user }) {
               <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/50">
                 <Avatar className="h-10 w-10">
                   <AvatarImage src={user?.picture} />
-                  <AvatarFallback className="bg-primary/20 text-primary">
+                  <AvatarFallback>
                     {(user?.nickname || user?.name || user?.email || 'V')[0].toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
@@ -565,7 +575,7 @@ export default function Navigation({ user }) {
                 <UserPlus className="h-5 w-5" />
                 Friends
                 {friendRequestCount > 0 && (
-                  <span className="ml-auto w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
+                  <span className="ml-auto w-5 h-5 rounded-full text-white text-xs flex items-center justify-center" style={{ background: "var(--badge-danger)" }}>
                     {friendRequestCount}
                   </span>
                 )}
@@ -606,7 +616,7 @@ export default function Navigation({ user }) {
                 onClick={() => setMobileMenuOpen(false)}
                 className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
               >
-                <IconHeart size={20} />
+                <SavedIcon size={20} />
                 Saved
               </Link>
 
@@ -625,7 +635,7 @@ export default function Navigation({ user }) {
                 className={`flex items-center gap-3 p-3 rounded-xl font-medium ${
                   user?.subscription_tier === "premium"
                     ? "hover:bg-secondary/50 text-foreground"
-                    : "bg-primary/10 border border-primary/20 text-primary"
+                    : "bg-[var(--paper-3)] border border-[var(--line)] text-primary"
                 }`}
               >
                 <Sparkle className="h-5 w-5" />
@@ -707,37 +717,6 @@ export default function Navigation({ user }) {
             </div>
           </div>
         )}
-      </nav>
-
-      {/* Mobile Navigation - Bottom Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden pb-safe" style={{ background: "var(--paper)", borderTop: "1px solid var(--line-2)" }}>
-        <div className="flex items-center justify-around h-[58px]">
-          {mobileNavItems.map((item) => {
-            const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
-            return (
-              <Link
-                key={item.testId}
-                to={item.href}
-                className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors ${isActive ? 'text-primary' : item.locked ? 'text-muted-foreground/50' : 'text-muted-foreground'}`}
-                data-testid={`mobile-${item.testId}`}
-                aria-label={item.label}
-              >
-                <div className="relative">
-                  <item.icon className="h-[22px] w-[22px]" />
-                  {item.locked && <Lock className="absolute -bottom-0.5 -right-1 h-2.5 w-2.5 text-muted-foreground/70" />}
-                  {item.badge > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] rounded-full bg-red-500 text-white text-[9px] flex items-center justify-center px-1 font-medium">
-                      {item.badge > 9 ? '9+' : item.badge}
-                    </span>
-                  )}
-                </div>
-                <span className={`text-[10px] font-medium leading-none ${isActive ? 'text-primary' : ''}`}>
-                  {item.label}
-                </span>
-              </Link>
-            );
-          })}
-        </div>
       </nav>
     </>
   );

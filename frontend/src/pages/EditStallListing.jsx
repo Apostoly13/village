@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import Navigation from "../components/Navigation";
@@ -10,7 +10,7 @@ import SuburbSearch from "../components/SuburbSearch";
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const INPUT_CLASS =
-  "w-full rounded-xl border border-border bg-card text-foreground px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground";
+"w-full rounded-xl border border-border bg-card text-foreground px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-border/50 placeholder:text-muted-foreground";
 
 const CATEGORIES = [
   { id: "clothing",  label: "Clothing",         emoji: "👕" },
@@ -24,7 +24,7 @@ const CATEGORIES = [
 ];
 
 const AGE_GROUPS = [
-  "Newborn", "0–6 months", "6–12 months", "1–2 years", "3–4 years", "5+ years", "All ages",
+"Newborn", "0–6 months", "6–12 months", "1–2 years", "3–4 years", "5+ years", "All ages",
 ];
 
 const CONDITIONS = [
@@ -190,7 +190,7 @@ export default function EditStallListing({ user }) {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-6 h-6 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+        <div className="w-6 h-6 rounded-full border-2 border-[var(--line)] border-t-[var(--ink-2)] animate-spin" />
       </div>
     );
   }
@@ -239,10 +239,10 @@ export default function EditStallListing({ user }) {
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploadingImage}
-                  className="aspect-square rounded-xl border-2 border-dashed border-border/50 flex flex-col items-center justify-center gap-1 hover:border-primary/50 hover:bg-primary/5 transition-colors disabled:opacity-50"
+                  className="aspect-square rounded-xl border-2 border-dashed border-border/50 flex flex-col items-center justify-center gap-1 hover:border-border hover:bg-muted/30 transition-colors disabled:opacity-50"
                 >
                   {uploadingImage ? (
-                    <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                    <div className="w-5 h-5 border-2 border-[var(--line)] border-t-[var(--ink-2)] rounded-full animate-spin" />
                   ) : (
                     <>
                       <Camera className="h-5 w-5 text-muted-foreground/50" />
@@ -294,7 +294,7 @@ export default function EditStallListing({ user }) {
                     onClick={() => { setCategory(c.id); if (errors.category) setErrors(p => ({ ...p, category: null })); }}
                     className={`flex flex-col items-center gap-1 p-2 rounded-xl border text-xs transition-colors ${
                       category === c.id
-                        ? "border-primary bg-primary/10 text-primary font-medium"
+                        ? "border-[var(--sage)] bg-[var(--paper-3)] text-primary font-medium"
                         : "border-border/50 text-muted-foreground hover:border-border hover:text-foreground"
                     }`}
                   >
@@ -319,7 +319,7 @@ export default function EditStallListing({ user }) {
                     onClick={() => setAgeGroup(prev => prev === ag ? "" : ag)}
                     className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${
                       ageGroup === ag
-                        ? "bg-primary text-primary-foreground border-primary"
+                        ? "bg-primary text-primary-foreground border-[var(--sage)]"
                         : "border-border/50 text-muted-foreground hover:border-border hover:text-foreground"
                     }`}
                   >
@@ -341,7 +341,7 @@ export default function EditStallListing({ user }) {
                       onClick={() => setCondition(prev => prev === c.id ? "" : c.id)}
                       className={`flex flex-col items-start p-3 rounded-xl border text-left transition-colors ${
                         condition === c.id
-                          ? "border-primary bg-primary/10"
+                          ? "border-[var(--sage)] bg-[var(--paper-3)]"
                           : "border-border/50 hover:border-border"
                       }`}
                     >
@@ -465,7 +465,7 @@ export default function EditStallListing({ user }) {
                   onClick={() => setStatus(s.id)}
                   className={`px-4 py-2 rounded-xl text-sm border transition-colors ${
                     status === s.id
-                      ? "bg-primary text-primary-foreground border-primary"
+                      ? "bg-primary text-primary-foreground border-[var(--sage)]"
                       : "border-border/50 text-muted-foreground hover:border-border hover:text-foreground"
                   }`}
                 >
@@ -494,7 +494,7 @@ export default function EditStallListing({ user }) {
               className="flex-1 rounded-xl gap-2"
             >
               {submitting ? (
-                <><div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />Saving…</>
+                <><div className="w-4 h-4 border-2 border-[var(--paper)] border-t-transparent rounded-full animate-spin" />Saving…</>
               ) : "Save changes"}
             </Button>
           </div>

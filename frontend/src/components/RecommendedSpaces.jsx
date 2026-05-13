@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 
@@ -74,12 +74,12 @@ export default function RecommendedSpaces({ user }) {
           >
             <span className="text-xl shrink-0 leading-none">{item.icon}</span>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
+              <p className="text-sm font-medium text-foreground truncate group-hover:text-foreground transition-colors">
                 {displayName}
               </p>
               <p className="text-xs text-muted-foreground leading-snug mt-0.5">{context}</p>
             </div>
-            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50 group-hover:text-primary transition-colors shrink-0" />
+            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50 group-hover:text-foreground transition-colors shrink-0" />
           </Link>
         );
       })}

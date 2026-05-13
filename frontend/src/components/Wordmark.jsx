@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Wordmark — typographic lockup for The Village.
  * Uses Fraunces (loaded via Google Fonts in index.html).
  * Drop-in replacement for the logo PNG in Navigation, Footer, Landing hero.
@@ -41,7 +41,7 @@ export function Wordmark({ size = 20, color, accent, invert = false, style, ...r
  */
 export function Monogram({ size = 36, invert = false, style }) {
   const bg = invert ? "var(--paper)" : "var(--ink)";
-  const fg = invert ? "var(--ink)"   : "var(--paper)";
+  const fg = invert ? "var(--ink)": "var(--paper)";
   return (
     <span
       aria-label="The Village"

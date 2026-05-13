@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Link } from "react-router-dom";
 import PublicNav from "../components/PublicNav";
 import AppFooter from "../components/AppFooter";
@@ -9,11 +9,11 @@ import { ArrowLeft, Mail } from "lucide-react";
 import { toast } from "sonner";
 
 const SUBJECTS = [
-  "General Enquiry",
-  "Report a Bug",
-  "Partnership",
-  "Press",
-  "Other",
+"General Enquiry",
+"Report a Bug",
+"Partnership",
+"Press",
+"Other",
 ];
 
 const EMPTY_FORM = { name: "", email: "", subject: "General Enquiry", message: "" };
@@ -38,7 +38,7 @@ export default function Contact() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
+    <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
       <PublicNav />
 
       <main className="max-w-3xl mx-auto px-4 pt-16 lg:pt-8">
@@ -52,7 +52,7 @@ export default function Contact() {
         </button>
 
         <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-[var(--honey-wash)] flex items-center justify-center">
             <Mail className="h-5 w-5 text-primary" />
           </div>
           <h1 className="font-heading text-3xl font-bold text-foreground">Get in touch</h1>
@@ -116,7 +116,7 @@ export default function Contact() {
               name="subject"
               value={form.subject}
               onChange={handleChange}
-              className="w-full rounded-lg border border-border/50 bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition"
+              className="w-full rounded-lg border border-border/50 bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-border/50 transition"
             >
               {SUBJECTS.map((s) => (
                 <option key={s} value={s}>

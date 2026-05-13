@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Button } from "../components/ui/button";
 import Navigation from "../components/Navigation";
-import { MessageCircle, Users, BookOpen, Crown, Plus, Clock, Lock, MapPin, UserCheck, UserPlus, Search, X } from "lucide-react";
+import { MessageCircle, Users, BookOpen, Sparkles, Plus, Clock, Lock, MapPin, UserCheck, UserPlus, Search, X } from "lucide-react";
 import { Village, Pram } from "../components/village/icons";
 import { toast } from "sonner";
 import { parseApiError } from "../utils/apiError";
@@ -124,7 +124,7 @@ export default function Forums({ user }) {
       className="block"
       data-testid={`category-card-${index}`}
     >
-      <div className={`village-card village-card-hover p-5 h-full border-l-2 border-l-primary/20 hover:border-l-primary/40 ${accent ? accent : ""}`}>
+      <div className={`village-card village-card-hover p-5 h-full ${accent ? accent : ""}`}>
         <div className="flex items-start gap-4">
           {/* Circular icon — key differentiator from Chat Spaces (square) */}
           <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center text-2xl flex-shrink-0">
@@ -184,7 +184,7 @@ export default function Forums({ user }) {
       className="block"
       data-testid={`community-card-${index}`}
     >
-      <div className="village-card village-card-hover p-5 h-full border-l-4 border-l-primary/50">
+      <div className="village-card village-card-hover p-5 h-full">
         <div className="flex items-start gap-4">
           {/* Icon — image or emoji */}
           <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center text-2xl flex-shrink-0 overflow-hidden">
@@ -197,10 +197,10 @@ export default function Forums({ user }) {
               <h3 className="font-heading font-bold text-base text-foreground">{community.name}</h3>
               {community.is_private && <Lock className="h-3.5 w-3.5 text-muted-foreground" />}
               {community.community_subtype === "local" && (
-                <span className="text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">Local</span>
+                <span className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: "var(--clay-wash)", color: "var(--clay-deep)" }}>Local</span>
               )}
               {community.is_member && (
-                <span className="text-xs px-1.5 py-0.5 rounded-full bg-green-500/15 text-green-600 dark:text-green-400 font-medium flex items-center gap-1">
+                <span className="text-xs px-1.5 py-0.5 rounded-full font-medium flex items-center gap-1" style={{ background: "var(--sage-wash)", color: "var(--sage-deep)" }}>
                   <UserCheck className="h-3 w-3" />Joined
                 </span>
               )}
@@ -215,7 +215,7 @@ export default function Forums({ user }) {
             <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
               {community.created_by_name && (
                 <span className="flex items-center gap-1">
-                  <Crown className="h-3.5 w-3.5 text-amber-500" />{community.created_by_name}
+                  <Sparkles className="h-3.5 w-3.5" style={{ color: "hsl(var(--accent))" }} />{community.created_by_name}
                 </span>
               )}
               <span className="flex items-center gap-1">
@@ -229,11 +229,12 @@ export default function Forums({ user }) {
             {user && community.created_by !== user?.user_id && (
               <button
                 onClick={(e) => handleJoinLeave(e, community)}
-                className={`mt-3 w-full flex items-center justify-center gap-1.5 text-sm py-2 rounded-xl font-medium transition-colors ${
+                className={`mt-3 w-full flex items-center justify-center gap-1.5 text-sm py-2 rounded-xl font-medium transition-all ${
                   community.is_member
                     ? "bg-secondary text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                    : "bg-primary/10 text-primary hover:bg-primary/20"
+                    : ""
                 }`}
+                style={!community.is_member ? { background: "var(--paper-3)", color: "var(--ink-2)", border: "1px solid var(--line)" } : {}}
               >
                 {community.is_member
                   ? <><UserCheck className="h-4 w-4" />Leave community</>
@@ -300,13 +301,13 @@ export default function Forums({ user }) {
 
   // Age group sort order — youngest to oldest
   const AGE_ORDER = [
-    "Pregnancy & Expecting",
-    "Newborns",
-    "Babies",
-    "Toddlers",
-    "Preschool & Kinder",
-    "Primary School",
-    "Teenagers",
+"Pregnancy & Expecting",
+"Newborns",
+"Babies",
+"Toddlers",
+"Preschool & Kinder",
+"Primary School",
+"Teenagers",
   ];
   const sortByAge = (cats) =>
     [...cats].sort((a, b) => {
@@ -374,7 +375,7 @@ export default function Forums({ user }) {
     });
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
+    <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
       <Navigation user={user} />
 
       <main className="max-w-5xl mx-auto px-4 pt-16 lg:pt-8">
@@ -410,8 +411,8 @@ export default function Forums({ user }) {
           to="/chat"
           className="flex lg:hidden items-center gap-3 village-card village-card-hover px-4 py-3 mb-4 group"
         >
-          <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/20 transition-colors">
-            <MessageCircle className="h-4.5 w-4.5 text-primary" />
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors" style={{ background: "var(--paper-3)" }}>
+            <MessageCircle className="h-4.5 w-4.5" style={{ color: "var(--ink-2)" }} />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-foreground leading-tight">Chat Rooms</p>
@@ -423,63 +424,66 @@ export default function Forums({ user }) {
         {showCommunities ? (
           /* ── Communities standalone section ───────────────────────────── */
           <div className="w-full">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-sm text-muted-foreground">
-                {isPremium ? "Browse and join member-created communities" : "Village+ members can create and join communities"}
-              </p>
-              {isPremium && (
-                <Link to="/create-community">
-                  <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl" data-testid="create-community-btn">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Community
-                  </Button>
-                </Link>
-              )}
-            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              {isPremium ? "Browse and join member-created communities" : "Village+ members can create and join communities"}
+            </p>
 
-            {/* Search + Sort + Filter */}
+            {/* Search bar + Create Community */}
             {isPremium && !loading && (
-              <div className="flex flex-col sm:flex-row gap-2 mb-5">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <input
-                    value={communitySearch}
-                    onChange={e => setCommunitySearch(e.target.value)}
-                    placeholder="Search communities…"
-                    className="w-full pl-9 pr-3 py-2 text-sm rounded-xl bg-card border border-border/50 text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/40"
-                    style={{ height: 38 }}
-                  />
-                  {communitySearch && (
-                    <button onClick={() => setCommunitySearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  )}
+              <div className="space-y-3 mb-5">
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <input
+                      value={communitySearch}
+                      onChange={e => setCommunitySearch(e.target.value)}
+                      placeholder="Search communities…"
+                      className="w-full pl-9 pr-3 py-2 text-sm rounded-xl bg-card border border-border/50 text-foreground placeholder:text-muted-foreground outline-none focus:border-border"
+                      style={{ height: 38 }}
+                    />
+                    {communitySearch && (
+                      <button onClick={() => setCommunitySearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  <Link to="/create-community">
+                    <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl h-[38px]" data-testid="create-community-btn">
+                      <Plus className="h-4 w-4 mr-1.5" />
+                      Create
+                    </Button>
+                  </Link>
                 </div>
-                <div className="flex gap-1.5 flex-wrap sm:flex-nowrap">
-                  {[
-                    { id: "all",    label: "All" },
-                    { id: "local",  label: "📍 Local" },
-                    { id: "joined", label: "✓ Joined" },
-                    { id: "open",   label: "Open" },
-                  ].map(f => (
-                    <button key={f.id} onClick={() => setCommunityFilter(f.id)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${communityFilter === f.id ? "bg-primary text-primary-foreground" : "bg-card border border-border/50 text-muted-foreground hover:text-foreground"}`}
-                    >
-                      {f.label}
-                    </button>
-                  ))}
+
+                {/* Filter pills + sort — below search */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex gap-1.5 flex-wrap flex-1">
+                    {[
+                      { id: "all",    label: "All" },
+                      { id: "local",  label: "📍 Local" },
+                      { id: "joined", label: "✓ Joined" },
+                      { id: "open",   label: "Open" },
+                    ].map(f => (
+                      <button key={f.id} onClick={() => setCommunityFilter(f.id)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors border ${communityFilter === f.id ? "border-[var(--sage)]/30 sage-pill-active" : "border-transparent text-[var(--ink-3)] hover:text-[var(--ink)]"}`}
+                        style={communityFilter === f.id ? { background: "var(--sage-wash)", color: "var(--sage-deep)" } : {}}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                  <select
+                    value={communitySort}
+                    onChange={e => setCommunitySort(e.target.value)}
+                    className="px-3 py-1.5 rounded-xl text-xs font-medium bg-card border border-border/50 text-foreground outline-none cursor-pointer shrink-0"
+                    style={{ height: 32 }}
+                  >
+                    <option value="popular">Most popular</option>
+                    <option value="newest">Newest</option>
+                    <option value="members">Most members</option>
+                    <option value="posts">Most active</option>
+                  </select>
                 </div>
-                <select
-                  value={communitySort}
-                  onChange={e => setCommunitySort(e.target.value)}
-                  className="px-3 py-1.5 rounded-xl text-xs font-medium bg-card border border-border/50 text-foreground outline-none cursor-pointer"
-                  style={{ height: 38 }}
-                >
-                  <option value="popular">Most popular</option>
-                  <option value="newest">Newest</option>
-                  <option value="members">Most members</option>
-                  <option value="posts">Most active</option>
-                </select>
               </div>
             )}
 
@@ -498,8 +502,8 @@ export default function Forums({ user }) {
                     ))}
                   </div>
                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/80 backdrop-blur-[2px] p-8 text-center">
-                    <div className="w-14 h-14 rounded-full bg-amber-500/10 flex items-center justify-center mb-4">
-                      <Crown className="h-7 w-7 text-amber-500" />
+                    <div className="w-14 h-14 rounded-full bg-[var(--paper-3)] flex items-center justify-center mb-4">
+                      <Sparkles className="h-7 w-7" style={{ color: "hsl(var(--accent))" }} />
                     </div>
                     <h3 className="font-heading font-bold text-xl text-foreground mb-2">Communities are a Village+ feature</h3>
                     <p className="text-sm text-muted-foreground mb-1 max-w-sm">
@@ -508,7 +512,7 @@ export default function Forums({ user }) {
                     <p className="text-xs text-muted-foreground mb-6">Free members can browse Spaces and Group Chats.</p>
                     <Link to="/plus">
                       <Button className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-8">
-                        <Crown className="h-4 w-4 mr-2" />
+                        <Sparkles className="h-4 w-4 mr-2" style={{ color: "hsl(var(--accent))" }} />
                         Upgrade to Village+
                       </Button>
                     </Link>
@@ -538,38 +542,49 @@ export default function Forums({ user }) {
                   className="mt-3 text-xs text-primary underline underline-offset-2">Clear filters</button>
               </div>
             ) : (() => {
-              const myCommunities = filteredCommunities.filter(c => c.created_by === user?.user_id);
-              const otherCommunities = filteredCommunities.filter(c => c.created_by !== user?.user_id);
+              const myCommunities    = filteredCommunities.filter(c => c.is_member);
+              const otherCommunities = filteredCommunities.filter(c => !c.is_member);
               return (
                 <>
                   {(communitySearch || communityFilter !== "all") && (
-                    <p className="text-xs text-muted-foreground mb-3">
+                    <p className="text-xs mb-3" style={{ color: "var(--ink-3)" }}>
                       {filteredCommunities.length} of {communities.length} communities
                     </p>
                   )}
-                  {/* Your Communities section */}
-                  {myCommunities.length > 0 && (
-                    <div className="mb-6">
-                      <h3 className="font-heading font-semibold text-sm text-foreground mb-3 flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-primary inline-block" />
-                        Your Communities
-                      </h3>
+
+                  {/* My Communities */}
+                  {myCommunities.length > 0 ? (
+                    <div className="mb-8">
+                      <div className="flex items-center gap-2 mb-3">
+                        <h3 className="font-heading font-semibold text-sm" style={{ color: "var(--ink)" }}>My Communities</h3>
+                        <span className="text-[11px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: "var(--sage-wash)", color: "var(--sage-deep)" }}>
+                          {myCommunities.length}
+                        </span>
+                      </div>
                       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {myCommunities.map((community, idx) => (
                           <CommunityCard key={community.category_id} community={community} index={idx} />
                         ))}
                       </div>
                     </div>
-                  )}
-                  {/* All other communities */}
+                  ) : !communitySearch && communityFilter === "all" ? (
+                    <div className="mb-8 rounded-2xl p-5 text-center" style={{ background: "var(--paper-3)", border: "1px solid var(--line)" }}>
+                      <p className="text-sm font-medium mb-1" style={{ color: "var(--ink)" }}>You haven't joined any communities yet</p>
+                      <p className="text-xs" style={{ color: "var(--ink-3)" }}>Browse below and join one to get started.</p>
+                    </div>
+                  ) : null}
+
+                  {/* Discover other communities */}
                   {otherCommunities.length > 0 && (
                     <div>
-                      {myCommunities.length > 0 && (
-                        <h3 className="font-heading font-semibold text-sm text-foreground mb-3 flex items-center gap-2">
-                          <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 inline-block" />
-                          All Communities
+                      <div className="flex items-center gap-2 mb-3">
+                        <h3 className="font-heading font-semibold text-sm" style={{ color: "var(--ink)" }}>
+                          {myCommunities.length > 0 ? "Discover More" : "All Communities"}
                         </h3>
-                      )}
+                        <span className="text-[11px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: "var(--paper-2)", color: "var(--ink-3)", border: "1px solid var(--line)" }}>
+                          {otherCommunities.length}
+                        </span>
+                      </div>
                       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {otherCommunities.map((community, idx) => (
                           <CommunityCard key={community.category_id} community={community} index={idx} />
@@ -584,17 +599,17 @@ export default function Forums({ user }) {
         ) : (
           /* ── Spaces: By Topic + By Age Group ─────────────────────────── */
           <Tabs defaultValue={defaultTab} onValueChange={(v) => setSearchParams({ tab: v }, { replace: true })} className="w-full">
-            <TabsList className="w-full bg-card border border-border/50 rounded-xl p-1 mb-6">
+            <TabsList className="w-full rounded-xl p-1 mb-6" style={{ background: "var(--paper-3)", border: "1px solid var(--line)" }}>
               <TabsTrigger
                 value="topics"
-                className="flex-1 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                className="flex-1 rounded-lg data-[state=active]:bg-[var(--ink)] data-[state=active]:text-[var(--paper)] data-[state=active]:shadow-sm"
                 data-testid="tab-topics"
               >
                 By Topic
               </TabsTrigger>
               <TabsTrigger
                 value="age"
-                className="flex-1 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                className="flex-1 rounded-lg data-[state=active]:bg-[var(--ink)] data-[state=active]:text-[var(--paper)] data-[state=active]:shadow-sm"
                 data-testid="tab-age"
               >
                 By Age Group
@@ -610,11 +625,12 @@ export default function Forums({ user }) {
                     <button
                       key={f.id}
                       onClick={() => setTopicFilter(f.id)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors border ${
                         topicFilter === f.id
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-card border border-border/50 text-muted-foreground hover:text-foreground hover:border-primary/30"
+                          ? "border-[var(--sage)]/30 sage-pill-active"
+                          : "border-transparent text-[var(--ink-3)] hover:text-[var(--ink)]"
                       }`}
+                      style={topicFilter === f.id ? { background: "var(--sage-wash)", color: "var(--sage-deep)" } : {}}
                     >
                       {f.label}
                     </button>
@@ -634,7 +650,7 @@ export default function Forums({ user }) {
                   {/* Featured gender-specific spaces — only shown when filter is "all" or matches */}
                   {topicFilter === "all" && (() => {
                     const mumSpace = liveGender === "female" ? topicCategories.find(isMum) : null;
-                    const dadSpace = liveGender === "male"   ? topicCategories.find(isDad) : null;
+                    const dadSpace = liveGender === "male"? topicCategories.find(isDad) : null;
                     if (!mumSpace && !dadSpace) return null;
                     const isSingle = !mumSpace || !dadSpace;
                     return (
@@ -698,11 +714,12 @@ export default function Forums({ user }) {
                     <button
                       key={f.id}
                       onClick={() => setAgeFilter(f.id)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors border ${
                         ageFilter === f.id
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-card border border-border/50 text-muted-foreground hover:text-foreground hover:border-primary/30"
+                          ? "border-[var(--sage)]/30 sage-pill-active"
+                          : "border-transparent text-[var(--ink-3)] hover:text-[var(--ink)]"
                       }`}
+                      style={ageFilter === f.id ? { background: "var(--sage-wash)", color: "var(--sage-deep)" } : {}}
                     >
                       {f.label}
                     </button>

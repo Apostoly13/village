@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+﻿import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -42,16 +42,6 @@ const AUTO_INTERESTS = {
 
 const TOTAL_STEPS = 5;
 
-function ProgressBar({ step }) {
-  return (
-    <div className="w-full bg-secondary/50 rounded-full h-1.5">
-      <div
-        className="bg-primary h-1.5 rounded-full transition-all duration-500"
-        style={{ width: `${(step / TOTAL_STEPS) * 100}%` }}
-      />
-    </div>
-  );
-}
 
 export default function Onboarding({ user }) {
   const [saving, setSaving] = useState(false);
@@ -183,11 +173,15 @@ export default function Onboarding({ user }) {
     <div className="min-h-screen bg-background">
 
       {/* ── Header / progress ─────────────────────────────────────────────────── */}
-      <div className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-sm border-b border-border/30 px-4 py-3">
+      <div className="fixed top-0 left-0 right-0 z-50 backdrop-blur-sm border-b px-4 py-3" style={{ background: "var(--paper)", borderColor: "var(--line-2)" }}>
         <div className="max-w-2xl mx-auto flex items-center gap-4">
           <img src="/BG Removed- Main Logo.png" alt="The Village" className="h-16 w-auto shrink-0" />
-          <div className="flex-1"><ProgressBar step={step} /></div>
-          <span className="text-xs text-muted-foreground shrink-0">{step}/{TOTAL_STEPS}</span>
+          <span
+            className="font-heading text-sm tracking-wide"
+            style={{ color: "var(--ink-3)" }}
+          >
+            {String(step).padStart(2, "0")} / {String(TOTAL_STEPS).padStart(2, "0")}
+          </span>
         </div>
       </div>
 
@@ -208,7 +202,7 @@ export default function Onboarding({ user }) {
                 up at 3am, or just need someone who gets it.
               </p>
 
-              <div className="flex items-center gap-3 bg-primary/10 border border-primary/20 rounded-2xl p-4 mb-8 max-w-md mx-auto text-left">
+              <div className="flex items-center gap-3 bg-[var(--paper-3)] border border-[var(--line)] rounded-2xl p-4 mb-8 max-w-md mx-auto text-left">
                 <EyeOff className="h-5 w-5 text-primary shrink-0" />
                 <div>
                   <p className="text-sm font-medium text-foreground">You control your privacy</p>
@@ -256,7 +250,7 @@ export default function Onboarding({ user }) {
                     value={nickname}
                     onChange={e => setNickname(e.target.value)}
                     placeholder="What should we call you?"
-                    className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
+                    className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-[var(--line-2)]"
                   />
                 </div>
 
@@ -270,8 +264,8 @@ export default function Onboarding({ user }) {
                         onClick={() => setParentingStage(stage.id)}
                         className={`rounded-xl p-3 text-left border-2 transition-all ${
                           parentingStage === stage.id
-                            ? "border-primary bg-primary/10"
-                            : "border-border/50 bg-card hover:border-primary/40"
+                            ? "border-[var(--sage)] bg-[var(--paper-3)]"
+                            : "border-border/50 bg-card hover:border-border"
                         }`}
                       >
                         <span className="text-xl block mb-1">{stage.emoji}</span>
@@ -284,7 +278,7 @@ export default function Onboarding({ user }) {
 
                 {/* Mixed / multiples sub-picker */}
                 {(parentingStage === "mixed" || parentingStage === "multiples") && (
-                  <div className="space-y-2 pl-1 border-l-2 border-primary/30 ml-1">
+                  <div className="space-y-2 pl-1 border-l-2 border-[var(--line)] ml-1">
                     <Label className="text-foreground font-medium text-sm">
                       {parentingStage === "multiples" ? "How old are your multiples?" : "Which age groups?"}
                       <span className="text-muted-foreground font-normal"> (select all that apply)</span>
@@ -297,7 +291,7 @@ export default function Onboarding({ user }) {
                             key={stage.id}
                             onClick={() => toggleMixedAgeGroup(stage.id)}
                             className={`rounded-xl p-2.5 text-left border-2 transition-all flex items-center gap-2 ${
-                              active ? "border-primary bg-primary/10" : "border-border/50 bg-card hover:border-primary/40"
+                              active ? "border-[var(--sage)] bg-[var(--paper-3)]" : "border-border/50 bg-card hover:border-border"
                             }`}
                           >
                             <span className="text-lg">{stage.emoji}</span>
@@ -314,7 +308,7 @@ export default function Onboarding({ user }) {
                       <button
                         onClick={() => setIsMultipleBirth(p => !p)}
                         className={`w-full rounded-xl px-3 py-2.5 border-2 flex items-center gap-3 transition-all text-left ${
-                          isMultipleBirth ? "border-primary bg-primary/10" : "border-border/50 bg-card hover:border-primary/40"
+                          isMultipleBirth ? "border-[var(--sage)] bg-[var(--paper-3)]" : "border-border/50 bg-card hover:border-border"
                         }`}
                       >
                         <span className="text-base">👶👶</span>
@@ -336,7 +330,7 @@ export default function Onboarding({ user }) {
                         key={opt.id}
                         onClick={() => setGender(gender === opt.id ? "" : opt.id)}
                         className={`rounded-xl p-3 text-center border-2 flex flex-col items-center gap-1 transition-all ${
-                          gender === opt.id ? "border-primary bg-primary/10" : "border-border/50 bg-card hover:border-primary/40"
+                          gender === opt.id ? "border-[var(--sage)] bg-[var(--paper-3)]" : "border-border/50 bg-card hover:border-border"
                         }`}
                       >
                         <span className="text-xl">{opt.emoji}</span>
@@ -351,11 +345,11 @@ export default function Onboarding({ user }) {
                 <button
                   onClick={() => setIsSingleParent(p => !p)}
                   className={`w-full rounded-xl p-4 border-2 flex items-center gap-3 transition-all text-left ${
-                    isSingleParent ? "border-primary bg-primary/10" : "border-border/50 bg-card hover:border-primary/40"
+                    isSingleParent ? "border-[var(--sage)] bg-[var(--paper-3)]" : "border-border/50 bg-card hover:border-border"
                   }`}
                 >
                   <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                    isSingleParent ? "border-primary bg-primary" : "border-border"
+                    isSingleParent ? "border-[var(--ink)] bg-[var(--ink)]" : "border-border"
                   }`}>
                     {isSingleParent && <Check className="h-3 w-3 text-primary-foreground" />}
                   </div>
@@ -399,7 +393,7 @@ export default function Onboarding({ user }) {
                     value={locationSearch}
                     onChange={e => searchLocation(e.target.value)}
                     placeholder="e.g. Bondi, 2026, Fitzroy..."
-                    className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
+                    className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-[var(--line-2)]"
                     autoComplete="off"
                   />
                   {searchingLocation && <p className="text-xs text-muted-foreground px-1 mt-1">Searching...</p>}
@@ -437,8 +431,8 @@ export default function Onboarding({ user }) {
                         onClick={() => setSelectedState(s)}
                         className={`rounded-xl py-2.5 text-sm font-medium border-2 transition-all ${
                           selectedState === s
-                            ? "border-primary bg-primary/10 text-primary"
-                            : "border-border/50 bg-card hover:border-primary/40 text-foreground"
+                            ? "border-[var(--sage)] bg-[var(--paper-3)] text-primary"
+                            : "border-border/50 bg-card hover:border-border text-foreground"
                         }`}
                       >
                         {s}
@@ -482,8 +476,8 @@ export default function Onboarding({ user }) {
                     onClick={() => setImmediateNeed(id)}
                     className={`w-full rounded-2xl p-5 text-left border-2 flex items-start gap-4 transition-all ${
                       immediateNeed === id
-                        ? "border-primary bg-primary/10"
-                        : "border-border/50 bg-card hover:border-primary/40"
+                        ? "border-[var(--sage)] bg-[var(--paper-3)]"
+                        : "border-border/50 bg-card hover:border-border"
                     }`}
                   >
                     <span className="text-3xl shrink-0">{emoji}</span>
@@ -521,11 +515,11 @@ export default function Onboarding({ user }) {
                     </p>
                     <div className="space-y-2">
                       {[
-                        "Spaces — topic-based discussions",
-                        "Group Chats — real-time local and national",
-                        "Events — find and RSVP to local meetups",
-                        "Private Messaging — 1:1 with other parents",
-                        "Communities — member-led groups",
+"Spaces — topic-based discussions",
+"Group Chats — real-time local and national",
+"Events — find and RSVP to local meetups",
+"Private Messaging — 1:1 with other parents",
+"Communities — member-led groups",
                       ].map(item => (
                         <div key={item} className="flex items-center gap-2 text-sm text-foreground">
                           <Check className="h-4 w-4 text-green-500 shrink-0" />
@@ -544,9 +538,9 @@ export default function Onboarding({ user }) {
                     </div>
                     <div className="space-y-2 mb-4">
                       {[
-                        "Spaces — topic-based discussions",
-                        "Group Chats — real-time local and national",
-                        "Post, reply, and react — no weekly cap on chats",
+"Spaces — topic-based discussions",
+"Group Chats — real-time local and national",
+"Post, reply, and react — no weekly cap on chats",
                       ].map(item => (
                         <div key={item} className="flex items-center gap-2 text-sm text-foreground">
                           <Check className="h-4 w-4 text-green-500 shrink-0" />
@@ -569,10 +563,10 @@ export default function Onboarding({ user }) {
                     </div>
                     <div className="space-y-2">
                       {[
-                        "Spaces, Group Chats, Events",
-                        "Private Messaging",
-                        "Communities",
-                        "Everything we add in the future",
+"Spaces, Group Chats, Events",
+"Private Messaging",
+"Communities",
+"Everything we add in the future",
                       ].map(item => (
                         <div key={item} className="flex items-center gap-2 text-sm text-foreground">
                           <Check className="h-4 w-4 text-green-500 shrink-0" />

@@ -1,11 +1,12 @@
-import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import Navigation from "../components/Navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Send, Users, Crown, Bookmark, ArrowRight, Flag } from "lucide-react";
+import { ArrowLeft, Users, Sparkles, Bookmark, ArrowRight, ShieldCheck } from "lucide-react";
+import { SendIcon, ReportIcon } from "../components/village/VillageLineIcons";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../components/ui/dialog";
 import { Label } from "../components/ui/label";
 import { Textarea } from "../components/ui/textarea";
@@ -80,14 +81,16 @@ export default function ChatRoom({ user }) {
   // (i.e. don't yank them down while they're reading history)
   useEffect(() => {
     if (isAtBottom.current) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      const el = scrollAreaRef.current;
+      if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
     }
   }, [messages]);
 
   // Force-scroll on room change — always land at the bottom of a new conversation
   useEffect(() => {
     isAtBottom.current = true;
-    messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
+    const el = scrollAreaRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [roomId]);
 
   const handleScroll = () => {
@@ -161,7 +164,8 @@ export default function ChatRoom({ user }) {
   };
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = scrollAreaRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   };
 
   // Start a per-second countdown after sending so the button stays disabled
@@ -353,18 +357,18 @@ export default function ChatRoom({ user }) {
           {room.room_type === "friends_only" ? (
             <div className="flex items-center gap-3">
               <div className="relative">
-                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-semibold text-primary overflow-hidden">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold overflow-hidden" style={{ background: "var(--paper-2)", color: "var(--ink-2)" }}>
                   {friendProfile?.picture
                     ? <img src={friendProfile.picture} alt="" className="w-full h-full object-cover" />
                     : (friendProfile?.nickname || friendProfile?.name || "💬")?.[0]?.toUpperCase()}
                 </div>
-                <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-card ${friendProfile?.is_online ? "bg-green-500" : "bg-muted-foreground/40"}`} />
+                <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-card ${friendProfile?.is_online ? "" : "bg-muted-foreground/40"}`} style={friendProfile?.is_online ? { background: "var(--status-online)" } : {}} />
               </div>
               <div>
                 <h1 className="font-heading font-bold text-xl text-foreground">
                   {friendProfile ? (friendProfile.nickname || friendProfile.name) : "Private Chat"}
                 </h1>
-                <p className={`text-sm flex items-center gap-1 ${friendProfile?.is_online ? "text-green-500" : "text-muted-foreground"}`}>
+                <p className="text-sm flex items-center gap-1 text-muted-foreground" style={friendProfile?.is_online ? { color: "var(--status-online)" } : {}}>
                   {friendProfile?.is_online ? "Active now" : "Private chat"}
                 </p>
               </div>
@@ -382,7 +386,7 @@ export default function ChatRoom({ user }) {
 
         {/* Gender restriction banner */}
         {room.is_gender_restricted && !room.user_can_access && (
-          <div className="mb-4 p-4 bg-amber-500/10 border border-amber-500/30 rounded-[18px] flex items-center gap-3">
+          <div className="mb-4 p-4 rounded-[18px] flex items-center gap-3" style={{ background: "var(--honey-wash)", borderColor: "rgba(245,197,66,0.3)", border: "1px solid rgba(245,197,66,0.3)" }}>
             <span className="text-2xl">{room.icon}</span>
             <div>
               <p className="font-medium text-foreground text-sm">This space is for {room.gender_restriction === "female" ? "mums" : "dads"} only</p>
@@ -423,7 +427,7 @@ export default function ChatRoom({ user }) {
                         <Link to={`/profile/${msg.author_id}`} className="flex-shrink-0">
                           <Avatar className="h-8 w-8 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
                             <AvatarImage src={msg.author_picture} />
-                            <AvatarFallback className="bg-primary/20 text-primary text-sm">
+                            <AvatarFallback className="text-sm">
                               {msg.author_name?.[0]?.toUpperCase() || '?'}
                             </AvatarFallback>
                           </Avatar>
@@ -432,9 +436,15 @@ export default function ChatRoom({ user }) {
                       <div className="min-w-0">
                         {!isOwnMessage(msg) && (
                           <Link to={`/profile/${msg.author_id}`} className="hover:underline">
-                            <p className="text-xs text-muted-foreground mb-1 ml-1 cursor-pointer hover:text-primary transition-colors flex items-center gap-1">
+                            <p className="text-xs mb-1 ml-1 cursor-pointer transition-colors flex items-center gap-1.5" style={{ color: "var(--ink-3)" }}>
                               {msg.author_name}
-                              {msg.author_subscription_tier === "premium" && <Crown className="h-3 w-3 text-amber-500" />}
+                              {msg.author_verified_professional && (
+                                <span className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide" style={{ background: "var(--dusk-wash)", color: "var(--dusk)", border: "1px solid rgba(141,122,168,0.3)" }}>
+                                  <ShieldCheck className="h-2.5 w-2.5" />
+                                  {msg.author_professional_type || "Professional"}
+                                </span>
+                              )}
+                              {!msg.author_verified_professional && msg.author_subscription_tier === "premium" && <Sparkles className="h-3 w-3" style={{ color: "hsl(var(--accent))" }} />}
                             </p>
                           </Link>
                         )}
@@ -443,7 +453,9 @@ export default function ChatRoom({ user }) {
                             className="rounded-2xl px-4 py-2 shadow-sm"
                             style={isOwnMessage(msg)
                               ? { background: "hsl(var(--accent))", color: "var(--tv-primary-fg, #f7f2e9)" }
-                              : { background: "var(--paper-2)", border: "1px solid var(--line)", color: "var(--ink)" }
+                              : msg.author_verified_professional
+                                ? { background: "var(--dusk-wash)", border: "1px solid rgba(141,122,168,0.3)", color: "var(--ink)" }
+                                : { background: "var(--paper-2)", border: "1px solid var(--line)", color: "var(--ink)" }
                             }
                           >
                             <p className="text-sm break-all whitespace-pre-wrap">{msg.content}</p>
@@ -463,7 +475,7 @@ export default function ChatRoom({ user }) {
                               className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg hover:bg-muted flex-shrink-0 text-muted-foreground hover:text-destructive"
                               title="Report message"
                             >
-                              <Flag className="h-3.5 w-3.5" />
+                              <ReportIcon size={14} />
                             </button>
                           )}
                         </div>
@@ -482,13 +494,13 @@ export default function ChatRoom({ user }) {
           {/* Message Input — shrink-0 keeps it pinned to the bottom of the card */}
           {room.room_type !== "friends_only" && subscription?.limits_apply && subscription?.chat_messages && !subscription.chat_messages.allowed ? (
             <div className="shrink-0 p-4 border-t border-border/50">
-              <Link to="/plus" className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/15 transition-colors group">
-                <Crown className="h-5 w-5 text-amber-500 flex-shrink-0" />
+              <Link to="/plus" className="flex items-center gap-3 p-3 rounded-xl border hover:bg-amber-500/15 transition-colors group" style={{ background: "var(--honey-wash)", borderColor: "rgba(245,197,66,0.3)" }}>
+                <Sparkles className="h-5 w-5 flex-shrink-0" style={{ color: "hsl(var(--accent))" }} />
                 <div className="flex-1">
                   <p className="font-medium text-foreground text-sm">Daily message limit reached</p>
                   <p className="text-xs text-muted-foreground">Upgrade to Village+ for unlimited chat</p>
                 </div>
-                <ArrowRight className="h-4 w-4 text-amber-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "hsl(var(--accent))" }} />
               </Link>
             </div>
           ) : (
@@ -522,7 +534,7 @@ export default function ChatRoom({ user }) {
                 >
                   {cooldown > 0
                     ? <span className="text-xs font-semibold leading-none">{cooldown}</span>
-                    : <Send className="h-4 w-4" />
+                    : <SendIcon size={16} />
                   }
                 </Button>
               </div>

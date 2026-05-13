@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { parseApiError } from "../utils/apiError";
 import { Button } from "../components/ui/button";
@@ -13,7 +13,7 @@ import Navigation from "../components/Navigation";
 import LocationButton from "../components/LocationButton";
 import { ThemeToggle } from "../useTheme";
 import { toast } from "sonner";
-import { ArrowLeft, Edit2, MessageCircle, Save, X, Heart, UserPlus, UserCheck, Clock, Users, ChevronRight, MapPin, Bell, Camera, Search, AlertCircle, Crown, Shield, Handshake, Stethoscope, Ban, Moon, Sun, ChevronDown } from "lucide-react";
+import { ArrowLeft, Edit2, MessageCircle, Save, X, Heart, UserPlus, UserCheck, Clock, Users, ChevronRight, MapPin, Bell, Camera, Search, AlertCircle, Sparkles, Shield, Handshake, Stethoscope, Ban, Moon, Sun, ChevronDown } from "lucide-react";
 import AppFooter from "../components/AppFooter";
 
 // Collapsible accordion section — works on all screen sizes
@@ -57,9 +57,9 @@ const PRO_TYPE_LABELS = {
   other: "Health Professional",
 };
 const INTEREST_OPTIONS = [
-  "Sleep & Settling", "Feeding", "Toddler Activities", "School Age",
-  "Mental Health", "Dad Talk", "Mum Talk", "Local Events",
-  "Recipes & Nutrition", "Development Milestones", "Raising Multiples"
+"Sleep & Settling", "Feeding", "Toddler Activities", "School Age",
+"Mental Health", "Dad Talk", "Mum Talk", "Local Events",
+"Recipes & Nutrition", "Development Milestones", "Raising Multiples"
 ];
 const DISTANCE_OPTIONS = [
   { id: "2km", label: "Super Local (2km)" },
@@ -411,14 +411,14 @@ function ProfilePage({ user }) {
     // Map full state name to abbreviation
     if (location.state) {
       const stateMap = {
-        "New South Wales": "NSW",
-        "Victoria": "VIC",
-        "Queensland": "QLD",
-        "Western Australia": "WA",
-        "South Australia": "SA",
-        "Tasmania": "TAS",
-        "Australian Capital Territory": "ACT",
-        "Northern Territory": "NT"
+"New South Wales": "NSW",
+"Victoria": "VIC",
+"Queensland": "QLD",
+"Western Australia": "WA",
+"South Australia": "SA",
+"Tasmania": "TAS",
+"Australian Capital Territory": "ACT",
+"Northern Territory": "NT"
       };
       setState(stateMap[location.state] || state);
     }
@@ -541,7 +541,7 @@ function ProfilePage({ user }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
+      <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
         <Navigation user={user} />
         <main className="max-w-2xl mx-auto px-4 pt-16 lg:pt-8">
           <div className="animate-pulse space-y-6">
@@ -560,7 +560,7 @@ function ProfilePage({ user }) {
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
+      <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
         <Navigation user={user} />
         <main className="max-w-2xl mx-auto px-4 pt-16 lg:pt-8 text-center">
           <h1 className="font-heading text-2xl font-bold text-foreground">Profile not found</h1>
@@ -646,7 +646,7 @@ function ProfilePage({ user }) {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
+    <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
       <Navigation user={user} />
       
       <main className="max-w-2xl mx-auto px-4 pt-16 lg:pt-8">
@@ -677,13 +677,13 @@ function ProfilePage({ user }) {
           </div>
         )}
 
-        <div className="village-card p-6 border-l-2 border-l-primary/20 mb-6">
+        <div className="village-card p-6 mb-6">
           <div className="flex items-start justify-between mb-6">
             <div className="flex items-center gap-4">
               <div className="relative">
                 <Avatar className="h-20 w-20">
                   <AvatarImage src={editing ? (picture || profile.picture) : profile.picture} />
-                  <AvatarFallback className="bg-primary/20 text-primary text-2xl">
+                  <AvatarFallback className="text-2xl">
                     {avatarInitial}
                   </AvatarFallback>
                 </Avatar>
@@ -716,9 +716,9 @@ function ProfilePage({ user }) {
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="font-heading text-2xl font-bold text-foreground">{displayName}</h1>
                   {profile.subscription_tier === "premium" && (
-                    <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20" data-testid="premium-badge">
-                      <Crown className="h-3 w-3 mr-1" />
-                      Premium
+                    <Badge variant="secondary" className="border" style={{ background: "hsl(var(--accent)/0.1)", color: "hsl(var(--accent))", borderColor: "hsl(var(--accent)/0.2)" }} data-testid="premium-badge">
+                      <Sparkles className="h-3 w-3 mr-1" style={{ color: "hsl(var(--accent))" }} />
+                      Village+
                     </Badge>
                   )}
                   {hasNightOwlBadge() && (
@@ -816,7 +816,7 @@ function ProfilePage({ user }) {
                     value={nickname}
                     onChange={(e) => setNickname(e.target.value)}
                     placeholder="How should we call you?"
-                    className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
+                    className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-[var(--line-2)]"
                     data-testid="nickname-input"
                   />
                   <p className="text-xs text-muted-foreground">This is how other members see you. Your real name stays private unless you choose to share it.</p>
@@ -825,7 +825,7 @@ function ProfilePage({ user }) {
                 {/* Show full name toggle */}
                 <div
                   className={`flex items-center justify-between p-3 rounded-xl border-2 cursor-pointer transition-all ${
-                    showFullName ? "border-primary/30 bg-primary/5" : "border-border/40 bg-secondary/30"
+                    showFullName ? "border-[var(--line)] bg-[var(--paper-3)]" : "border-border/40 bg-secondary/30"
                   }`}
                   onClick={() => setShowFullName(p => !p)}
                 >
@@ -851,7 +851,7 @@ function ProfilePage({ user }) {
                     value={bio}
                     onChange={(e) => setBio(e.target.value.slice(0, 300))}
                     placeholder="Tell other parents about yourself..."
-                    className="min-h-[100px] rounded-xl bg-secondary/50 border-transparent focus:border-primary resize-none"
+                    className="min-h-[100px] rounded-xl bg-secondary/50 border-transparent focus:border-[var(--line-2)] resize-none"
                     data-testid="bio-input"
                     maxLength={300}
                   />
@@ -880,8 +880,8 @@ function ProfilePage({ user }) {
                         onClick={() => setParentingStage(stage.id)}
                         className={`rounded-xl py-2.5 px-2 text-center border-2 transition-all ${
                           parentingStage === stage.id
-                            ? "border-primary bg-primary/10"
-                            : "border-border/50 bg-secondary/30 hover:border-primary/40"
+                            ? "border-[var(--sage)] bg-[var(--paper-3)]"
+                            : "border-border/50 bg-secondary/30 hover:border-border"
                         }`}
                       >
                         <span className="text-lg block">{stage.emoji}</span>
@@ -893,7 +893,7 @@ function ProfilePage({ user }) {
 
                 {/* Mixed / Multiples age group sub-selection */}
                 {(parentingStage === "mixed" || parentingStage === "multiples") && (
-                  <div className="space-y-2 pl-3 border-l-2 border-primary/30">
+                  <div className="space-y-2 pl-3 border-l-2 border-[var(--line)]">
                     <Label className="text-foreground text-sm">
                       {parentingStage === "multiples" ? "How old are your multiples?" : "Which age groups do you have?"}{" "}
                       <span className="text-muted-foreground font-normal">(select all that apply)</span>
@@ -916,7 +916,7 @@ function ProfilePage({ user }) {
                               prev.includes(stage.id) ? prev.filter(g => g !== stage.id) : [...prev, stage.id]
                             )}
                             className={`rounded-xl py-2.5 px-2 text-center border-2 transition-all ${
-                              active ? "border-primary bg-primary/10" : "border-border/50 bg-secondary/30 hover:border-primary/40"
+                              active ? "border-[var(--sage)] bg-[var(--paper-3)]" : "border-border/50 bg-secondary/30 hover:border-border"
                             }`}
                           >
                             <span className="text-base block">{stage.emoji}</span>
@@ -931,7 +931,7 @@ function ProfilePage({ user }) {
                         type="button"
                         onClick={() => setIsMultipleBirth(p => !p)}
                         className={`w-full rounded-xl px-3 py-2.5 border-2 flex items-center gap-3 transition-all text-left ${
-                          isMultipleBirth ? "border-primary bg-primary/10" : "border-border/50 bg-secondary/30 hover:border-primary/40"
+                          isMultipleBirth ? "border-[var(--sage)] bg-[var(--paper-3)]" : "border-border/50 bg-secondary/30 hover:border-border"
                         }`}
                       >
                         <span className="text-base">👶👶</span>
@@ -969,7 +969,7 @@ function ProfilePage({ user }) {
                       searchLocation(e.target.value);
                     }}
                     placeholder="Suburb or postcode — e.g. Bondi, 2026"
-                    className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
+                    className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-[var(--line-2)]"
                     autoComplete="off"
                     data-testid="location-input"
                   />
@@ -1020,7 +1020,7 @@ function ProfilePage({ user }) {
                 {/* Show location on profile toggle */}
                 <div
                   className={`flex items-center justify-between p-3 rounded-xl border-2 cursor-pointer transition-all ${
-                    showLocationOnProfile ? "border-primary/30 bg-primary/5" : "border-border/40 bg-secondary/30"
+                    showLocationOnProfile ? "border-[var(--line)] bg-[var(--paper-3)]" : "border-border/40 bg-secondary/30"
                   }`}
                   onClick={() => setShowLocationOnProfile(p => !p)}
                 >
@@ -1090,24 +1090,6 @@ function ProfilePage({ user }) {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-foreground">I want to connect with</Label>
-                  <Select value={connectWith} onValueChange={setConnectWith}>
-                    <SelectTrigger className="h-12 rounded-xl bg-secondary/50 border-transparent" data-testid="connect-with-select">
-                      <SelectValue placeholder="Select preference" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-card border-border/50">
-                      {connectWithOptions.map((opt) => (
-                        <SelectItem key={opt.id} value={opt.id}>
-                          {opt.text}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    This helps filter who you see in chat rooms and can message you
-                  </p>
-                </div>
               </ProfileSection>
 
               {/* Interests */}
@@ -1124,8 +1106,8 @@ function ProfilePage({ user }) {
                         )}
                         className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
                           interests.includes(interest)
-                            ? "bg-primary text-primary-foreground border-primary"
-                            : "border-border/50 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                            ? "bg-primary text-primary-foreground border-[var(--sage)]"
+                            : "border-border/50 text-muted-foreground hover:border-border hover:text-foreground"
                         }`}
                       >
                         {interest}
@@ -1160,17 +1142,6 @@ function ProfilePage({ user }) {
                       id="notify-friends"
                       checked={emailPrefs.notify_friend_requests}
                       onCheckedChange={(checked) => setEmailPrefs(prev => ({ ...prev, notify_friend_requests: checked }))}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="notify-digest" className="text-sm text-foreground cursor-pointer">Weekly digest</Label>
-                      <p className="text-xs text-muted-foreground">Summary of activity in your community</p>
-                    </div>
-                    <Switch
-                      id="notify-digest"
-                      checked={emailPrefs.weekly_digest}
-                      onCheckedChange={(checked) => setEmailPrefs(prev => ({ ...prev, weekly_digest: checked }))}
                     />
                   </div>
                 </div>
@@ -1265,9 +1236,6 @@ function ProfilePage({ user }) {
                 const chips = [];
                 if (profile.parenting_stage) chips.push(STAGE_LABELS[profile.parenting_stage] || profile.parenting_stage);
                 if (profile.is_single_parent) chips.push("❤️ Single Parent");
-                if (profile.connect_with && profile.connect_with !== "all") {
-                  chips.push(`🤝 Connects with ${connectWithOptions.find(o => o.id === profile.connect_with)?.text || profile.connect_with}`);
-                }
                 return chips.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {chips.map(c => (
@@ -1283,7 +1251,7 @@ function ProfilePage({ user }) {
                   <p className="text-sm font-medium text-muted-foreground mb-2">Interests</p>
                   <div className="flex flex-wrap gap-1.5">
                     {profile.interests.map(interest => (
-                      <span key={interest} className="text-xs px-2.5 py-1 rounded-full bg-primary/8 border border-primary/20 text-primary/80">{interest}</span>
+                      <span key={interest} className="text-xs px-2.5 py-1 rounded-full bg-[var(--paper-3)] border border-[var(--line)] text-[var(--ink-2)]">{interest}</span>
                     ))}
                   </div>
                 </div>
@@ -1293,7 +1261,7 @@ function ProfilePage({ user }) {
         </div>
 
         {/* Trust Badges */}
-        <div className="village-card p-6 border-l-2 border-l-primary/20 mb-6">
+        <div className="village-card p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-heading font-bold text-lg text-foreground flex items-center gap-2">
               <Shield className="h-5 w-5 text-primary" />
@@ -1326,6 +1294,60 @@ function ProfilePage({ user }) {
                 label: "Verified Professional",
                 desc: "Healthcare or childcare professional",
               },
+              {
+                key: "first_post_badge",
+                icon: "🌱",
+                label: "First Post",
+                desc: "Shared your first post with the community",
+              },
+              {
+                key: "conversationalist_badge",
+                icon: "💬",
+                label: "Conversationalist",
+                desc: "25+ posts shared with the community",
+              },
+              {
+                key: "helper_badge",
+                icon: "🤗",
+                label: "Helper",
+                desc: "50+ replies supporting other parents",
+              },
+              {
+                key: "liked_badge",
+                icon: "❤️",
+                label: "Liked by The Village",
+                desc: "Received 20+ likes from the community",
+              },
+              {
+                key: "one_month_badge",
+                icon: "🏡",
+                label: "1 Month Member",
+                desc: "Been part of the community for a month",
+              },
+              {
+                key: "one_year_badge",
+                icon: "🎂",
+                label: "1 Year Member",
+                desc: "A whole year in the community — thank you!",
+              },
+              {
+                key: "stall_seller_badge",
+                icon: "🛒",
+                label: "Stall Seller",
+                desc: "Listed an item in The Village Stall",
+              },
+              {
+                key: "village_friend_badge",
+                icon: "🤝",
+                label: "Village Friend",
+                desc: "Connected with 5+ parents in the community",
+              },
+              {
+                key: "three_am_badge",
+                icon: "🌙",
+                label: "3AM Club",
+                desc: "10+ late-night sessions — you're not alone",
+              },
             ].map(({ key, icon, label, desc }) => {
               const earned = !!profile[key];
               return (
@@ -1333,7 +1355,7 @@ function ProfilePage({ user }) {
                   key={key}
                   className={`flex items-start gap-3 p-3 rounded-xl border transition-all ${
                     earned
-                      ? "bg-primary/5 border-primary/20"
+                      ? "bg-[var(--paper-3)] border-[var(--line)]"
                       : "border-border/30 opacity-50"
                   }`}
                 >
@@ -1353,7 +1375,7 @@ function ProfilePage({ user }) {
 
         {/* Friends Section - Only show on own profile */}
         {isOwnProfile && (
-          <div className="village-card p-6 border-l-2 border-l-primary/20 mb-6">
+          <div className="village-card p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-heading font-bold text-lg text-foreground flex items-center gap-2">
                 <Users className="h-5 w-5 text-primary" />
@@ -1387,7 +1409,7 @@ function ProfilePage({ user }) {
                   >
                     <Avatar className="h-12 w-12">
                       <AvatarImage src={friend.picture} />
-                      <AvatarFallback className="bg-primary/20 text-primary">
+                      <AvatarFallback>
                         {friend.name?.[0]?.toUpperCase() || '?'}
                       </AvatarFallback>
                     </Avatar>

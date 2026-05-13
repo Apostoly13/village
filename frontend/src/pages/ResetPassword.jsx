@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -76,7 +76,7 @@ export default function ResetPassword() {
         <div className="bg-card border border-border/50 rounded-2xl p-8">
           {done ? (
             <div className="text-center">
-              <div className="w-14 h-14 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center mx-auto mb-5">
+              <div className="w-14 h-14 rounded-full bg-[var(--honey-wash)] border border-[var(--line)] flex items-center justify-center mx-auto mb-5">
                 <CheckCircle2 className="h-7 w-7 text-primary" />
               </div>
               <h1 className="font-heading text-2xl font-bold text-foreground mb-2">Password updated!</h1>
@@ -111,7 +111,7 @@ export default function ResetPassword() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary pr-10"
+                      className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-[var(--line-2)] pr-10"
                       required
                       disabled={!!error && !token}
                       autoFocus
@@ -134,7 +134,7 @@ export default function ResetPassword() {
                     value={confirm}
                     onChange={(e) => setConfirm(e.target.value)}
                     placeholder="••••••••"
-                    className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
+                    className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-[var(--line-2)]"
                     required
                     disabled={!!error && !token}
                   />

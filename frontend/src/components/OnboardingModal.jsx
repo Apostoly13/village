@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { toast } from "sonner";
-import { ChevronRight, Crown, Check } from "lucide-react";
+import { ChevronRight, Sparkles, Check } from "lucide-react";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -29,17 +29,17 @@ const DISTANCE_OPTIONS = [
 ];
 
 const INTEREST_OPTIONS = [
-  "Sleep & Settling",
-  "Feeding",
-  "Toddler Activities",
-  "School Age",
-  "Mental Health",
-  "Dad Talk",
-  "Mum Talk",
-  "Local Events",
-  "Recipes & Nutrition",
-  "Development Milestones",
-  "Raising Multiples",
+"Sleep & Settling",
+"Feeding",
+"Toddler Activities",
+"School Age",
+"Mental Health",
+"Dad Talk",
+"Mum Talk",
+"Local Events",
+"Recipes & Nutrition",
+"Development Milestones",
+"Raising Multiples",
 ];
 
 export default function OnboardingModal({ user, onComplete, onSkip: onSkipProp }) {
@@ -136,14 +136,14 @@ export default function OnboardingModal({ user, onComplete, onSkip: onSkipProp }
     setSearchResults([]);
     if (location.state) {
       const stateMap = {
-        "New South Wales": "NSW",
+"New South Wales": "NSW",
         Victoria: "VIC",
         Queensland: "QLD",
-        "Western Australia": "WA",
-        "South Australia": "SA",
+"Western Australia": "WA",
+"South Australia": "SA",
         Tasmania: "TAS",
-        "Australian Capital Territory": "ACT",
-        "Northern Territory": "NT",
+"Australian Capital Territory": "ACT",
+"Northern Territory": "NT",
       };
       setState(stateMap[location.state] || location.state);
     }
@@ -262,7 +262,7 @@ export default function OnboardingModal({ user, onComplete, onSkip: onSkipProp }
                   onChange={(e) => setDisplayName(e.target.value)}
                   placeholder="e.g., Sarah, DadOfTwo, Mama Bear"
                   maxLength={30}
-                  className="h-11 rounded-xl bg-secondary/50 border-transparent focus:ring-primary/30"
+                  className="h-11 rounded-xl bg-secondary/50 border-transparent focus:ring-border/50"
                 />
                 <p className="text-xs text-muted-foreground">
                   This is how others in the village will see you. You can change it anytime.
@@ -285,8 +285,8 @@ export default function OnboardingModal({ user, onComplete, onSkip: onSkipProp }
                       onClick={() => setGender(opt.id)}
                       className={`flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all ${
                         gender === opt.id
-                          ? "border-primary bg-primary/10"
-                          : "border-border/50 hover:border-primary/40 hover:bg-secondary/50"
+                          ? "border-[var(--sage)] bg-[var(--paper-3)]"
+                          : "border-border/50 hover:border-border hover:bg-secondary/50"
                       }`}
                     >
                       <span className="text-3xl shrink-0">{opt.emoji}</span>
@@ -329,8 +329,8 @@ export default function OnboardingModal({ user, onComplete, onSkip: onSkipProp }
                     onClick={() => setParentingStage(stage.id)}
                     className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border-2 text-left transition-all ${
                       parentingStage === stage.id
-                        ? "border-primary bg-primary/10"
-                        : "border-border/50 hover:border-primary/40 hover:bg-secondary/50"
+                        ? "border-[var(--sage)] bg-[var(--paper-3)]"
+                        : "border-border/50 hover:border-border hover:bg-secondary/50"
                     }`}
                   >
                     <span className="text-xl shrink-0">{stage.emoji}</span>
@@ -345,7 +345,7 @@ export default function OnboardingModal({ user, onComplete, onSkip: onSkipProp }
 
               {/* Mixed ages sub-selection */}
               {parentingStage === "mixed" && (
-                <div className="pl-3 border-l-2 border-primary/30 space-y-2">
+                <div className="pl-3 border-l-2 border-[var(--line)] space-y-2">
                   <p className="text-xs text-muted-foreground font-medium">Which age groups do you have? <span className="font-normal">(select all)</span></p>
                   <div className="grid grid-cols-2 gap-1.5">
                     {[
@@ -361,7 +361,7 @@ export default function OnboardingModal({ user, onComplete, onSkip: onSkipProp }
                           key={ag.id}
                           onClick={() => toggleMixedAge(ag.id)}
                           className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border text-left transition-all text-xs ${
-                            sel ? "border-primary bg-primary/10 text-primary" : "border-border/40 hover:border-primary/40 hover:bg-secondary/50 text-foreground"
+                            sel ? "border-[var(--sage)] bg-[var(--paper-3)] text-primary" : "border-border/40 hover:border-border hover:bg-secondary/50 text-foreground"
                           }`}
                         >
                           <span>{ag.emoji}</span>
@@ -389,7 +389,7 @@ export default function OnboardingModal({ user, onComplete, onSkip: onSkipProp }
               <div className="space-y-1.5">
                 <Label className="text-sm text-foreground">State</Label>
                 <Select value={state} onValueChange={setState}>
-                  <SelectTrigger className="h-11 rounded-xl bg-secondary/50 border-transparent focus:ring-primary/30">
+                  <SelectTrigger className="h-11 rounded-xl bg-secondary/50 border-transparent focus:ring-border/50">
                     <SelectValue placeholder="Select your state" />
                   </SelectTrigger>
                   <SelectContent>
@@ -407,11 +407,11 @@ export default function OnboardingModal({ user, onComplete, onSkip: onSkipProp }
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="e.g., Bondi, 2026"
-                    className="h-11 rounded-xl bg-secondary/50 border-transparent focus:ring-primary/30 pr-10"
+                    className="h-11 rounded-xl bg-secondary/50 border-transparent focus:ring-border/50 pr-10"
                   />
                   {searching && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      <div className="w-4 h-4 border-2 border-[var(--ink-2)] border-t-transparent rounded-full animate-spin" />
                     </div>
                   )}
                 </div>
@@ -443,7 +443,7 @@ export default function OnboardingModal({ user, onComplete, onSkip: onSkipProp }
                 onClick={() => setShowLocationOnProfile(prev => !prev)}
                 className={`w-full flex items-center justify-between p-3 rounded-xl border-2 text-left transition-all ${
                   showLocationOnProfile
-                    ? "border-primary/40 bg-primary/8"
+                    ? "border-[var(--line)] bg-[var(--paper-3)]"
                     : "border-border/40 bg-secondary/30"
                 }`}
               >
@@ -456,7 +456,7 @@ export default function OnboardingModal({ user, onComplete, onSkip: onSkipProp }
                   </p>
                 </div>
                 <div className={`w-10 h-5.5 rounded-full border-2 flex items-center shrink-0 ml-3 transition-all ${
-                  showLocationOnProfile ? "bg-primary border-primary justify-end" : "bg-secondary border-border/50 justify-start"
+                  showLocationOnProfile ? "bg-primary border-[var(--sage)] justify-end" : "bg-secondary border-border/50 justify-start"
                 }`}>
                   <div className="w-4 h-4 rounded-full bg-white shadow-sm mx-0.5" />
                 </div>
@@ -474,8 +474,8 @@ export default function OnboardingModal({ user, onComplete, onSkip: onSkipProp }
                   onClick={() => setPreferredReach(option.id)}
                   className={`p-4 rounded-xl border-2 text-left transition-all ${
                     preferredReach === option.id
-                      ? "border-primary bg-primary/10"
-                      : "border-border/50 hover:border-primary/40 hover:bg-secondary/50"
+                      ? "border-[var(--sage)] bg-[var(--paper-3)]"
+                      : "border-border/50 hover:border-border hover:bg-secondary/50"
                   }`}
                 >
                   <p className={`text-sm font-medium ${preferredReach === option.id ? "text-primary" : "text-foreground"}`}>
@@ -499,8 +499,8 @@ export default function OnboardingModal({ user, onComplete, onSkip: onSkipProp }
                       onClick={() => toggleInterest(interest)}
                       className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
                         selected
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-secondary/50 text-foreground border-border/50 hover:border-primary/40 hover:bg-secondary"
+                          ? "bg-primary text-primary-foreground border-[var(--sage)]"
+                          : "bg-secondary/50 text-foreground border-border/50 hover:border-border hover:bg-secondary"
                       }`}
                     >
                       {interest}
@@ -537,9 +537,9 @@ export default function OnboardingModal({ user, onComplete, onSkip: onSkipProp }
                 </p>
                 <div className="space-y-1.5">
                   {[
-                    "Unlimited posts every week",
-                    "Pin important posts in spaces",
-                    "Reply as much as you like",
+"Unlimited posts every week",
+"Pin important posts in spaces",
+"Reply as much as you like",
                   ].map(item => (
                     <p key={item} className="text-xs text-foreground flex items-center gap-2">
                       <Check className="h-3 w-3 text-amber-500 shrink-0" />{item}
@@ -555,9 +555,9 @@ export default function OnboardingModal({ user, onComplete, onSkip: onSkipProp }
                 </p>
                 <div className="space-y-1.5">
                   {[
-                    "5 posts per week",
-                    "10 replies per day",
-                    "No pin access",
+"5 posts per week",
+"10 replies per day",
+"No pin access",
                   ].map(item => (
                     <p key={item} className="text-xs text-muted-foreground">• {item}</p>
                   ))}
@@ -565,9 +565,9 @@ export default function OnboardingModal({ user, onComplete, onSkip: onSkipProp }
               </div>
 
               {/* Village+ paid plan */}
-              <div className="rounded-xl border border-primary/30 bg-primary/5 p-3.5">
+              <div className="rounded-xl border border-[var(--line)] bg-[var(--paper-3)] p-3.5">
                 <div className="flex items-center gap-2 mb-2">
-                  <Crown className="h-4 w-4 text-primary shrink-0" />
+                  <Sparkles className="h-4 w-4 shrink-0" style={{ color: "hsl(var(--accent))" }} />
                   <p className="text-xs font-semibold text-primary">Village+ — $9.99/month</p>
                 </div>
                 <p className="text-xs text-muted-foreground mb-2 leading-relaxed">
@@ -575,9 +575,9 @@ export default function OnboardingModal({ user, onComplete, onSkip: onSkipProp }
                 </p>
                 <div className="space-y-1.5">
                   {[
-                    "Unlimited posts, replies, and pins",
-                    "Create your own community spaces",
-                    "Priority support & early access to new features",
+"Unlimited posts, replies, and pins",
+"Create your own community spaces",
+"Priority support & early access to new features",
                   ].map(item => (
                     <p key={item} className="text-xs text-foreground flex items-center gap-2">
                       <Check className="h-3 w-3 text-primary shrink-0" />{item}

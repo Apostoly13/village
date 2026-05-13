@@ -165,6 +165,8 @@ if RESEND_API_KEY:
 # Admin Config
 ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL') or 'admin@ourlittlevillage.com.au'
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', '')
+SUPPORT_EMAIL = os.environ.get('SUPPORT_EMAIL', 'support@ourlittlevillage.com.au')
+SUGGESTIONS_EMAIL = os.environ.get('SUGGESTIONS_EMAIL', 'suggestions@ourlittlevillage.com.au')
 
 # Stripe Config
 STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY', '')
@@ -467,6 +469,8 @@ class ChatMessage(BaseModel):
     author_name: str
     author_picture: Optional[str] = None
     author_subscription_tier: str = "free"
+    author_verified_professional: bool = False
+    author_professional_type: Optional[str] = None
     content: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -693,7 +697,7 @@ def get_email_template(template_type: str, data: dict) -> tuple:
                 </p>
                 <a href="{data.get('link', '#')}" class="button">View Reply</a>
             </div>
-            <div class="footer">You're receiving this because you have email notifications enabled.<br/>The Village - You're not alone on this journey.</div>
+            <div class="footer">You're receiving this because you have email notifications enabled.<br/>Our Little Village — Parenting Assistance Platform<br/>support@ourlittlevillage.com.au</div>
         </div>
         </body></html>
         """
@@ -711,7 +715,7 @@ def get_email_template(template_type: str, data: dict) -> tuple:
                 </p>
                 <a href="{data.get('link', '#')}" class="button">Read Message</a>
             </div>
-            <div class="footer">You're receiving this because you have email notifications enabled.<br/>The Village - You're not alone on this journey.</div>
+            <div class="footer">You're receiving this because you have email notifications enabled.<br/>Our Little Village — Parenting Assistance Platform<br/>support@ourlittlevillage.com.au</div>
         </div>
         </body></html>
         """
@@ -726,7 +730,7 @@ def get_email_template(template_type: str, data: dict) -> tuple:
                 <p><strong>{data.get('sender_name', 'A community member')}</strong> would like to connect with you on The Village.</p>
                 <a href="{data.get('link', '#')}" class="button">View Request</a>
             </div>
-            <div class="footer">You're receiving this because you have email notifications enabled.<br/>The Village - You're not alone on this journey.</div>
+            <div class="footer">You're receiving this because you have email notifications enabled.<br/>Our Little Village — Parenting Assistance Platform<br/>support@ourlittlevillage.com.au</div>
         </div>
         </body></html>
         """
@@ -746,7 +750,7 @@ def get_email_template(template_type: str, data: dict) -> tuple:
                 </ul>
                 <a href="{data.get('link', '#')}" class="button">Visit The Village</a>
             </div>
-            <div class="footer">You're receiving this weekly digest because you're subscribed.<br/>The Village - You're not alone on this journey.</div>
+            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>support@ourlittlevillage.com.au</div>
         </div>
         </body></html>
         """
@@ -765,7 +769,7 @@ def get_email_template(template_type: str, data: dict) -> tuple:
                     If you didn't request this, you can safely ignore this email. Your password won't change.
                 </p>
             </div>
-            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>hello@ourlittlevillage.com.au</div>
+            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>support@ourlittlevillage.com.au</div>
         </div>
         </body></html>
         """
@@ -784,7 +788,7 @@ def get_email_template(template_type: str, data: dict) -> tuple:
                     No lock-in. Cancel any time.
                 </p>
             </div>
-            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>hello@ourlittlevillage.com.au</div>
+            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>support@ourlittlevillage.com.au</div>
         </div>
         </body></html>
         """
@@ -801,7 +805,7 @@ def get_email_template(template_type: str, data: dict) -> tuple:
                 <p>Upgrade any time to restore unlimited access.</p>
                 <a href="{FRONTEND_URL}/plus" class="button">Upgrade to Village+</a>
             </div>
-            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>hello@ourlittlevillage.com.au</div>
+            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>support@ourlittlevillage.com.au</div>
         </div>
         </body></html>
         """
@@ -821,7 +825,7 @@ def get_email_template(template_type: str, data: dict) -> tuple:
                     This link expires in 7 days.
                 </p>
             </div>
-            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>hello@ourlittlevillage.com.au</div>
+            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>support@ourlittlevillage.com.au</div>
         </div>
         </body></html>
         """
@@ -850,7 +854,47 @@ def get_email_template(template_type: str, data: dict) -> tuple:
                     <strong>One more step:</strong> please <a href="{verify_link}" style="color: #E5A832;">verify your email address</a> to keep your account secure.
                 </p>
             </div>
-            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>hello@ourlittlevillage.com.au</div>
+            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>support@ourlittlevillage.com.au</div>
+        </div>
+        </body></html>
+        """
+    elif template_type == "stall_enquiry":
+        subject = f"📦 New enquiry on your Stall listing: {data.get('listing_title', 'your listing')}"
+        html = f"""
+        <html><head>{base_style}</head><body>
+        <div class="container">
+            <div class="header"><h1>🏡 The Village Stall</h1></div>
+            <div class="content">
+                <h2>Someone's interested in your listing!</h2>
+                <p><strong>{data.get('sender_name', 'A member')}</strong> has sent you an enquiry about:</p>
+                <p style="font-size:16px;font-weight:600;color:#1A1A2E;">📦 {data.get('listing_title', 'Your listing')}</p>
+                <p style="background:#F5F5F5;padding:15px;border-radius:8px;border-left:4px solid #F5C542;">
+                    {data.get('message_preview', '')[:300]}
+                </p>
+                <a href="{data.get('link', '#')}" class="button">Reply to Enquiry</a>
+                <p style="font-size:13px;color:#888;margin-top:20px;">
+                    All Stall transactions are between users. Our Little Village is not a party to any sale.
+                </p>
+            </div>
+            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>support@ourlittlevillage.com.au</div>
+        </div>
+        </body></html>
+        """
+    elif template_type == "stall_message":
+        subject = f"💬 New message about your Stall listing: {data.get('listing_title', 'your listing')}"
+        html = f"""
+        <html><head>{base_style}</head><body>
+        <div class="container">
+            <div class="header"><h1>🏡 The Village Stall</h1></div>
+            <div class="content">
+                <h2>New message from {data.get('sender_name', 'a member')}</h2>
+                <p>Re: <strong>{data.get('listing_title', 'your listing')}</strong></p>
+                <p style="background:#F5F5F5;padding:15px;border-radius:8px;border-left:4px solid #F5C542;">
+                    {data.get('message_preview', '')[:300]}
+                </p>
+                <a href="{data.get('link', '#')}" class="button">View Conversation</a>
+            </div>
+            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>support@ourlittlevillage.com.au</div>
         </div>
         </body></html>
         """
@@ -875,7 +919,7 @@ def get_email_template(template_type: str, data: dict) -> tuple:
                     You can cancel any time from the Village+ page — no lock-in, no hassle. Stripe handles all billing securely.
                 </p>
             </div>
-            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>hello@ourlittlevillage.com.au</div>
+            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>support@ourlittlevillage.com.au</div>
         </div>
         </body></html>
         """
@@ -889,13 +933,13 @@ def get_email_template(template_type: str, data: dict) -> tuple:
                 <h2>Subscription cancelled</h2>
                 <p>Hi {data.get('first_name', 'there')}, your Village+ subscription has been cancelled.</p>
                 <p>You'll keep full Village+ access until the end of your current billing period. After that your account moves to the free plan.</p>
-                <p>We'd love to know why you cancelled — your feedback helps us improve.</p>
-                <a href="{FRONTEND_URL}/contact" class="button">Share Feedback</a>
+                <p>We'd love to know why you cancelled — your feedback helps us improve. Reply to this email or reach us at <a href="mailto:support@ourlittlevillage.com.au" style="color:#E5A832;">support@ourlittlevillage.com.au</a>.</p>
+                <a href="{FRONTEND_URL}/suggestions" class="button">Leave Feedback</a>
                 <p style="font-size: 13px; color: #888; margin-top: 20px;">
                     Changed your mind? You can resubscribe any time from the Village+ page.
                 </p>
             </div>
-            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>hello@ourlittlevillage.com.au</div>
+            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>support@ourlittlevillage.com.au</div>
         </div>
         </body></html>
         """
@@ -1568,20 +1612,29 @@ async def heartbeat(user: dict = Depends(get_current_user)):
     await db.users.update_one({"user_id": user["user_id"]}, {"$set": update_fields})
     return {"ok": True}
 
-@api_router.post("/users/compute-badges")
-async def compute_badges(user: dict = Depends(get_current_user)):
-    """Compute and persist trust badges for the current user"""
-    user_id = user["user_id"]
+async def _compute_badges_for_user(user_id: str, user_doc: dict) -> dict:
+    """Internal badge computation — can be called from endpoints or triggers."""
     badges = {}
+    now = datetime.now(timezone.utc)
+    account_created_at = None
+    try:
+        raw = user_doc.get("created_at")
+        if raw:
+            account_created_at = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+            if account_created_at.tzinfo is None:
+                account_created_at = account_created_at.replace(tzinfo=timezone.utc)
+    except Exception:
+        pass
 
-    # --- Trusted Parent: 10+ replies each liked ≥3 times ---
+    # ── Original badges ─────────────────────────────────────────────────────────
+
+    # Trusted Parent: 10+ replies each liked ≥3 times
     helpful_replies = await db.forum_replies.count_documents({
-        "author_id": user_id,
-        "like_count": {"$gte": 3}
+        "author_id": user_id, "like_count": {"$gte": 3}
     })
     badges["trusted_parent_badge"] = helpful_replies >= 10
 
-    # --- Night Owl: posted/replied between 22:00–03:00 on 5+ separate nights ---
+    # Night Owl: posted/replied between 22:00–03:00 on 5+ separate nights
     all_times = await db.forum_posts.find(
         {"author_id": user_id}, {"_id": 0, "created_at": 1}
     ).to_list(500)
@@ -1589,35 +1642,93 @@ async def compute_badges(user: dict = Depends(get_current_user)):
         {"author_id": user_id}, {"_id": 0, "created_at": 1}
     ).to_list(500)
     night_dates = set()
+    three_am_dates = set()
     for item in all_times:
         try:
             dt = datetime.fromisoformat(str(item["created_at"]).replace("Z", "+00:00"))
-            hour = dt.hour
-            if hour >= 22 or hour < 3:
+            h = dt.hour
+            if h >= 22 or h < 3:
                 night_dates.add(dt.strftime("%Y-%m-%d"))
+            if h >= 0 and h < 4:
+                three_am_dates.add(dt.strftime("%Y-%m-%d"))
         except Exception:
             pass
     badges["night_owl_badge"] = len(night_dates) >= 5
 
-    # --- Local Parent: active in suburb circle for 30+ days ---
+    # Local Parent: first chat message ≥30 days ago
     first_chat = await db.chat_messages.find_one(
         {"author_id": user_id}, sort=[("created_at", 1)]
     )
     if first_chat:
         try:
             first_dt = datetime.fromisoformat(str(first_chat["created_at"]).replace("Z", "+00:00"))
-            age_days = (datetime.now(timezone.utc) - first_dt).days
-            badges["local_parent_badge"] = age_days >= 30
+            badges["local_parent_badge"] = (now - first_dt).days >= 30
         except Exception:
             badges["local_parent_badge"] = False
     else:
         badges["local_parent_badge"] = False
 
-    # verified_professional is admin-granted only — never auto-computed
-    # Preserve existing value
-    badges["verified_professional"] = user.get("verified_professional", False)
+    # ── New milestone badges ────────────────────────────────────────────────────
+
+    # First Post: has at least 1 non-anonymous forum post
+    first_post = await db.forum_posts.find_one({"author_id": user_id})
+    badges["first_post_badge"] = first_post is not None
+
+    # Conversationalist: 25+ forum posts
+    post_count = await db.forum_posts.count_documents({"author_id": user_id})
+    badges["conversationalist_badge"] = post_count >= 25
+
+    # Helper: 50+ replies to others
+    reply_count = await db.forum_replies.count_documents({"author_id": user_id})
+    badges["helper_badge"] = reply_count >= 50
+
+    # Liked by The Village: 20+ total likes received across posts + replies
+    likes_on_posts = await db.forum_posts.aggregate([
+        {"$match": {"author_id": user_id}},
+        {"$group": {"_id": None, "total": {"$sum": "$like_count"}}}
+    ]).to_list(1)
+    likes_on_replies = await db.forum_replies.aggregate([
+        {"$match": {"author_id": user_id}},
+        {"$group": {"_id": None, "total": {"$sum": "$like_count"}}}
+    ]).to_list(1)
+    total_likes = (likes_on_posts[0]["total"] if likes_on_posts else 0) + \
+                  (likes_on_replies[0]["total"] if likes_on_replies else 0)
+    badges["liked_badge"] = total_likes >= 20
+
+    # 1 Month Member: account created ≥30 days ago
+    if account_created_at:
+        days_old = (now - account_created_at).days
+        badges["one_month_badge"] = days_old >= 30
+        badges["one_year_badge"]  = days_old >= 365
+    else:
+        badges["one_month_badge"] = False
+        badges["one_year_badge"]  = False
+
+    # Stall Seller: has created at least 1 Stall listing
+    stall_listing = await db.stall_listings.find_one({"seller_id": user_id})
+    badges["stall_seller_badge"] = stall_listing is not None
+
+    # Village Friend: 5+ confirmed friends
+    friend_count = await db.friends.count_documents({
+        "$or": [{"user_id": user_id}, {"friend_id": user_id}],
+        "status": "accepted"
+    })
+    badges["village_friend_badge"] = friend_count >= 5
+
+    # 3AM Club: posted between midnight–4am on 10+ separate nights
+    badges["three_am_badge"] = len(three_am_dates) >= 10
+
+    # verified_professional is admin-granted only — preserve existing value
+    badges["verified_professional"] = user_doc.get("verified_professional", False)
 
     await db.users.update_one({"user_id": user_id}, {"$set": badges})
+    return badges
+
+
+@api_router.post("/users/compute-badges")
+async def compute_badges(user: dict = Depends(get_current_user)):
+    """Compute and persist trust badges for the current user"""
+    badges = await _compute_badges_for_user(user["user_id"], user)
     return badges
 
 @api_router.get("/users/recommended-spaces")
@@ -2164,6 +2275,7 @@ async def create_post(post_data: ForumPostCreate, user: dict = Depends(get_curre
     await db.forum_posts.insert_one(doc)
     await db.forum_categories.update_one({"category_id": post_data.category_id}, {"$inc": {"post_count": 1}})
     await increment_usage(user["user_id"], "forum_posts")
+    fire_and_forget(_compute_badges_for_user(user["user_id"], user))
 
     result = post.model_dump()
     mask_anonymous_post(result)
@@ -2525,6 +2637,7 @@ async def create_reply(post_id: str, reply_data: ForumReplyCreate, user: dict = 
     await db.forum_replies.insert_one(doc)
     await db.forum_posts.update_one({"post_id": post_id}, {"$inc": {"reply_count": 1}})
     await increment_usage(user["user_id"], "forum_replies")
+    fire_and_forget(_compute_badges_for_user(user["user_id"], user))
 
     # Create notification for post author (if not replying to own post and not anonymous)
     if post["author_id"] != user["user_id"] and not reply_data.is_anonymous:
@@ -4348,6 +4461,8 @@ async def send_room_message(room_id: str, message_data: ChatMessageCreate, user:
         author_name=user.get("nickname") or user["name"],
         author_picture=user.get("picture"),
         author_subscription_tier=user.get("subscription_tier", "free"),
+        author_verified_professional=user.get("verified_professional", False),
+        author_professional_type=user.get("professional_type"),
         content=message_data.content
     )
 
@@ -4833,6 +4948,12 @@ async def accept_friend_request(request_id: str, user: dict = Depends(get_curren
         "is_read": False,
         "created_at": datetime.now(timezone.utc).isoformat()
     })
+
+    # Trigger badge computation for both users (village_friend_badge threshold)
+    fire_and_forget(_compute_badges_for_user(user["user_id"], user))
+    requester_doc = await db.users.find_one({"user_id": request["from_user_id"]}, {"_id": 0, "password_hash": 0})
+    if requester_doc:
+        fire_and_forget(_compute_badges_for_user(request["from_user_id"], requester_doc))
 
     return {"message": "Friend request accepted"}
 
@@ -5944,19 +6065,37 @@ async def apply_as_professional(data: ProfessionalApplyRequest, current_user: di
     applicant_name = current_user.get("nickname") or current_user.get("name", "Unknown")
     applicant_email = current_user.get("email", "")
     pro_type_label = data.professional_type.replace("_", " ").title()
+    applicant_user_id = current_user.get("user_id", "")
+    approve_link = f"{FRONTEND_URL}/admin?tab=professionals&approve={applicant_user_id}"
     review_html = f"""
-    <h2>New Professional Verification Application</h2>
-    <p><strong>Applicant:</strong> {applicant_name} ({applicant_email})</p>
-    <p><strong>Professional Type:</strong> {pro_type_label}</p>
-    <p><strong>Workplace / Organisation:</strong> {data.professional_workplace}</p>
-    <p><strong>Professional Services URL:</strong> <a href="{data.professional_services_url}">{data.professional_services_url}</a></p>
-    <p><strong>Credentials &amp; Experience:</strong></p>
-    <blockquote style="border-left:3px solid #ccc;padding-left:12px;color:#555">{data.professional_credentials}</blockquote>
-    <hr/>
-    <p><a href="https://ourvillage.com.au/admin">Review in Admin Dashboard →</a></p>
+    <html><body style="font-family:sans-serif;background:#FDF8F3;padding:20px;">
+    <div style="max-width:600px;margin:0 auto;background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+      <div style="background:linear-gradient(135deg,#F5C542,#E5A832);padding:24px;text-align:center;">
+        <h1 style="margin:0;color:#1A1A2E;">🏡 The Village — Professional Application</h1>
+      </div>
+      <div style="padding:28px;">
+        <h2 style="margin-top:0;color:#1A1A2E;">New Verification Request</h2>
+        <table style="width:100%;border-collapse:collapse;font-size:14px;color:#333;">
+          <tr><td style="padding:8px 0;font-weight:600;width:180px;">Applicant</td><td>{applicant_name} ({applicant_email})</td></tr>
+          <tr><td style="padding:8px 0;font-weight:600;">Professional Type</td><td>{pro_type_label}</td></tr>
+          <tr><td style="padding:8px 0;font-weight:600;">Workplace</td><td>{data.professional_workplace}</td></tr>
+          <tr><td style="padding:8px 0;font-weight:600;">Services URL</td><td><a href="{data.professional_services_url}" style="color:#E5A832;">{data.professional_services_url}</a></td></tr>
+        </table>
+        <p style="font-weight:600;margin-top:16px;color:#1A1A2E;">Credentials &amp; Experience:</p>
+        <blockquote style="border-left:3px solid #F5C542;padding:12px 16px;margin:0;background:#FDF8F3;border-radius:4px;color:#555;font-size:14px;">{data.professional_credentials}</blockquote>
+        <div style="margin-top:24px;display:flex;gap:12px;">
+          <a href="{approve_link}" style="display:inline-block;background:#22c55e;color:white;padding:12px 24px;border-radius:25px;text-decoration:none;font-weight:bold;margin-right:12px;">✅ Approve in Dashboard</a>
+          <a href="{FRONTEND_URL}/admin?tab=professionals" style="display:inline-block;background:#F5C542;color:#1A1A2E;padding:12px 24px;border-radius:25px;text-decoration:none;font-weight:bold;">Review All Applications</a>
+        </div>
+      </div>
+      <div style="background:#F5F5F5;padding:16px;text-align:center;font-size:12px;color:#888;">
+        The Village — Professional Verification Team<br/>professionals@ourlittlevillage.com.au
+      </div>
+    </div>
+    </body></html>
     """
     fire_and_forget(send_email_notification(
-        "Professionals@ourliitlevillage.com.au",
+        "professionals@ourlittlevillage.com.au",
         f"New Professional Application — {pro_type_label}: {applicant_name}",
         review_html
     ))
@@ -6786,6 +6925,62 @@ async def delete_blog_post(blog_id: str, current_user: dict = Depends(get_curren
         raise HTTPException(status_code=404, detail="Post not found")
     return {"message": "Deleted"}
 
+# ==================== SUGGESTIONS & SUPPORT ====================
+
+class SuggestionRequest(BaseModel):
+    category: str
+    title: str = Field(..., min_length=3, max_length=100)
+    description: str = Field(..., min_length=10, max_length=1000)
+
+@api_router.post("/suggestions")
+async def submit_suggestion(data: SuggestionRequest, user: dict = Depends(get_current_user)):
+    """Submit a platform suggestion — forwarded to suggestions@ourlittlevillage.com.au"""
+    submitter = user.get("nickname") or user.get("name", "A user")
+    submitter_email = user.get("email", "")
+    category_label = html_module.escape(data.category)
+    title_safe = html_module.escape(data.title)
+    desc_safe = html_module.escape(data.description)
+
+    html_body = f"""
+    <html><body style="font-family:sans-serif;background:#FDF8F3;padding:20px;">
+    <div style="max-width:600px;margin:0 auto;background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+      <div style="background:linear-gradient(135deg,#F5C542,#E5A832);padding:24px;text-align:center;">
+        <h1 style="margin:0;color:#1A1A2E;">🏡 The Village — New Suggestion</h1>
+      </div>
+      <div style="padding:28px;">
+        <table style="width:100%;font-size:14px;border-collapse:collapse;color:#333;">
+          <tr><td style="padding:8px 0;font-weight:600;width:140px;">From</td><td>{submitter} ({submitter_email})</td></tr>
+          <tr><td style="padding:8px 0;font-weight:600;">Category</td><td>{category_label}</td></tr>
+          <tr><td style="padding:8px 0;font-weight:600;">Title</td><td>{title_safe}</td></tr>
+        </table>
+        <p style="font-weight:600;margin-top:16px;color:#1A1A2E;">Description:</p>
+        <blockquote style="border-left:3px solid #F5C542;padding:12px 16px;margin:0;background:#FDF8F3;border-radius:4px;color:#555;font-size:14px;">{desc_safe}</blockquote>
+      </div>
+      <div style="background:#F5F5F5;padding:16px;text-align:center;font-size:12px;color:#888;">
+        The Village — Suggestions<br/>suggestions@ourlittlevillage.com.au
+      </div>
+    </div>
+    </body></html>
+    """
+    fire_and_forget(send_email_notification(
+        SUGGESTIONS_EMAIL,
+        f"[Suggestion] {data.category}: {data.title}",
+        html_body,
+    ))
+    # Store in DB for admin review
+    await db.suggestions.insert_one({
+        "user_id": user["user_id"],
+        "submitter_name": submitter,
+        "submitter_email": submitter_email,
+        "category": data.category,
+        "title": data.title,
+        "description": data.description,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "status": "new",
+    })
+    return {"ok": True}
+
+
 # ==================== SEED DATA ====================
 
 @api_router.post("/seed")
@@ -7521,8 +7716,8 @@ async def send_stall_message(data: StallMessageCreate, user: dict = Depends(get_
     doc["created_at"] = doc["created_at"].isoformat()
     await db.stall_messages.insert_one(doc)
 
-    existing = await db.stall_messages.count_documents({"listing_id": data.listing_id, "sender_id": user["user_id"], "receiver_id": data.receiver_id})
-    if existing <= 1:
+    is_first_message = await db.stall_messages.count_documents({"listing_id": data.listing_id, "sender_id": user["user_id"], "receiver_id": data.receiver_id}) <= 1
+    if is_first_message:
         await db.stall_listings.update_one({"listing_id": data.listing_id}, {"$inc": {"enquiry_count": 1}})
 
     await db.notifications.insert_one({
@@ -7535,6 +7730,21 @@ async def send_stall_message(data: StallMessageCreate, user: dict = Depends(get_
         "is_read": False,
         "created_at": datetime.now(timezone.utc).isoformat()
     })
+
+    # Email the listing owner — first message is an "enquiry", follow-ups are "messages"
+    receiver = await db.users.find_one({"user_id": data.receiver_id}, {"_id": 0, "email": 1, "email_preferences": 1})
+    if receiver and receiver.get("email"):
+        email_prefs = receiver.get("email_preferences", {})
+        if email_prefs.get("notify_dms", True):
+            template_key = "stall_enquiry" if is_first_message else "stall_message"
+            subj, html = get_email_template(template_key, {
+                "sender_name": user.get("nickname") or user["name"],
+                "listing_title": listing.get("title", "your listing"),
+                "message_preview": data.content,
+                "link": f"{FRONTEND_URL}/stall/listing/{data.listing_id}",
+            })
+            fire_and_forget(send_email_notification(receiver["email"], subj, html))
+
     doc.pop("_id", None)
     return doc
 

@@ -26,7 +26,7 @@ export default function PublicNav() {
   };
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/30">
+    <nav className="fixed top-0 left-0 right-0 z-50 border-b" style={{ background: "var(--paper)", borderColor: "var(--line-2)" }}>
       <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         {/* Logo → landing page (no auth required) */}
         <Link to="/" className="flex items-center shrink-0">

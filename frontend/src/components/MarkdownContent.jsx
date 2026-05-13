@@ -1,4 +1,4 @@
-/**
+﻿/**
  * MarkdownContent — renders user-generated markdown for Spaces posts and replies.
  * Uses react-markdown + remark-gfm (tables, strikethrough, task lists, autolinks).
  * Scoped styles keep it consistent with the Village design system without leaking globally.
@@ -38,7 +38,7 @@ const components = {
 
   // Blockquote
   blockquote: ({ children }) => (
-    <blockquote className="my-3 pl-4 border-l-4 border-primary/30 text-muted-foreground italic">
+    <blockquote className="my-3 pl-4 border-l-4 border-[var(--line)] text-muted-foreground italic">
       {children}
     </blockquote>
   ),
@@ -54,7 +54,7 @@ const components = {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="text-primary underline underline-offset-2 hover:text-primary/80 transition-colors break-words"
+      className="text-primary underline underline-offset-2 hover:text-[var(--ink-2)] transition-colors break-words"
     >
       {children}
     </a>

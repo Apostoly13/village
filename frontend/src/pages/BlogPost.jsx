@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import Navigation from "../components/Navigation";
@@ -145,7 +145,7 @@ export default function BlogPost({ user }) {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
+    <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
       <Navigation user={user} />
 
       <main className="max-w-3xl mx-auto px-4 pt-16 lg:pt-8">
@@ -170,7 +170,7 @@ export default function BlogPost({ user }) {
             <div className="mb-8">
               {/* Meta row */}
               <div className="flex items-center gap-3 mb-5 flex-wrap">
-                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-[var(--paper-3)] flex items-center justify-center shrink-0">
                   <BookOpen className="h-4 w-4 text-primary" />
                 </div>
                 <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
@@ -191,7 +191,7 @@ export default function BlogPost({ user }) {
                 {post.title}
               </h1>
               {post.summary && (
-                <p className="text-muted-foreground text-base leading-relaxed mb-5 border-l-2 border-l-primary/30 pl-4 italic">
+                <p className="text-muted-foreground text-base leading-relaxed mb-5 pl-4 italic">
                   {post.summary}
                 </p>
               )}
@@ -200,7 +200,7 @@ export default function BlogPost({ user }) {
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <Tag className="h-3.5 w-3.5 text-muted-foreground mr-0.5" />
                   {post.tags.map(tag => (
-                    <span key={tag} className="text-xs px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium">
+                    <span key={tag} className="text-xs px-2.5 py-0.5 rounded-full bg-[var(--paper-3)] text-primary border border-[var(--line)] font-medium">
                       {tag}
                     </span>
                   ))}
@@ -209,7 +209,7 @@ export default function BlogPost({ user }) {
             </div>
 
             {/* Post content */}
-            <div className="bg-card rounded-2xl p-6 sm:p-8 border border-border/40 card-elevated border-l-2 border-l-primary/20 mb-6 space-y-1 prose-custom">
+            <div className="bg-card rounded-2xl p-6 sm:p-8 border border-border/40 card-elevated mb-6 space-y-1 prose-custom">
               {renderMarkdown(post.content)}
             </div>
 

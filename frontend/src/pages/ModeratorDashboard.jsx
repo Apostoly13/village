@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+﻿import { useState, useEffect, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -197,7 +197,7 @@ export default function ModeratorDashboard({ user }) {
   if (!isMod) return null;
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-8">
+    <div className="min-h-screen bg-background  lg:pl-60 lg:pb-8">
       <Navigation user={user} />
 
       <main className="max-w-5xl mx-auto px-4 pt-16 lg:pt-8">
@@ -234,7 +234,7 @@ export default function ModeratorDashboard({ user }) {
             { icon: Flag,          label: "Pending Reports",    value: overview?.reported_issues ?? (loading ? "—" : 0), color: "text-red-500",    bg: "bg-red-500/10" },
             { icon: AlertTriangle, label: "Unanswered (24h)",   value: overview?.unanswered_tonight ?? (loading ? "—" : 0), color: "text-amber-500", bg: "bg-amber-500/10" },
             { icon: Shield,        label: "Kindness Health",    value: overview ? `${overview.kindness_health ?? 100}%` : "—", color: "text-green-500",  bg: "bg-green-500/10" },
-            { icon: Users,         label: "New This Week",      value: overview ? `+${overview.space_growth ?? 0}` : "—", color: "text-primary",   bg: "bg-primary/10" },
+            { icon: Users,         label: "New This Week",      value: overview ? `+${overview.space_growth ?? 0}` : "—", color: "text-primary",   bg: "bg-[var(--paper-3)]" },
           ].map(({ icon: Icon, label, value, color, bg }) => (
             <div key={label} className="rounded-2xl p-4 border" style={{ background: "var(--paper-2)", borderColor: "var(--line)" }}>
               <div className={`w-8 h-8 rounded-xl ${bg} flex items-center justify-center mb-2`}>
@@ -257,7 +257,7 @@ export default function ModeratorDashboard({ user }) {
                 { value: "unanswered", icon: Clock, label: "Unanswered", badge: overview?.unanswered_tonight },
               ].map(t => (
                 <TabsTrigger key={t.value} value={t.value}
-                  className="rounded-lg px-3 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-1.5 whitespace-nowrap text-sm"
+                  className="rounded-lg px-3 py-1.5 data-[state=active]:bg-[var(--ink)] data-[state=active]:text-[var(--paper)] data-[state=active]:shadow-sm flex items-center gap-1.5 whitespace-nowrap text-sm"
                 >
                   <t.icon className="h-4 w-4" />
                   {t.label}
@@ -281,7 +281,7 @@ export default function ModeratorDashboard({ user }) {
                 { value: "professionals", icon: Stethoscope,   label: "Professionals" },
               ].map(t => (
                 <TabsTrigger key={t.value} value={t.value}
-                  className="rounded-lg px-3 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-1.5 whitespace-nowrap text-sm"
+                  className="rounded-lg px-3 py-1.5 data-[state=active]:bg-[var(--ink)] data-[state=active]:text-[var(--paper)] data-[state=active]:shadow-sm flex items-center gap-1.5 whitespace-nowrap text-sm"
                 >
                   <t.icon className="h-4 w-4" />
                   {t.label}
@@ -295,15 +295,15 @@ export default function ModeratorDashboard({ user }) {
 
           {/* ── REPORTS TAB ── */}
           <TabsContent value="reports" className="mt-0">
-            <div className="flex gap-2 mb-4 flex-wrap">
+            <div className="flex gap-1 mb-4 p-1 rounded-full" style={{ background: "var(--paper-2)", border: "1px solid var(--line)" }}>
               {["pending", "reviewed", "dismissed"].map(s => (
                 <button key={s}
                   onClick={() => { setReportStatus(s); fetchReports(s, 1); }}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors capitalize ${
-                    reportStatus === s
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-card border border-border/50 text-muted-foreground hover:text-foreground"
-                  }`}
+                  className="rounded-full px-3 py-1.5 text-xs font-medium transition-all capitalize focus-visible:outline-none"
+                  style={reportStatus === s
+                    ? { background: "var(--ink)", color: "var(--paper)", boxShadow: "var(--shadow-sm)" }
+                    : { color: "var(--ink-3)" }
+                  }
                 >
                   {s}
                 </button>
@@ -312,7 +312,7 @@ export default function ModeratorDashboard({ user }) {
 
             {reportLoading ? (
               <div className="flex items-center justify-center py-12">
-                <div className="w-5 h-5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+                <div className="w-5 h-5 rounded-full border-2 border-[var(--line)] border-t-[var(--ink-2)] animate-spin" />
               </div>
             ) : reports.length === 0 ? (
               <div className="text-center py-12 rounded-2xl border" style={{ background: "var(--paper-2)", borderColor: "var(--line)" }}>
@@ -438,7 +438,7 @@ export default function ModeratorDashboard({ user }) {
 
             {postsLoading ? (
               <div className="flex items-center justify-center py-12">
-                <div className="w-5 h-5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+                <div className="w-5 h-5 rounded-full border-2 border-[var(--line)] border-t-[var(--ink-2)] animate-spin" />
               </div>
             ) : unansweredPosts.length === 0 ? (
               <div className="text-center py-12 rounded-2xl border" style={{ background: "var(--paper-2)", borderColor: "var(--line)" }}>
@@ -488,7 +488,7 @@ export default function ModeratorDashboard({ user }) {
 
             {postsLoading ? (
               <div className="flex items-center justify-center py-12">
-                <div className="w-5 h-5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+                <div className="w-5 h-5 rounded-full border-2 border-[var(--line)] border-t-[var(--ink-2)] animate-spin" />
               </div>
             ) : (
               <div className="space-y-3">
@@ -540,7 +540,7 @@ export default function ModeratorDashboard({ user }) {
 
             {stallLoading ? (
               <div className="flex items-center justify-center py-12">
-                <div className="w-5 h-5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+                <div className="w-5 h-5 rounded-full border-2 border-[var(--line)] border-t-[var(--ink-2)] animate-spin" />
               </div>
             ) : stallListings.length === 0 ? (
               <div className="text-center py-12 rounded-2xl border" style={{ background: "var(--paper-2)", borderColor: "var(--line)" }}>
@@ -605,7 +605,7 @@ export default function ModeratorDashboard({ user }) {
           <TabsContent value="professionals" className="mt-0">
             {proLoading ? (
               <div className="flex items-center justify-center py-12">
-                <div className="w-5 h-5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+                <div className="w-5 h-5 rounded-full border-2 border-[var(--line)] border-t-[var(--ink-2)] animate-spin" />
               </div>
             ) : professionalApplications.length === 0 ? (
               <div className="text-center py-12 rounded-2xl border" style={{ background: "var(--paper-2)", borderColor: "var(--line)" }}>
@@ -620,7 +620,7 @@ export default function ModeratorDashboard({ user }) {
                     <div className="flex items-start gap-4">
                       <Avatar className="h-10 w-10 shrink-0">
                         <AvatarImage src={app.picture} />
-                        <AvatarFallback className="bg-primary/20 text-primary text-sm">
+                        <AvatarFallback className="text-sm">
                           {(app.nickname || app.name || "?")[0].toUpperCase()}
                         </AvatarFallback>
                       </Avatar>

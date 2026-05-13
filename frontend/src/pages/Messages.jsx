@@ -1,13 +1,14 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+﻿import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import Navigation from "../components/Navigation";
-import { Send, ArrowLeft, MessagesSquare, Search, UserPlus, X, ImageIcon, Users, Lock, Flag, ShoppingBag, Calendar, ExternalLink } from "lucide-react";
+import { ArrowLeft, MessagesSquare, Search, UserPlus, X, ImageIcon, Users, Lock, ShoppingBag, Calendar, ExternalLink } from "lucide-react";
+import { SendIcon, ReportIcon } from "../components/village/VillageLineIcons";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../components/ui/dialog";
 import { Label } from "../components/ui/label";
 import { Textarea } from "../components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
-import { Crown } from "lucide-react";
+import { Sparkles, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { timeAgoVerbose } from "../utils/dateHelpers";
 import { parseApiError } from "../utils/apiError";
@@ -103,7 +104,7 @@ function UserSearchPanel({ onClose, onStartChat, isFree }) {
         )}
         {results.map(u => (
           <div key={u.user_id} className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30">
-            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-semibold text-primary overflow-hidden shrink-0">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold overflow-hidden shrink-0" style={{ background: "var(--paper-2)", color: "var(--ink-2)" }}>
               {u.picture ? <img src={u.picture} alt="" className="w-full h-full object-cover" /> : (u.nickname || u.name)?.[0]?.toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
@@ -137,10 +138,10 @@ function UserAvatar({ picture, name, nickname, isOnline, size = "md" }) {
   const sz = size === "sm" ? "w-9 h-9 text-sm" : "w-10 h-10 text-sm";
   return (
     <div className="relative shrink-0">
-      <div className={`${sz} rounded-full bg-primary/20 flex items-center justify-center font-semibold text-primary overflow-hidden`}>
+      <div className={`${sz} rounded-full flex items-center justify-center font-semibold overflow-hidden`} style={{ background: "var(--paper-2)", color: "var(--ink-2)" }}>
         {picture ? <img src={picture} alt="" className="w-full h-full object-cover" /> : (nickname || name)?.[0]?.toUpperCase()}
       </div>
-      <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-card ${isOnline ? "bg-green-500" : "bg-muted-foreground/40"}`} />
+      <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-card ${isOnline ? "" : "bg-muted-foreground/40"}`} style={isOnline ? { background: "var(--status-online)" } : {}} />
     </div>
   );
 }
@@ -150,9 +151,9 @@ function DmRow({ conv, active, onClick }) {
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${active ? "bg-primary/10" : ""}`}
+      className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${active ? "bg-[var(--paper-3)]" : ""}`}
     >
-      <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-semibold text-primary overflow-hidden shrink-0">
+      <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold overflow-hidden shrink-0" style={{ background: "var(--paper-2)", color: "var(--ink-2)" }}>
         {conv.other_user_picture
           ? <img src={conv.other_user_picture} alt="" className="w-full h-full object-cover" />
           : conv.other_user_name?.[0]?.toUpperCase()}
@@ -183,7 +184,7 @@ function MessageBubble({ msg, isOwn, activeUser, onReport }) {
         {!isOwn && (
           <p className="text-xs text-muted-foreground mb-1 ml-1 flex items-center gap-1">
             {msg.author_name || activeUser?.nickname || activeUser?.name}
-            {msg.author_subscription_tier === "premium" && <Crown className="h-2.5 w-2.5 text-amber-500" />}
+            {msg.author_subscription_tier === "premium" && <Sparkles className="h-2.5 w-2.5" style={{ color: "hsl(var(--accent))" }} />}
           </p>
         )}
         <div className={`flex items-end gap-1 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
@@ -207,7 +208,7 @@ function MessageBubble({ msg, isOwn, activeUser, onReport }) {
               className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mb-1 p-1 rounded text-muted-foreground hover:text-destructive"
               title="Report message"
             >
-              <Flag className="h-3 w-3" />
+              <ReportIcon size={12} />
             </button>
           )}
         </div>
@@ -856,7 +857,7 @@ export default function Messages({ user }) {
   const unreadEvents = 0;
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
+    <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
       <Navigation user={user} />
 
       <main className="max-w-5xl mx-auto px-4 pt-16 lg:pt-8">
@@ -898,14 +899,13 @@ export default function Messages({ user }) {
                       key={tab.id}
                       onClick={() => setInboxTab(tab.id)}
                       className={`relative flex-1 flex items-center justify-center gap-1 py-1.5 rounded-full text-[11px] font-semibold transition-colors ${
-                        inboxTab === tab.id
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-secondary/60 text-muted-foreground hover:text-foreground hover:bg-secondary"
+                        inboxTab === tab.id ? "" : "text-muted-foreground hover:text-foreground"
                       }`}
+                      style={inboxTab === tab.id ? { background: "var(--ink)", color: "var(--paper)" } : {}}
                     >
                       {tab.label}
                       {tab.badge > 0 && inboxTab !== tab.id && (
-                        <span className="min-w-[14px] h-3.5 rounded-full bg-red-500 text-white text-[9px] flex items-center justify-center px-0.5 font-bold">
+                        <span className="min-w-[14px] h-3.5 rounded-full text-white text-[9px] flex items-center justify-center px-0.5 font-bold" style={{ background: "var(--badge-danger)" }}>
                           {tab.badge > 9 ? "9+" : tab.badge}
                         </span>
                       )}
@@ -938,15 +938,15 @@ export default function Messages({ user }) {
                       {/* Pending message requests — Accept / Decline (All and Unread tabs only) */}
                       {messageRequests.length > 0 && (inboxTab === "all" || inboxTab === "unread") && (
                         <>
-                          <div className="px-4 py-2 bg-amber-500/5 border-b border-amber-500/20 flex items-center gap-2">
-                            <span className="text-xs font-semibold text-amber-600 uppercase tracking-wide">Message Requests</span>
-                            <span className="text-xs bg-amber-500/10 text-amber-600 rounded-full px-1.5 font-semibold">{messageRequests.length}</span>
+                          <div className="px-4 py-2 border-b border-amber-500/20 flex items-center gap-2" style={{ background: "var(--honey-wash)" }}>
+                            <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--honey-deep, #a07820)" }}>Message Requests</span>
+                            <span className="text-xs rounded-full px-1.5 font-semibold" style={{ background: "rgba(245,197,66,0.15)", color: "var(--honey-deep, #a07820)" }}>{messageRequests.length}</span>
                           </div>
                           <div className="divide-y divide-border/30">
                             {messageRequests.map(req => (
                               <div key={req.other_user_id} className="px-4 py-3">
                                 <div className="flex items-center gap-3 mb-2">
-                                  <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-sm font-semibold text-primary overflow-hidden shrink-0">
+                                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold overflow-hidden shrink-0" style={{ background: "var(--paper-2)", color: "var(--ink-2)" }}>
                                     {req.other_user_picture
                                       ? <img src={req.other_user_picture} alt="" className="w-full h-full object-cover" />
                                       : req.other_user_name?.[0]?.toUpperCase()}
@@ -961,7 +961,7 @@ export default function Messages({ user }) {
                                 <div className="flex gap-2">
                                   <button
                                     onClick={() => handleAcceptRequest(req)}
-                                    className="flex-1 text-xs font-medium py-1.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                                    className="flex-1 text-xs font-medium py-1.5 rounded-xl hover:opacity-90 transition-opacity" style={{ background: "var(--ink)", color: "var(--paper)" }}
                                   >
                                     Accept
                                   </button>
@@ -993,8 +993,8 @@ export default function Messages({ user }) {
 
                           if (allFriendItems.length === 0) return (
                             <div className="p-6 text-center">
-                              <span className="text-3xl block mb-2">👥</span>
-                              <p className="text-sm text-muted-foreground">No friends yet.<br/><span className="text-xs">Add friends to chat privately.</span></p>
+                              <UserPlus size={28} style={{ color: "var(--ink-3)", margin: "0 auto 12px" }} />
+                              <p style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 13, color: "var(--ink-3)" }}>No friends yet. Add friends to chat privately.</p>
                             </div>
                           );
 
@@ -1013,13 +1013,13 @@ export default function Messages({ user }) {
                                       <button
                                         key={conv.other_user_id}
                                         onClick={() => openDmChat({ user_id: conv.other_user_id, name: conv.other_user_name, nickname: friend?.nickname, picture: pic, is_online: friend?.is_online })}
-                                        className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${activeDmUser?.user_id === conv.other_user_id ? "bg-primary/10" : ""}`}
+                                        className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${activeDmUser?.user_id === conv.other_user_id ? "bg-[var(--paper-3)]" : ""}`}
                                       >
                                         <div className="relative shrink-0">
-                                          <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-semibold text-primary overflow-hidden">
+                                          <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold overflow-hidden" style={{ background: "var(--paper-2)", color: "var(--ink-2)" }}>
                                             {pic ? <img src={pic} alt="" className="w-full h-full object-cover" /> : name?.[0]?.toUpperCase()}
                                           </div>
-                                          {friend?.is_online && <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-card bg-green-500" />}
+                                          {friend?.is_online && <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-card" style={{ background: "var(--status-online)" }} />}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                           <div className="flex items-center justify-between gap-1">
@@ -1041,16 +1041,16 @@ export default function Messages({ user }) {
                                         key={friend.user_id}
                                         onClick={() => openFriendChat(friend)}
                                         disabled={openingChat === friend.user_id}
-                                        className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${activeFriend?.user_id === friend.user_id ? "bg-primary/10" : ""}`}
+                                        className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${activeFriend?.user_id === friend.user_id ? "bg-[var(--paper-3)]" : ""}`}
                                       >
                                         <UserAvatar {...friend} isOnline={friend.is_online} />
                                         <div className="flex-1 min-w-0">
                                           <p className="text-sm font-medium text-foreground truncate">{friend.nickname || friend.name}</p>
-                                          <p className={`text-xs ${friend.is_online ? "text-green-500" : "text-muted-foreground"}`}>
+                                          <p className="text-xs text-muted-foreground" style={friend.is_online ? { color: "var(--status-online)" } : {}}>
                                             {friend.is_online ? "Active now" : "Tap to chat"}
                                           </p>
                                         </div>
-                                        {openingChat === friend.user_id && <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />}
+                                        {openingChat === friend.user_id && <div className="w-4 h-4 border-2 border-[var(--ink-2)] border-t-transparent rounded-full animate-spin shrink-0" />}
                                       </button>
                                     );
                                   }
@@ -1074,10 +1074,10 @@ export default function Messages({ user }) {
                                     <button
                                       key={key}
                                       onClick={() => openEventChat(conv)}
-                                      className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${isActive ? "bg-primary/10" : ""}`}
+                                      className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${isActive ? "bg-[var(--paper-3)]" : ""}`}
                                     >
                                       <div className="relative shrink-0">
-                                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden">
+                                        <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden" style={{ background: "var(--paper-3)" }}>
                                           {conv.image_url
                                             ? <img src={conv.image_url} alt="" className="w-full h-full object-cover" />
                                             : <Calendar className="h-4 w-4 text-primary" />}
@@ -1100,7 +1100,7 @@ export default function Messages({ user }) {
                                     <button
                                       key={key}
                                       onClick={() => openStallChat(conv)}
-                                      className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${isActive ? "bg-primary/10" : ""}`}
+                                      className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${isActive ? "bg-[var(--paper-3)]" : ""}`}
                                     >
                                       <div className="relative shrink-0">
                                         <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center overflow-hidden">
@@ -1134,13 +1134,13 @@ export default function Messages({ user }) {
                                     onClick={() => conv._type === "friend_dm" && friend
                                       ? openDmChat({ user_id: conv.other_user_id, name: conv.other_user_name, nickname: friend.nickname, picture: pic, is_online: friend.is_online })
                                       : openDmChat({ user_id: conv.other_user_id, name: conv.other_user_name, nickname: null, picture: pic })}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${activeDmUser?.user_id === conv.other_user_id ? "bg-primary/10" : ""}`}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${activeDmUser?.user_id === conv.other_user_id ? "bg-[var(--paper-3)]" : ""}`}
                                   >
                                     <div className="relative shrink-0">
-                                      <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-semibold text-primary overflow-hidden">
+                                      <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold overflow-hidden" style={{ background: "var(--paper-2)", color: "var(--ink-2)" }}>
                                         {pic ? <img src={pic} alt="" className="w-full h-full object-cover" /> : name?.[0]?.toUpperCase()}
                                       </div>
-                                      {friend?.is_online && <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-card bg-green-500" />}
+                                      {friend?.is_online && <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-card" style={{ background: "var(--status-online)" }} />}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-center justify-between gap-1">
@@ -1173,7 +1173,7 @@ export default function Messages({ user }) {
                                     key={friend.user_id}
                                     onClick={() => openFriendChat(friend)}
                                     disabled={openingChat === friend.user_id}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${activeFriend?.user_id === friend.user_id ? "bg-primary/10" : ""}`}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left ${activeFriend?.user_id === friend.user_id ? "bg-[var(--paper-3)]" : ""}`}
                                   >
                                     <UserAvatar {...friend} isOnline={friend.is_online} />
                                     <div className="flex-1 min-w-0">
@@ -1182,7 +1182,7 @@ export default function Messages({ user }) {
                                         {friend.is_online ? "Active now" : "Tap to chat"}
                                       </p>
                                     </div>
-                                    {openingChat === friend.user_id && <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />}
+                                    {openingChat === friend.user_id && <div className="w-4 h-4 border-2 border-[var(--ink-2)] border-t-transparent rounded-full animate-spin shrink-0" />}
                                   </button>
                                 ))}
                               </div>
@@ -1192,12 +1192,10 @@ export default function Messages({ user }) {
                           {/* Empty state — tab-aware */}
                           {filteredRecent.length === 0 && !(showContactsSection && friendsContactOnly.length > 0) && !(inboxTab === "all" && messageRequests.length > 0) && (
                             <div className="p-6 text-center">
-                              <span className="text-3xl block mb-2">
-                                {inboxTab === "stall" ? "🛒" : inboxTab === "unread" ? "✅" : inboxTab === "events" ? "📅" : "💬"}
-                              </span>
-                              {inboxTab === "unread" && <p className="text-sm text-muted-foreground">All caught up!</p>}
-                              {inboxTab === "stall" && <p className="text-sm text-muted-foreground">No Stall enquiries yet.<br/><span className="text-xs">Browse the Stall and message a seller to get started.</span></p>}
-                              {inboxTab === "events" && <p className="text-sm text-muted-foreground">No event chats yet.<br/><span className="text-xs">RSVP to an event to join its group chat.</span></p>}
+                              {inboxTab === "stall" ? <ShoppingBag size={28} style={{ color: "var(--ink-3)", margin: "0 auto 12px" }} /> : inboxTab === "events" ? <Calendar size={28} style={{ color: "var(--ink-3)", margin: "0 auto 12px" }} /> : <MessageSquare size={28} style={{ color: "var(--ink-3)", margin: "0 auto 12px" }} />}
+                              {inboxTab === "unread" && <p style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 13, color: "var(--ink-3)" }}>All caught up!</p>}
+                              {inboxTab === "stall" && <p style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 13, color: "var(--ink-3)" }}>No Stall enquiries yet. Browse the Stall and message a seller to get started.</p>}
+                              {inboxTab === "events" && <p style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 13, color: "var(--ink-3)" }}>No event chats yet. RSVP to an event to join its group chat.</p>}
                               {inboxTab === "all" && friends.length === 0 && conversations.length === 0 && messageRequests.length === 0 && stallConversations.length === 0 && (
                                 isFree ? (
                                   <>
@@ -1237,7 +1235,7 @@ export default function Messages({ user }) {
                       <>
                         <button
                           onClick={() => navigate(`/events?event=${activeEventConv?.event_id}`)}
-                          className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden shrink-0 hover:opacity-80 transition-opacity"
+                          className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden shrink-0 hover:opacity-80 transition-opacity" style={{ background: "var(--paper-3)" }}
                           title="View event"
                         >
                           {activeEventConv?.image_url
@@ -1252,7 +1250,8 @@ export default function Messages({ user }) {
                         </button>
                         <button
                           onClick={() => navigate(`/events?event=${activeEventConv?.event_id}`)}
-                          className="flex items-center gap-1 text-xs bg-primary/10 text-primary border border-primary/20 rounded-full px-2.5 py-1 font-medium hover:bg-primary/20 transition-colors shrink-0"
+                          className="flex items-center gap-1 text-xs rounded-full px-2.5 py-1 font-medium hover:opacity-80 transition-opacity shrink-0"
+                          style={{ background: "var(--paper-3)", color: "var(--ink-2)", border: "1px solid var(--line)" }}
                           title="View event"
                         >
                           <ExternalLink className="h-3 w-3" /> View Event
@@ -1284,19 +1283,19 @@ export default function Messages({ user }) {
                     ) : (
                       <>
                         {/* Clickable avatar → profile */}
-                        <button onClick={() => navigate(`/profile/${activeUser.user_id}`)} className="shrink-0 rounded-full focus:outline-none focus:ring-2 focus:ring-primary/30">
+                        <button onClick={() => navigate(`/profile/${activeUser.user_id}`)} className="shrink-0 rounded-full focus:outline-none focus:ring-2 focus:ring-border/50">
                           <UserAvatar picture={activeUser.picture} name={activeUser.name} nickname={activeUser.nickname} isOnline={activeUser.is_online} />
                         </button>
                         {/* Clickable name → profile */}
                         <button onClick={() => navigate(`/profile/${activeUser.user_id}`)} className="flex-1 min-w-0 text-left group">
                           <p className="font-medium text-foreground text-sm group-hover:underline truncate">{activeUser.nickname || activeUser.name}</p>
-                          <p className={`text-xs ${activeUser.is_online ? "text-green-500" : "text-muted-foreground"}`}>
+                          <p className="text-xs text-muted-foreground" style={activeUser.is_online ? { color: "var(--status-online)" } : {}}>
                             {chatMode === "friend" ? (activeUser.is_online ? "Active now" : "Offline") : "Private message"}
                           </p>
                         </button>
                         {/* Right side: badge or Add Friend button */}
                         {chatMode === "friend" || friendIds.has(activeUser.user_id) ? (
-                          <span className="flex items-center gap-1 text-xs bg-primary/10 text-primary border border-primary/20 rounded-full px-2.5 py-1 font-medium shrink-0">
+                          <span className="flex items-center gap-1 text-xs rounded-full px-2.5 py-1 font-medium shrink-0" style={{ background: "var(--sage-wash)", color: "var(--sage-deep)", border: "1px solid rgba(74,113,85,0.2)" }}>
                             <Users className="h-3 w-3" /> {chatMode === "friend" ? "Friend Chat" : "Friends"}
                           </span>
                         ) : activeDmIsOutgoingRequest ? (
@@ -1304,13 +1303,14 @@ export default function Messages({ user }) {
                             <Lock className="h-3 w-3" /> Request Pending
                           </span>
                         ) : friendRequestSent ? (
-                          <span className="flex items-center gap-1 text-xs bg-green-500/10 text-green-600 border border-green-500/20 rounded-full px-2.5 py-1 font-medium shrink-0">
+                          <span className="flex items-center gap-1 text-xs rounded-full px-2.5 py-1 font-medium shrink-0" style={{ background: "var(--sage-wash)", color: "var(--sage-deep)", border: "1px solid rgba(74,113,85,0.2)" }}>
                             <UserPlus className="h-3 w-3" /> Sent ✓
                           </span>
                         ) : (
                           <button
                             onClick={sendFriendRequestFromChat}
-                            className="flex items-center gap-1 text-xs bg-primary text-primary-foreground rounded-full px-3 py-1.5 font-medium hover:bg-primary/90 transition-colors shrink-0"
+                            className="flex items-center gap-1 text-xs rounded-full px-3 py-1.5 font-medium hover:opacity-90 transition-opacity shrink-0"
+                            style={{ background: "var(--ink)", color: "var(--paper)" }}
                           >
                             <UserPlus className="h-3 w-3" /> Add Friend
                           </button>
@@ -1330,7 +1330,7 @@ export default function Messages({ user }) {
                   >
                     {loadingMessages ? (
                       <div className="flex items-center justify-center py-12">
-                        <div className="w-5 h-5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+                        <div className="w-5 h-5 rounded-full border-2 border-[var(--line)] border-t-[var(--ink-2)] animate-spin" />
                       </div>
                     ) : (
                       <>
@@ -1374,8 +1374,8 @@ export default function Messages({ user }) {
 
                   {/* Outgoing request pending banner */}
                   {activeDmIsOutgoingRequest && (
-                    <div className="px-4 py-2.5 bg-amber-500/5 border-t border-amber-500/20 shrink-0 text-center">
-                      <p className="text-xs text-amber-600 font-medium">Message request sent · waiting for them to accept</p>
+                    <div className="px-4 py-2.5 border-t border-amber-500/20 shrink-0 text-center" style={{ background: "var(--honey-wash)" }}>
+                      <p className="text-xs font-medium" style={{ color: "var(--honey-deep, #a07820)" }}>Message request sent · waiting for them to accept</p>
                     </div>
                   )}
 
@@ -1393,7 +1393,7 @@ export default function Messages({ user }) {
                     <button
                       type="button"
                       onClick={() => imageInputRef.current?.click()}
-                      className="w-10 h-10 rounded-full flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors shrink-0"
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
                       title="Send a photo"
                     >
                       <ImageIcon className="h-5 w-5" />
@@ -1408,18 +1408,18 @@ export default function Messages({ user }) {
                         chatMode === "stall" ? `Message about ${activeStallConv?.listing_title || "this listing"}...` :
                         `Message ${activeUser?.nickname || activeUser?.name}...`
                       }
-                      className="flex-1 bg-secondary/50 rounded-full px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/30"
+                      className="flex-1 bg-secondary/50 rounded-full px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50"
                       maxLength={1000}
                       disabled={sending || uploadingImage}
                     />
                     <button
                       type="submit"
                       disabled={(!newMessage.trim() && !imageFile) || sending || uploadingImage}
-                      className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-50 shrink-0"
+                      className="w-10 h-10 rounded-full flex items-center justify-center disabled:opacity-50 shrink-0" style={{ background: "var(--ink)", color: "var(--paper)" }}
                     >
                       {sending || uploadingImage
-                        ? <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
-                        : <Send className="h-4 w-4" />
+                        ? <div className="w-4 h-4 border-2 border-[var(--paper)] border-t-transparent rounded-full animate-spin" />
+                        : <SendIcon size={16} />
                       }
                     </button>
                   </form>

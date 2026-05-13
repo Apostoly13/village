@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+﻿import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { Badge } from "../components/ui/badge";
 import Navigation from "../components/Navigation";
 import { toast } from "sonner";
-import { Users, UserPlus, Clock, Check, X, MessageCircle, Heart, MessagesSquare, Search } from "lucide-react";
+import { Users, UserPlus, Clock, Check, X, MessageCircle, Heart, MessagesSquare, Search, Bell } from "lucide-react";
 import AppFooter from "../components/AppFooter";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -190,26 +190,24 @@ export default function FriendsPage({ user }) {
   };
 
   const FriendCard = ({ friend, showRemove = false }) => (
-    <div className="village-card village-card-hover p-4 border-l-2 border-l-primary/20" data-testid={`friend-card-${friend.user_id}`}>
+    <div className="village-card village-card-hover p-4" data-testid={`friend-card-${friend.user_id}`}>
       <div className="flex items-center gap-4">
         <Link to={`/profile/${friend.user_id}`} className="relative shrink-0">
           <Avatar className="h-14 w-14 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
             <AvatarImage src={friend.picture} />
-            <AvatarFallback className="bg-primary/20 text-primary text-lg">
+            <AvatarFallback className="text-lg">
               {friend.name?.[0]?.toUpperCase() || '?'}
             </AvatarFallback>
           </Avatar>
           {/* Online indicator */}
-          <span className={`absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full border-2 border-card ${
-            friend.is_online ? "bg-green-500" : "bg-muted-foreground/40"
-          }`} title={friend.is_online ? "Online" : "Offline"} />
+          <span className={`absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full border-2 border-card ${friend.is_online ? "" : "bg-muted-foreground/40"}`} style={friend.is_online ? { background: "var(--status-online)" } : {}} title={friend.is_online ? "Online" : "Offline"} />
         </Link>
         <div className="flex-1 min-w-0">
           <Link to={`/profile/${friend.user_id}`} className="hover:underline">
             <h3 className="font-medium text-foreground truncate">{friend.nickname || friend.name}</h3>
           </Link>
           {friend.is_online ? (
-            <p className="text-xs text-green-500 font-medium">Online</p>
+            <p className="text-xs font-medium" style={{ color: "var(--status-online)" }}>Online</p>
           ) : (
             friend.bio && <p className="text-sm text-muted-foreground truncate">{friend.bio}</p>
           )}
@@ -260,12 +258,12 @@ export default function FriendsPage({ user }) {
   );
 
   const RequestCard = ({ request }) => (
-    <div className="village-card village-card-hover p-4 border-l-2 border-l-primary/20" data-testid={`request-card-${request.request_id}`}>
+    <div className="village-card village-card-hover p-4" data-testid={`request-card-${request.request_id}`}>
       <div className="flex items-center gap-4">
         <Link to={`/profile/${request.from_user?.user_id}`}>
           <Avatar className="h-14 w-14 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
             <AvatarImage src={request.from_user?.picture} />
-            <AvatarFallback className="bg-primary/20 text-primary text-lg">
+            <AvatarFallback className="text-lg">
               {request.from_user?.name?.[0]?.toUpperCase() || '?'}
             </AvatarFallback>
           </Avatar>
@@ -309,7 +307,7 @@ export default function FriendsPage({ user }) {
   );
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
+    <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
       <Navigation user={user} />
       
       <main className="max-w-4xl mx-auto px-4 pt-16 lg:pt-8">
@@ -320,21 +318,21 @@ export default function FriendsPage({ user }) {
 
         <Tabs defaultValue={["friends","requests","sent","discover"].includes(searchParams.get("tab")) ? searchParams.get("tab") : "friends"} onValueChange={(v) => setSearchParams({ tab: v }, { replace: true })} className="w-full">
           <TabsList className="w-full bg-card border border-border/50 rounded-xl p-1 mb-6">
-            <TabsTrigger value="friends" className="flex-1 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" data-testid="tab-friends">
+            <TabsTrigger value="friends" className="flex-1 rounded-lg data-[state=active]:bg-[var(--ink)] data-[state=active]:text-[var(--paper)]" data-testid="tab-friends">
               Friends ({friends.length})
             </TabsTrigger>
-            <TabsTrigger value="requests" className="flex-1 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground relative" data-testid="tab-requests">
+            <TabsTrigger value="requests" className="flex-1 rounded-lg data-[state=active]:bg-[var(--ink)] data-[state=active]:text-[var(--paper)] relative" data-testid="tab-requests">
               Requests
               {requests.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-white text-xs flex items-center justify-center" style={{ background: "var(--badge-danger)" }}>
                   {requests.length}
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="sent" className="flex-1 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" data-testid="tab-sent">
+            <TabsTrigger value="sent" className="flex-1 rounded-lg data-[state=active]:bg-[var(--ink)] data-[state=active]:text-[var(--paper)]" data-testid="tab-sent">
               Sent ({sentRequests.length})
             </TabsTrigger>
-            <TabsTrigger value="discover" className="flex-1 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" data-testid="tab-discover">
+            <TabsTrigger value="discover" className="flex-1 rounded-lg data-[state=active]:bg-[var(--ink)] data-[state=active]:text-[var(--paper)]" data-testid="tab-discover">
               Find Parents
             </TabsTrigger>
           </TabsList>
@@ -356,9 +354,9 @@ export default function FriendsPage({ user }) {
               </div>
             ) : friends.length === 0 ? (
               <div className="text-center py-12 village-card">
-                <span className="text-4xl mb-3 block">👋</span>
-                <h3 className="font-heading font-semibold text-foreground mb-1">Your village is waiting</h3>
-                <p className="text-sm text-muted-foreground mb-4">Add people you meet in the forums or chat rooms.</p>
+                <UserPlus size={28} style={{ color: "var(--ink-3)", margin: "0 auto 12px" }} />
+                <h3 className="font-heading font-semibold mb-1" style={{ color: "var(--ink)" }}>Your village is waiting</h3>
+                <p className="mb-4" style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 13, color: "var(--ink-3)" }}>Add people you meet in the forums or chat rooms.</p>
                 <Link to="/forums">
                   <Button className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90">
                     Browse forums
@@ -391,9 +389,9 @@ export default function FriendsPage({ user }) {
               </div>
             ) : requests.length === 0 ? (
               <div className="text-center py-12 village-card">
-                <span className="text-4xl mb-3 block">📭</span>
-                <h3 className="font-heading font-semibold text-foreground mb-1">No pending requests</h3>
-                <p className="text-sm text-muted-foreground">When someone wants to connect, you'll see it here.</p>
+                <Bell size={28} style={{ color: "var(--ink-3)", margin: "0 auto 12px" }} />
+                <h3 className="font-heading font-semibold mb-1" style={{ color: "var(--ink)" }}>No pending requests</h3>
+                <p style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 13, color: "var(--ink-3)" }}>When someone wants to connect, you'll see it here.</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -421,19 +419,19 @@ export default function FriendsPage({ user }) {
               </div>
             ) : sentRequests.length === 0 ? (
               <div className="text-center py-12 village-card">
-                <span className="text-4xl mb-3 block">✉️</span>
-                <h3 className="font-heading font-semibold text-foreground mb-1">No sent requests</h3>
-                <p className="text-sm text-muted-foreground">Friend requests you send will appear here.</p>
+                <UserPlus size={28} style={{ color: "var(--ink-3)", margin: "0 auto 12px" }} />
+                <h3 className="font-heading font-semibold mb-1" style={{ color: "var(--ink)" }}>No sent requests</h3>
+                <p style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 13, color: "var(--ink-3)" }}>Friend requests you send will appear here.</p>
               </div>
             ) : (
               <div className="space-y-4">
                 {sentRequests.map(request => (
-                  <div key={request.request_id} className="village-card p-4 border-l-2 border-l-primary/20" data-testid={`sent-${request.request_id}`}>
+                  <div key={request.request_id} className="village-card p-4" data-testid={`sent-${request.request_id}`}>
                     <div className="flex items-center gap-4">
                       <Link to={`/profile/${request.to_user?.user_id}`} className="shrink-0">
                         <Avatar className="h-14 w-14 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
                           <AvatarImage src={request.to_user?.picture} />
-                          <AvatarFallback className="bg-primary/20 text-primary text-lg">
+                          <AvatarFallback className="text-lg">
                             {request.to_user?.name?.[0]?.toUpperCase() || '?'}
                           </AvatarFallback>
                         </Avatar>
@@ -526,7 +524,7 @@ export default function FriendsPage({ user }) {
                         <Link to={`/profile/${u.user_id}`} className="shrink-0">
                           <Avatar className="h-12 w-12 hover:ring-2 hover:ring-primary/50 transition-all cursor-pointer">
                             <AvatarImage src={u.picture} />
-                            <AvatarFallback className="bg-primary/20 text-primary">
+                            <AvatarFallback>
                               {(u.nickname || u.name)?.[0]?.toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
@@ -542,7 +540,7 @@ export default function FriendsPage({ user }) {
                         </div>
                         {!isSelf && (
                           isFriend ? (
-                            <span className="text-xs text-primary font-medium px-3 py-1 rounded-full bg-primary/10 border border-primary/20 shrink-0">Friends ✓</span>
+                            <span className="text-xs font-medium px-3 py-1 rounded-full shrink-0" style={{ background: "var(--sage-wash)", color: "var(--sage-deep)", border: "1px solid rgba(74,113,85,0.2)" }}>Friends ✓</span>
                           ) : alreadySent ? (
                             <span className="text-xs text-muted-foreground font-medium px-3 py-1 rounded-full bg-secondary shrink-0">Sent ✓</span>
                           ) : (

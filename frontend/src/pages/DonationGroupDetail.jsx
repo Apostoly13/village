@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import Navigation from "../components/Navigation";
@@ -11,10 +11,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const TYPE_STYLES = {
-  sell:      "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
-  swap:      "bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20",
+  sell:"bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
+  swap:"bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20",
   give_away: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
-  wanted:    "bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20",
+  wanted:"bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20",
 };
 
 export default function DonationGroupDetail({ user }) {
@@ -54,7 +54,7 @@ export default function DonationGroupDetail({ user }) {
 
   if (loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="w-6 h-6 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+      <div className="w-6 h-6 rounded-full border-2 border-[var(--line)] border-t-[var(--ink-2)] animate-spin" />
     </div>
   );
 
@@ -64,7 +64,7 @@ export default function DonationGroupDetail({ user }) {
   const formatTime = (d) => { try { return formatDistanceToNow(new Date(d), { addSuffix: true }); } catch { return ""; } };
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
+    <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
       <Navigation user={user} />
 
       <main className="max-w-3xl mx-auto px-4 pt-16 lg:pt-8 pb-16">
@@ -101,7 +101,7 @@ export default function DonationGroupDetail({ user }) {
             <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border/30">
               <Avatar className="h-7 w-7">
                 <AvatarImage src={group.organiser_picture} />
-                <AvatarFallback className="bg-primary/20 text-primary text-xs">{group.organiser_name?.[0]}</AvatarFallback>
+                <AvatarFallback className="text-xs">{group.organiser_name?.[0]}</AvatarFallback>
               </Avatar>
               <span className="text-xs text-muted-foreground">Organised by <span className="text-foreground font-medium">{group.organiser_name}</span></span>
 

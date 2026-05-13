@@ -1,9 +1,10 @@
-import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
+﻿import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
-import { ArrowLeft, MapPin, Clock, Bookmark, BookmarkCheck, Tag, ArrowLeftRight, Heart, Search, MessageCircle, Crown, ChevronLeft, ChevronRight, Send, X, ShoppingBag, Check, Flag } from "lucide-react";
+import { ArrowLeft, MapPin, Clock, Bookmark, BookmarkCheck, Tag, ArrowLeftRight, Heart, Search, MessageCircle, Sparkles, ChevronLeft, ChevronRight, X, ShoppingBag, Check } from "lucide-react";
+import { SendIcon, ReportIcon } from "../components/village/VillageLineIcons";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../components/ui/dialog";
 import { Label } from "../components/ui/label";
 import { Textarea } from "../components/ui/textarea";
@@ -186,7 +187,7 @@ function StallChatPanel({ listing, user, onClose }) {
       <div ref={scrollAreaRef} onScroll={handleScroll} className="flex-1 overflow-y-auto px-4 py-4" style={{ overscrollBehavior: "contain" }}>
         {loading ? (
           <div className="flex items-center justify-center h-full">
-            <div className="w-5 h-5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+            <div className="w-5 h-5 rounded-full border-2 border-[var(--line)] border-t-[var(--ink-2)] animate-spin" />
           </div>
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-3 text-center pb-12">
@@ -227,7 +228,7 @@ function StallChatPanel({ listing, user, onClose }) {
                         className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mb-1 p-1 rounded text-muted-foreground hover:text-destructive"
                         title="Report message"
                       >
-                        <Flag className="h-3 w-3" />
+                        <ReportIcon size={12} />
                       </button>
                     )}
                   </div>
@@ -248,7 +249,7 @@ function StallChatPanel({ listing, user, onClose }) {
           onKeyDown={handleKeyDown}
           placeholder="Message…"
           rows={1}
-          className="flex-1 resize-none bg-background border border-border rounded-2xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none focus:ring-2 focus:ring-primary/30 transition overflow-hidden"
+          className="flex-1 resize-none bg-background border border-border rounded-2xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none focus:ring-2 focus:ring-border/50 transition overflow-hidden"
         />
         <button
           onClick={handleSend}
@@ -256,8 +257,8 @@ function StallChatPanel({ listing, user, onClose }) {
           className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-40 hover:opacity-90 active:scale-95 transition-all shrink-0 mb-px"
         >
           {sending
-            ? <div className="w-4 h-4 rounded-full border-2 border-primary-foreground/40 border-t-primary-foreground animate-spin" />
-            : <Send className="h-4 w-4" />
+            ? <div className="w-4 h-4 rounded-full border-2 border-[var(--sage)]-foreground/40 border-t-primary-foreground animate-spin" />
+            : <SendIcon size={16} />
           }
         </button>
       </div>
@@ -391,7 +392,7 @@ export default function StallListingDetail({ user }) {
 
   if (loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="w-6 h-6 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+      <div className="w-6 h-6 rounded-full border-2 border-[var(--line)] border-t-[var(--ink-2)] animate-spin" />
     </div>
   );
 
@@ -476,7 +477,7 @@ export default function StallListingDetail({ user }) {
                   <button
                     key={i}
                     onClick={() => setPhotoIdx(i)}
-                    className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-colors ${i === photoIdx ? "border-primary" : "border-transparent"}`}
+                    className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-colors ${i === photoIdx ? "border-[var(--sage)]" : "border-transparent"}`}
                   >
                     <img src={img} alt="" className="w-full h-full object-cover" />
                   </button>
@@ -509,9 +510,9 @@ export default function StallListingDetail({ user }) {
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-semibold text-foreground">Your listing</p>
                   <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                    listing.status === "active"  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" :
-                    listing.status === "sold"    ? "bg-secondary text-muted-foreground" :
-                                                   "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                    listing.status === "active"? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" :
+                    listing.status === "sold"? "bg-secondary text-muted-foreground" :
+"bg-amber-500/15 text-amber-600 dark:text-amber-400"
                   }`}>
                     {listing.status === "active" ? "Active" : listing.status === "sold" ? "Sold" : "Paused"}
                   </span>
@@ -597,14 +598,14 @@ export default function StallListingDetail({ user }) {
             <div className="bg-card border border-border/50 rounded-2xl p-3.5 flex items-center gap-3">
               <Avatar className="h-10 w-10">
                 <AvatarImage src={listing.seller_picture} />
-                <AvatarFallback className="bg-primary/20 text-primary text-sm">
+                <AvatarFallback className="text-sm">
                   {listing.seller_name?.[0]?.toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-foreground flex items-center gap-1">
                   {listing.seller_name}
-                  <Crown className="h-3 w-3 text-amber-500" />
+                  <Sparkles className="h-3 w-3" style={{ color: "hsl(var(--accent))" }} />
                 </p>
                 <p className="text-xs text-muted-foreground">Village+ member</p>
               </div>
@@ -626,7 +627,7 @@ export default function StallListingDetail({ user }) {
                 onClick={() => setReportOpen(true)}
                 className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive transition-colors"
               >
-                <Flag className="h-3.5 w-3.5" />
+                <ReportIcon size={14} />
                 Report this listing
               </button>
             )}
@@ -654,7 +655,7 @@ export default function StallListingDetail({ user }) {
               </Button>
             ) : (
               <Button className="flex-1 rounded-xl" onClick={() => navigate("/plus")}>
-                <Crown className="h-4 w-4 mr-1.5" />
+                <Sparkles className="h-4 w-4 mr-1.5" style={{ color: "hsl(var(--accent))" }} />
                 Upgrade to message
               </Button>
             )}

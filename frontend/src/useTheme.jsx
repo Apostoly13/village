@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+﻿import { useEffect, useState, useCallback } from "react";
 
 const STORAGE_KEY = "village.theme";
 
@@ -21,8 +21,8 @@ function applyTheme(theme) {
 /**
  * useTheme — day / night / auto
  * Returns [setting, setSetting, resolved]
- *   setting  : "day" | "night" | "auto"  (what the user chose)
- *   resolved : "day" | "night"           (what is actually applied)
+ *   setting  : "day" | "night" | "auto"(what the user chose)
+ *   resolved : "day" | "night"(what is actually applied)
  */
 export function useTheme() {
   const [setting, _set] = useState(() => {

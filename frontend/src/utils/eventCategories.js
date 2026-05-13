@@ -14,15 +14,16 @@ export const EVENT_CATEGORIES = [
 ];
 
 /**
- * Tailwind badge classes for each event category.
+ * Inline style objects for each event category badge.
+ * Mirrors the DATE_CHIP_STYLES pattern — uses CSS var() tokens, not Tailwind.
  * Keys match the `category` field stored in the database.
  */
 export const CATEGORY_STYLES = {
-  general:   "bg-secondary text-secondary-foreground",
-  playgroup: "bg-green-500/10 text-green-700 dark:text-green-400",
-  meetup:    "bg-blue-500/10 text-blue-700 dark:text-blue-400",
-  workshop:  "bg-amber-500/10 text-amber-700 dark:text-amber-400",
-  support:   "bg-purple-500/10 text-purple-700 dark:text-purple-400",
+  general:   { background: "var(--paper-3)",    color: "var(--ink-3)" },
+  playgroup: { background: "var(--sage-wash)",   color: "var(--sage-deep)" },
+  meetup:    { background: "var(--clay-wash)",   color: "var(--clay-deep)" },
+  workshop:  { background: "var(--honey-wash)",  color: "var(--honey)" },
+  support:   { background: "var(--dusk-wash)",   color: "var(--dusk)" },
 };
 
 /**
@@ -47,11 +48,11 @@ export const CATEGORY_LABELS = {
 };
 
 /**
- * Get the badge className for a given category id.
+ * Get the badge style object for a given category id.
  * Falls back to the "general" style if the id is unknown.
  *
  * @param {string} categoryId
- * @returns {string} Tailwind class string
+ * @returns {{ background: string, color: string }} inline style object
  */
 export function getCategoryStyle(categoryId) {
   return CATEGORY_STYLES[categoryId] ?? CATEGORY_STYLES.general;

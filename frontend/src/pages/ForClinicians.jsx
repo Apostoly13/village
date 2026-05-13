@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ShieldCheck, Heart, Download, ArrowRight, Moon, Sun } from "lucide-react";
 import { Button } from "../components/ui/button";
@@ -85,7 +85,7 @@ export default function ForClinicians({ user }) {
         </div>
       </nav>
 
-      <main className="max-w-4xl mx-auto px-4 pt-12 pb-20">
+      <main className="max-w-4xl mx-auto px-4 pt-12 ">
 
         {/* Hero */}
         <div className="mb-10 text-center">
@@ -111,7 +111,7 @@ export default function ForClinicians({ user }) {
             </a>
             <Link
               to="/register"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-border/60 text-foreground text-sm font-medium hover:border-primary/40 hover:bg-primary/5 transition-colors"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-border/60 text-foreground text-sm font-medium hover:border-border hover:bg-muted/30 transition-colors"
             >
               Try it yourself
               <ArrowRight className="h-4 w-4" />
@@ -195,7 +195,7 @@ export default function ForClinicians({ user }) {
               { step: "3", text: "A 7-day full-access trial starts automatically, then a free tier" },
             ].map(({ step, text }) => (
               <div key={step} className="flex items-center gap-4">
-                <div className="w-7 h-7 rounded-full bg-primary/15 text-primary text-xs font-bold flex items-center justify-center shrink-0">{step}</div>
+                <div className="w-7 h-7 rounded-full bg-[var(--honey-wash)] text-[var(--honey)] text-xs font-bold flex items-center justify-center shrink-0">{step}</div>
                 <p className="text-sm text-foreground">{text}</p>
               </div>
             ))}
@@ -207,7 +207,7 @@ export default function ForClinicians({ user }) {
         </div>
 
         {/* Contact */}
-        <div className="mb-8 bg-primary/5 border border-primary/15 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 justify-between">
+        <div className="mb-8 bg-[var(--paper-3)] border border-[var(--sage)]/15 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 justify-between">
           <div>
             <h2 className="font-heading font-semibold text-sm text-foreground mb-1">Want to partner with us?</h2>
             <p className="text-xs text-muted-foreground leading-relaxed">

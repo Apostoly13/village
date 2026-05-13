@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -8,7 +8,7 @@ import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
 import { toast } from "sonner";
 import { parseApiError } from "../utils/apiError";
-import { ArrowLeft, Crown, Users, Search, Upload, X, Lock, Globe, MapPin, Eye, EyeOff, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, Sparkles, Users, Search, Upload, X, Lock, Globe, MapPin, Eye, EyeOff, ChevronDown, ChevronUp } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -229,7 +229,7 @@ function EmojiPicker({ value, onChange, onImageUpload, imagePreview, onClearImag
           <button
             type="button"
             onClick={() => { setExpanded(!expanded); }}
-            className="inline-flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 font-medium"
+            className="inline-flex items-center gap-1.5 text-sm text-primary hover:text-[var(--ink-2)] font-medium"
           >
             <Search className="h-3.5 w-3.5" />
             {expanded ? "Hide emoji picker" : "Browse emojis"}
@@ -268,7 +268,7 @@ function EmojiPicker({ value, onChange, onImageUpload, imagePreview, onClearImag
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search emojis (e.g. baby, heart, nature)…"
-              className="w-full pl-9 pr-4 py-2 rounded-xl bg-card border border-border/50 text-sm focus:outline-none focus:border-primary"
+              className="w-full pl-9 pr-4 py-2 rounded-xl bg-card border border-border/50 text-sm focus:outline-none focus:border-[var(--line-2)]"
             />
           </div>
 
@@ -284,7 +284,7 @@ function EmojiPicker({ value, onChange, onImageUpload, imagePreview, onClearImag
                       key={d.e}
                       type="button"
                       onClick={() => { onChange(d.e); onClearImage(); }}
-                      className={`text-2xl p-1.5 rounded-xl transition-all hover:bg-secondary ${value === d.e && !imagePreview ? "bg-primary/20 ring-2 ring-primary" : ""}`}
+                      className={`text-2xl p-1.5 rounded-xl transition-all hover:bg-secondary ${value === d.e && !imagePreview ? "bg-[var(--honey-wash)] ring-2 ring-primary" : ""}`}
                     >
                       {d.e}
                     </button>
@@ -303,7 +303,7 @@ function EmojiPicker({ value, onChange, onImageUpload, imagePreview, onClearImag
                         key={e}
                         type="button"
                         onClick={() => { onChange(e); onClearImage(); }}
-                        className={`text-2xl p-1.5 rounded-xl transition-all hover:bg-secondary ${value === e && !imagePreview ? "bg-primary/20 ring-2 ring-primary" : ""}`}
+                        className={`text-2xl p-1.5 rounded-xl transition-all hover:bg-secondary ${value === e && !imagePreview ? "bg-[var(--honey-wash)] ring-2 ring-primary" : ""}`}
                       >
                         {e}
                       </button>
@@ -371,7 +371,7 @@ function SuburbSearch({ selected, onChange }) {
       {selected.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {selected.map(s => (
-            <span key={s.postcode} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium">
+            <span key={s.postcode} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--paper-3)] text-primary text-sm font-medium">
               <MapPin className="h-3 w-3" />{s.name} {s.postcode}
               <button type="button" onClick={() => removeSuburb(s.postcode)} className="ml-0.5 hover:text-destructive transition-colors">
                 <X className="h-3 w-3" />
@@ -388,7 +388,7 @@ function SuburbSearch({ selected, onChange }) {
           onChange={e => { setQuery(e.target.value); setShowDropdown(true); }}
           onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
           placeholder="Search suburb or postcode…"
-          className="w-full pl-9 pr-20 h-12 rounded-xl bg-secondary/50 border border-transparent focus:border-primary focus:outline-none text-sm text-foreground placeholder:text-muted-foreground"
+          className="w-full pl-9 pr-20 h-12 rounded-xl bg-secondary/50 border border-transparent focus:border-[var(--line-2)] focus:outline-none text-sm text-foreground placeholder:text-muted-foreground"
         />
         {searching && (
           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">Searching…</span>
@@ -512,7 +512,7 @@ export default function CreateCommunity({ user }) {
   if (!isPremium) return null;
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
+    <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
       <Navigation user={user} />
       <main className="max-w-2xl mx-auto px-4 pt-16 lg:pt-8">
         <button onClick={() => navigate(-1)} className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors">
@@ -521,7 +521,7 @@ export default function CreateCommunity({ user }) {
 
         <div className="bg-card rounded-2xl p-6 border border-border/50">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-[var(--honey-wash)] flex items-center justify-center">
               <Users className="h-5 w-5 text-primary" />
             </div>
             <div>
@@ -547,7 +547,7 @@ export default function CreateCommunity({ user }) {
                   <button
                     type="button"
                     onClick={() => setCommunityType("general")}
-                    className={`p-4 rounded-xl border text-left transition-all ${communityType === "general" ? "border-primary bg-primary/5" : "border-border/50 bg-secondary/30 hover:bg-secondary/50"}`}
+                    className={`p-4 rounded-xl border text-left transition-all ${communityType === "general" ? "border-[var(--sage)] bg-[var(--paper-3)]" : "border-border/50 bg-secondary/30 hover:bg-secondary/50"}`}
                   >
                     <Globe className={`h-5 w-5 mb-2 ${communityType === "general" ? "text-primary" : "text-muted-foreground"}`} />
                     <p className="font-medium text-sm text-foreground">General</p>
@@ -556,7 +556,7 @@ export default function CreateCommunity({ user }) {
                   <button
                     type="button"
                     onClick={() => setCommunityType("local")}
-                    className={`p-4 rounded-xl border text-left transition-all ${communityType === "local" ? "border-primary bg-primary/5" : "border-border/50 bg-secondary/30 hover:bg-secondary/50"}`}
+                    className={`p-4 rounded-xl border text-left transition-all ${communityType === "local" ? "border-[var(--sage)] bg-[var(--paper-3)]" : "border-border/50 bg-secondary/30 hover:bg-secondary/50"}`}
                   >
                     <MapPin className={`h-5 w-5 mb-2 ${communityType === "local" ? "text-primary" : "text-muted-foreground"}`} />
                     <p className="font-medium text-sm text-foreground">Local</p>
@@ -590,7 +590,7 @@ export default function CreateCommunity({ user }) {
                   value={name}
                   onChange={(e) => setName(e.target.value.slice(0, 60))}
                   placeholder="e.g. Aussie Veggie Parents"
-                  className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary"
+                  className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-[var(--line-2)]"
                   maxLength={60}
                 />
                 <p className="text-xs text-muted-foreground text-right">{name.length}/60</p>
@@ -604,7 +604,7 @@ export default function CreateCommunity({ user }) {
                   value={description}
                   onChange={(e) => setDescription(e.target.value.slice(0, 200))}
                   placeholder="What is this community about?"
-                  className="min-h-[100px] rounded-xl bg-secondary/50 border-transparent focus:border-primary resize-none"
+                  className="min-h-[100px] rounded-xl bg-secondary/50 border-transparent focus:border-[var(--line-2)] resize-none"
                   maxLength={200}
                 />
                 <p className="text-xs text-muted-foreground text-right">{description.length}/200</p>
@@ -616,10 +616,10 @@ export default function CreateCommunity({ user }) {
 
                 {/* Public / Private toggle */}
                 <div
-                  className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ${isPrivate ? "border-primary/40 bg-primary/5" : "border-border/50 bg-secondary/30"}`}
+                  className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ${isPrivate ? "border-[var(--line)] bg-[var(--paper-3)]" : "border-border/50 bg-secondary/30"}`}
                   onClick={() => setIsPrivate(!isPrivate)}
                 >
-                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${isPrivate ? "border-primary bg-primary" : "border-border"}`}>
+                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${isPrivate ? "border-[var(--ink)] bg-[var(--ink)]" : "border-border"}`}>
                     {isPrivate && <X className="h-3 w-3 text-primary-foreground" />}
                   </div>
                   <div>
@@ -634,10 +634,10 @@ export default function CreateCommunity({ user }) {
                 {/* Invite-only (only shown when private) */}
                 {isPrivate && (
                   <div
-                    className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ml-6 ${inviteOnly ? "border-primary/40 bg-primary/5" : "border-border/50 bg-secondary/30"}`}
+                    className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ml-6 ${inviteOnly ? "border-[var(--line)] bg-[var(--paper-3)]" : "border-border/50 bg-secondary/30"}`}
                     onClick={() => setInviteOnly(!inviteOnly)}
                   >
-                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${inviteOnly ? "border-primary bg-primary" : "border-border"}`}>
+                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${inviteOnly ? "border-[var(--ink)] bg-[var(--ink)]" : "border-border"}`}>
                       {inviteOnly && <X className="h-3 w-3 text-primary-foreground" />}
                     </div>
                     <div>
@@ -650,10 +650,10 @@ export default function CreateCommunity({ user }) {
 
               {/* Anonymous ownership */}
               <div
-                className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ${isAnonymous ? "border-primary/40 bg-primary/5" : "border-border/50 bg-secondary/30"}`}
+                className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ${isAnonymous ? "border-[var(--line)] bg-[var(--paper-3)]" : "border-border/50 bg-secondary/30"}`}
                 onClick={() => setIsAnonymous(!isAnonymous)}
               >
-                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${isAnonymous ? "border-primary bg-primary" : "border-border"}`}>
+                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${isAnonymous ? "border-[var(--ink)] bg-[var(--ink)]" : "border-border"}`}>
                   {isAnonymous && <X className="h-3 w-3 text-primary-foreground" />}
                 </div>
                 <div>
@@ -683,12 +683,12 @@ export default function CreateCommunity({ user }) {
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-heading font-bold text-foreground text-base">{name.trim()}</p>
                         {isPrivate && <Lock className="h-3.5 w-3.5 text-muted-foreground" />}
-                        {communityType === "local" && <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">Local</span>}
+                        {communityType === "local" && <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--paper-3)] text-primary">Local</span>}
                       </div>
                       <p className="text-sm text-muted-foreground line-clamp-2 mt-0.5">{description.trim() || "Description"}</p>
                       {!isAnonymous && (
                         <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                          <Crown className="h-3 w-3 text-amber-500" />{user?.nickname || user?.name}
+                          <Sparkles className="h-3 w-3" style={{ color: "hsl(var(--accent))" }} />{user?.nickname || user?.name}
                         </p>
                       )}
                     </div>

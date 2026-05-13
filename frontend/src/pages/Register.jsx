@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -15,22 +15,22 @@ const API_URL = process.env.REACT_APP_BACKEND_URL;
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
 const PROFESSIONAL_TYPES = [
-  "General Practitioner (GP)",
-  "Paediatrician",
-  "Obstetrician / Gynaecologist",
-  "Midwife",
-  "Child & Family Health Nurse",
-  "Lactation Consultant",
-  "Psychologist",
-  "Psychiatrist",
-  "Social Worker",
-  "Occupational Therapist",
-  "Speech Pathologist",
-  "Physiotherapist",
-  "Dietitian / Nutritionist",
-  "Pharmacist",
-  "Nurse Practitioner",
-  "Other Healthcare Professional",
+"General Practitioner (GP)",
+"Paediatrician",
+"Obstetrician / Gynaecologist",
+"Midwife",
+"Child & Family Health Nurse",
+"Lactation Consultant",
+"Psychologist",
+"Psychiatrist",
+"Social Worker",
+"Occupational Therapist",
+"Speech Pathologist",
+"Physiotherapist",
+"Dietitian / Nutritionist",
+"Pharmacist",
+"Nurse Practitioner",
+"Other Healthcare Professional",
 ];
 
 function calculateAge(dobString) {
@@ -245,7 +245,7 @@ export default function Register() {
         <div className="relative z-10"><Wordmark size={26} /></div>
         <div className="relative z-10 mb-8">
           <p style={{ fontFamily: "var(--serif)", fontSize: "clamp(18px,2vw,24px)", fontStyle: "italic", fontWeight: 400, letterSpacing: "-0.02em", lineHeight: 1.5, color: "var(--ink)" }}>
-            "The support here is incredible"
+"The support here is incredible"
           </p>
           <p className="mt-2 text-sm" style={{ color: "var(--ink-3)" }}>— Mike, dad of two</p>
         </div>
@@ -425,7 +425,7 @@ export default function Register() {
                     to="/terms"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-primary underline underline-offset-2 hover:text-primary/80"
+                    className="text-primary underline underline-offset-2 hover:text-[var(--ink-2)]"
                     onClick={(e) => e.stopPropagation()}
                   >
                     Terms &amp; Conditions
@@ -435,7 +435,7 @@ export default function Register() {
                     to="/privacy"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-primary underline underline-offset-2 hover:text-primary/80"
+                    className="text-primary underline underline-offset-2 hover:text-[var(--ink-2)]"
                     onClick={(e) => e.stopPropagation()}
                   >
                     Privacy Policy
@@ -445,7 +445,7 @@ export default function Register() {
                     to="/community-guidelines"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-primary underline underline-offset-2 hover:text-primary/80"
+                    className="text-primary underline underline-offset-2 hover:text-[var(--ink-2)]"
                     onClick={(e) => e.stopPropagation()}
                   >
                     Community Guidelines

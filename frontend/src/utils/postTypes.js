@@ -3,74 +3,76 @@
  * Import this wherever post types need to be rendered, filtered, or labelled.
  *
  * Fields:
- *   id          — value stored in the database (post_type field)
- *   label       — display name
- *   icon        — emoji shown in pills, badges and cards
- *   placeholder — textarea placeholder inside the create form
+ *   id               — value stored in the database (post_type field)
+ *   label            — display name
+ *   Icon             — Lucide React component (replaces emoji `icon` field)
+ *   placeholder      — textarea placeholder inside the create form
  *   titlePlaceholder — title input placeholder
- *   activeCls   — Tailwind classes applied to the selected type pill in the create form
- *   badgeCls    — Tailwind classes applied to the type badge on a rendered post card
- *   description — short description shown in the sidebar "Post types" guide
+ *   activeCls        — inline style object for selected type pill in create form
+ *   badgeCls         — inline style object for type badge on a rendered post card
+ *   description      — short description shown in sidebar "Post types" guide
  */
+import { MessageSquare, Pencil, HelpCircle, Sparkles, MapPin, BarChart2 } from "lucide-react";
+
 const POST_TYPES = [
   {
     id: "discussion",
     label: "Discussion",
-    icon: "💬",
+    Icon: MessageSquare,
     placeholder: "What's on your mind?",
     titlePlaceholder: "Give your post a title (optional)",
-    activeCls: "bg-blue-500/10 text-blue-600 border-blue-300 dark:border-blue-700",
-    badgeCls:  "bg-blue-500/10 text-blue-600 border-blue-200 dark:border-blue-800",
+    activeCls: { background: "var(--dusk-wash)", color: "var(--dusk)", borderColor: "var(--dusk)" },
+    badgeCls:  { background: "var(--dusk-wash)", color: "var(--dusk)" },
     description: "Share thoughts, stories & updates",
   },
   {
     id: "general",
     label: "General",
-    icon: "💭",
+    Icon: Pencil,
     placeholder: "Share anything with the community...",
     titlePlaceholder: "Title (optional)",
-    activeCls: "bg-slate-500/10 text-slate-600 border-slate-300 dark:border-slate-700",
-    badgeCls:  "bg-slate-500/10 text-slate-600 border-slate-200 dark:border-slate-800",
+    activeCls: { background: "var(--paper-3)", color: "var(--ink-2)", borderColor: "var(--line-2)" },
+    badgeCls:  { background: "var(--paper-3)", color: "var(--ink-3)" },
     description: "Anything goes — no label needed",
   },
   {
     id: "question",
     label: "Question",
-    icon: "❓",
+    Icon: HelpCircle,
     placeholder: "Describe your question in detail...",
     titlePlaceholder: "What's your question?",
-    activeCls: "bg-green-500/10 text-green-600 border-green-300 dark:border-green-700",
-    badgeCls:  "bg-green-500/10 text-green-600 border-green-200 dark:border-green-800",
+    activeCls: { background: "var(--sage-wash)", color: "var(--sage-deep)", borderColor: "var(--sage)" },
+    badgeCls:  { background: "var(--sage-wash)", color: "var(--sage-deep)" },
     description: "Ask the community anything",
   },
   {
     id: "milestone",
     label: "Milestone",
-    icon: "🌟",
-    placeholder: "Share your milestone! What are you celebrating? ✨",
+    Icon: Sparkles,
+    placeholder: "Share your milestone! What are you celebrating?",
     titlePlaceholder: "Name your milestone",
-    activeCls: "bg-amber-500/10 text-amber-600 border-amber-300 dark:border-amber-700",
-    badgeCls:  "bg-amber-500/10 text-amber-600 border-amber-200 dark:border-amber-800",
-    description: "Celebrate a parenting moment ✨",
+    activeCls: { background: "var(--honey-wash)", color: "var(--honey)", borderColor: "var(--honey)" },
+    badgeCls:  { background: "var(--honey-wash)", color: "var(--honey)" },
+    description: "Celebrate a parenting moment",
   },
   {
     id: "meetup",
     label: "Meetup",
-    icon: "📍",
+    Icon: MapPin,
     placeholder: "Tell people about this meetup — what's happening?",
     titlePlaceholder: "Meetup title",
-    activeCls: "bg-rose-500/10 text-rose-600 border-rose-300 dark:border-rose-700",
-    badgeCls:  "bg-rose-500/10 text-rose-600 border-rose-200 dark:border-rose-800",
-    description: "Organise a local get-together 📍",
+    activeCls: { background: "var(--clay-wash)", color: "var(--clay-deep)", borderColor: "var(--clay)" },
+    badgeCls:  { background: "var(--clay-wash)", color: "var(--clay-deep)" },
+    description: "Organise a local get-together",
   },
   {
     id: "poll",
     label: "Poll",
-    icon: "📊",
+    Icon: BarChart2,
     placeholder: "Optional context for your poll...",
     titlePlaceholder: "What are you asking? (optional)",
-    activeCls: "bg-purple-500/10 text-purple-600 border-purple-300 dark:border-purple-700",
-    badgeCls:  "bg-purple-500/10 text-purple-600 border-purple-200 dark:border-purple-800",
+    activeCls: { background: "var(--dusk-wash)", color: "var(--dusk)", borderColor: "var(--dusk)" },
+    badgeCls:  { background: "var(--dusk-wash)", color: "var(--dusk)" },
     description: "Get everyone's opinion with a vote",
   },
 ];

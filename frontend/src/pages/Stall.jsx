@@ -1,9 +1,10 @@
-import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
+﻿import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
-import { Crown, Plus, Tag, ArrowLeftRight, Heart, Search as SearchIcon, MapPin, Clock, Bookmark, BookmarkCheck, ShoppingBag, Users, Filter, X, MessageCircle, Send, ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
+import { Sparkles, Plus, Tag, ArrowLeftRight, Heart, Search as SearchIcon, MapPin, Clock, Bookmark, BookmarkCheck, ShoppingBag, Users, Filter, X, MessageCircle, ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
+import { SendIcon } from "../components/village/VillageLineIcons";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { parseApiError } from "../utils/apiError";
@@ -31,10 +32,10 @@ const CATEGORIES = [
 ];
 
 const TYPE_STYLES = {
-  sell:      "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
-  swap:      "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20",
+  sell:"bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+  swap:"bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20",
   give_away: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
-  wanted:    "bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20",
+  wanted:"bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20",
 };
 
 const TYPE_LABELS = { sell: "Selling", swap: "Swapping", give_away: "Giving Away", wanted: "Wanted" };
@@ -372,10 +373,10 @@ export default function Stall({ user }) {
   // Free user gate
   if (!isPremium) {
     return (
-      <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
+      <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
         <Navigation user={user} />
         <main className="max-w-2xl mx-auto px-4 pt-16 lg:pt-8 pb-16 flex flex-col items-center text-center gap-6 py-20">
-          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+          <div className="w-16 h-16 rounded-2xl bg-[var(--paper-3)] flex items-center justify-center">
             <ShoppingBag className="h-8 w-8 text-primary" />
           </div>
           <div>
@@ -385,7 +386,7 @@ export default function Stall({ user }) {
             </p>
           </div>
           <Button className="rounded-full shadow-lg shadow-primary/25" onClick={() => navigate("/plus")}>
-            <Crown className="h-4 w-4 mr-2" />
+            <Sparkles className="h-4 w-4 mr-2" style={{ color: "hsl(var(--accent))" }} />
             Unlock with Village+
           </Button>
           <p className="text-xs text-muted-foreground">From $7.99/month</p>
@@ -404,15 +405,14 @@ export default function Stall({ user }) {
   ];
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
+    <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
       <Navigation user={user} />
 
       <main className="max-w-5xl mx-auto px-4 pt-16 lg:pt-8 pb-16">
         {/* Header */}
         <div className="flex items-center justify-between mb-6 mt-2">
           <div>
-            <h1 className="font-heading text-2xl font-bold text-foreground flex items-center gap-2">
-              <ShoppingBag className="h-6 w-6 text-primary" />
+            <h1 className="font-heading text-2xl font-bold text-foreground">
               The Village Stall
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">Buy, swap, give away — local parenting gear</p>
@@ -431,13 +431,13 @@ export default function Stall({ user }) {
               onClick={() => { setActiveTab(tab.id); setSearchParams(prev => { const p = new URLSearchParams(prev); p.set("tab", tab.id); return p; }, { replace: true }); }}
               className={`relative flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap shrink-0 ${
                 activeTab === tab.id
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
+                  ? "border-[var(--ink)] text-[var(--ink)]"
+                  : "border-transparent text-[var(--ink-3)] hover:text-[var(--ink)]"
               }`}
             >
               {tab.label}
               {tab.badge > 0 && (
-                <span className="w-4 h-4 rounded-full bg-primary text-primary-foreground text-[9px] flex items-center justify-center font-bold">
+                <span className="w-4 h-4 rounded-full text-[9px] flex items-center justify-center font-bold text-white" style={{ background: "var(--badge-danger)" }}>
                   {tab.badge > 9 ? "9+" : tab.badge}
                 </span>
               )}
@@ -468,9 +468,10 @@ export default function Stall({ user }) {
                 onClick={() => setShowFilters(!showFilters)}
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-full border text-sm font-medium transition-colors ${
                   showFilters || activeCategory
-                    ? "bg-primary/10 border-primary/30 text-primary"
-                    : "bg-card border-border/50 text-muted-foreground hover:text-foreground"
+                    ? "border-[var(--sage)]/30 sage-pill-active"
+                    : "border-[var(--line)] text-[var(--ink-3)] hover:text-[var(--ink)]"
                 }`}
+                style={showFilters || activeCategory ? { background: "var(--sage-wash)", color: "var(--sage-deep)" } : {}}
               >
                 <Filter className="h-4 w-4" />
                 Filter
@@ -483,28 +484,30 @@ export default function Stall({ user }) {
                 <button
                   key={t.id}
                   onClick={() => setActiveType(t.id)}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium border whitespace-nowrap transition-colors ${
-                    activeType === t.id
-                      ? "bg-primary/10 border-primary/30 text-primary"
-                      : "bg-card border-border/50 text-muted-foreground hover:text-foreground"
-                  }`}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all focus-visible:outline-none"
+                  style={activeType === t.id
+                    ? { background: "var(--ink)", color: "var(--paper)", boxShadow: "var(--shadow-sm)" }
+                    : { color: "var(--ink-3)" }
+                  }
                 >
                   <t.icon className="h-3.5 w-3.5" />
                   {t.label}
                 </button>
               ))}
               {/* Sort toggle — pushed to the right; Nearest only if user has location */}
-              <div className="flex items-center gap-1 ml-auto bg-secondary/60 rounded-full p-0.5">
+              <div className="flex items-center gap-1 ml-auto rounded-full p-0.5" style={{ background: "var(--paper-2)", border: "1px solid var(--line)" }}>
                 <button
                   onClick={() => setSortBy("newest")}
-                  className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors whitespace-nowrap ${sortBy === "newest" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors whitespace-nowrap border ${sortBy === "newest" ? "border-[var(--sage)]/30 sage-pill-active" : "border-transparent text-[var(--ink-3)] hover:text-[var(--ink)]"}`}
+                  style={sortBy === "newest" ? { background: "var(--sage-wash)", color: "var(--sage-deep)" } : {}}
                 >
                   Newest
                 </button>
                 {user?.latitude && (
                   <button
                     onClick={() => setSortBy("nearest")}
-                    className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors whitespace-nowrap ${sortBy === "nearest" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                    className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors whitespace-nowrap border ${sortBy === "nearest" ? "border-[var(--sage)]/30 sage-pill-active" : "border-transparent text-[var(--ink-3)] hover:text-[var(--ink)]"}`}
+                    style={sortBy === "nearest" ? { background: "var(--sage-wash)", color: "var(--sage-deep)" } : {}}
                   >
                     Nearest
                   </button>
@@ -518,8 +521,9 @@ export default function Stall({ user }) {
                 <button
                   onClick={() => setActiveCategory("")}
                   className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-                    !activeCategory ? "bg-primary/10 border-primary/30 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"
+                    !activeCategory ? "border-[var(--sage)]/30 sage-pill-active" : "border-transparent text-[var(--ink-3)] hover:text-[var(--ink)]"
                   }`}
+                  style={!activeCategory ? { background: "var(--sage-wash)", color: "var(--sage-deep)" } : {}}
                 >
                   All categories
                 </button>
@@ -528,8 +532,9 @@ export default function Stall({ user }) {
                     key={c.id}
                     onClick={() => setActiveCategory(activeCategory === c.id ? "" : c.id)}
                     className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-                      activeCategory === c.id ? "bg-primary/10 border-primary/30 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"
+                      activeCategory === c.id ? "border-[var(--sage)]/30 sage-pill-active" : "border-transparent text-[var(--ink-3)] hover:text-[var(--ink)]"
                     }`}
+                    style={activeCategory === c.id ? { background: "var(--sage-wash)", color: "var(--sage-deep)" } : {}}
                   >
                     {c.label}
                   </button>
@@ -630,11 +635,11 @@ function DonationGroupsTab({ user, navigate }) {
   }, [user]);
 
   const GROUP_CATEGORY_COLORS = {
-    clothing:  "bg-pink-500/10 text-pink-600",
+    clothing:"bg-pink-500/10 text-pink-600",
     equipment: "bg-sky-500/10 text-sky-600",
-    food:      "bg-orange-500/10 text-orange-600",
-    books:     "bg-violet-500/10 text-violet-600",
-    general:   "bg-secondary text-muted-foreground",
+    food:"bg-orange-500/10 text-orange-600",
+    books:"bg-violet-500/10 text-violet-600",
+    general:"bg-secondary text-muted-foreground",
   };
 
   if (loading) return (
@@ -714,7 +719,7 @@ function SavedTab({ user, navigate, onSaveToggle, savedIds }) {
 
   if (loading) return (
     <div className="text-center py-12">
-      <div className="w-5 h-5 rounded-full border-2 border-primary/30 border-t-primary animate-spin mx-auto" />
+      <div className="w-5 h-5 rounded-full border-2 border-[var(--line)] border-t-[var(--ink-2)] animate-spin mx-auto" />
     </div>
   );
 
@@ -776,18 +781,18 @@ function MyListingsTab({ user, navigate }) {
 
   const STATUS_LABELS = { active: "Active", sold: "Sold", swapped: "Swapped", gone: "Gone", closed: "Closed", paused: "Paused", pending: "Pending" };
   const STATUS_COLORS = {
-    active:  "text-emerald-600 bg-emerald-500/10",
-    sold:    "text-muted-foreground bg-secondary",
+    active:"text-emerald-600 bg-emerald-500/10",
+    sold:"text-muted-foreground bg-secondary",
     swapped: "text-sky-600 bg-sky-500/10",
-    gone:    "text-amber-600 bg-amber-500/10",
-    closed:  "text-muted-foreground bg-secondary",
-    paused:  "text-amber-700 bg-amber-500/10",
+    gone:"text-amber-600 bg-amber-500/10",
+    closed:"text-muted-foreground bg-secondary",
+    paused:"text-amber-700 bg-amber-500/10",
     pending: "text-amber-600 bg-amber-500/10",
   };
 
   if (loading) return (
     <div className="text-center py-12">
-      <div className="w-5 h-5 rounded-full border-2 border-primary/30 border-t-primary animate-spin mx-auto" />
+      <div className="w-5 h-5 rounded-full border-2 border-[var(--line)] border-t-[var(--ink-2)] animate-spin mx-auto" />
     </div>
   );
 
@@ -912,7 +917,7 @@ function MessagesTab({ user, onUnreadChange }) {
 
   if (loading) return (
     <div className="text-center py-12">
-      <div className="w-5 h-5 rounded-full border-2 border-primary/30 border-t-primary animate-spin mx-auto" />
+      <div className="w-5 h-5 rounded-full border-2 border-[var(--line)] border-t-[var(--ink-2)] animate-spin mx-auto" />
     </div>
   );
 
@@ -1076,7 +1081,7 @@ function StallThreadView({ conv, user, onBack }) {
       <div ref={scrollAreaRef} onScroll={handleScroll} className="flex-1 overflow-y-auto px-4 py-4 min-h-0" style={{ overscrollBehavior: "contain" }}>
         {loading ? (
           <div className="flex items-center justify-center h-full">
-            <div className="w-5 h-5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+            <div className="w-5 h-5 rounded-full border-2 border-[var(--line)] border-t-[var(--ink-2)] animate-spin" />
           </div>
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-2 text-center">
@@ -1123,7 +1128,7 @@ function StallThreadView({ conv, user, onBack }) {
           onKeyDown={handleKeyDown}
           placeholder="Message…"
           rows={1}
-          className="flex-1 resize-none bg-background border border-border rounded-2xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none focus:ring-2 focus:ring-primary/30 transition overflow-hidden"
+          className="flex-1 resize-none bg-background border border-border rounded-2xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none focus:ring-2 focus:ring-border/50 transition overflow-hidden"
         />
         <button
           onClick={handleSend}
@@ -1131,8 +1136,8 @@ function StallThreadView({ conv, user, onBack }) {
           className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-40 hover:opacity-90 active:scale-95 transition-all shrink-0 mb-px"
         >
           {sending
-            ? <div className="w-4 h-4 rounded-full border-2 border-primary-foreground/40 border-t-primary-foreground animate-spin" />
-            : <Send className="h-4 w-4" />
+            ? <div className="w-4 h-4 rounded-full border-2 border-[var(--sage)]-foreground/40 border-t-primary-foreground animate-spin" />
+            : <SendIcon size={16} />
           }
         </button>
       </div>

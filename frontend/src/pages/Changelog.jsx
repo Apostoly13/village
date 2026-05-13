@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Link } from "react-router-dom";
 import Navigation from "../components/Navigation";
 import { ArrowLeft, ScrollText, Search, X } from "lucide-react";
@@ -6,6 +6,27 @@ import AppFooter from "../components/AppFooter";
 
 // ── Full technical changelog (admin-only view) ────────────────────────────────
 const CHANGELOG = [
+  {
+    version: "3.33.0",
+    date: "May 2026",
+    title: "Filter Design System, Badge Overhaul, Email Improvements & UI Cleanup",
+    entries: [
+      { tag: "Improved", text: "Filter design system consistency pass across all pages: primary filters (Browse/Help, mode selectors) now use ink/paper pill container; content sub-filters use sage-wash with night-mode glow; underline tabs (Stall/Saved) use border-b-2 pattern. Affected: ChatRooms, Dashboard, Events, Stall, Forums, ModeratorDashboard, AdminDashboard, SavedResources." },
+      { tag: "Added",    text: "index.css: sage-pill-active utility class — applies a soft green glow (rgba 154,201,158 / 28%) in night mode only, so active content filters are visually distinct without being harsh." },
+      { tag: "Improved", text: "ChatRooms: primary All/Local filters in ink/paper container; Live now pill always shows border (var(--line)) and turns sage on active — retains its unique identity while remaining visible when inactive." },
+      { tag: "Improved", text: "Forums Communities layout: Create Community button moved adjacent to the search input; filter pills (All/Local/Joined/Open) and sort control moved to a row below search. Description text moved above search to reduce vertical crowding." },
+      { tag: "Added",    text: "Email verification hard gate: unverified users are redirected to /verify-email on every protected route. VerifyEmailPage handles both token verification (from email link) and a holding/resend page for users who haven't verified yet. Dismissible banner removed." },
+      { tag: "Improved", text: "Badge system refactor: extracted _compute_badges_for_user() as a standalone async function. Badges now auto-recompute via fire_and_forget after forum post creation, forum reply creation, and friend request acceptance (for both users). Previously only recomputed on profile visit." },
+      { tag: "Added",    text: "9 new badges: First Post (🌱), Conversationalist (💬, 25+ posts), Helper (🤗, 50+ replies), Liked by The Village (❤️, 20+ likes), 1 Month Member (🏡), 1 Year Member (🎂), Stall Seller (🛒), Village Friend (🤝, 5+ friends), 3AM Club (🌙, 10+ late-night sessions). All shown in Profile badge grid with earned/unearned state." },
+      { tag: "Improved", text: "Profile.jsx: removed non-functional 'I want to connect with' dropdown (stored in DB but not used by any query). Removed 'Weekly digest' toggle (email preference exists but no scheduler was configured). Both fields preserved on backend harmlessly." },
+      { tag: "Added",    text: "Stall enquiry and follow-up message emails: listing owner now receives an email when someone sends a stall enquiry (first message) or a follow-up stall message. Uses notify_dms preference. Templates include listing title, sender name, and link to messages." },
+      { tag: "Improved", text: "All email templates: branding updated from 'The Village' to 'Our Little Village — Parenting Assistance Platform'. Support email in all footers changed to support@ourlittlevillage.com.au. 'hello@ourlittlevillage.com.au' removed from templates." },
+      { tag: "Fixed",    text: "Professional verification email: fixed typo in recipient address (ourliitlevillage → ourlittlevillage), fixed capitalisation (Professionals@ → professionals@). Email now includes a direct Approve button linking to the admin portal professionals tab." },
+      { tag: "Fixed",    text: "subscription_cancelled email: 'Share Feedback' button now links to /suggestions instead of a dead URL. Support email address added as plain-text fallback." },
+      { tag: "Added",    text: "Backend: SUPPORT_EMAIL and SUGGESTIONS_EMAIL env vars. POST /api/suggestions endpoint — stores suggestion in db.suggestions collection and emails to SUGGESTIONS_EMAIL. Suggestions.jsx wired to real API (was previously a fake timeout)." },
+      { tag: "Improved", text: "Settings.jsx: email change help text now includes a mailto link to support@ourlittlevillage.com.au. Legal section: Contact Support row added with mailto link." },
+    ],
+  },
   {
     version: "3.32.0",
     date: "May 2026",
@@ -687,12 +708,27 @@ const CHANGELOG = [
 // Plain readable summaries — no technical tags or implementation details.
 const USER_CHANGELOG = [
   {
+    version: "3.33.0",
+    date: "May 2026",
+    title: "Badges, Email Improvements & Filter Design Polish",
+    entries: [
+"Badges now update automatically as you use the platform — no need to visit your profile to see newly earned badges.",
+"9 new badges to earn: First Post, Conversationalist, Helper, Liked by The Village, 1 Month Member, 1 Year Member, Stall Seller, Village Friend, and the 3AM Club for those late-night parenting sessions.",
+"You now receive an email when someone sends an enquiry or follow-up message on one of your Stall listings.",
+"Email notifications from the platform are now branded as Our Little Village with a consistent support email address.",
+"Submitting a suggestion on the Shape the Village page now sends your feedback directly to the team.",
+"Filters and tabs are now visually consistent across every page — active filters are clearer and easier to spot in both day and night mode.",
+"Removed the Weekly Digest and 'I want to connect with' options from your profile — these weren't active and have been tidied up to avoid confusion.",
+"Email verification is now required before using the platform — you'll be asked to verify your email if you haven't already.",
+    ],
+  },
+  {
     version: "3.32.0",
     date: "May 2026",
     title: "Bigger Chat Bubble & Visual Polish",
     entries: [
-      "The messages chat bubble in the corner is now larger and easier to tap — bigger icon, badge, and text.",
-      "The Village+ chat bubble now glows softly when you have unread messages.",
+"The messages chat bubble in the corner is now larger and easier to tap — bigger icon, badge, and text.",
+"The Village+ chat bubble now glows softly when you have unread messages.",
     ],
   },
   {
@@ -700,10 +736,10 @@ const USER_CHANGELOG = [
     date: "May 2026",
     title: "Instant Read Sync & The Village Stall on Homepage",
     entries: [
-      "Reading a message in the chat popout or Messages page now instantly clears the notification from the bell, the dashboard, and everywhere else on the platform — no refresh needed.",
-      "The messages popout now shows the correct unread count as soon as you log in, instead of only after opening it.",
-      "The messages popout opens to a consistent readable size instead of adjusting based on how much content is inside.",
-      "The Village Stall is now featured on the homepage — browse sample listings in the 'See what's happening' section alongside Spaces, Chat Rooms, and Events.",
+"Reading a message in the chat popout or Messages page now instantly clears the notification from the bell, the dashboard, and everywhere else on the platform — no refresh needed.",
+"The messages popout now shows the correct unread count as soon as you log in, instead of only after opening it.",
+"The messages popout opens to a consistent readable size instead of adjusting based on how much content is inside.",
+"The Village Stall is now featured on the homepage — browse sample listings in the 'See what's happening' section alongside Spaces, Chat Rooms, and Events.",
     ],
   },
   {
@@ -711,11 +747,11 @@ const USER_CHANGELOG = [
     date: "May 2026",
     title: "Find Parents, Sent Requests & Smarter Messages",
     entries: [
-      "A new 'Find Parents' tab on the Friends page lets you search by name or suburb and send friend requests directly from results.",
-      "You can now see all the friend requests you've sent — with the option to cancel a request, which also removes it from the other person's notifications.",
-      "The Messages Friends tab now shows all your friends in one view — those you've chatted with show a message preview, and those you haven't can be tapped to start a chat.",
-      "Messages from before you were friends now appear under Friends rather than Private Messages, keeping everything in the right place.",
-      "Free users can now reply to existing private message conversations from the chat popout — only starting new chats with non-friends requires Village+.",
+"A new 'Find Parents' tab on the Friends page lets you search by name or suburb and send friend requests directly from results.",
+"You can now see all the friend requests you've sent — with the option to cancel a request, which also removes it from the other person's notifications.",
+"The Messages Friends tab now shows all your friends in one view — those you've chatted with show a message preview, and those you haven't can be tapped to start a chat.",
+"Messages from before you were friends now appear under Friends rather than Private Messages, keeping everything in the right place.",
+"Free users can now reply to existing private message conversations from the chat popout — only starting new chats with non-friends requires Village+.",
     ],
   },
   {
@@ -723,12 +759,12 @@ const USER_CHANGELOG = [
     date: "May 2026",
     title: "The Village Stall Improvements & Chat Updates",
     entries: [
-      "Stall listings now show a description preview on the card — no need to click in to see what the item is.",
-      "Listing photos can be swiped through directly on the browse page — swipe on mobile or use the arrows on desktop.",
-      "New 'Pending' status for listings — mark a listing as in negotiation so other buyers know a deal is in progress, while the listing stays visible.",
-      "Chat rooms now automatically slow down during busy periods so everyone can keep up. A countdown on the send button shows how long to wait.",
-      "Suburb search in listing forms now uses autocomplete — start typing a suburb and pick from suggestions.",
-      "Fixed a bug where clicking the Mods button on an event was opening the event detail page instead of the moderators panel.",
+"Stall listings now show a description preview on the card — no need to click in to see what the item is.",
+"Listing photos can be swiped through directly on the browse page — swipe on mobile or use the arrows on desktop.",
+"New 'Pending' status for listings — mark a listing as in negotiation so other buyers know a deal is in progress, while the listing stays visible.",
+"Chat rooms now automatically slow down during busy periods so everyone can keep up. A countdown on the send button shows how long to wait.",
+"Suburb search in listing forms now uses autocomplete — start typing a suburb and pick from suggestions.",
+"Fixed a bug where clicking the Mods button on an event was opening the event detail page instead of the moderators panel.",
     ],
   },
   {
@@ -736,13 +772,13 @@ const USER_CHANGELOG = [
     date: "May 2026",
     title: "Stay Signed In, Smarter Chat & Better Navigation",
     entries: [
-      "You'll stay signed in for up to 30 days — no more being logged out after a week. Your session renews automatically while you're active.",
-      "Chat Rooms now support slow mode — admins can set a cooldown between messages in busy rooms to keep conversations easier to follow.",
-      "The chat popout now has inbox filter tabs: All, Friends, Stall, and Events — so you can find the right conversation quickly.",
-      "All Australia rooms sidebar updated — clearer explanation of what they are and who can join.",
-      "Going back in your browser now returns you to the same tab you were on in Forums, Chat Rooms, Friends, and The Stall.",
-      "Age group Spaces now appear youngest to oldest in the By Age Group tab.",
-      "Message filter pills no longer require scrolling — all five fit on screen.",
+"You'll stay signed in for up to 30 days — no more being logged out after a week. Your session renews automatically while you're active.",
+"Chat Rooms now support slow mode — admins can set a cooldown between messages in busy rooms to keep conversations easier to follow.",
+"The chat popout now has inbox filter tabs: All, Friends, Stall, and Events — so you can find the right conversation quickly.",
+"All Australia rooms sidebar updated — clearer explanation of what they are and who can join.",
+"Going back in your browser now returns you to the same tab you were on in Forums, Chat Rooms, Friends, and The Stall.",
+"Age group Spaces now appear youngest to oldest in the By Age Group tab.",
+"Message filter pills no longer require scrolling — all five fit on screen.",
     ],
   },
   {
@@ -750,10 +786,10 @@ const USER_CHANGELOG = [
     date: "May 2026",
     title: "Updated Age Groups & Consistent Spaces",
     entries: [
-      "Age group Spaces have been renamed: Preschoolers is now Preschool & Kinder (3–5 years), and School Age is now Primary School (5–12 years).",
-      "Pregnancy & Expecting now appears in both the By Topic and By Age Group tabs.",
-      "All Spaces now have consistent, stable identifiers — dev and local environments will stay in sync going forward.",
-      "Topic and age filter chips updated to match the new Space names.",
+"Age group Spaces have been renamed: Preschoolers is now Preschool & Kinder (3–5 years), and School Age is now Primary School (5–12 years).",
+"Pregnancy & Expecting now appears in both the By Topic and By Age Group tabs.",
+"All Spaces now have consistent, stable identifiers — dev and local environments will stay in sync going forward.",
+"Topic and age filter chips updated to match the new Space names.",
     ],
   },
   {
@@ -761,9 +797,9 @@ const USER_CHANGELOG = [
     date: "May 2026",
     title: "More Spaces & Chat Rooms",
     entries: [
-      "Four new Spaces added: Postnatal Recovery, Blended & Co-Parenting, Working Parents, and Baby Gear & Reviews.",
-      "Four new Chat Rooms added: Playgroup & Activities, Working Parents Chat, Screen Time & Tech, and Pregnancy Chat.",
-      "All new rooms and spaces are wired into the topic and type filter chips so you can find them straight away.",
+"Four new Spaces added: Postnatal Recovery, Blended & Co-Parenting, Working Parents, and Baby Gear & Reviews.",
+"Four new Chat Rooms added: Playgroup & Activities, Working Parents Chat, Screen Time & Tech, and Pregnancy Chat.",
+"All new rooms and spaces are wired into the topic and type filter chips so you can find them straight away.",
     ],
   },
   {
@@ -771,12 +807,12 @@ const USER_CHANGELOG = [
     date: "May 2026",
     title: "Better Spaces & Chat Rooms",
     entries: [
-      "Spaces and Chat Rooms have been renamed and reorganised for clarity — warmer names, cleaner descriptions.",
-      "Nine new Spaces added: Ask The Village, New Parents, Neurodiverse Families, Childcare & School, Family Budget, Local Recommendations, Village Wins, Preschoolers, and more.",
-      "Two new Chat Rooms: Ask The Village and Recommendations.",
-      "Filter pills added to Spaces — browse by topic type (Support, Parenting, Family Life, Local) or age group (Baby, Toddler, School Age).",
-      "Filter chips added to Chat Rooms — narrow rooms by type (Support, Parenting, Social, Ask & Share).",
-      "The 3am Club daytime info card is now informational only — no longer appears as a second room tile.",
+"Spaces and Chat Rooms have been renamed and reorganised for clarity — warmer names, cleaner descriptions.",
+"Nine new Spaces added: Ask The Village, New Parents, Neurodiverse Families, Childcare & School, Family Budget, Local Recommendations, Village Wins, Preschoolers, and more.",
+"Two new Chat Rooms: Ask The Village and Recommendations.",
+"Filter pills added to Spaces — browse by topic type (Support, Parenting, Family Life, Local) or age group (Baby, Toddler, School Age).",
+"Filter chips added to Chat Rooms — narrow rooms by type (Support, Parenting, Social, Ask & Share).",
+"The 3am Club daytime info card is now informational only — no longer appears as a second room tile.",
     ],
   },
   {
@@ -784,10 +820,10 @@ const USER_CHANGELOG = [
     date: "May 2026",
     title: "Smarter Message Headers & Deep Links",
     entries: [
-      "In a private message, tap the person's name or photo to view their profile.",
-      "If you're messaging someone who isn't a friend yet, an Add Friend button now appears in the chat header.",
-      "Stall enquiry chats now have a View Listing button — tap it to go straight to the listing.",
-      "Event chats now have a View Event button — tap it to open the event details.",
+"In a private message, tap the person's name or photo to view their profile.",
+"If you're messaging someone who isn't a friend yet, an Add Friend button now appears in the chat header.",
+"Stall enquiry chats now have a View Listing button — tap it to go straight to the listing.",
+"Event chats now have a View Event button — tap it to open the event details.",
     ],
   },
   {
@@ -795,10 +831,10 @@ const USER_CHANGELOG = [
     date: "May 2026",
     title: "Event Chats in Your Inbox",
     entries: [
-      "Event group chats now appear in your Messages inbox under a new Events tab.",
-      "You'll see every event you've RSVPed to, organised, or chatted in — with the event name, date, and last message shown.",
-      "Tap an event to open the group chat and chat with everyone attending.",
-      "A new Events tab sits alongside All, Unread, Friends, and Stall in the inbox filter bar.",
+"Event group chats now appear in your Messages inbox under a new Events tab.",
+"You'll see every event you've RSVPed to, organised, or chatted in — with the event name, date, and last message shown.",
+"Tap an event to open the group chat and chat with everyone attending.",
+"A new Events tab sits alongside All, Unread, Friends, and Stall in the inbox filter bar.",
     ],
   },
   {
@@ -806,10 +842,10 @@ const USER_CHANGELOG = [
     date: "May 2026",
     title: "Unified Messages Inbox",
     entries: [
-      "Your Messages page now shows everything in one place — direct messages, friend chats, and Stall enquiries all in a single sorted list.",
-      "Four tabs at the top let you filter by All, Unread, Friends, or Stall — similar to Facebook Messenger.",
-      "Each tab shows a red badge when there are unread messages in that category.",
-      "Stall enquiries appear in your main inbox — no more hunting in the Stall tab to find a conversation.",
+"Your Messages page now shows everything in one place — direct messages, friend chats, and Stall enquiries all in a single sorted list.",
+"Four tabs at the top let you filter by All, Unread, Friends, or Stall — similar to Facebook Messenger.",
+"Each tab shows a red badge when there are unread messages in that category.",
+"Stall enquiries appear in your main inbox — no more hunting in the Stall tab to find a conversation.",
     ],
   },
   {
@@ -817,10 +853,10 @@ const USER_CHANGELOG = [
     date: "May 2026",
     title: "Message Requests",
     entries: [
-      "When someone outside your friends list messages you for the first time, it arrives as a message request — not straight into your inbox.",
-      "You'll see their name and a preview of their message, then choose to Accept or Decline.",
-      "Accepting opens the conversation as normal. Declining removes the request.",
-      "If you send a message to someone new, they'll receive it as a request. You'll see a 'Request Pending' indicator in the chat while you wait.",
+"When someone outside your friends list messages you for the first time, it arrives as a message request — not straight into your inbox.",
+"You'll see their name and a preview of their message, then choose to Accept or Decline.",
+"Accepting opens the conversation as normal. Declining removes the request.",
+"If you send a message to someone new, they'll receive it as a request. You'll see a 'Request Pending' indicator in the chat while you wait.",
     ],
   },
   {
@@ -828,7 +864,7 @@ const USER_CHANGELOG = [
     date: "May 2026",
     title: "Event Cover Photos",
     entries: [
-      "You can now add a cover photo when creating an event — it shows as a banner in the event details and as a thumbnail in the event list.",
+"You can now add a cover photo when creating an event — it shows as a banner in the event details and as a thumbnail in the event list.",
     ],
   },
   {
@@ -836,10 +872,10 @@ const USER_CHANGELOG = [
     date: "May 2026",
     title: "Smarter Replies & Formatting Improvements",
     entries: [
-      "Replies you post now immediately show Edit and Delete options — no refresh needed.",
-      "The main reply box at the bottom of a post is now always visible, even when you're replying to a specific comment.",
-      "Pressing Enter inside a bullet list automatically starts the next bullet. Pressing Enter on an empty bullet exits the list.",
-      "The Code button has been removed from the formatting toolbar — it was rarely needed and cluttered the bar.",
+"Replies you post now immediately show Edit and Delete options — no refresh needed.",
+"The main reply box at the bottom of a post is now always visible, even when you're replying to a specific comment.",
+"Pressing Enter inside a bullet list automatically starts the next bullet. Pressing Enter on an empty bullet exits the list.",
+"The Code button has been removed from the formatting toolbar — it was rarely needed and cluttered the bar.",
     ],
   },
   {
@@ -847,12 +883,12 @@ const USER_CHANGELOG = [
     date: "May 2026",
     title: "Markdown Formatting, Bug Fixes & Photo Improvements",
     entries: [
-      "Spaces posts and replies now support markdown formatting — bold, italic, code, quotes, lists, links and more.",
-      "A formatting toolbar now appears above the post and reply composer — tap Bold, Italic, Quote etc to format selected text.",
-      "Tapping a photo in Spaces now opens it full-screen in an overlay instead of navigating away.",
-      "Sending photos in messages is now fixed.",
-      "Reporting a post is now fixed.",
-      "The Messages button in the bottom-right corner is larger and easier to tap.",
+"Spaces posts and replies now support markdown formatting — bold, italic, code, quotes, lists, links and more.",
+"A formatting toolbar now appears above the post and reply composer — tap Bold, Italic, Quote etc to format selected text.",
+"Tapping a photo in Spaces now opens it full-screen in an overlay instead of navigating away.",
+"Sending photos in messages is now fixed.",
+"Reporting a post is now fixed.",
+"The Messages button in the bottom-right corner is larger and easier to tap.",
     ],
   },
   {
@@ -860,11 +896,11 @@ const USER_CHANGELOG = [
     date: "May 2026",
     title: "Live Chat Rooms, Faster Platform & Privacy Updates",
     entries: [
-      "Chat Rooms now shows accurate Live Now rooms — only rooms with a message in the last 45 minutes appear as live.",
-      "Room cards show a live indicator and 'Drop in' badge when a room is currently active.",
-      "The dashboard now shows your real online count instead of a placeholder.",
-      "The platform loads faster overall — pages now load on demand and backend queries run more efficiently.",
-      "Privacy page updated with accurate information about where your data is stored.",
+"Chat Rooms now shows accurate Live Now rooms — only rooms with a message in the last 45 minutes appear as live.",
+"Room cards show a live indicator and 'Drop in' badge when a room is currently active.",
+"The dashboard now shows your real online count instead of a placeholder.",
+"The platform loads faster overall — pages now load on demand and backend queries run more efficiently.",
+"Privacy page updated with accurate information about where your data is stored.",
     ],
   },
   {
@@ -872,8 +908,8 @@ const USER_CHANGELOG = [
     date: "April 2026",
     title: "Sign in with Google",
     entries: [
-      "You can now sign in or join with your Google account — just tap 'Continue with Google' on the login or sign-up page.",
-      "New Google sign-ups get the same 7-day free trial as email registrations.",
+"You can now sign in or join with your Google account — just tap 'Continue with Google' on the login or sign-up page.",
+"New Google sign-ups get the same 7-day free trial as email registrations.",
     ],
   },
   {
@@ -881,8 +917,8 @@ const USER_CHANGELOG = [
     date: "April 2026",
     title: "Navigation & Notifications",
     entries: [
-      "Dropdown menus added to Events, Stall, Friends, and Communities in the sidebar — jump straight to Browse, Create, My Listings, and more without extra clicks.",
-      "Notification alerts now tell you exactly what arrived — a reply, message, friend request, or Stall enquiry — and take you straight there when you tap.",
+"Dropdown menus added to Events, Stall, Friends, and Communities in the sidebar — jump straight to Browse, Create, My Listings, and more without extra clicks.",
+"Notification alerts now tell you exactly what arrived — a reply, message, friend request, or Stall enquiry — and take you straight there when you tap.",
     ],
   },
   {
@@ -890,8 +926,8 @@ const USER_CHANGELOG = [
     date: "April 2026",
     title: "Platform Safety & Reliability",
     entries: [
-      "Moderation tools improved — Stall listings can now be reviewed and removed by the mod team if needed, with sellers notified.",
-      "Fixed an issue on iOS where the message composer was hidden behind the keyboard when typing.",
+"Moderation tools improved — Stall listings can now be reviewed and removed by the mod team if needed, with sellers notified.",
+"Fixed an issue on iOS where the message composer was hidden behind the keyboard when typing.",
     ],
   },
   {
@@ -899,8 +935,8 @@ const USER_CHANGELOG = [
     date: "April 2026",
     title: "Email Verification",
     entries: [
-      "New accounts now receive a verification email — click the link to confirm your address and you're good to go.",
-      "Google sign-in accounts are verified automatically. No email needed.",
+"New accounts now receive a verification email — click the link to confirm your address and you're good to go.",
+"Google sign-in accounts are verified automatically. No email needed.",
     ],
   },
   {
@@ -908,8 +944,8 @@ const USER_CHANGELOG = [
     date: "April 2026",
     title: "Safety & Reporting",
     entries: [
-      "You can now report messages in Direct Messages and Village Stall conversations — tap the flag icon in any conversation.",
-      "Blocking a user now hides their messages in Group Chats too, not just direct messages.",
+"You can now report messages in Direct Messages and Village Stall conversations — tap the flag icon in any conversation.",
+"Blocking a user now hides their messages in Group Chats too, not just direct messages.",
     ],
   },
   {
@@ -917,9 +953,9 @@ const USER_CHANGELOG = [
     date: "April 2026",
     title: "Community Meetups & Improvements",
     entries: [
-      "RSVP to meetups posted inside your communities — see who else is going with attendee previews.",
-      "Verified professional badges now show the person's role — Verified Midwife, Verified GP, Verified Psychologist, and so on.",
-      "Various fixes and polish across Spaces, Events, and Group Chats.",
+"RSVP to meetups posted inside your communities — see who else is going with attendee previews.",
+"Verified professional badges now show the person's role — Verified Midwife, Verified GP, Verified Psychologist, and so on.",
+"Various fixes and polish across Spaces, Events, and Group Chats.",
     ],
   },
   {
@@ -927,8 +963,8 @@ const USER_CHANGELOG = [
     date: "April 2026",
     title: "Design Refresh & Communities Navigation",
     entries: [
-      "Communities now has its own dedicated spot in the sidebar with a custom icon — easier to find and separate from Spaces.",
-      "New handcrafted icons across the platform for a more polished, consistent look.",
+"Communities now has its own dedicated spot in the sidebar with a custom icon — easier to find and separate from Spaces.",
+"New handcrafted icons across the platform for a more polished, consistent look.",
     ],
   },
   {
@@ -936,9 +972,9 @@ const USER_CHANGELOG = [
     date: "April 2026",
     title: "Faster Messages & Smarter Notifications",
     entries: [
-      "New direct messages appear faster — less waiting for replies to show up.",
-      "A soft sound plays when a new message arrives from another user.",
-      "Unread message count badge added to the Messages icon on desktop and mobile.",
+"New direct messages appear faster — less waiting for replies to show up.",
+"A soft sound plays when a new message arrives from another user.",
+"Unread message count badge added to the Messages icon on desktop and mobile.",
     ],
   },
   {
@@ -946,7 +982,7 @@ const USER_CHANGELOG = [
     date: "April 2026",
     title: "Edit Your Stall Listings",
     entries: [
-      "You can now edit your Village Stall listings after posting — update photos, price, description, and availability at any time from the listing page.",
+"You can now edit your Village Stall listings after posting — update photos, price, description, and availability at any time from the listing page.",
     ],
   },
   {
@@ -954,8 +990,8 @@ const USER_CHANGELOG = [
     date: "April 2026",
     title: "Village Stall Conversations",
     entries: [
-      "Stall enquiries are now full message threads — see your complete conversation history with buyers and sellers in one place.",
-      "A new Messages tab inside the Stall shows all your Stall conversations in one inbox, with unread badges.",
+"Stall enquiries are now full message threads — see your complete conversation history with buyers and sellers in one place.",
+"A new Messages tab inside the Stall shows all your Stall conversations in one inbox, with unread badges.",
     ],
   },
   {
@@ -963,9 +999,9 @@ const USER_CHANGELOG = [
     date: "April 2026",
     title: "Village Stall & Professional Verification",
     entries: [
-      "The Village Stall is now live — list items for sale, swap, or donation, or browse baby gear from parents nearby.",
-      "Donation Groups let your community pool and share items together.",
-      "Healthcare professionals can now apply for their verified badge directly during sign-up.",
+"The Village Stall is now live — list items for sale, swap, or donation, or browse baby gear from parents nearby.",
+"Donation Groups let your community pool and share items together.",
+"Healthcare professionals can now apply for their verified badge directly during sign-up.",
     ],
   },
   {
@@ -973,8 +1009,8 @@ const USER_CHANGELOG = [
     date: "April 2026",
     title: "Mobile & Messaging",
     entries: [
-      "Improved mobile experience on the landing page with a full-screen guided tour for new visitors.",
-      "Messages and notifications are faster and more reliable throughout the app.",
+"Improved mobile experience on the landing page with a full-screen guided tour for new visitors.",
+"Messages and notifications are faster and more reliable throughout the app.",
     ],
   },
   {
@@ -982,7 +1018,7 @@ const USER_CHANGELOG = [
     date: "April 2026",
     title: "New Desktop Layout",
     entries: [
-      "Redesigned desktop navigation — a fixed sidebar on the left makes it easier to move between sections at a glance.",
+"Redesigned desktop navigation — a fixed sidebar on the left makes it easier to move between sections at a glance.",
     ],
   },
   {
@@ -990,8 +1026,8 @@ const USER_CHANGELOG = [
     date: "April 2026",
     title: "Warmer Design & Typography",
     entries: [
-      "Warmer colour palette in both day and night mode — softer, calmer, more like a community and less like a tech app.",
-      "New serif headings for a cleaner, more refined feel throughout.",
+"Warmer colour palette in both day and night mode — softer, calmer, more like a community and less like a tech app.",
+"New serif headings for a cleaner, more refined feel throughout.",
     ],
   },
   {
@@ -999,8 +1035,8 @@ const USER_CHANGELOG = [
     date: "April 2026",
     title: "Location & Profile Improvements",
     entries: [
-      "'Use My Location' is now available when browsing Group Chats, creating events, and updating your profile.",
-      "Profile view mode now shows your parenting stage, interests, and connection preferences as readable chips.",
+"'Use My Location' is now available when browsing Group Chats, creating events, and updating your profile.",
+"Profile view mode now shows your parenting stage, interests, and connection preferences as readable chips.",
     ],
   },
   {
@@ -1008,8 +1044,8 @@ const USER_CHANGELOG = [
     date: "April 2026",
     title: "Village+ Subscriptions",
     entries: [
-      "Village+ subscriptions are now available — subscribe monthly or annually through secure checkout.",
-      "Manage, update, or cancel your subscription at any time from the Village+ page.",
+"Village+ subscriptions are now available — subscribe monthly or annually through secure checkout.",
+"Manage, update, or cancel your subscription at any time from the Village+ page.",
     ],
   },
   {
@@ -1017,9 +1053,9 @@ const USER_CHANGELOG = [
     date: "April 2026",
     title: "Legal, Privacy & Age Verification",
     entries: [
-      "Updated Terms & Conditions and Privacy Policy aligned with Australian privacy law.",
-      "18+ age verification now required at sign-up.",
-      "Mum and Dad Spaces now correctly show only to the right audience based on your profile.",
+"Updated Terms & Conditions and Privacy Policy aligned with Australian privacy law.",
+"18+ age verification now required at sign-up.",
+"Mum and Dad Spaces now correctly show only to the right audience based on your profile.",
     ],
   },
   {
@@ -1027,8 +1063,8 @@ const USER_CHANGELOG = [
     date: "April 2026",
     title: "Home Screen App & Dashboard",
     entries: [
-      "Install The Village on your home screen — works like a native app on iOS and Android.",
-      "Dashboard now has focused modes: get help, browse, or catch up on what's happened since you last visited.",
+"Install The Village on your home screen — works like a native app on iOS and Android.",
+"Dashboard now has focused modes: get help, browse, or catch up on what's happened since you last visited.",
     ],
   },
   {
@@ -1036,8 +1072,8 @@ const USER_CHANGELOG = [
     date: "April 2026",
     title: "Village+ Features",
     entries: [
-      "Events, Direct Messages, and Communities are Village+ features. New members get a 7-day free trial with full access.",
-      "Lock icons on nav items make it clear what's included before you click.",
+"Events, Direct Messages, and Communities are Village+ features. New members get a 7-day free trial with full access.",
+"Lock icons on nav items make it clear what's included before you click.",
     ],
   },
   {
@@ -1045,8 +1081,8 @@ const USER_CHANGELOG = [
     date: "April 2026",
     title: "Mum & Dad Circles, Private Posts",
     entries: [
-      "Mum Circle and Dad Circle — dedicated safe spaces for mums and dads.",
-      "Private posts — save a draft visible only to you before deciding whether to share.",
+"Mum Circle and Dad Circle — dedicated safe spaces for mums and dads.",
+"Private posts — save a draft visible only to you before deciding whether to share.",
     ],
   },
   {
@@ -1054,8 +1090,8 @@ const USER_CHANGELOG = [
     date: "April 2026",
     title: "Events & Saved Resources",
     entries: [
-      "Browse and RSVP to local events — playgroups, meetups, workshops, and support events near you.",
-      "Saved Resources — all your saved posts and RSVPs in one place.",
+"Browse and RSVP to local events — playgroups, meetups, workshops, and support events near you.",
+"Saved Resources — all your saved posts and RSVPs in one place.",
     ],
   },
   {
@@ -1063,9 +1099,9 @@ const USER_CHANGELOG = [
     date: "April 2026",
     title: "The Village Takes Shape",
     entries: [
-      "Support Spaces and Circles launched — the heart of the Village community.",
-      "New themed chat rooms: Sleep, Feeding, Toddler, Mental Health, Single Parent, and more.",
-      "Trust badges introduced — Night Owl, Local Parent, Trusted Parent, Verified Professional.",
+"Support Spaces and Circles launched — the heart of the Village community.",
+"New themed chat rooms: Sleep, Feeding, Toddler, Mental Health, Single Parent, and more.",
+"Trust badges introduced — Night Owl, Local Parent, Trusted Parent, Verified Professional.",
     ],
   },
   {
@@ -1073,8 +1109,8 @@ const USER_CHANGELOG = [
     date: "March 2026",
     title: "Welcome to The Village",
     entries: [
-      "The Village opened — forums, group chat rooms, friend connections, local events, and profiles all live.",
-      "Anonymous posting, free trial, and Village+ premium all available from day one.",
+"The Village opened — forums, group chat rooms, friend connections, local events, and profiles all live.",
+"Anonymous posting, free trial, and Village+ premium all available from day one.",
     ],
   },
 ];
@@ -1109,20 +1145,20 @@ const ROADMAP = [
 
 // ── Tag styles ────────────────────────────────────────────────────────────────
 const TAG_STYLES = {
-  Added:        "bg-green-500/15 text-green-600 dark:text-green-400",
-  Changed:      "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-  Updated:      "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-  Improved:     "bg-primary/15 text-primary",
-  Fixed:        "bg-blue-500/15 text-blue-500 dark:text-blue-400",
-  Design:       "bg-purple-500/15 text-purple-600 dark:text-purple-400",
-  Redesign:     "bg-purple-500/15 text-purple-600 dark:text-purple-400",
-  Removed:      "bg-red-500/15 text-red-600 dark:text-red-400",
-  Security:     "bg-red-500/15 text-red-700 dark:text-red-400",
-  Performance:  "bg-orange-500/15 text-orange-600 dark:text-orange-400",
+  Added:"bg-green-500/15 text-green-600 dark:text-green-400",
+  Changed:"bg-amber-500/15 text-amber-600 dark:text-amber-400",
+  Updated:"bg-amber-500/15 text-amber-600 dark:text-amber-400",
+  Improved:"bg-[var(--honey-wash)] text-[var(--honey)]",
+  Fixed:"bg-blue-500/15 text-blue-500 dark:text-blue-400",
+  Design:"bg-purple-500/15 text-purple-600 dark:text-purple-400",
+  Redesign:"bg-purple-500/15 text-purple-600 dark:text-purple-400",
+  Removed:"bg-red-500/15 text-red-600 dark:text-red-400",
+  Security:"bg-red-500/15 text-red-700 dark:text-red-400",
+  Performance:"bg-orange-500/15 text-orange-600 dark:text-orange-400",
   Architecture: "bg-slate-500/15 text-slate-600 dark:text-slate-400",
-  Confirmed:    "bg-teal-500/15 text-teal-600 dark:text-teal-400",
-  Legal:        "bg-violet-500/15 text-violet-600 dark:text-violet-400",
-  Planned:      "bg-muted text-muted-foreground",
+  Confirmed:"bg-teal-500/15 text-teal-600 dark:text-teal-400",
+  Legal:"bg-violet-500/15 text-violet-600 dark:text-violet-400",
+  Planned:"bg-muted text-muted-foreground",
 };
 
 const ALL_TAGS = ["All", "Added", "Improved", "Fixed", "Security", "Design", "Performance", "Changed", "Legal", "Removed"];
@@ -1136,7 +1172,7 @@ function VersionCard({ version, date, title, entries, muted }) {
         : "border-border/50 border-l-4 border-l-primary/40 hover:shadow hover:border-l-primary/70"
     }`}>
       <div className="flex flex-wrap items-center gap-2.5 mb-4">
-        <span className={`text-xs font-mono px-2.5 py-1 rounded-lg font-bold tracking-tight ${muted ? "bg-muted text-muted-foreground" : "bg-primary/15 text-primary"}`}>
+        <span className={`text-xs font-mono px-2.5 py-1 rounded-lg font-bold tracking-tight ${muted ? "bg-muted text-muted-foreground" : "bg-[var(--honey-wash)] text-[var(--honey)]"}`}>
           v{version}
         </span>
         {date && (
@@ -1165,7 +1201,7 @@ function UserVersionCard({ version, date, title, entries }) {
   return (
     <div className="bg-card rounded-2xl border border-border/50 border-l-4 border-l-primary/40 shadow-sm p-6 hover:shadow hover:border-l-primary/70 transition-all">
       <div className="flex flex-wrap items-center gap-2.5 mb-3">
-        <span className="text-xs font-mono px-2.5 py-1 rounded-lg font-bold tracking-tight bg-primary/15 text-primary">
+        <span className="text-xs font-mono px-2.5 py-1 rounded-lg font-bold tracking-tight bg-[var(--honey-wash)] text-[var(--honey)]">
           v{version}
         </span>
         {date && (
@@ -1207,7 +1243,7 @@ export default function Changelog({ user }) {
   }).filter(Boolean);
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
+    <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
       <Navigation user={user} />
 
       <main className="max-w-3xl mx-auto px-4 pt-16 lg:pt-8">
@@ -1220,7 +1256,7 @@ export default function Changelog({ user }) {
         </Link>
 
         <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-[var(--honey-wash)] flex items-center justify-center">
             <ScrollText className="h-5 w-5 text-primary" />
           </div>
           <h1 className="font-heading text-3xl font-bold text-foreground">What's New</h1>

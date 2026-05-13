@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+﻿import { useState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import Navigation from "../components/Navigation";
@@ -9,7 +9,7 @@ import SuburbSearch from "../components/SuburbSearch";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
-const INPUT_CLASS = "w-full rounded-xl border border-border bg-card text-foreground px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground";
+const INPUT_CLASS = "w-full rounded-xl border border-border bg-card text-foreground px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-border/50 placeholder:text-muted-foreground";
 
 const LISTING_TYPES = [
   { id: "sell",      label: "Selling",      desc: "Set a price for your item",           icon: Tag,            color: "emerald" },
@@ -37,7 +37,7 @@ const CATEGORIES = [
 ];
 
 const AGE_GROUPS = [
-  "Newborn", "0–6 months", "6–12 months", "1–2 years", "3–4 years", "5+ years", "All ages"
+"Newborn", "0–6 months", "6–12 months", "1–2 years", "3–4 years", "5+ years", "All ages"
 ];
 
 const CONDITIONS = [
@@ -153,7 +153,7 @@ export default function CreateStallListing({ user }) {
 
   // ── Step renderer ─────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
+    <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
       <Navigation user={user} />
 
       <main className="max-w-xl mx-auto px-4 pt-16 lg:pt-8 pb-16">
@@ -200,10 +200,10 @@ export default function CreateStallListing({ user }) {
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploadingImage}
-                  className="aspect-square rounded-2xl border-2 border-dashed border-border/50 flex flex-col items-center justify-center gap-2 hover:border-primary/40 hover:bg-primary/5 transition-colors text-muted-foreground"
+                  className="aspect-square rounded-2xl border-2 border-dashed border-border/50 flex flex-col items-center justify-center gap-2 hover:border-border hover:bg-muted/30 transition-colors text-muted-foreground"
                 >
                   {uploadingImage ? (
-                    <div className="w-5 h-5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+                    <div className="w-5 h-5 rounded-full border-2 border-[var(--line)] border-t-[var(--ink-2)] animate-spin" />
                   ) : (
                     <>
                       <Camera className="h-7 w-7" />
@@ -245,7 +245,7 @@ export default function CreateStallListing({ user }) {
                   <button
                     key={c.id}
                     onClick={() => setCategory(c.id)}
-                    className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border text-xs font-medium transition-colors ${category === c.id ? "bg-primary/10 border-primary/30 text-primary" : "bg-card border-border/50 text-muted-foreground hover:text-foreground"}`}
+                    className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border text-xs font-medium transition-colors ${category === c.id ? "bg-[var(--paper-3)] border-[var(--line)] text-primary" : "bg-card border-border/50 text-muted-foreground hover:text-foreground"}`}
                   >
                     <span className="text-xl">{c.emoji}</span>
                     <span className="text-[10px] text-center leading-tight">{c.label}</span>
@@ -262,7 +262,7 @@ export default function CreateStallListing({ user }) {
                   <button
                     key={a}
                     onClick={() => setAgeGroup(ageGroup === a ? "" : a)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${ageGroup === a ? "bg-primary/10 border-primary/30 text-primary" : "bg-card border-border/50 text-muted-foreground hover:text-foreground"}`}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${ageGroup === a ? "bg-[var(--paper-3)] border-[var(--line)] text-primary" : "bg-card border-border/50 text-muted-foreground hover:text-foreground"}`}
                   >
                     {a}
                   </button>
@@ -345,7 +345,7 @@ export default function CreateStallListing({ user }) {
                   <label className="text-sm font-medium text-foreground mb-2 block">Condition <span className="text-destructive">*</span></label>
                   <div className="space-y-2">
                     {CONDITIONS.map(c => (
-                      <button key={c.id} onClick={() => setCondition(c.id)} className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-colors ${condition === c.id ? "bg-primary/10 border-primary/30" : "bg-card border-border/50 hover:bg-secondary/30"}`}>
+                      <button key={c.id} onClick={() => setCondition(c.id)} className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-colors ${condition === c.id ? "bg-[var(--paper-3)] border-[var(--line)]" : "bg-card border-border/50 hover:bg-secondary/30"}`}>
                         <div className="flex-1">
                           <p className={`text-sm font-medium ${condition === c.id ? "text-primary" : "text-foreground"}`}>{c.label}</p>
                           <p className="text-xs text-muted-foreground">{c.desc}</p>
@@ -377,7 +377,7 @@ export default function CreateStallListing({ user }) {
                   <label className="text-sm font-medium text-foreground mb-2 block">Condition</label>
                   <div className="space-y-2">
                     {CONDITIONS.map(c => (
-                      <button key={c.id} onClick={() => setCondition(c.id)} className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-colors ${condition === c.id ? "bg-primary/10 border-primary/30" : "bg-card border-border/50 hover:bg-secondary/30"}`}>
+                      <button key={c.id} onClick={() => setCondition(c.id)} className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-colors ${condition === c.id ? "bg-[var(--paper-3)] border-[var(--line)]" : "bg-card border-border/50 hover:bg-secondary/30"}`}>
                         <div className="flex-1">
                           <p className={`text-sm font-medium ${condition === c.id ? "text-primary" : "text-foreground"}`}>{c.label}</p>
                           <p className="text-xs text-muted-foreground">{c.desc}</p>
@@ -396,7 +396,7 @@ export default function CreateStallListing({ user }) {
                 <label className="text-sm font-medium text-foreground mb-2 block">Condition <span className="text-destructive">*</span></label>
                 <div className="space-y-2">
                   {CONDITIONS.map(c => (
-                    <button key={c.id} onClick={() => setCondition(c.id)} className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-colors ${condition === c.id ? "bg-primary/10 border-primary/30" : "bg-card border-border/50 hover:bg-secondary/30"}`}>
+                    <button key={c.id} onClick={() => setCondition(c.id)} className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-colors ${condition === c.id ? "bg-[var(--paper-3)] border-[var(--line)]" : "bg-card border-border/50 hover:bg-secondary/30"}`}>
                       <div className="flex-1">
                         <p className={`text-sm font-medium ${condition === c.id ? "text-primary" : "text-foreground"}`}>{c.label}</p>
                         <p className="text-xs text-muted-foreground">{c.desc}</p>

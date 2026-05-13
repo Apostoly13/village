@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import Navigation from "../components/Navigation";
-import { Bookmark, Heart, MessageCircle, Eye, Clock, Trash2, MessageSquare, Calendar, BookOpen, MapPin, Users, Check } from "lucide-react";
+import { Bookmark, BookmarkCheck, Heart, MessageCircle, Eye, Clock, Trash2, MessageSquare, Calendar, BookOpen, MapPin, Users, Check, Tag, ArrowLeftRight } from "lucide-react";
 import { toast } from "sonner";
 import AppFooter from "../components/AppFooter";
 import { CATEGORY_STYLES, CATEGORY_LABELS } from "../utils/eventCategories";
@@ -12,9 +12,10 @@ import { timeAgoVerbose, formatEventDate } from "../utils/dateHelpers";
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const TABS = [
-  { id: "posts", label: "Posts" },
+  { id: "posts",    label: "Posts" },
   { id: "messages", label: "Chat Messages" },
-  { id: "events", label: "Events" },
+  { id: "events",   label: "Events" },
+  { id: "stall",    label: "Stall" },
 ];
 
 const formatDate = timeAgoVerbose;
@@ -90,21 +91,21 @@ function PostsTab() {
   return (
     <div className="space-y-4">
       {bookmarks.map((post, idx) => (
-        <article key={post.post_id} className="bg-card rounded-2xl p-6 border border-border/50 shadow-sm border-l-2 border-l-primary/20 hover:border-primary/30 hover:shadow hover:border-l-primary/40 transition-all">
+        <article key={post.post_id} className="bg-card rounded-2xl p-6 border border-border/50 shadow-sm hover:border-border/80 hover:shadow transition-all">
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
               {post.author_id !== "anonymous" ? (
                 <Link to={`/profile/${post.author_id}`}>
                   <Avatar className="h-10 w-10 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
                     <AvatarImage src={post.author_picture} />
-                    <AvatarFallback className="bg-primary/20 text-primary">
+                    <AvatarFallback>
                       {post.author_name?.[0]?.toUpperCase() || "?"}
                     </AvatarFallback>
                   </Avatar>
                 </Link>
               ) : (
                 <Avatar className="h-10 w-10">
-                  <AvatarFallback className="bg-primary/20 text-primary">?</AvatarFallback>
+                  <AvatarFallback>?</AvatarFallback>
                 </Avatar>
               )}
               <div>
@@ -129,7 +130,7 @@ function PostsTab() {
           </div>
 
           <Link to={`/forums/post/${post.post_id}`}>
-            <h3 className="font-heading font-bold text-lg text-foreground mb-2 hover:text-primary transition-colors">{post.title}</h3>
+            <h3 className="font-heading font-bold text-lg text-foreground mb-2 hover:text-foreground transition-colors">{post.title}</h3>
             <p className="text-muted-foreground line-clamp-2 mb-4">{post.content}</p>
           </Link>
 
@@ -210,7 +211,7 @@ function ChatMessagesTab() {
   return (
     <div className="space-y-4">
       {messages.map((msg) => (
-        <div key={msg.id} className="bg-card rounded-2xl p-5 border border-border/50 shadow-sm border-l-2 border-l-primary/20 hover:border-primary/30 hover:shadow hover:border-l-primary/40 transition-all">
+        <div key={msg.id} className="bg-card rounded-2xl p-5 border border-border/50 shadow-sm hover:border-border/80 hover:shadow transition-all">
           <div className="flex items-start gap-3">
             <MessageSquare className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
             <div className="flex-1 min-w-0">
@@ -312,14 +313,14 @@ function EventsTab({ user }) {
         const catStyle = CATEGORY_STYLES[event.category] || CATEGORY_STYLES.general;
         const catLabel = CATEGORY_LABELS[event.category] || event.category;
         return (
-          <article key={event.event_id} className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm border-l-2 border-l-primary/20 hover:border-primary/30 hover:shadow hover:border-l-primary/40 transition-all flex gap-4">
-            <div className="flex-shrink-0 w-14 h-14 rounded-xl bg-primary/15 text-primary flex flex-col items-center justify-center">
+          <article key={event.event_id} className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm hover:border-border/80 hover:shadow transition-all flex gap-4">
+            <div className="flex-shrink-0 w-14 h-14 rounded-xl bg-[var(--honey-wash)] text-[var(--honey)] flex flex-col items-center justify-center">
               <span className="text-xl font-bold leading-none">{dateInfo.day}</span>
               <span className="text-xs font-medium uppercase">{dateInfo.month}</span>
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap mb-1">
-                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${catStyle}`}>{catLabel}</span>
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={catStyle}>{catLabel}</span>
                 {event.suburb && (
                   <span className="text-xs text-muted-foreground flex items-center gap-1">
                     <MapPin className="h-3 w-3" />
@@ -356,6 +357,86 @@ function EventsTab({ user }) {
   );
 }
 
+// Stall tab — saved listings
+const TYPE_LABELS = { selling: "Selling", swapping: "Swapping", giving_away: "Giving Away", wanted: "Wanted" };
+const TYPE_ICONS  = { selling: Tag, swapping: ArrowLeftRight, giving_away: Heart, wanted: MapPin };
+
+function StallTab() {
+  const [listings, setListings] = useState([]);
+  const [loading,  setLoading]  = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/stall/listings/saved`, { credentials: "include" });
+        if (res.ok) setListings(await res.json());
+      } catch {}
+      finally { setLoading(false); }
+    })();
+  }, []);
+
+  const unsave = async (listingId) => {
+    try {
+      await fetch(`${API_URL}/api/stall/listings/${listingId}/save`, { method: "POST", credentials: "include" });
+      setListings(prev => prev.filter(l => l.listing_id !== listingId));
+      toast.success("Removed from saved");
+    } catch { toast.error("Something went wrong"); }
+  };
+
+  if (loading) return (
+    <div className="text-center py-12">
+      <div className="w-5 h-5 rounded-full border-2 border-[var(--line)] border-t-[var(--ink-2)] animate-spin mx-auto" />
+    </div>
+  );
+
+  if (listings.length === 0) return (
+    <div className="text-center py-16 bg-card border border-border/50 rounded-2xl">
+      <Bookmark className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+      <h3 className="font-heading font-semibold text-foreground mb-1">No saved listings yet</h3>
+      <p className="text-sm text-muted-foreground mb-4">Tap the bookmark icon on any Stall listing to save it here.</p>
+      <Link to="/stall"><Button className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90">Browse the Stall</Button></Link>
+    </div>
+  );
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {listings.map(l => {
+        const TypeIcon = TYPE_ICONS[l.listing_type] || Tag;
+        return (
+          <article key={l.listing_id} className="bg-card rounded-2xl border border-border/50 shadow-sm hover:border-border/80 hover:shadow transition-all overflow-hidden">
+            {l.images?.[0] && (
+              <div className="w-full h-36 overflow-hidden bg-secondary/30">
+                <img src={l.images[0]} alt={l.title} className="w-full h-full object-cover" />
+              </div>
+            )}
+            <div className="p-4">
+              <div className="flex items-start justify-between gap-2 mb-1">
+                <div className="flex items-center gap-1.5">
+                  <TypeIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span className="text-[11px] text-muted-foreground font-medium">{TYPE_LABELS[l.listing_type] || l.listing_type}</span>
+                </div>
+                <button onClick={() => unsave(l.listing_id)} className="text-muted-foreground hover:text-destructive transition-colors shrink-0" title="Remove from saved">
+                  <BookmarkCheck className="h-4 w-4 text-primary" />
+                </button>
+              </div>
+              <Link to={`/stall/${l.listing_id}`}>
+                <h3 className="font-heading font-semibold text-foreground text-sm leading-snug line-clamp-2 hover:underline mb-1">{l.title}</h3>
+              </Link>
+              {l.price != null && l.listing_type === "selling" && (
+                <p className="text-sm font-semibold text-foreground mb-1">${l.price.toFixed(0)}</p>
+              )}
+              <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-2">
+                {l.suburb && <span className="flex items-center gap-0.5"><MapPin className="h-3 w-3 shrink-0" />{l.suburb}</span>}
+                {l.distance_km != null && <span>{l.distance_km}km away</span>}
+              </div>
+            </div>
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
 // Blog placeholder tab
 function BlogTab() {
   return (
@@ -379,44 +460,41 @@ export default function SavedResources({ user }) {
   const [activeTab, setActiveTab] = useState("posts");
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-8">
+    <div className="min-h-screen bg-background  lg:pl-60 lg:pb-8">
       <Navigation user={user} />
 
       <main className="max-w-4xl mx-auto px-4 pt-16 lg:pt-8">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-1 flex items-center gap-2">
-            <Bookmark className="h-7 w-7" />
+          <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-1">
             Saved
           </h1>
-          <p className="text-sm text-muted-foreground">Your saved posts, messages, and events in one place.</p>
+          <p className="text-sm text-muted-foreground">Your saved posts, messages, events, and Stall listings in one place.</p>
         </div>
 
         {/* Tabs */}
-        <div className="flex items-center gap-1 mb-6 border-b border-border/50">
+        <div className="flex items-center gap-1 mb-6 border-b border-border/40 flex-wrap">
           {TABS.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2.5 text-sm font-medium transition-colors relative ${
+              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap shrink-0 ${
                 activeTab === tab.id
-                  ? "text-primary"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "border-[var(--ink)] text-[var(--ink)]"
+                  : "border-transparent text-[var(--ink-3)] hover:text-[var(--ink)]"
               }`}
             >
               {tab.label}
-              {activeTab === tab.id && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full" />
-              )}
             </button>
           ))}
         </div>
 
         {/* Tab content */}
-        {activeTab === "posts" && <PostsTab />}
+        {activeTab === "posts"    && <PostsTab />}
         {activeTab === "messages" && <ChatMessagesTab />}
-        {activeTab === "events" && <EventsTab user={user} />}
-        {activeTab === "blog" && <BlogTab />}
+        {activeTab === "events"   && <EventsTab user={user} />}
+        {activeTab === "stall"    && <StallTab />}
+        {activeTab === "blog"     && <BlogTab />}
         <AppFooter />
       </main>
     </div>

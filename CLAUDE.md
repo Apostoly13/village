@@ -425,3 +425,4 @@ Commit and push rules:
 - Never run git push unless the user explicitly says to push.
 - Do not suggest or prompt either — wait for the user.
 - Before every commit, update `frontend/src/pages/Changelog.jsx` with a new version entry covering everything in that commit. Update the ROADMAP section if upcoming plans have changed. Do this before creating the commit, not after.
+- `Changelog.jsx` contains TWO separate arrays that must both be updated: `CHANGELOG` (admin view — technical detail with tags) and `USER_CHANGELOG` (non-admin view — plain English summaries). Always add a new entry to both arrays for every version.

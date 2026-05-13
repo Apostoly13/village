@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
@@ -8,7 +8,7 @@ import { Button } from "../components/ui/button";
 import {
   Moon, Sun, MessageSquare, Bell, Eye, Mail, Users, Heart,
   Sliders, RotateCcw, User, CreditCard, AlertTriangle, LogOut,
-  AtSign, Lock, ChevronRight, Crown,
+  AtSign, Lock, ChevronRight, Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useTheme, ThemeToggle } from "../useTheme";
@@ -59,12 +59,12 @@ function RadioGroup({ value, onChange, options }) {
           onClick={() => onChange(o.id)}
           className={`w-full text-left px-4 py-3 rounded-xl border transition-colors flex items-start gap-3 ${
             value === o.id
-              ? "border-primary/50 bg-primary/5"
-              : "border-border/50 hover:border-primary/20 bg-card"
+              ? "border-[var(--line)] bg-[var(--paper-3)]"
+              : "border-border/50 hover:border-border/60 bg-card"
           }`}
         >
           <span className={`h-4 w-4 rounded-full border-2 mt-0.5 shrink-0 flex items-center justify-center ${
-            value === o.id ? "border-primary" : "border-muted-foreground/40"
+            value === o.id ? "border-[var(--sage)]" : "border-muted-foreground/40"
           }`}>
             {value === o.id && <span className="w-2 h-2 rounded-full bg-primary block" />}
           </span>
@@ -114,8 +114,8 @@ export default function Settings({ user }) {
       // Privacy (synced to backend)
       showOnline:          user?.show_online ?? true,
       allowFriendRequests: user?.allow_friend_requests ?? true,
-      profileVisibility:   "members",   // "public" | "members" | "friends"
-      whoCanMessage:       "anyone",    // "anyone" | "friends" | "none"
+      profileVisibility:"members",   // "public" | "members" | "friends"
+      whoCanMessage:"anyone",    // "anyone" | "friends" | "none"
       // Notifications (synced to backend)
       notifications: {
         replies:        user?.email_preferences?.notify_replies ?? true,
@@ -344,7 +344,7 @@ export default function Settings({ user }) {
             <div className="px-3 py-2.5 rounded-xl bg-secondary/50 border border-border/30 text-sm text-muted-foreground">
               {user?.email || "—"}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">To change your email address, contact support.</p>
+            <p className="text-xs text-muted-foreground mt-1">To change your email address, contact <a href="mailto:support@ourlittlevillage.com.au" className="underline underline-offset-2 hover:text-foreground">support@ourlittlevillage.com.au</a>.</p>
           </div>
 
           <div>
@@ -408,13 +408,12 @@ export default function Settings({ user }) {
 
         <div className="rounded-xl border border-border/50 bg-card p-5">
           <div className="flex items-center gap-2 mb-2">
-            <Crown className="h-5 w-5 text-primary" />
+            <Sparkles className="h-5 w-5" style={{ color: "hsl(var(--accent))" }} />
             <h3 className="font-heading font-bold text-foreground">Village+</h3>
-            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-              isPremium
-                ? "bg-green-500/15 text-green-700 dark:text-green-400"
-                : "bg-secondary text-muted-foreground"
-            }`}>
+            <span
+              className={`text-xs font-medium px-2 py-0.5 rounded-full ${isPremium ? "" : "bg-secondary text-muted-foreground"}`}
+              style={isPremium ? { background: "var(--sage-wash)", color: "var(--sage-deep)" } : {}}
+            >
               {isPremium ? "Active" : "Free"}
             </span>
           </div>
@@ -448,11 +447,15 @@ export default function Settings({ user }) {
             { label: "Privacy Policy",        href: "/privacy" },
             { label: "Community Guidelines",  href: "/community-guidelines" },
           ].map(({ label, href }) => (
-            <Link key={href} to={href} className="flex items-center justify-between p-3 rounded-xl bg-card border border-border/40 hover:border-primary/30 transition-colors group">
+            <Link key={href} to={href} className="flex items-center justify-between p-3 rounded-xl bg-card border border-border/40 hover:border-border/80 transition-colors group">
               <span className="text-sm text-foreground">{label}</span>
-              <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+              <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
             </Link>
           ))}
+          <a href="mailto:support@ourlittlevillage.com.au" className="flex items-center justify-between p-3 rounded-xl bg-card border border-border/40 hover:border-border/80 transition-colors group">
+            <span className="text-sm text-foreground">Contact Support</span>
+            <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">support@ourlittlevillage.com.au</span>
+          </a>
         </div>
         <p className="text-xs text-muted-foreground leading-relaxed">
           To delete your account and all associated data, go to <button onClick={() => setActiveSection("account")} className="underline underline-offset-2 hover:text-foreground">Account settings</button>. Data is removed within 30 days of deletion.
@@ -462,7 +465,7 @@ export default function Settings({ user }) {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20 lg:pl-60 lg:pb-0">
+    <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
       <Navigation user={user} />
 
       <main className="max-w-4xl mx-auto px-4 pt-16 lg:pt-8">
@@ -484,7 +487,7 @@ export default function Settings({ user }) {
                     onClick={() => setActiveSection(s.id)}
                     className={`inline-flex items-center gap-2.5 h-10 px-3 rounded-xl text-sm font-medium whitespace-nowrap transition-colors text-left shrink-0 ${
                       active
-                        ? "bg-primary/10 text-primary"
+                        ? "bg-[var(--paper-3)] text-primary"
                         : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
                     }`}
                   >

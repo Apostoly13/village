@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+﻿import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
-  ArrowLeft, Users, Crown, Lock, Globe, Plus, ChevronDown, ChevronUp,
+  ArrowLeft, Users, Lock, Globe, Plus, ChevronDown, ChevronUp,
   Send, MessageSquare, MessageCircle, X, Check, BarChart2, HelpCircle,
   Star, Sparkles, Settings, Calendar, MapPin, Trash2, Pencil, Image,
   Shield, ChevronRight,
@@ -57,17 +57,17 @@ function PollOption({ option, index, pollVotes, totalVotes, userVote, onVote }) 
       disabled={hasVoted}
       className={`w-full text-left rounded-xl border-2 overflow-hidden transition-all ${
         isMyVote
-          ? "border-primary"
+          ? "border-[var(--sage)]"
           : hasVoted
           ? "border-border/40"
-          : "border-border/50 hover:border-primary/50"
+          : "border-border/50 hover:border-border"
       } ${hasVoted ? "cursor-default" : "cursor-pointer"}`}
     >
       <div className="relative px-4 py-2.5 min-h-[2.5rem]">
         {hasVoted && (
           <div
             className={`absolute inset-0 transition-all duration-700 ease-out ${
-              isMyVote ? "bg-primary/15" : "bg-muted/60"
+              isMyVote ? "bg-[var(--honey-wash)]" : "bg-muted/60"
             }`}
             style={{ width: `${Math.max(pct, 2)}%` }}
           />
@@ -100,8 +100,8 @@ function ReactionsRow({ reactions, userReactions, postId, onReact, compact = fal
             onClick={() => onReact(postId, emoji)}
             className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-sm border transition-all select-none ${
               active
-                ? "border-primary bg-primary/10 font-semibold scale-105"
-                : "border-border/40 bg-muted/30 hover:border-primary/40 hover:bg-primary/5 hover:scale-105"
+                ? "border-[var(--sage)] bg-[var(--paper-3)] font-semibold scale-105"
+                : "border-border/40 bg-muted/30 hover:border-border hover:bg-muted/30 hover:scale-105"
             }`}
           >
             <span className="leading-none">{emoji}</span>
@@ -178,7 +178,7 @@ function ReplySection({ postId, replyCount, currentUser }) {
         <div className="mt-3 space-y-3">
           {loading ? (
             <div className="flex justify-center py-4">
-              <div className="w-4 h-4 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+              <div className="w-4 h-4 rounded-full border-2 border-[var(--line)] border-t-[var(--ink-2)] animate-spin" />
             </div>
           ) : (
             replies.map((r) => (
@@ -206,7 +206,7 @@ function ReplySection({ postId, replyCount, currentUser }) {
                     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
                   }}
                   placeholder="Write a comment..."
-                  className="flex-1 text-sm bg-muted/40 border border-border/50 rounded-xl px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary/50 min-w-0"
+                  className="flex-1 text-sm bg-muted/40 border border-border/50 rounded-xl px-3 py-2 focus:outline-none focus:ring-1 focus:ring-border/50 min-w-0"
                 />
                 <button
                   onClick={submit}
@@ -275,8 +275,8 @@ function PostCard({ post, currentUser, onReact, onPollVote, communityId }) {
             <div className="flex items-center gap-2 flex-wrap mb-1">
               <span className="font-semibold text-sm text-amber-900 dark:text-amber-100">{authorName}</span>
               <span className="text-xs text-amber-700/60 dark:text-amber-300/50">{timeAgo(post.created_at)}</span>
-              <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${typeConfig.badgeCls}`}>
-                {typeConfig.icon} {typeConfig.label}
+              <span className="text-xs px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1" style={typeConfig.badgeCls}>
+                <typeConfig.Icon size={11} /> {typeConfig.label}
               </span>
             </div>
             {post.title && (
@@ -319,8 +319,8 @@ function PostCard({ post, currentUser, onReact, onPollVote, communityId }) {
               <Avatar picture={authorPic} name={authorName} size="xs" />
               <span className="font-semibold text-sm text-rose-900 dark:text-rose-100">{authorName}</span>
               <span className="text-xs text-rose-700/60 dark:text-rose-300/50">{timeAgo(post.created_at)}</span>
-              <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${typeConfig.badgeCls}`}>
-                {typeConfig.icon} {typeConfig.label}
+              <span className="text-xs px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1" style={typeConfig.badgeCls}>
+                <typeConfig.Icon size={11} /> {typeConfig.label}
               </span>
             </div>
             {post.title && (
@@ -421,8 +421,8 @@ function PostCard({ post, currentUser, onReact, onPollVote, communityId }) {
             <span className="text-xs text-muted-foreground">{timeAgo(post.created_at)}</span>
           </div>
         </div>
-        <span className={`text-xs px-2.5 py-1 rounded-full border font-medium shrink-0 ${typeConfig.badgeCls}`}>
-          {typeConfig.icon} {typeConfig.label}
+        <span className="text-xs px-2.5 py-1 rounded-full font-medium shrink-0 inline-flex items-center gap-1" style={typeConfig.badgeCls}>
+          <typeConfig.Icon size={11} /> {typeConfig.label}
         </span>
       </div>
 
@@ -581,9 +581,9 @@ function CreatePostForm({ communityId, onPosted }) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="w-full bg-card border border-border/50 hover:border-primary/40 rounded-2xl px-4 py-3.5 flex items-center gap-3 text-left transition-all group"
+        className="w-full bg-card border border-border/50 hover:border-border rounded-2xl px-4 py-3.5 flex items-center gap-3 text-left transition-all group"
       >
-        <div className="w-9 h-9 rounded-full bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center transition-colors">
+        <div className="w-9 h-9 rounded-full bg-[var(--paper-3)] group-hover:bg-muted/50 flex items-center justify-center transition-colors">
           <Plus className="h-4 w-4 text-primary" />
         </div>
         <span className="text-muted-foreground text-sm">Share something with your community...</span>
@@ -592,7 +592,7 @@ function CreatePostForm({ communityId, onPosted }) {
   }
 
   return (
-    <div className="bg-card border border-primary/30 rounded-2xl p-4 shadow-sm space-y-4">
+    <div className="bg-card border border-[var(--line)] rounded-2xl p-4 shadow-sm space-y-4">
       {/* Post type pills */}
       <div className="flex gap-2 flex-wrap">
         {POST_TYPES.map((pt) => (
@@ -600,10 +600,11 @@ function CreatePostForm({ communityId, onPosted }) {
             key={pt.id}
             onClick={() => setType(pt.id)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-              type === pt.id ? pt.activeCls : "border-border/40 text-muted-foreground hover:border-primary/30"
+              type === pt.id ? "" : "border-border/40 text-muted-foreground hover:border-border/80"
             }`}
+            style={type === pt.id ? { ...pt.activeCls, borderColor: pt.activeCls.borderColor } : {}}
           >
-            {pt.icon} {pt.label}
+            <pt.Icon size={12} /> {pt.label}
           </button>
         ))}
       </div>
@@ -614,7 +615,7 @@ function CreatePostForm({ communityId, onPosted }) {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder={cfg?.titlePlaceholder || "Title (optional)"}
-          className="w-full text-sm bg-muted/30 border border-border/50 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-primary/50"
+          className="w-full text-sm bg-muted/30 border border-border/50 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-border/50"
         />
       )}
 
@@ -625,7 +626,7 @@ function CreatePostForm({ communityId, onPosted }) {
           onChange={(e) => setContent(e.target.value)}
           placeholder={cfg?.placeholder}
           rows={type === "milestone" ? 3 : 4}
-          className="w-full text-sm bg-muted/30 border border-border/50 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-primary/50 resize-none"
+          className="w-full text-sm bg-muted/30 border border-border/50 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-border/50 resize-none"
         />
       )}
 
@@ -640,7 +641,7 @@ function CreatePostForm({ communityId, onPosted }) {
               type="datetime-local"
               value={meetupDate}
               onChange={(e) => setMeetupDate(e.target.value)}
-              className="w-full text-sm bg-muted/30 border border-border/50 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-primary/50"
+              className="w-full text-sm bg-muted/30 border border-border/50 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-border/50"
             />
           </div>
           <div>
@@ -652,7 +653,7 @@ function CreatePostForm({ communityId, onPosted }) {
               value={meetupLocation}
               onChange={(e) => setMeetupLocation(e.target.value)}
               placeholder="e.g. Hyde Park, Sydney"
-              className="w-full text-sm bg-muted/30 border border-border/50 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-primary/50"
+              className="w-full text-sm bg-muted/30 border border-border/50 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-border/50"
             />
           </div>
         </div>
@@ -674,7 +675,7 @@ function CreatePostForm({ communityId, onPosted }) {
                   })
                 }
                 placeholder={`Option ${i + 1}`}
-                className="flex-1 text-sm bg-muted/30 border border-border/50 rounded-xl px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary/50"
+                className="flex-1 text-sm bg-muted/30 border border-border/50 rounded-xl px-3 py-2 focus:outline-none focus:ring-1 focus:ring-border/50"
               />
               {pollOptions.length > 2 && (
                 <button
@@ -726,10 +727,10 @@ function CreatePostForm({ communityId, onPosted }) {
             onClick={() => imageInputRef.current?.click()}
             disabled={imageUploading}
             title="Attach photo"
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-border/40 hover:border-primary/30 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-border/40 hover:border-border/80 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-50"
           >
             {imageUploading ? (
-              <div className="w-3.5 h-3.5 rounded-full border border-primary/30 border-t-primary animate-spin" />
+              <div className="w-3.5 h-3.5 rounded-full border border-[var(--line)] border-t-primary animate-spin" />
             ) : (
               <Image className="h-3.5 w-3.5" />
             )}
@@ -906,8 +907,8 @@ function ManageCommunityModal({ communityId, community, posts, user, isOpen, onC
               onClick={() => setTab(t.id)}
               className={`flex items-center gap-1.5 text-xs font-medium py-3 px-2 mr-4 border-b-2 transition-all -mb-px ${
                 tab === t.id
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
+                  ? "border-[var(--ink)] text-[var(--ink)]"
+                  : "border-transparent text-[var(--ink-3)] hover:text-[var(--ink)]"
               }`}
             >
               {t.icon} {t.label}
@@ -927,7 +928,7 @@ function ManageCommunityModal({ communityId, community, posts, user, isOpen, onC
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   maxLength={60}
-                  className="w-full text-sm bg-muted/30 border border-border/50 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  className="w-full text-sm bg-muted/30 border border-border/50 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-border/50"
                 />
                 <p className="text-xs text-muted-foreground mt-1 text-right">{newName.length}/60</p>
               </div>
@@ -938,7 +939,7 @@ function ManageCommunityModal({ communityId, community, posts, user, isOpen, onC
                   onChange={(e) => setNewDescription(e.target.value)}
                   maxLength={200}
                   rows={3}
-                  className="w-full text-sm bg-muted/30 border border-border/50 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-primary/50 resize-none"
+                  className="w-full text-sm bg-muted/30 border border-border/50 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-border/50 resize-none"
                 />
                 <p className="text-xs text-muted-foreground mt-1 text-right">{newDescription.length}/200</p>
               </div>
@@ -967,7 +968,7 @@ function ManageCommunityModal({ communityId, community, posts, user, isOpen, onC
             <div className="p-4">
               {loadingMembers ? (
                 <div className="flex justify-center py-8">
-                  <div className="w-5 h-5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+                  <div className="w-5 h-5 rounded-full border-2 border-[var(--line)] border-t-[var(--ink-2)] animate-spin" />
                 </div>
               ) : allMembers.length === 0 ? (
                 <p className="text-center text-sm text-muted-foreground py-8">No members yet</p>
@@ -983,13 +984,13 @@ function ManageCommunityModal({ communityId, community, posts, user, isOpen, onC
                         <Link
                           to={`/profile/${m.user_id}`}
                           onClick={onClose}
-                          className="text-sm font-medium hover:text-primary transition-colors block truncate"
+                          className="text-sm font-medium hover:text-foreground transition-colors block truncate"
                         >
                           {m.display_name}
                         </Link>
                         {m.is_creator && (
                           <span className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                            <Crown className="h-2.5 w-2.5" /> Creator
+                            <Sparkles className="h-2.5 w-2.5" style={{ color: "hsl(var(--accent))" }} /> Creator
                           </span>
                         )}
                       </div>
@@ -1029,7 +1030,7 @@ function ManageCommunityModal({ communityId, community, posts, user, isOpen, onC
                         key={p.post_id}
                         className="flex items-start gap-3 p-3 rounded-xl hover:bg-muted/40 border border-border/30 transition-colors"
                       >
-                        <span className="text-lg leading-none mt-0.5 shrink-0">{typeConf.icon}</span>
+                        <typeConf.Icon size={15} style={{ color: "var(--ink-3)", flexShrink: 0, marginTop: 2 }} />
                         <div className="flex-1 min-w-0">
                           {p.title ? (
                             <p className="text-sm font-medium truncate">{p.title}</p>
@@ -1186,7 +1187,7 @@ export default function Community() {
       <div className="min-h-screen bg-background lg:pl-60">
         <Navigation user={user} />
         <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+          <div className="w-8 h-8 rounded-full border-2 border-[var(--line)] border-t-[var(--ink-2)] animate-spin" />
         </div>
       </div>
     );
@@ -1201,7 +1202,7 @@ export default function Community() {
     <div className="min-h-screen bg-background lg:pl-60">
       <Navigation user={user} />
 
-      <div className="max-w-5xl mx-auto px-4 pb-20 pt-4">
+      <div className="max-w-5xl mx-auto px-4  pt-4">
         {/* Back */}
         <button
           onClick={() => navigate(-1)}
@@ -1234,11 +1235,10 @@ export default function Community() {
                 <div className="flex flex-wrap items-center gap-2 mb-1">
                   <h1 className="text-xl font-bold text-foreground leading-tight">{community.name}</h1>
                   <span
-                    className={`text-xs px-2 py-0.5 rounded-full border font-medium flex items-center gap-1 ${
-                      community.is_private
-                        ? "bg-orange-500/10 text-orange-600 border-orange-200 dark:border-orange-800"
-                        : "bg-green-500/10 text-green-600 border-green-200 dark:border-green-800"
-                    }`}
+                    className="text-xs px-2 py-0.5 rounded-full border font-medium flex items-center gap-1"
+                    style={community.is_private
+                      ? { background: "rgba(249,115,22,0.1)", color: "rgb(234,88,12)", borderColor: "rgba(249,115,22,0.2)" }
+                      : { background: "var(--sage-wash)", color: "var(--sage-deep)", borderColor: "rgba(74,113,85,0.2)" }}
                   >
                     {community.is_private ? (
                       <><Lock className="h-2.5 w-2.5" /> Private</>
@@ -1266,7 +1266,7 @@ export default function Community() {
                   </span>
                   {!community.is_anonymous_owner && community.created_by_name && (
                     <span className="flex items-center gap-1.5">
-                      <Crown className="h-3.5 w-3.5 text-amber-500" />
+                      <Sparkles className="h-3.5 w-3.5" style={{ color: "hsl(var(--accent))" }} />
                       {community.created_by_name}
                     </span>
                   )}
@@ -1282,7 +1282,7 @@ export default function Community() {
                   {community.is_creator ? (
                     <button
                       onClick={() => setManageOpen(true)}
-                      className="flex items-center gap-1.5 text-xs text-muted-foreground border border-border/50 hover:border-primary/40 hover:text-foreground px-3 py-1.5 rounded-full transition-colors"
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground border border-border/50 hover:border-border hover:text-foreground px-3 py-1.5 rounded-full transition-colors"
                     >
                       <Settings className="h-3 w-3" /> Manage community
                     </button>
@@ -1324,7 +1324,7 @@ export default function Community() {
             {/* Posts */}
             {loadingPosts ? (
               <div className="flex justify-center py-16">
-                <div className="w-6 h-6 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+                <div className="w-6 h-6 rounded-full border-2 border-[var(--line)] border-t-[var(--ink-2)] animate-spin" />
               </div>
             ) : posts.length === 0 ? (
               <div className="text-center py-16 village-card">
@@ -1378,7 +1378,7 @@ export default function Community() {
                 </div>
                 {!community.is_anonymous_owner && community.created_by_name && (
                   <div className="flex items-center gap-2.5">
-                    <Crown className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+                    <Sparkles className="h-3.5 w-3.5 shrink-0" style={{ color: "hsl(var(--accent))" }} />
                     <span>Created by <strong className="text-foreground">{community.created_by_name}</strong></span>
                   </div>
                 )}
@@ -1407,11 +1407,11 @@ export default function Community() {
                       className="flex items-center gap-2.5 group rounded-xl p-1.5 -mx-1.5 hover:bg-muted/50 transition-colors"
                     >
                       <Avatar picture={m.picture} name={m.display_name} size="sm" />
-                      <span className="text-xs font-medium text-foreground group-hover:text-primary transition-colors truncate">
+                      <span className="text-xs font-medium text-foreground group-hover:text-foreground transition-colors truncate">
                         {m.display_name}
                       </span>
                       {community.created_by === m.user_id && (
-                        <Crown className="h-3 w-3 text-amber-500 shrink-0 ml-auto" />
+                        <Sparkles className="h-3 w-3 shrink-0 ml-auto" style={{ color: "hsl(var(--accent))" }} />
                       )}
                     </Link>
                   ))}
@@ -1419,7 +1419,7 @@ export default function Community() {
                 {memberCount > 8 && (
                   <button
                     onClick={() => setManageOpen(true)}
-                    className="mt-2 text-xs text-muted-foreground hover:text-primary transition-colors w-full text-left pl-1"
+                    className="mt-2 text-xs text-muted-foreground hover:text-foreground transition-colors w-full text-left pl-1"
                   >
                     +{memberCount - 8} more members
                   </button>
@@ -1435,7 +1435,7 @@ export default function Community() {
               <div className="space-y-2.5">
                 {POST_TYPES.map((pt) => (
                   <div key={pt.id} className="flex gap-2.5">
-                    <span className="text-base leading-none mt-0.5">{pt.icon}</span>
+                    <pt.Icon size={13} style={{ color: "var(--ink-3)", flexShrink: 0, marginTop: 2 }} />
                     <div className="text-xs text-muted-foreground leading-relaxed">
                       <span className="font-medium text-foreground">{pt.label} </span>
                       {pt.description}
@@ -1447,7 +1447,7 @@ export default function Community() {
 
             {/* Join CTA (only show if not a member yet) */}
             {!canPost && (
-              <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 text-center">
+              <div className="bg-[var(--paper-3)] border border-[var(--line)] rounded-2xl p-4 text-center">
                 <div className="text-2xl mb-2">🌟</div>
                 <p className="text-xs font-medium text-foreground mb-1">Join to participate</p>
                 <p className="text-xs text-muted-foreground mb-3">

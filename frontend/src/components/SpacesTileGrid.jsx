@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+﻿import { Link } from "react-router-dom";
 import { MessageCircle } from "lucide-react";
 
 /**
@@ -20,7 +20,7 @@ export default function SpacesTileGrid({ categories = [], compact = false }) {
           to={`/forums/${cat.category_id}`}
           className="group block"
         >
-          <div className={`village-card village-card-hover hover:border-primary/40 flex flex-col items-center text-center ${compact ? "p-3 gap-1.5" : "p-5 gap-2"}`}>
+          <div className={`village-card village-card-hover hover:border-border flex flex-col items-center text-center ${compact ? "p-3 gap-1.5" : "p-5 gap-2"}`}>
             <span className={compact ? "text-2xl" : "text-3xl mb-1"}>{cat.icon}</span>
             <p className={`font-heading font-semibold text-foreground leading-tight ${compact ? "text-xs" : "text-sm"}`}>
               {cat.name}
