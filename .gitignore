@@ -17,6 +17,10 @@ test-results/videos/
 playwright-report/
 playwright/.cache/
 
+# Design assets (local working files, not for version control)
+Claude Design/
+commit_msg.txt
+
 # IDE and editors
 .idea/
 .vscode/
