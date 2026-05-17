@@ -1,12 +1,25 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Navigation from "../components/Navigation";
+import SuburbSearch from "../components/SuburbSearch";
 import { Button } from "../components/ui/button";
 import { ArrowLeft, Upload, X, Users, Calendar, MapPin, Heart, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import AppFooter from "../components/AppFooter";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
+
+const PURPOSE_OPTIONS = [
+  { value: "baby_clothes",       label: "Baby Clothes" },
+  { value: "kids_clothes",       label: "Kids Clothes" },
+  { value: "school_uniforms",    label: "School Uniform Exchange" },
+  { value: "toys_games",         label: "Toys & Games" },
+  { value: "baby_gear",          label: "Baby Gear" },
+  { value: "maternity_feeding",  label: "Maternity & Feeding" },
+  { value: "nappies_essentials", label: "Nappies & Essentials" },
+  { value: "books_learning",     label: "Books & Learning" },
+  { value: "general_donations",  label: "General Donations" },
+];
 
 export default function CreateDonationGroup({ user }) {
   const navigate = useNavigate();
@@ -18,10 +31,12 @@ export default function CreateDonationGroup({ user }) {
   const [uploadingCover, setUploadingCover] = useState(false);
   const [coverFile, setCoverFile] = useState(null);
 
+  // Multi-suburb area coverage
+  const [areas, setAreas] = useState([]); // [{ suburb, state, postcode }]
+
   const [form, setForm] = useState({
     name: "",
     description: "",
-    area_coverage: "",
     end_date: "",
     purpose_type: "baby_clothes",
     accepted_items: "",
@@ -37,13 +52,26 @@ export default function CreateDonationGroup({ user }) {
     if (errors[field]) setErrors(prev => ({ ...prev, [field]: null }));
   };
 
+  // Add a suburb from SuburbSearch (ignore duplicates)
+  const addArea = (suburb, state, postcode) => {
+    if (!suburb.trim()) return;
+    const label = [suburb, state].filter(Boolean).join(", ");
+    setAreas(prev => {
+      if (prev.some(a => a.label === label)) return prev;
+      return [...prev, { suburb, state, postcode, label }];
+    });
+    if (errors.areas) setErrors(prev => ({ ...prev, areas: null }));
+  };
+
+  const removeArea = (label) => setAreas(prev => prev.filter(a => a.label !== label));
+
   const validate = () => {
     const e = {};
     if (!form.name.trim()) e.name = "Group name is required";
     else if (form.name.trim().length < 5) e.name = "Name must be at least 5 characters";
     if (!form.description.trim()) e.description = "Description is required";
     else if (form.description.trim().length < 20) e.description = "Description must be at least 20 characters";
-    if (!form.area_coverage.trim()) e.area_coverage = "Area coverage is required";
+    if (areas.length === 0) e.areas = "Add at least one suburb or area";
     if (form.end_date) {
       const d = new Date(form.end_date);
       if (d <= new Date()) e.end_date = "End date must be in the future";
@@ -57,7 +85,6 @@ export default function CreateDonationGroup({ user }) {
     if (!file) return;
     if (!file.type.startsWith("image/")) { toast.error("Please select an image file"); return; }
     if (file.size > 5 * 1024 * 1024) { toast.error("Image must be under 5MB"); return; }
-
     setCoverFile(file);
     const reader = new FileReader();
     reader.onload = (ev) => setCoverPreview(ev.target.result);
@@ -100,11 +127,14 @@ export default function CreateDonationGroup({ user }) {
         if (!cover_image) { setSubmitting(false); return; }
       }
 
+      const areaCoverageStr = areas.map(a => a.label).join(", ");
+
       const payload = {
         name: form.name.trim(),
         description: form.description.trim(),
-        suburb: form.area_coverage.trim(),
-        area_coverage: form.area_coverage.trim(),
+        suburb: areas[0]?.suburb || areaCoverageStr,
+        area_coverage: areaCoverageStr,
+        areas: areas,
         cover_image,
         end_date: form.end_date || null,
         purpose_type: form.purpose_type,
@@ -167,9 +197,79 @@ export default function CreateDonationGroup({ user }) {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+
+          {/* Group Type */}
+          <div className="village-card p-5 space-y-4">
+            <div>
+              <h2 className="font-semibold text-foreground mb-0.5">Group Type</h2>
+              <p className="text-xs text-muted-foreground">What kind of items is this group collecting?</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">
+                Purpose <span className="text-destructive">*</span>
+              </label>
+              <select
+                value={form.purpose_type}
+                onChange={e => set("purpose_type", e.target.value)}
+                className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-border/50 transition"
+              >
+                {PURPOSE_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Group Details */}
+          <div className="village-card p-5 space-y-4">
+            <div>
+              <h2 className="font-semibold text-foreground mb-0.5">Group Details</h2>
+              <p className="text-xs text-muted-foreground">Give your group a clear name and tell people what it's for.</p>
+            </div>
+
+            {/* Name */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">
+                Group Name <span className="text-destructive">*</span>
+              </label>
+              <input
+                value={form.name}
+                onChange={e => set("name", e.target.value.slice(0, 80))}
+                placeholder="e.g. Inner West Baby Clothes Drive"
+                className={`w-full bg-background border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition ${errors.name ? "border-destructive" : "border-border/50"}`}
+              />
+              <div className="flex items-center justify-between mt-1">
+                {errors.name
+                  ? <p className="text-xs text-destructive flex items-center gap-1"><AlertCircle className="h-3 w-3" />{errors.name}</p>
+                  : <span />}
+                <span className="text-xs text-muted-foreground">{form.name.length}/80</span>
+              </div>
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">
+                Description <span className="text-destructive">*</span>
+              </label>
+              <textarea
+                value={form.description}
+                onChange={e => set("description", e.target.value.slice(0, 500))}
+                rows={5}
+                placeholder={"Describe what you're collecting, who it helps, and how donations work.\n\ne.g. Collecting clean baby clothes sizes 000–2 for families in the Inner West. Drop-offs welcome at Newtown Community Centre on Saturdays 9am–12pm. Contact Sarah before dropping off anything larger than a pram."}
+                className={`w-full bg-background border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition resize-none ${errors.description ? "border-destructive" : "border-border/50"}`}
+              />
+              <div className="flex items-center justify-between mt-1">
+                {errors.description
+                  ? <p className="text-xs text-destructive flex items-center gap-1"><AlertCircle className="h-3 w-3" />{errors.description}</p>
+                  : <span />}
+                <span className="text-xs text-muted-foreground">{form.description.length}/500</span>
+              </div>
+            </div>
+          </div>
+
           {/* Cover Image */}
           <div className="village-card p-5">
-            <h2 className="font-semibold text-foreground mb-1">Cover Image</h2>
+            <h2 className="font-semibold text-foreground mb-0.5">Cover Image</h2>
             <p className="text-xs text-muted-foreground mb-4">Optional — a photo that represents your group</p>
 
             {coverPreview ? (
@@ -193,93 +293,58 @@ export default function CreateDonationGroup({ user }) {
             )}
           </div>
 
-          {/* Group Type */}
-          <div className="village-card p-5 space-y-4">
-            <h2 className="font-semibold text-foreground">Group Type</h2>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                Purpose <span className="text-destructive">*</span>
-              </label>
-              <select
-                value={form.purpose_type}
-                onChange={e => set("purpose_type", e.target.value)}
-                className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-border/50 transition"
-              >
-                <option value="baby_clothes">Baby Clothes Drive</option>
-                <option value="school_uniforms">School Uniform Exchange</option>
-                <option value="toy_drive">Toy Drive</option>
-                <option value="newborn_essentials">Newborn Essentials</option>
-                <option value="emergency_support">Emergency Parent Support</option>
-                <option value="general_donations">General Donations</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Group Details */}
-          <div className="village-card p-5 space-y-4">
-            <h2 className="font-semibold text-foreground">Group Details</h2>
-
-            {/* Name */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                Group Name <span className="text-destructive">*</span>
-              </label>
-              <input
-                value={form.name}
-                onChange={e => set("name", e.target.value.slice(0, 80))}
-                placeholder="e.g. Winter Warmth Drive — Bondi Mums"
-                className={`w-full bg-background border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition ${errors.name ? "border-destructive" : "border-border/50"}`}
-              />
-              <div className="flex items-center justify-between mt-1">
-                {errors.name
-                  ? <p className="text-xs text-destructive flex items-center gap-1"><AlertCircle className="h-3 w-3" />{errors.name}</p>
-                  : <span />}
-                <span className="text-xs text-muted-foreground">{form.name.length}/80</span>
-              </div>
-            </div>
-
-            {/* Description */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                Description <span className="text-destructive">*</span>
-              </label>
-              <textarea
-                value={form.description}
-                onChange={e => set("description", e.target.value.slice(0, 500))}
-                rows={4}
-                placeholder="Tell people what this group is for, who benefits, and what items you're collecting…"
-                className={`w-full bg-background border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition resize-none ${errors.description ? "border-destructive" : "border-border/50"}`}
-              />
-              <div className="flex items-center justify-between mt-1">
-                {errors.description
-                  ? <p className="text-xs text-destructive flex items-center gap-1"><AlertCircle className="h-3 w-3" />{errors.description}</p>
-                  : <span />}
-                <span className="text-xs text-muted-foreground">{form.description.length}/500</span>
-              </div>
-            </div>
-          </div>
-
           {/* Location & Timing */}
           <div className="village-card p-5 space-y-4">
-            <h2 className="font-semibold text-foreground">Location & Timing</h2>
+            <div>
+              <h2 className="font-semibold text-foreground mb-0.5">Location & Timing</h2>
+              <p className="text-xs text-muted-foreground">Which suburbs or areas does this group serve?</p>
+            </div>
 
-            {/* Area Coverage */}
+            {/* Multi-suburb area coverage */}
             <div>
               <label className="block text-sm font-medium text-foreground mb-1.5">
                 <MapPin className="h-3.5 w-3.5 inline mr-1 text-muted-foreground" />
-                Area Coverage <span className="text-destructive">*</span>
+                Suburbs / Areas <span className="text-destructive">*</span>
               </label>
-              <input
-                value={form.area_coverage}
-                onChange={e => set("area_coverage", e.target.value.slice(0, 80))}
-                placeholder="e.g. Inner West, Sydney NSW"
-                className={`w-full bg-background border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition ${errors.area_coverage ? "border-destructive" : "border-border/50"}`}
+
+              {/* Selected areas as chips */}
+              {areas.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {areas.map(a => (
+                    <span
+                      key={a.label}
+                      className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full"
+                      style={{ background: "var(--sage-wash)", color: "var(--sage-deep)", border: "1px solid var(--sage)" }}
+                    >
+                      <MapPin className="h-3 w-3" />
+                      {a.label}
+                      <button
+                        type="button"
+                        onClick={() => removeArea(a.label)}
+                        className="ml-0.5 opacity-60 hover:opacity-100 transition-opacity"
+                        aria-label={`Remove ${a.label}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <SuburbSearch
+                value=""
+                onChange={(suburb, state, postcode) => {
+                  if (suburb) addArea(suburb, state, postcode);
+                }}
+                placeholder="Search for a suburb to add…"
+                error={errors.areas}
               />
-              <p className="text-xs text-muted-foreground mt-1">Describe the local area this group serves</p>
-              {errors.area_coverage && (
+              <p className="text-xs text-muted-foreground mt-1.5">
+                Search and add as many suburbs or areas as needed. Donors will use this to find your group.
+              </p>
+              {errors.areas && (
                 <p className="text-xs text-destructive mt-1 flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />{errors.area_coverage}
+                  <AlertCircle className="h-3 w-3" />{errors.areas}
                 </p>
               )}
             </div>
@@ -308,7 +373,10 @@ export default function CreateDonationGroup({ user }) {
 
           {/* Items & Rules */}
           <div className="village-card p-5 space-y-4">
-            <h2 className="font-semibold text-foreground">Items &amp; Rules</h2>
+            <div>
+              <h2 className="font-semibold text-foreground mb-0.5">Items &amp; Rules</h2>
+              <p className="text-xs text-muted-foreground">Help donors know exactly what to bring and how the group works.</p>
+            </div>
 
             <div>
               <label className="block text-sm font-medium text-foreground mb-1.5">What we accept</label>
@@ -316,7 +384,7 @@ export default function CreateDonationGroup({ user }) {
                 value={form.accepted_items}
                 onChange={e => set("accepted_items", e.target.value.slice(0, 400))}
                 rows={3}
-                placeholder="e.g. Baby clothes 000–2, prams, high chairs, baby books…"
+                placeholder={"e.g.\n• Baby clothes sizes 000–2 (clean, no stains)\n• Muslin wraps and swaddles\n• Soft toys and baby books in good condition\n• Bouncer seats and play mats"}
                 className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition resize-none"
               />
             </div>
@@ -327,20 +395,21 @@ export default function CreateDonationGroup({ user }) {
                 value={form.not_accepted}
                 onChange={e => set("not_accepted", e.target.value.slice(0, 400))}
                 rows={3}
-                placeholder="e.g. No formula, no car seats, no electrical items…"
+                placeholder={"e.g.\n• No car seats (safety reasons)\n• No electrical items\n• No damaged, stained, or worn-out clothing\n• No formula or opened food items"}
                 className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition resize-none"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">Group rules</label>
+              <label className="block text-sm font-medium text-foreground mb-1.5">Group rules & drop-off info</label>
               <textarea
                 value={form.rules}
                 onChange={e => set("rules", e.target.value.slice(0, 500))}
-                rows={3}
-                placeholder="e.g. Items must be clean and in good condition. Contact organiser before dropping off…"
+                rows={4}
+                placeholder={"e.g.\n• Items must be clean and in good condition\n• Message the organiser before dropping anything off\n• Drop-offs: Saturdays 9am–12pm, Newtown Community Centre\n• No drop-offs without prior contact — thank you!"}
                 className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition resize-none"
               />
+              <p className="text-xs text-muted-foreground mt-1">Include drop-off location, times, and any conditions donors should know about.</p>
             </div>
 
             <label className="flex items-center gap-3 cursor-pointer">
@@ -352,7 +421,7 @@ export default function CreateDonationGroup({ user }) {
               />
               <div>
                 <p className="text-sm font-medium text-foreground">Group is open</p>
-                <p className="text-xs text-muted-foreground">Uncheck to pause new donations temporarily</p>
+                <p className="text-xs text-muted-foreground">Uncheck to temporarily pause new donations</p>
               </div>
             </label>
           </div>
@@ -361,7 +430,7 @@ export default function CreateDonationGroup({ user }) {
           <div className="flex items-start gap-3 p-4 rounded-xl bg-secondary/50 border border-border/30">
             <Users className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Donation groups are community-run. As organiser you're responsible for coordinating collections respectfully and keeping the group description accurate. Items listed under this group remain subject to The Village's{" "}
+              Donation groups are community-run. As organiser you're responsible for coordinating collections respectfully and keeping the group description accurate. All activity remains subject to The Village's{" "}
               <a href="/community-guidelines" className="text-primary hover:underline">Community Guidelines</a>.
             </p>
           </div>

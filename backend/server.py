@@ -7403,6 +7403,12 @@ class StallMessageCreate(BaseModel):
     receiver_id: str
     content: str
 
+VALID_PURPOSE_TYPES = {
+    "baby_clothes", "kids_clothes", "school_uniforms", "toys_games",
+    "baby_gear", "maternity_feeding", "nappies_essentials",
+    "books_learning", "general_donations",
+}
+
 class DonationGroup(BaseModel):
     group_id: str = Field(default_factory=lambda: f"dg_{uuid.uuid4().hex[:12]}")
     organiser_id: str
@@ -7413,6 +7419,7 @@ class DonationGroup(BaseModel):
     category: str
     suburb: Optional[str] = None
     area_coverage: Optional[str] = None
+    areas: List[dict] = []  # [{ suburb, state, postcode, label }]
     postcode: Optional[str] = None
     state: Optional[str] = None
     latitude: Optional[float] = None
@@ -7436,6 +7443,7 @@ class DonationGroupCreate(BaseModel):
     category: str = "general"
     suburb: Optional[str] = None
     area_coverage: Optional[str] = None
+    areas: List[dict] = []  # [{ suburb, state, postcode, label }]
     postcode: Optional[str] = None
     state: Optional[str] = None
     latitude: Optional[float] = None
@@ -7812,6 +7820,9 @@ async def get_donation_group(group_id: str, request: Request):
 @api_router.post("/stall/groups")
 async def create_donation_group(data: DonationGroupCreate, user: dict = Depends(get_current_user)):
     _check_stall_access(user)
+    # Sanitise purpose_type to known values
+    if data.purpose_type not in VALID_PURPOSE_TYPES:
+        data.purpose_type = "general_donations"
     group = DonationGroup(
         organiser_id=user["user_id"],
         organiser_name=user.get("nickname") or user["name"],
