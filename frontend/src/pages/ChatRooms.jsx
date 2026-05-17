@@ -462,7 +462,7 @@ export default function ChatRooms({ user }) {
                 <Moon size={20} style={{ color: "var(--honey)", flexShrink: 0 }} />
                 <div>
                   <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>Night Owl hours — you're not alone</p>
-                  <p className="text-xs" style={{ color: "var(--ink-2)" }}>The 3am Club is active right now. Join for late-night company.</p>
+                  <p className="text-xs" style={{ color: "var(--ink-2)" }}>Late-night support is open. You're not alone tonight.</p>
                 </div>
               </div>
             )}

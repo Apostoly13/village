@@ -21,8 +21,13 @@ export default function CreateDonationGroup({ user }) {
   const [form, setForm] = useState({
     name: "",
     description: "",
-    suburb: "",
+    area_coverage: "",
     end_date: "",
+    purpose_type: "baby_clothes",
+    accepted_items: "",
+    not_accepted: "",
+    rules: "",
+    is_open: true,
   });
 
   const [errors, setErrors] = useState({});
@@ -38,7 +43,7 @@ export default function CreateDonationGroup({ user }) {
     else if (form.name.trim().length < 5) e.name = "Name must be at least 5 characters";
     if (!form.description.trim()) e.description = "Description is required";
     else if (form.description.trim().length < 20) e.description = "Description must be at least 20 characters";
-    if (!form.suburb.trim()) e.suburb = "Suburb is required";
+    if (!form.area_coverage.trim()) e.area_coverage = "Area coverage is required";
     if (form.end_date) {
       const d = new Date(form.end_date);
       if (d <= new Date()) e.end_date = "End date must be in the future";
@@ -98,9 +103,15 @@ export default function CreateDonationGroup({ user }) {
       const payload = {
         name: form.name.trim(),
         description: form.description.trim(),
-        suburb: form.suburb.trim(),
+        suburb: form.area_coverage.trim(),
+        area_coverage: form.area_coverage.trim(),
         cover_image,
         end_date: form.end_date || null,
+        purpose_type: form.purpose_type,
+        accepted_items: form.accepted_items.trim(),
+        not_accepted: form.not_accepted.trim(),
+        rules: form.rules.trim(),
+        is_open: form.is_open,
       };
 
       const res = await fetch(`${API_URL}/api/stall/groups`, {
@@ -182,6 +193,29 @@ export default function CreateDonationGroup({ user }) {
             )}
           </div>
 
+          {/* Group Type */}
+          <div className="village-card p-5 space-y-4">
+            <h2 className="font-semibold text-foreground">Group Type</h2>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">
+                Purpose <span className="text-destructive">*</span>
+              </label>
+              <select
+                value={form.purpose_type}
+                onChange={e => set("purpose_type", e.target.value)}
+                className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-border/50 transition"
+              >
+                <option value="baby_clothes">Baby Clothes Drive</option>
+                <option value="school_uniforms">School Uniform Exchange</option>
+                <option value="toy_drive">Toy Drive</option>
+                <option value="newborn_essentials">Newborn Essentials</option>
+                <option value="emergency_support">Emergency Parent Support</option>
+                <option value="general_donations">General Donations</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+
           {/* Group Details */}
           <div className="village-card p-5 space-y-4">
             <h2 className="font-semibold text-foreground">Group Details</h2>
@@ -230,21 +264,22 @@ export default function CreateDonationGroup({ user }) {
           <div className="village-card p-5 space-y-4">
             <h2 className="font-semibold text-foreground">Location & Timing</h2>
 
-            {/* Suburb */}
+            {/* Area Coverage */}
             <div>
               <label className="block text-sm font-medium text-foreground mb-1.5">
                 <MapPin className="h-3.5 w-3.5 inline mr-1 text-muted-foreground" />
-                Suburb <span className="text-destructive">*</span>
+                Area Coverage <span className="text-destructive">*</span>
               </label>
               <input
-                value={form.suburb}
-                onChange={e => set("suburb", e.target.value.slice(0, 60))}
-                placeholder="e.g. Bondi Beach, NSW"
-                className={`w-full bg-background border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition ${errors.suburb ? "border-destructive" : "border-border/50"}`}
+                value={form.area_coverage}
+                onChange={e => set("area_coverage", e.target.value.slice(0, 80))}
+                placeholder="e.g. Inner West, Sydney NSW"
+                className={`w-full bg-background border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition ${errors.area_coverage ? "border-destructive" : "border-border/50"}`}
               />
-              {errors.suburb && (
+              <p className="text-xs text-muted-foreground mt-1">Describe the local area this group serves</p>
+              {errors.area_coverage && (
                 <p className="text-xs text-destructive mt-1 flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />{errors.suburb}
+                  <AlertCircle className="h-3 w-3" />{errors.area_coverage}
                 </p>
               )}
             </div>
@@ -269,6 +304,57 @@ export default function CreateDonationGroup({ user }) {
               )}
               <p className="text-xs text-muted-foreground mt-1">Leave blank for an ongoing group</p>
             </div>
+          </div>
+
+          {/* Items & Rules */}
+          <div className="village-card p-5 space-y-4">
+            <h2 className="font-semibold text-foreground">Items &amp; Rules</h2>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">What we accept</label>
+              <textarea
+                value={form.accepted_items}
+                onChange={e => set("accepted_items", e.target.value.slice(0, 400))}
+                rows={3}
+                placeholder="e.g. Baby clothes 000–2, prams, high chairs, baby books…"
+                className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition resize-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">What we don't accept</label>
+              <textarea
+                value={form.not_accepted}
+                onChange={e => set("not_accepted", e.target.value.slice(0, 400))}
+                rows={3}
+                placeholder="e.g. No formula, no car seats, no electrical items…"
+                className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition resize-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">Group rules</label>
+              <textarea
+                value={form.rules}
+                onChange={e => set("rules", e.target.value.slice(0, 500))}
+                rows={3}
+                placeholder="e.g. Items must be clean and in good condition. Contact organiser before dropping off…"
+                className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition resize-none"
+              />
+            </div>
+
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.is_open}
+                onChange={e => set("is_open", e.target.checked)}
+                className="accent-primary w-4 h-4"
+              />
+              <div>
+                <p className="text-sm font-medium text-foreground">Group is open</p>
+                <p className="text-xs text-muted-foreground">Uncheck to pause new donations temporarily</p>
+              </div>
+            </label>
           </div>
 
           {/* Community Guidelines blurb */}

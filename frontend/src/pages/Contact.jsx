@@ -1,6 +1,7 @@
 ﻿import { useState } from "react";
 import { Link } from "react-router-dom";
 import PublicNav from "../components/PublicNav";
+import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -19,6 +20,7 @@ const SUBJECTS = [
 const EMPTY_FORM = { name: "", email: "", subject: "General Enquiry", message: "" };
 
 export default function Contact() {
+  const storedUser = (() => { try { return JSON.parse(localStorage.getItem("user") || "null"); } catch { return null; } })();
   const [form, setForm] = useState(EMPTY_FORM);
   const [sending, setSending] = useState(false);
 
@@ -39,7 +41,7 @@ export default function Contact() {
 
   return (
     <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
-      <PublicNav />
+      {storedUser ? <Navigation user={storedUser} /> : <PublicNav />}
 
       <main className="max-w-3xl mx-auto px-4 pt-16 lg:pt-8">
         <button

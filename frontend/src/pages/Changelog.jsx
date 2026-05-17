@@ -7,6 +7,23 @@ import AppFooter from "../components/AppFooter";
 // ── Full technical changelog (admin-only view) ────────────────────────────────
 const CHANGELOG = [
   {
+    version: "3.34.0",
+    date: "May 2026",
+    title: "Mobile Nav, Auth Persistence, Donation Groups Overhaul & UX Fixes",
+    entries: [
+      { tag: "Added",    text: "Mobile bottom nav bar restored: fixed 5-tab bar (Home, Spaces, Chats, Messages, Me) visible on mobile only (lg:hidden). Active tab shows top indicator bar. Messages badge shows unread count for Village+ users." },
+      { tag: "Improved", text: "Theme toggle redesigned: replaced single icon with a pill toggle showing both Sun and Moon, active mode highlighted in ink/paper. Visible on both desktop sidebar and mobile top bar. No more ambiguity about current setting." },
+      { tag: "Improved", text: "Auth persistence: Contact, Terms, Privacy, and Community Guidelines pages now render the full app Navigation when a user is logged in, instead of always showing the pre-login PublicNav. Logged-in users stay in the app experience." },
+      { tag: "Improved", text: "Message button on profiles now opens a direct conversation with that user immediately — no longer just opens the Messages inbox requiring manual search." },
+      { tag: "Improved", text: "ChatRooms Night Owl banner: removed '3AM Club' specific reference. Now reads 'Late-night support is open. You're not alone tonight.'" },
+      { tag: "Improved", text: "Donation Groups — dedicated group flow: CreateDonationGroup now collects group type (Baby Clothes, School Uniforms, Toy Drive, Newborn Essentials, Emergency Support, General Donations, Other), accepted items, not accepted items, group rules, open/closed status, and area coverage. All fields sent to backend." },
+      { tag: "Improved", text: "DonationGroupDetail: members see 'Donate to this group' and 'Request support' action buttons. Group type badge, accepted/not-accepted items, and rules now displayed in dedicated sections. Paused groups show a 'Temporarily paused' banner." },
+      { tag: "Improved", text: "Stall Giving Away filter: added contextual callout distinguishing quick free listings from structured Donation Groups, with a direct link to the groups tab." },
+      { tag: "Improved", text: "Backend: DonationGroup and DonationGroupCreate models updated with area_coverage, purpose_type, accepted_items, not_accepted, rules, and is_open fields." },
+      { tag: "Fixed",    text: "Global mobile padding: pages now reserve 80px at bottom on mobile for the restored bottom nav bar." },
+    ],
+  },
+  {
     version: "3.33.0",
     date: "May 2026",
     title: "Filter Design System, Badge Overhaul, Email Improvements & UI Cleanup",
@@ -707,6 +724,21 @@ const CHANGELOG = [
 // ── Curated user-facing changelog (non-admin view) ────────────────────────────
 // Plain readable summaries — no technical tags or implementation details.
 const USER_CHANGELOG = [
+  {
+    version: "3.34.0",
+    date: "May 2026",
+    title: "Mobile Nav, Donation Groups & Lots of Improvements",
+    entries: [
+"The bottom navigation bar is back on mobile — tap Home, Spaces, Chats, Messages, or Me directly from the bottom of the screen.",
+"The day/night mode toggle now shows both icons with the active mode clearly highlighted, so you always know which mode you're in.",
+"Pages like Contact, Terms, and Community Guidelines now keep you inside the app if you're already signed in.",
+"Tapping 'Message' on someone's profile now opens a conversation with them directly — no more landing on the messages homepage.",
+"The Night Owl banner no longer mentions the 3AM Club specifically.",
+"Donation Groups now have a dedicated setup flow: group type, accepted items, items we don't accept, group rules, and open/closed status.",
+"Inside a Donation Group, members can now tap 'Donate to this group' or 'Request support' directly.",
+"Free item listings now have a clear link to Donation Groups so it's easy to find the right place.",
+    ],
+  },
   {
     version: "3.33.0",
     date: "May 2026",

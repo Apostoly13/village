@@ -7412,6 +7412,7 @@ class DonationGroup(BaseModel):
     description: str
     category: str
     suburb: Optional[str] = None
+    area_coverage: Optional[str] = None
     postcode: Optional[str] = None
     state: Optional[str] = None
     latitude: Optional[float] = None
@@ -7422,6 +7423,11 @@ class DonationGroup(BaseModel):
     member_ids: List[str] = []
     status: str = "active"
     item_count: int = 0
+    purpose_type: str = "general_donations"
+    accepted_items: str = ""
+    not_accepted: str = ""
+    rules: str = ""
+    is_open: bool = True
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class DonationGroupCreate(BaseModel):
@@ -7429,12 +7435,18 @@ class DonationGroupCreate(BaseModel):
     description: str
     category: str = "general"
     suburb: Optional[str] = None
+    area_coverage: Optional[str] = None
     postcode: Optional[str] = None
     state: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     cover_image: Optional[str] = None
     end_date: Optional[str] = None
+    purpose_type: str = "general_donations"
+    accepted_items: str = ""
+    not_accepted: str = ""
+    rules: str = ""
+    is_open: bool = True
 
 
 def _check_stall_access(user: dict):

@@ -122,8 +122,76 @@ export default function DonationGroupDetail({ user }) {
                 )}
               </div>
             </div>
+
+            {/* Member action buttons */}
+            {group.is_member && (
+              <div className="flex gap-3 mt-4">
+                <Button
+                  className="flex-1 rounded-xl"
+                  onClick={() => navigate(`/stall/groups/${groupId}/donate`)}
+                >
+                  <Heart className="h-4 w-4 mr-2" />
+                  Donate to this group
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1 rounded-xl"
+                  onClick={() => navigate(`/stall/groups/${groupId}/request`)}
+                >
+                  Request support
+                </Button>
+              </div>
+            )}
+
+            {/* Temporarily paused banner */}
+            {group.is_open === false && (
+              <div className="mt-4 p-3 rounded-xl text-sm font-medium text-center" style={{ background: "var(--honey-wash)", color: "var(--ink-2)", border: "1px solid var(--line)" }}>
+                This group is temporarily paused — new donations are not being accepted right now.
+              </div>
+            )}
           </div>
         </div>
+
+        {/* Purpose type badge */}
+        {group.purpose_type && (
+          <div className="mb-4">
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold" style={{ background: "var(--honey-wash)", color: "var(--ink-2)", border: "1px solid var(--line)" }}>
+              {{
+                baby_clothes: "Baby Clothes Drive",
+                school_uniforms: "School Uniform Exchange",
+                toy_drive: "Toy Drive",
+                newborn_essentials: "Newborn Essentials",
+                emergency_support: "Emergency Parent Support",
+                general_donations: "General Donations",
+                other: "Other",
+              }[group.purpose_type] || group.purpose_type}
+            </span>
+          </div>
+        )}
+
+        {/* What we accept */}
+        {group.accepted_items && (
+          <div className="village-card p-4 mb-4">
+            <h3 className="font-semibold text-sm text-foreground mb-2">What we accept</h3>
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">{group.accepted_items}</p>
+          </div>
+        )}
+
+        {/* What we don't accept */}
+        {group.not_accepted && (
+          <div className="village-card p-4 mb-4">
+            <h3 className="font-semibold text-sm text-foreground mb-2">What we don't accept</h3>
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">{group.not_accepted}</p>
+          </div>
+        )}
+
+        {/* Group rules */}
+        {group.rules && (
+          <div className="village-card p-4 mb-4">
+            <h3 className="font-semibold text-sm text-foreground mb-2">Group rules</h3>
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">{group.rules}</p>
+          </div>
+        )}
 
         {/* Donate into group CTA */}
         {group.is_member && group.status === "active" && (

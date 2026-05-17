@@ -542,6 +542,18 @@ export default function Stall({ user }) {
               </div>
             )}
 
+            {/* Giving Away callout */}
+            {activeType === "give_away" && (
+              <div className="flex items-start gap-2 p-3 rounded-xl mb-4" style={{ background: "var(--honey-wash)", border: "1px solid var(--line)" }}>
+                <span className="text-sm">💛</span>
+                <p className="text-xs" style={{ color: "var(--ink-2)" }}>
+                  <strong>Giving Away</strong> — quick free listings for items you want to pass on.
+                  For organised community drives, see{" "}
+                  <button onClick={() => { setActiveTab("groups"); setSearchParams(prev => { const p = new URLSearchParams(prev); p.set("tab", "groups"); return p; }, { replace: true }); }} className="underline font-medium" style={{ color: "var(--ink)" }}>Donation Groups</button>.
+                </p>
+              </div>
+            )}
+
             {/* Grid */}
             {loading ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

@@ -1,5 +1,6 @@
 ﻿import { Link } from "react-router-dom";
 import PublicNav from "../components/PublicNav";
+import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
 import { ArrowLeft } from "lucide-react";
 
@@ -62,9 +63,10 @@ const CONSEQUENCES = [
 ];
 
 export default function CommunityGuidelines() {
+  const storedUser = (() => { try { return JSON.parse(localStorage.getItem("user") || "null"); } catch { return null; } })();
   return (
     <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
-      <PublicNav />
+      {storedUser ? <Navigation user={storedUser} /> : <PublicNav />}
 
       <main className="max-w-3xl mx-auto px-4 pt-16 lg:pt-8">
         <button

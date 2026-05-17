@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import Navigation from "../components/Navigation";
 import { ArrowLeft, MessagesSquare, Search, UserPlus, X, ImageIcon, Users, Lock, ShoppingBag, Calendar, ExternalLink } from "lucide-react";
@@ -223,6 +223,7 @@ function MessageBubble({ msg, isOwn, activeUser, onReport }) {
 // ── Main component ────────────────────────────────────────────────────────────
 export default function Messages({ user }) {
   const navigate = useNavigate();
+  const { userId: targetUserId } = useParams();
 
   const [showSearch, setShowSearch] = useState(false);
   const [inboxTab, setInboxTab] = useState("all"); // "all" | "unread" | "friends" | "stall"
@@ -273,7 +274,24 @@ export default function Messages({ user }) {
   const inputRef = useRef(null);
   const imageInputRef = useRef(null);
 
-  useEffect(() => { fetchFriends(); fetchConversations(); fetchStallConversations(); fetchEventConversations(); }, []);
+  useEffect(() => {
+    fetchFriends();
+    fetchConversations();
+    fetchStallConversations();
+    fetchEventConversations();
+    if (targetUserId && user) {
+      setTimeout(async () => {
+        try {
+          const res = await fetch(`${API_URL}/api/users/${targetUserId}/profile`, { credentials: "include" });
+          if (res.ok) {
+            const profile = await res.json();
+            openDmChat({ user_id: profile.user_id, name: profile.name, nickname: profile.nickname, picture: profile.picture, is_online: profile.is_online });
+          }
+        } catch {}
+      }, 100);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // When a DM is read in the popout, instantly clear unread counts in this page's list too
   useEffect(() => {

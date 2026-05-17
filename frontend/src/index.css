@@ -219,6 +219,13 @@ code {
     padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
 
+/* Reserve space for mobile bottom nav bar */
+@media (max-width: 1023px) {
+  main {
+    padding-bottom: 5rem; /* 80px — 64px nav + 16px breathing room */
+  }
+}
+
 /* Hide scrollbar for chat */
 .hide-scrollbar {
     -ms-overflow-style: none;

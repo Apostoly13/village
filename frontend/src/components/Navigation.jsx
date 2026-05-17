@@ -444,12 +444,25 @@ export default function Navigation({ user }) {
             </DropdownMenu>
 
             {/* Theme toggle */}
-            <button className="p-2 rounded-lg transition-colors" style={{ color: "var(--ink-2)" }}
-              onClick={toggleTheme} data-testid="theme-toggle-nav"
-              onMouseEnter={e => e.currentTarget.style.background = "var(--paper-2)"}
-              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+            <button
+              onClick={toggleTheme}
+              data-testid="theme-toggle-nav"
+              title={darkMode ? "Switch to day mode" : "Switch to night mode"}
+              className="flex items-center gap-0.5 rounded-full p-0.5 transition-colors"
+              style={{ background: "var(--paper-2)", border: "1px solid var(--line)" }}
             >
-              {darkMode ? <IconSun size={18} /> : <ThreeAmMoon size={18} />}
+              <span
+                className="flex items-center justify-center w-7 h-7 rounded-full transition-colors"
+                style={!darkMode ? { background: "var(--ink)", color: "var(--paper)" } : { color: "var(--ink-3)" }}
+              >
+                <IconSun size={14} />
+              </span>
+              <span
+                className="flex items-center justify-center w-7 h-7 rounded-full transition-colors"
+                style={darkMode ? { background: "var(--ink)", color: "var(--paper)" } : { color: "var(--ink-3)" }}
+              >
+                <ThreeAmMoon size={14} />
+              </span>
             </button>
 
             {/* Settings */}
@@ -513,14 +526,25 @@ export default function Navigation({ user }) {
             >
               <IconHome size={20} />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
+            <button
               onClick={toggleTheme}
-              className="rounded-full"
+              title={darkMode ? "Switch to day mode" : "Switch to night mode"}
+              className="flex items-center gap-0.5 rounded-full p-0.5 transition-colors"
+              style={{ background: "var(--paper-2)", border: "1px solid var(--line)" }}
             >
-              {darkMode ? <IconSun size={20} /> : <ThreeAmMoon size={20} />}
-            </Button>
+              <span
+                className="flex items-center justify-center w-7 h-7 rounded-full transition-colors"
+                style={!darkMode ? { background: "var(--ink)", color: "var(--paper)" } : { color: "var(--ink-3)" }}
+              >
+                <IconSun size={14} />
+              </span>
+              <span
+                className="flex items-center justify-center w-7 h-7 rounded-full transition-colors"
+                style={darkMode ? { background: "var(--ink)", color: "var(--paper)" } : { color: "var(--ink-3)" }}
+              >
+                <ThreeAmMoon size={14} />
+              </span>
+            </button>
             <Button
               variant="ghost"
               size="icon"
@@ -717,6 +741,43 @@ export default function Navigation({ user }) {
             </div>
           </div>
         )}
+      </nav>
+
+      {/* ── Mobile Bottom Nav ── */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden" style={{ background: "var(--paper)", borderTop: "1px solid var(--line-2)" }}>
+        <div className="flex items-center justify-around h-16 px-2">
+          {[
+            { icon: IconHome,   label: "Home",     href: "/dashboard",                       testId: "bottom-nav-home" },
+            { icon: IconSpaces, label: "Spaces",   href: "/forums",                          testId: "bottom-nav-spaces" },
+            { icon: IconChat,   label: "Chats",    href: "/chat",                            testId: "bottom-nav-chat" },
+            { icon: Mail,       label: "Messages", href: isFree ? "/plus" : "/messages",     testId: "bottom-nav-messages", badge: isFree ? 0 : unreadMessages },
+            { icon: User,       label: "Me",       href: "/profile",                         testId: "bottom-nav-me" },
+          ].map(({ icon: Icon, label, href, testId, badge }) => {
+            const isActive = location.pathname === href || (href !== "/dashboard" && location.pathname.startsWith(href));
+            return (
+              <Link
+                key={label}
+                to={href}
+                data-testid={testId}
+                className="flex flex-col items-center justify-center gap-0.5 flex-1 h-full relative"
+                style={{ color: isActive ? "var(--ink)" : "var(--ink-3)" }}
+              >
+                <div className="relative">
+                  <Icon size={22} />
+                  {badge > 0 && (
+                    <span className="absolute -top-1 -right-1.5 min-w-[16px] h-4 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center px-0.5 font-medium">
+                      {badge > 9 ? "9+" : badge}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[10px] font-medium leading-none">{label}</span>
+                {isActive && (
+                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full" style={{ background: "var(--ink)" }} />
+                )}
+              </Link>
+            );
+          })}
+        </div>
       </nav>
     </>
   );
