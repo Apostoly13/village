@@ -7,16 +7,20 @@ const API_URL = process.env.REACT_APP_BACKEND_URL;
  * SuburbSearch — debounced suburb autocomplete backed by /api/location/search.
  *
  * Props:
- *   value        string   — current suburb text
- *   onChange     fn(suburb, state, postcode) — called when user picks a result
- *   placeholder  string   — input placeholder
- *   className    string   — extra classes for the outer wrapper
- *   inputClass   string   — classes applied to the <input>
- *   error        string   — show error border + message when set
+ *   value            string   — current suburb text (controlled)
+ *   onChange         fn(suburb, state, postcode) — called on every text change AND on selection
+ *   onSelect         fn(loc)  — called ONLY when user picks a result from the dropdown
+ *   clearAfterSelect boolean  — if true, clears the input after a selection (useful for multi-add)
+ *   placeholder      string   — input placeholder
+ *   className        string   — extra classes for the outer wrapper
+ *   inputClass       string   — classes applied to the <input>
+ *   error            string   — show error border + message when set
  */
 export default function SuburbSearch({
   value,
   onChange,
+  onSelect,
+  clearAfterSelect = false,
   placeholder = "e.g. Newtown, NSW",
   className = "",
   inputClass = "",
@@ -65,10 +69,15 @@ export default function SuburbSearch({
 
   const select = (loc) => {
     const suburb = loc.suburb || loc.display_name?.split(",")[0] || "";
-    setQuery(suburb);
     setOpen(false);
     setResults([]);
-    onChange(suburb, loc.state || "", loc.postcode || "");
+    if (clearAfterSelect) {
+      setQuery("");
+    } else {
+      setQuery(suburb);
+    }
+    if (onChange) onChange(suburb, loc.state || "", loc.postcode || "");
+    if (onSelect) onSelect(loc);
   };
 
   const BASE_INPUT = [
@@ -84,7 +93,7 @@ export default function SuburbSearch({
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
         <input
           value={query}
-          onChange={e => { setQuery(e.target.value); onChange(e.target.value, "", ""); }}
+          onChange={e => { setQuery(e.target.value); if (onChange) onChange(e.target.value, "", ""); }}
           placeholder={placeholder}
           autoComplete="off"
           className={`${BASE_INPUT} pl-9`}

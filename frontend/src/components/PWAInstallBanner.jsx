@@ -79,7 +79,7 @@ export default function PWAInstallBanner() {
           ) : (
             <>
               <p className="text-xs text-muted-foreground leading-relaxed mb-2">
-                Install The Village for faster access, even when you're offline.
+                Install Our Little Village for faster access, even when you're offline.
               </p>
               <button
                 onClick={handleInstall}

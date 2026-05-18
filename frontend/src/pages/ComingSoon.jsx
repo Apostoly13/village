@@ -18,9 +18,9 @@ const FEATURES = [
   },
   {
     emoji: "📱",
-    title: "Mobile App — The Village in Your Pocket",
+    title: "Mobile App — Our Little Village in Your Pocket",
     description:
-"Native iOS and Android apps so The Village is always with you, from the delivery room to the school gate.",
+"Native iOS and Android apps so Our Little Village is always with you, from the delivery room to the school gate.",
   },
 ];
 
@@ -35,7 +35,7 @@ export default function ComingSoon({ user }) {
           <div className="text-6xl mb-6">🚀</div>
           <h1 className="font-heading text-4xl font-bold text-foreground mb-4">Coming Soon</h1>
           <p className="text-muted-foreground text-lg leading-relaxed max-w-md mx-auto">
-            We're building something great for The Village. Stay tuned.
+            We're building something great for Our Little Village. Stay tuned.
           </p>
         </div>
 

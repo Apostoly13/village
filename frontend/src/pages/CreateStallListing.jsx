@@ -64,7 +64,8 @@ export default function CreateStallListing({ user }) {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
   const [ageGroup, setAgeGroup] = useState("");
-  const [listingType, setListingType] = useState("");
+  const [listingType, setListingType] = useState(groupId ? "give_away" : "");
+  const [postalAddress, setPostalAddress] = useState("");
   const [price, setPrice] = useState("");
   const [makeOffer, setMakeOffer] = useState(false);
   const [swapFor, setSwapFor] = useState("");
@@ -105,7 +106,7 @@ export default function CreateStallListing({ user }) {
       if (listingType === "give_away") return condition !== "";
       return true; // wanted
     }
-    if (step === 4) return suburb.trim().length >= 2;
+    if (step === 4) return groupId ? true : suburb.trim().length >= 2;
     return true;
   };
 
@@ -125,7 +126,8 @@ export default function CreateStallListing({ user }) {
         state: user?.state || null,
         latitude: user?.latitude || null,
         longitude: user?.longitude || null,
-        postage_available: postageAvailable,
+        postage_available: groupId ? false : postageAvailable,
+        postal_address: groupId && postalAddress.trim() ? postalAddress.trim() : null,
         donation_group_id: groupId || null,
         make_offer: makeOffer,
       };
@@ -141,8 +143,8 @@ export default function CreateStallListing({ user }) {
       });
       if (res.ok) {
         const data = await res.json();
-        toast.success("Listing posted!");
-        navigate(`/stall/listing/${data.listing_id}`);
+        toast.success(groupId ? "Item donated to the group!" : "Listing posted!");
+        navigate(groupId ? `/stall/groups/${groupId}` : `/stall/listing/${data.listing_id}`);
       } else {
         const err = await res.json();
         toast.error(parseApiError(err.detail, "Failed to post listing"));
@@ -159,11 +161,11 @@ export default function CreateStallListing({ user }) {
       <main className="max-w-xl mx-auto px-4 pt-16 lg:pt-8 pb-16">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6 mt-2">
-          <button onClick={() => step > 1 ? setStep(s => s - 1) : navigate("/stall")} className="p-2 rounded-xl hover:bg-secondary/50 text-muted-foreground hover:text-foreground transition-colors">
+          <button onClick={() => step > 1 ? setStep(s => s - 1) : navigate(groupId ? `/stall/groups/${groupId}` : "/stall")} className="p-2 rounded-xl hover:bg-secondary/50 text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
-            <h1 className="font-heading font-bold text-lg text-foreground">Post a listing</h1>
+            <h1 className="font-heading font-bold text-lg text-foreground">{groupId ? "Donate an item" : "Post a listing"}</h1>
             <p className="text-xs text-muted-foreground">Step {step} of {TOTAL_STEPS}</p>
           </div>
         </div>
@@ -221,7 +223,13 @@ export default function CreateStallListing({ user }) {
         {step === 2 && (
           <div className="space-y-5">
             <div>
-              <h2 className="font-heading font-bold text-xl text-foreground mb-1">What are you listing?</h2>
+              <h2 className="font-heading font-bold text-xl text-foreground mb-1">{groupId ? "What are you donating?" : "What are you listing?"}</h2>
+              {groupId && (
+                <div className="flex items-center gap-2 mt-2 px-3 py-2 rounded-xl text-xs" style={{ background: "var(--sage-wash)", color: "var(--sage-deep)" }}>
+                  <Heart className="h-3.5 w-3.5 shrink-0" />
+                  This item will be listed as a free donation for the group.
+                </div>
+              )}
             </div>
 
             {/* Title */}
@@ -270,8 +278,8 @@ export default function CreateStallListing({ user }) {
               </div>
             </div>
 
-            {/* Listing type */}
-            <div>
+            {/* Listing type — hidden when donating to a group (forced to give_away) */}
+            {!groupId && <div>
               <label className="text-sm font-medium text-foreground mb-2 block">Listing type <span className="text-destructive">*</span></label>
               <div className="space-y-2">
                 {LISTING_TYPES.map(t => {
@@ -299,7 +307,7 @@ export default function CreateStallListing({ user }) {
                   );
                 })}
               </div>
-            </div>
+            </div>}
           </div>
         )}
 
@@ -307,7 +315,7 @@ export default function CreateStallListing({ user }) {
         {step === 3 && (
           <div className="space-y-5">
             <h2 className="font-heading font-bold text-xl text-foreground mb-1">
-              {listingType === "sell" ? "Pricing" : listingType === "swap" ? "What you're after" : listingType === "give_away" ? "Condition" : "Budget (optional)"}
+              {listingType === "sell" ? "Pricing" : listingType === "swap" ? "What you're after" : listingType === "give_away" ? (groupId ? "Item condition" : "Condition") : "Budget (optional)"}
             </h2>
 
             {/* Sell — price */}
@@ -431,31 +439,57 @@ export default function CreateStallListing({ user }) {
         {/* ── Step 4: Location ── */}
         {step === 4 && (
           <div className="space-y-5">
-            <div>
-              <h2 className="font-heading font-bold text-xl text-foreground mb-1">Location</h2>
-              <p className="text-sm text-muted-foreground">Help local parents find your listing.</p>
-            </div>
+            {groupId ? (
+              <>
+                <div>
+                  <h2 className="font-heading font-bold text-xl text-foreground mb-1">Collection or postage</h2>
+                  <p className="text-sm text-muted-foreground">How can the organiser receive this item?</p>
+                </div>
 
-            <div>
-              <label className="text-sm font-medium text-foreground mb-1.5 block">Suburb <span className="text-destructive">*</span></label>
-              <SuburbSearch
-                value={suburb}
-                onChange={(s) => setSuburb(s)}
-                placeholder="Search suburb…"
-              />
-            </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1.5 block">Postal address <span className="text-xs text-muted-foreground font-normal">(optional)</span></label>
+                  <input
+                    value={postalAddress}
+                    onChange={e => setPostalAddress(e.target.value.slice(0, 200))}
+                    placeholder="PO Box 123, Parcel Collect, or leave blank for local pick-up"
+                    className={INPUT_CLASS}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1.5">Only add a PO Box or Parcel Collect address. Do not enter your home address.</p>
+                </div>
 
-            <label className="flex items-start gap-3 cursor-pointer p-3.5 bg-card rounded-xl border border-border/50 hover:bg-secondary/30 transition-colors">
-              <input type="checkbox" checked={postageAvailable} onChange={e => setPostageAvailable(e.target.checked)} className="mt-0.5 rounded shrink-0" />
-              <div>
-                <p className="text-sm font-medium text-foreground">Postage available</p>
-                <p className="text-xs text-muted-foreground">You're willing to ship this item — buyer covers postage cost</p>
-              </div>
-            </label>
+                <div className="p-3.5 rounded-xl text-xs leading-relaxed" style={{ background: "var(--sage-wash)", color: "var(--sage-deep)" }}>
+                  <strong>Privacy reminder:</strong> Your home address will never be shared. Only use a PO Box, Parcel Collect, or arrange local collection directly with the organiser.
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <h2 className="font-heading font-bold text-xl text-foreground mb-1">Location</h2>
+                  <p className="text-sm text-muted-foreground">Help local parents find your listing.</p>
+                </div>
 
-            <div className="p-3.5 bg-amber-500/5 border border-amber-500/20 rounded-xl text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
-              🤝 <strong>Safety tip:</strong> Meet in a public place — a café, library, or shopping centre. Avoid inviting strangers into your home.
-            </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1.5 block">Suburb <span className="text-destructive">*</span></label>
+                  <SuburbSearch
+                    value={suburb}
+                    onChange={(s) => setSuburb(s)}
+                    placeholder="Search suburb…"
+                  />
+                </div>
+
+                <label className="flex items-start gap-3 cursor-pointer p-3.5 bg-card rounded-xl border border-border/50 hover:bg-secondary/30 transition-colors">
+                  <input type="checkbox" checked={postageAvailable} onChange={e => setPostageAvailable(e.target.checked)} className="mt-0.5 rounded shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Postage available</p>
+                    <p className="text-xs text-muted-foreground">You're willing to ship this item — buyer covers postage cost</p>
+                  </div>
+                </label>
+
+                <div className="p-3.5 bg-amber-500/5 border border-amber-500/20 rounded-xl text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
+                  🤝 <strong>Safety tip:</strong> Meet in a public place — a café, library, or shopping centre. Avoid inviting strangers into your home.
+                </div>
+              </>
+            )}
           </div>
         )}
 

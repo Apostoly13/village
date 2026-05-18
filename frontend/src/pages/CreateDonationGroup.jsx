@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Navigation from "../components/Navigation";
 import SuburbSearch from "../components/SuburbSearch";
 import { Button } from "../components/ui/button";
-import { ArrowLeft, Upload, X, Users, Calendar, MapPin, Heart, AlertCircle } from "lucide-react";
+import { ArrowLeft, Upload, X, Users, Calendar, MapPin, Heart, AlertCircle, Search, Shield } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { toast } from "sonner";
 import AppFooter from "../components/AppFooter";
 
@@ -32,7 +33,31 @@ export default function CreateDonationGroup({ user }) {
   const [coverFile, setCoverFile] = useState(null);
 
   // Multi-suburb area coverage
-  const [areas, setAreas] = useState([]); // [{ suburb, state, postcode }]
+  const [areas, setAreas] = useState([]); // [{ suburb, state, postcode, label }]
+  const [rangeFrom, setRangeFrom] = useState("");
+  const [rangeTo, setRangeTo]     = useState("");
+  const [rangeError, setRangeError] = useState("");
+
+  // Moderator search
+  const [modQuery, setModQuery] = useState("");
+  const [modResults, setModResults] = useState([]);
+  const [modLoading, setModLoading] = useState(false);
+  const [moderators, setModerators] = useState([]); // [{ user_id, name, nickname, picture }]
+  const modSearchRef = useRef(null);
+
+  // Debounced mod user search
+  useEffect(() => {
+    if (modQuery.trim().length < 2) { setModResults([]); return; }
+    const t = setTimeout(async () => {
+      setModLoading(true);
+      try {
+        const res = await fetch(`${API_URL}/api/users/search?q=${encodeURIComponent(modQuery)}&limit=6`, { credentials: "include" });
+        if (res.ok) { const data = await res.json(); setModResults(data.users || data || []); }
+      } catch {}
+      finally { setModLoading(false); }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [modQuery]);
 
   const [form, setForm] = useState({
     name: "",
@@ -53,8 +78,11 @@ export default function CreateDonationGroup({ user }) {
   };
 
   // Add a suburb from SuburbSearch (ignore duplicates)
-  const addArea = (suburb, state, postcode) => {
+  const addArea = (loc) => {
+    const suburb = loc.suburb || loc.display_name?.split(",")[0] || "";
     if (!suburb.trim()) return;
+    const state = loc.state || "";
+    const postcode = loc.postcode || "";
     const label = [suburb, state].filter(Boolean).join(", ");
     setAreas(prev => {
       if (prev.some(a => a.label === label)) return prev;
@@ -63,7 +91,59 @@ export default function CreateDonationGroup({ user }) {
     if (errors.areas) setErrors(prev => ({ ...prev, areas: null }));
   };
 
+  const addModerator = (u) => {
+    setModerators(prev => {
+      if (prev.some(m => m.user_id === u.user_id)) return prev;
+      return [...prev, u];
+    });
+    setModQuery("");
+    setModResults([]);
+  };
+
+  const removeModerator = (userId) => setModerators(prev => prev.filter(m => m.user_id !== userId));
+
   const removeArea = (label) => setAreas(prev => prev.filter(a => a.label !== label));
+
+  const addRange = async () => {
+    setRangeError("");
+    const from = rangeFrom.trim();
+    const to   = rangeTo.trim();
+    if (!/^\d{4}$/.test(from) || !/^\d{4}$/.test(to)) {
+      setRangeError("Enter two valid 4-digit Australian postcodes");
+      return;
+    }
+    const lo = Math.min(Number(from), Number(to));
+    const hi = Math.max(Number(from), Number(to));
+    if (lo === hi) {
+      setRangeError("Postcodes must be different — for a single postcode, use the suburb search above");
+      return;
+    }
+    // Resolve area names + state for both ends of the range
+    let label = `Postcodes ${lo}–${hi}`;
+    try {
+      const [resLo, resHi] = await Promise.all([
+        fetch(`${API_URL}/api/location/postcode/${lo}`, { credentials: "include" }).then(r => r.ok ? r.json() : null),
+        fetch(`${API_URL}/api/location/postcode/${hi}`, { credentials: "include" }).then(r => r.ok ? r.json() : null),
+      ]);
+      const state = resLo?.state || resHi?.state || "";
+      const areaLo = resLo?.area;
+      const areaHi = resHi?.area;
+      if (areaLo && areaHi && areaLo !== areaHi) {
+        label = `${areaLo} to ${areaHi}${state ? `, ${state}` : ""} (${lo}–${hi})`;
+      } else if (areaLo || areaHi) {
+        label = `${areaLo || areaHi}${state ? `, ${state}` : ""} (${lo}–${hi})`;
+      } else if (state) {
+        label = `Postcodes ${lo}–${hi}, ${state}`;
+      }
+    } catch {}
+    setAreas(prev => {
+      if (prev.some(a => a.postcode === `${lo}-${hi}`)) return prev;
+      return [...prev, { suburb: "", state: "", postcode: `${lo}-${hi}`, label }];
+    });
+    setRangeFrom("");
+    setRangeTo("");
+    if (errors.areas) setErrors(prev => ({ ...prev, areas: null }));
+  };
 
   const validate = () => {
     const e = {};
@@ -142,6 +222,7 @@ export default function CreateDonationGroup({ user }) {
         not_accepted: form.not_accepted.trim(),
         rules: form.rules.trim(),
         is_open: form.is_open,
+        moderator_ids: moderators.map(m => m.user_id),
       };
 
       const res = await fetch(`${API_URL}/api/stall/groups`, {
@@ -333,14 +414,50 @@ export default function CreateDonationGroup({ user }) {
 
               <SuburbSearch
                 value=""
-                onChange={(suburb, state, postcode) => {
-                  if (suburb) addArea(suburb, state, postcode);
-                }}
-                placeholder="Search for a suburb to add…"
+                onSelect={addArea}
+                clearAfterSelect
+                placeholder="Search suburb or postcode (e.g. Newtown or 3050)…"
                 error={errors.areas}
               />
-              <p className="text-xs text-muted-foreground mt-1.5">
-                Search and add as many suburbs or areas as needed. Donors will use this to find your group.
+
+              {/* Postcode range */}
+              <div className="mt-3">
+                <p className="text-xs text-muted-foreground mb-2">Or add a postcode range:</p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={rangeFrom}
+                    onChange={e => { setRangeFrom(e.target.value.replace(/\D/g, "")); setRangeError(""); }}
+                    placeholder="From"
+                    className="w-24 bg-background border border-border/50 rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition text-center"
+                  />
+                  <span className="text-xs text-muted-foreground shrink-0">to</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={rangeTo}
+                    onChange={e => { setRangeTo(e.target.value.replace(/\D/g, "")); setRangeError(""); }}
+                    placeholder="To"
+                    className="w-24 bg-background border border-border/50 rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition text-center"
+                  />
+                  <button
+                    type="button"
+                    onClick={addRange}
+                    disabled={!rangeFrom || !rangeTo}
+                    className="px-3 py-2 rounded-xl text-xs font-medium border border-border/50 hover:bg-secondary/60 transition disabled:opacity-40 shrink-0"
+                    style={{ color: "var(--ink-2)" }}
+                  >
+                    Add range
+                  </button>
+                </div>
+                {rangeError && <p className="text-xs text-destructive mt-1">{rangeError}</p>}
+              </div>
+
+              <p className="text-xs text-muted-foreground mt-2">
+                Add as many suburbs, postcodes, or ranges as needed. Donors will use this to find your group.
               </p>
               {errors.areas && (
                 <p className="text-xs text-destructive mt-1 flex items-center gap-1">
@@ -424,6 +541,71 @@ export default function CreateDonationGroup({ user }) {
                 <p className="text-xs text-muted-foreground">Uncheck to temporarily pause new donations</p>
               </div>
             </label>
+          </div>
+
+          {/* Moderators */}
+          <div className="village-card p-5 space-y-4">
+            <div>
+              <h2 className="font-semibold text-foreground mb-0.5 flex items-center gap-2">
+                <Shield className="h-4 w-4 text-muted-foreground" />
+                Moderators <span className="text-xs font-normal text-muted-foreground">(optional)</span>
+              </h2>
+              <p className="text-xs text-muted-foreground">Add trusted members to help manage this group. Mods can edit group details and approve donations.</p>
+            </div>
+
+            {/* Current mods */}
+            {moderators.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {moderators.map(m => (
+                  <div key={m.user_id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-full text-xs font-medium" style={{ background: "var(--paper-2)", border: "1px solid var(--line)" }}>
+                    <Avatar className="h-5 w-5">
+                      <AvatarImage src={m.picture} />
+                      <AvatarFallback className="text-[10px]">{(m.nickname || m.name || "?")[0]}</AvatarFallback>
+                    </Avatar>
+                    <span style={{ color: "var(--ink)" }}>{m.nickname || m.name}</span>
+                    <button type="button" onClick={() => removeModerator(m.user_id)} className="opacity-50 hover:opacity-100 transition-opacity ml-0.5">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Mod search */}
+            <div className="relative" ref={modSearchRef}>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <input
+                  value={modQuery}
+                  onChange={e => setModQuery(e.target.value)}
+                  placeholder="Search for a member by name…"
+                  autoComplete="off"
+                  className="w-full bg-background border border-border/50 rounded-xl pl-9 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition"
+                />
+                {modLoading && <div className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full border-2 border-[var(--line)] border-t-[var(--ink-2)] animate-spin" />}
+              </div>
+              {modResults.length > 0 && (
+                <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-card border border-border/50 rounded-xl shadow-lg overflow-hidden">
+                  {modResults.map(u => (
+                    <button
+                      key={u.user_id}
+                      type="button"
+                      onClick={() => addModerator(u)}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-secondary/60 transition-colors border-b border-border/30 last:border-0"
+                    >
+                      <Avatar className="h-7 w-7 shrink-0">
+                        <AvatarImage src={u.picture} />
+                        <AvatarFallback className="text-xs">{(u.nickname || u.name || "?")[0]}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{u.nickname || u.name}</p>
+                        {u.suburb && <p className="text-xs text-muted-foreground">{u.suburb}</p>}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Community Guidelines blurb */}

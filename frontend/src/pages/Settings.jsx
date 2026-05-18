@@ -419,7 +419,7 @@ export default function Settings({ user }) {
           </div>
           <p className="text-sm text-muted-foreground leading-relaxed mb-4">
             {isPremium
-              ? "You have an active Village+ membership. Thank you for supporting The Village."
+              ? "You have an active Village+ membership. Thank you for supporting Our Little Village."
               : "Upgrade to Village+ for 1:1 messaging, events, the Stall marketplace, and more."}
           </p>
           <Link to="/plus">
@@ -471,7 +471,7 @@ export default function Settings({ user }) {
       <main className="max-w-4xl mx-auto px-4 pt-16 lg:pt-8">
         <div className="mb-8">
           <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-1">Settings</h1>
-          <p className="text-sm text-muted-foreground">Customise how The Village works for you</p>
+          <p className="text-sm text-muted-foreground">Customise how Our Little Village works for you</p>
         </div>
 
         <div className="grid lg:grid-cols-[220px_1fr] gap-8">

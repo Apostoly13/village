@@ -1869,6 +1869,10 @@ async def get_user_profile(user_id: str, request: Request):
         if not user.get("show_full_name"):
             user.pop("first_name", None)
             user.pop("last_name", None)
+        # Hide location fields unless the user has opted in to showing them
+        if not user.get("show_location_on_profile"):
+            for field in ("suburb", "location", "postcode", "latitude", "longitude", "local_area"):
+                user.pop(field, None)
 
     return user
 
@@ -4493,6 +4497,35 @@ async def search_location(q: str, state: Optional[str] = None):
     
     result = await geocode_address(q, state)
     return result
+
+@api_router.get("/location/postcode/{postcode}")
+async def resolve_postcode(postcode: str):
+    """Return area name and state for an Australian postcode."""
+    pc = postcode.strip()
+    if not pc.isdigit() or len(pc) != 4:
+        raise HTTPException(status_code=400, detail="Invalid postcode")
+    n = int(pc)
+    # Derive state from numeric range
+    if 1000 <= n <= 1999 or (2000 <= n <= 2599) or (2619 <= n <= 2899) or (2921 <= n <= 2999):
+        state = "NSW"
+    elif (2600 <= n <= 2618) or (2900 <= n <= 2920) or (200 <= n <= 299):
+        state = "ACT"
+    elif 3000 <= n <= 3999:
+        state = "VIC"
+    elif 4000 <= n <= 4999:
+        state = "QLD"
+    elif 5000 <= n <= 5999:
+        state = "SA"
+    elif 6000 <= n <= 6999:
+        state = "WA"
+    elif 7000 <= n <= 7999:
+        state = "TAS"
+    elif (800 <= n <= 899) or (900 <= n <= 999):
+        state = "NT"
+    else:
+        state = "AU"
+    area = get_area(postcode=pc) or None
+    return {"postcode": pc, "area": area, "state": state}
 
 @api_router.get("/location/nearby-users")
 async def get_nearby_users(
@@ -7343,7 +7376,8 @@ class StallListing(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     postage_available: bool = False
-    status: str = "active"  # "active" | "sold" | "swapped" | "gone" | "closed" | "paused"
+    postal_address: Optional[str] = None  # PO Box / Parcel Collect for donation groups
+    status: str = "active"  # "active" | "sold" | "swapped" | "gone" | "closed" | "paused" | "donation"
     paused_reason: Optional[str] = None  # "trial_expired"
     paused_at: Optional[str] = None
     donation_group_id: Optional[str] = None
@@ -7369,6 +7403,7 @@ class StallListingCreate(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     postage_available: bool = False
+    postal_address: Optional[str] = Field(None, max_length=200)  # PO Box / Parcel Collect
     donation_group_id: Optional[str] = None
 
 class StallListingUpdate(BaseModel):
@@ -7401,6 +7436,9 @@ class StallMessage(BaseModel):
 class StallMessageCreate(BaseModel):
     listing_id: str
     receiver_id: str
+    content: str
+
+class GroupMessageCreate(BaseModel):
     content: str
 
 VALID_PURPOSE_TYPES = {
@@ -7474,6 +7512,7 @@ async def browse_stall_listings(
     category: Optional[str] = None,
     age_group: Optional[str] = None,
     search: Optional[str] = None,
+    suburb: Optional[str] = None,
     donation_group_id: Optional[str] = None,
     postage: Optional[bool] = None,
     lat: Optional[float] = None,
@@ -7483,8 +7522,14 @@ async def browse_stall_listings(
     limit: int = 24,
     skip: int = 0,
 ):
-    # Show active and pending (in-negotiation) listings to all browsers
-    query: dict = {"status": {"$in": ["active", "pending"]}}
+    # Only show active/pending listings. Donation items have status="donation" and are excluded here.
+    # Also exclude any legacy items that have donation_group_id set (pre-migration safety net).
+    query: dict = {
+        "status": {"$in": ["active", "pending"]},
+        "$and": [
+            {"$or": [{"donation_group_id": None}, {"donation_group_id": ""}, {"donation_group_id": {"$exists": False}}]}
+        ]
+    }
     if listing_type:
         query["listing_type"] = listing_type
     if category:
@@ -7497,10 +7542,16 @@ async def browse_stall_listings(
         query["postage_available"] = True
     if search and len(search.strip()) >= 2:
         sq = search.strip()
-        query["$or"] = [
-            {"title": {"$regex": re.escape(sq), "$options": "i"}},
+        search_or = [
+            {"title":       {"$regex": re.escape(sq), "$options": "i"}},
             {"description": {"$regex": re.escape(sq), "$options": "i"}},
+            {"suburb":      {"$regex": re.escape(sq), "$options": "i"}},
+            {"category":    {"$regex": re.escape(sq), "$options": "i"}},
+            {"age_group":   {"$regex": re.escape(sq), "$options": "i"}},
         ]
+        query["$and"].append({"$or": search_or})
+    if suburb and len(suburb.strip()) >= 2:
+        query["suburb"] = {"$regex": re.escape(suburb.strip()), "$options": "i"}
 
     if lat is not None and lon is not None:
         query["latitude"] = {"$exists": True, "$ne": None}
@@ -7572,7 +7623,9 @@ async def get_stall_listing(listing_id: str, request: Request):
 
 @api_router.post("/stall/listings")
 async def create_stall_listing(data: StallListingCreate, user: dict = Depends(get_current_user)):
-    _check_stall_access(user)
+    # Donation group items are free for all users — only gate regular stall listings
+    if not data.donation_group_id:
+        _check_stall_access(user)
     await _check_rate_limit(f"{user['user_id']}:listing-create", 5, 3600)  # 5 listings per hour
     listing = StallListing(
         seller_id=user["user_id"],
@@ -7585,10 +7638,12 @@ async def create_stall_listing(data: StallListingCreate, user: dict = Depends(ge
         longitude=data.longitude or user.get("longitude"),
         **{k: v for k, v in data.model_dump().items() if k not in ("suburb","postcode","state","latitude","longitude")}
     )
-    # Trial users: listing stays active but gets paused on trial expiry (handled by background job)
     doc = listing.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
     doc["updated_at"] = doc["updated_at"].isoformat()
+    # Donation group items get a dedicated status so they are invisible in general browse
+    if data.donation_group_id:
+        doc["status"] = "donation"
     await db.stall_listings.insert_one(doc)
     if data.donation_group_id:
         await db.donation_groups.update_one({"group_id": data.donation_group_id}, {"$inc": {"item_count": 1}})
@@ -7769,26 +7824,86 @@ async def send_stall_message(data: StallMessageCreate, user: dict = Depends(get_
     return doc
 
 
+@api_router.post("/stall/groups/{group_id}/message")
+async def send_group_message(group_id: str, data: GroupMessageCreate, user: dict = Depends(get_current_user)):
+    """Contact a donation group organiser — no premium required."""
+    group = await db.donation_groups.find_one({"group_id": group_id}, {"_id": 0})
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    organiser_id = group.get("organiser_id")
+    if organiser_id == user["user_id"]:
+        raise HTTPException(status_code=400, detail="You are the organiser of this group")
+    if not data.content.strip():
+        raise HTTPException(status_code=400, detail="Message cannot be empty")
+
+    receiver = await db.users.find_one({"user_id": organiser_id}, {"_id": 0, "name": 1, "nickname": 1})
+    if not receiver:
+        raise HTTPException(status_code=404, detail="Organiser not found")
+
+    msg = {
+        "message_id": f"msg_{uuid.uuid4().hex[:12]}",
+        "listing_id": group_id,               # group_id used as thread key
+        "listing_title": group.get("name", "Donation Group"),
+        "listing_image": group.get("cover_image"),
+        "listing_type": "donation_group",
+        "sender_id": user["user_id"],
+        "receiver_id": organiser_id,
+        "sender_name": user.get("nickname") or user["name"],
+        "content": data.content.strip(),
+        "is_read": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.stall_messages.insert_one(msg)
+
+    await db.notifications.insert_one({
+        "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+        "user_id": organiser_id,
+        "type": "stall_enquiry",
+        "title": f"New message about your donation group",
+        "message": f"{user.get('nickname') or user['name']} sent a message about \"{group.get('name', 'your group')}\"",
+        "link": f"/stall?tab=messages",
+        "is_read": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    return {"message": "Message sent"}
+
+
 # ── Donation Groups ───────────────────────────────────────────────────────────
 
 @api_router.get("/stall/groups")
 async def browse_donation_groups(
+    request: Request,
     category: Optional[str] = None,
     search: Optional[str] = None,
+    suburb: Optional[str] = None,
     lat: Optional[float] = None,
     lon: Optional[float] = None,
     distance_km: Optional[int] = 50,
-    limit: int = 20,
+    limit: int = 50,
     skip: int = 0,
 ):
-    query: dict = {"status": "active"}
+    query: dict = {"status": {"$in": ["active", "cancel_requested"]}}
     if category:
         query["category"] = category
     if search and len(search.strip()) >= 2:
+        sq = re.escape(search.strip())
         query["$or"] = [
-            {"name": {"$regex": re.escape(search.strip()), "$options": "i"}},
-            {"description": {"$regex": re.escape(search.strip()), "$options": "i"}},
+            {"name":            {"$regex": sq, "$options": "i"}},
+            {"description":     {"$regex": sq, "$options": "i"}},
+            {"area_coverage":   {"$regex": sq, "$options": "i"}},
+            {"accepted_items":  {"$regex": sq, "$options": "i"}},
+            {"purpose_type":    {"$regex": sq, "$options": "i"}},
         ]
+    if suburb and len(suburb.strip()) >= 2:
+        sq = re.escape(suburb.strip())
+        suburb_cond = {"$or": [
+            {"suburb": {"$regex": sq, "$options": "i"}},
+            {"area_coverage": {"$regex": sq, "$options": "i"}},
+        ]}
+        if "$or" in query:
+            query["$and"] = [{"$or": query.pop("$or")}, suburb_cond]
+        else:
+            query["$or"] = suburb_cond["$or"]
     groups = await db.donation_groups.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
     if lat is not None and lon is not None:
         for g in groups:
@@ -7796,6 +7911,17 @@ async def browse_donation_groups(
                 g["distance_km"] = round(calculate_distance(lat, lon, g["latitude"], g["longitude"]), 1)
         groups = [g for g in groups if g.get("distance_km", 0) <= distance_km or not g.get("latitude")]
         groups.sort(key=lambda x: x.get("distance_km") or 9999)
+    # Annotate with is_member / is_organiser for the current user
+    try:
+        current_user = await get_current_user(request)
+        uid = current_user["user_id"]
+        for g in groups:
+            g["is_member"] = uid in g.get("member_ids", [])
+            g["is_organiser"] = uid == g.get("organiser_id")
+    except Exception:
+        for g in groups:
+            g["is_member"] = False
+            g["is_organiser"] = False
     total = await db.donation_groups.count_documents(query)
     return {"groups": groups, "total": total}
 
@@ -7805,6 +7931,7 @@ async def get_donation_group(group_id: str, request: Request):
     group = await db.donation_groups.find_one({"group_id": group_id}, {"_id": 0})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
+    current_user = None
     try:
         current_user = await get_current_user(request)
         group["is_member"] = current_user["user_id"] in group.get("member_ids", [])
@@ -7812,8 +7939,21 @@ async def get_donation_group(group_id: str, request: Request):
     except Exception:
         group["is_member"] = False
         group["is_organiser"] = False
-    items = await db.stall_listings.find({"donation_group_id": group_id, "status": "active"}, {"_id": 0}).sort("created_at", -1).to_list(50)
-    group["items"] = items
+    # Items are private — only visible to organiser and admin/moderators
+    can_see_items = (
+        current_user and (
+            current_user["user_id"] == group.get("organiser_id")
+            or current_user["user_id"] in group.get("moderator_ids", [])
+            or current_user.get("role") in ("admin", "moderator")
+        )
+    )
+    if can_see_items:
+        items = await db.stall_listings.find(
+            {"donation_group_id": group_id, "status": "donation"}, {"_id": 0}
+        ).sort("created_at", -1).to_list(100)
+        group["items"] = items
+    else:
+        group["items"] = []  # count already in group.item_count
     return group
 
 
@@ -7864,17 +8004,113 @@ async def leave_donation_group(group_id: str, user: dict = Depends(get_current_u
 
 
 @api_router.put("/stall/groups/{group_id}")
+@api_router.patch("/stall/groups/{group_id}")
 async def update_donation_group(group_id: str, data: dict, user: dict = Depends(get_current_user)):
     group = await db.donation_groups.find_one({"group_id": group_id}, {"_id": 0})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     is_admin = user.get("role") in ("admin", "moderator")
-    if group["organiser_id"] != user["user_id"] and user["user_id"] not in group.get("moderator_ids", []) and not is_admin:
+    is_organiser = group["organiser_id"] == user["user_id"]
+    is_mod = user["user_id"] in group.get("moderator_ids", [])
+    if not is_organiser and not is_mod and not is_admin:
         raise HTTPException(status_code=403, detail="Not authorised")
-    allowed = {"name", "description", "cover_image", "end_date", "status", "moderator_ids"}
+    allowed = {
+        "name", "description", "cover_image", "end_date", "is_open",
+        "accepted_items", "not_accepted", "rules", "purpose_type",
+        "area_coverage", "areas", "suburb",
+    }
+    # Only organiser can change status or moderator_ids
+    if is_organiser or is_admin:
+        allowed |= {"status", "moderator_ids"}
+    if "purpose_type" in data and data["purpose_type"] not in VALID_PURPOSE_TYPES:
+        data["purpose_type"] = "general_donations"
     updates = {k: v for k, v in data.items() if k in allowed}
     await db.donation_groups.update_one({"group_id": group_id}, {"$set": updates})
     return {"message": "Group updated"}
+
+
+@api_router.post("/stall/groups/{group_id}/end")
+async def end_donation_group(group_id: str, user: dict = Depends(get_current_user)):
+    group = await db.donation_groups.find_one({"group_id": group_id}, {"_id": 0})
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    is_admin = user.get("role") in ("admin", "moderator")
+    if group["organiser_id"] != user["user_id"] and not is_admin:
+        raise HTTPException(status_code=403, detail="Only the organiser can end this group")
+    await db.donation_groups.update_one({"group_id": group_id}, {"$set": {"status": "ended"}})
+    return {"message": "Group ended"}
+
+
+@api_router.post("/stall/groups/{group_id}/request-cancel")
+async def request_cancel_donation_group(group_id: str, user: dict = Depends(get_current_user)):
+    group = await db.donation_groups.find_one({"group_id": group_id}, {"_id": 0})
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    if user["user_id"] not in group.get("moderator_ids", []):
+        raise HTTPException(status_code=403, detail="Only moderators can request cancellation")
+    await db.donation_groups.update_one(
+        {"group_id": group_id},
+        {"$set": {"status": "cancel_requested", "cancel_requested_by": user["user_id"],
+                  "cancel_requested_name": user.get("nickname") or user["name"]}}
+    )
+    return {"message": "Cancellation request sent"}
+
+
+@api_router.post("/stall/groups/{group_id}/approve-cancel")
+async def approve_cancel_donation_group(group_id: str, user: dict = Depends(get_current_user)):
+    group = await db.donation_groups.find_one({"group_id": group_id}, {"_id": 0})
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    is_admin = user.get("role") in ("admin", "moderator")
+    if group["organiser_id"] != user["user_id"] and not is_admin:
+        raise HTTPException(status_code=403, detail="Only the organiser can approve cancellation")
+    await db.donation_groups.update_one({"group_id": group_id}, {"$set": {"status": "closed"}})
+    return {"message": "Group cancelled"}
+
+
+@api_router.post("/stall/groups/{group_id}/decline-cancel")
+async def decline_cancel_donation_group(group_id: str, user: dict = Depends(get_current_user)):
+    group = await db.donation_groups.find_one({"group_id": group_id}, {"_id": 0})
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    is_admin = user.get("role") in ("admin", "moderator")
+    if group["organiser_id"] != user["user_id"] and not is_admin:
+        raise HTTPException(status_code=403, detail="Only the organiser can decline cancellation")
+    await db.donation_groups.update_one(
+        {"group_id": group_id},
+        {"$set": {"status": "active"}, "$unset": {"cancel_requested_by": "", "cancel_requested_name": ""}}
+    )
+    return {"message": "Cancellation declined, group restored to active"}
+
+
+@api_router.post("/stall/groups/{group_id}/moderators")
+async def add_group_moderator(group_id: str, data: dict, user: dict = Depends(get_current_user)):
+    group = await db.donation_groups.find_one({"group_id": group_id}, {"_id": 0})
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    is_admin = user.get("role") in ("admin", "moderator")
+    if group["organiser_id"] != user["user_id"] and not is_admin:
+        raise HTTPException(status_code=403, detail="Only the organiser can add moderators")
+    mod_user_id = data.get("user_id")
+    if not mod_user_id:
+        raise HTTPException(status_code=400, detail="user_id required")
+    await db.donation_groups.update_one(
+        {"group_id": group_id},
+        {"$addToSet": {"moderator_ids": mod_user_id, "member_ids": mod_user_id}}
+    )
+    return {"message": "Moderator added"}
+
+
+@api_router.delete("/stall/groups/{group_id}/moderators/{mod_user_id}")
+async def remove_group_moderator(group_id: str, mod_user_id: str, user: dict = Depends(get_current_user)):
+    group = await db.donation_groups.find_one({"group_id": group_id}, {"_id": 0})
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    is_admin = user.get("role") in ("admin", "moderator")
+    if group["organiser_id"] != user["user_id"] and not is_admin:
+        raise HTTPException(status_code=403, detail="Only the organiser can remove moderators")
+    await db.donation_groups.update_one({"group_id": group_id}, {"$pull": {"moderator_ids": mod_user_id}})
+    return {"message": "Moderator removed"}
 
 
 _cors_env = os.environ.get('CORS_ORIGINS', '')
@@ -8061,6 +8297,18 @@ async def seed_required_rooms():
     fire_and_forget(_trial_email_loop())
     # Start nightly chat-purge loop (7-day rolling window for open rooms)
     fire_and_forget(_chat_purge_loop())
+
+    # Migrate any existing donation-group items that were stored with status="active"
+    # New items use status="donation" at creation, but older test data needs backfilling.
+    try:
+        migration_result = await db.stall_listings.update_many(
+            {"donation_group_id": {"$exists": True, "$nin": [None, ""]}, "status": "active"},
+            {"$set": {"status": "donation"}}
+        )
+        if migration_result.modified_count:
+            logging.info("✅ Migrated %d donation-group listing(s) to status='donation'", migration_result.modified_count)
+    except Exception as _mig_err:
+        logging.warning("⚠️  Donation listing migration failed: %s", _mig_err)
 
     now = datetime.now(timezone.utc).isoformat()
 

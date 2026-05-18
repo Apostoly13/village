@@ -9,6 +9,7 @@ import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { parseApiError } from "../utils/apiError";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
+import SuburbSearch from "../components/SuburbSearch";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -291,6 +292,8 @@ export default function Stall({ user }) {
   const [search,         setSearch]         = useState(searchParams.get("q") || "");
   const [searchInput,    setSearchInput]    = useState(search);
   const [sortBy,         setSortBy]         = useState(user?.latitude ? "nearest" : "newest");
+  const [locationSuburb, setLocationSuburb] = useState("");
+  const [locationLabel,  setLocationLabel]  = useState("");
   const [listings,       setListings]       = useState([]);
   const [total,          setTotal]          = useState(0);
   const [loading,        setLoading]        = useState(true);
@@ -306,6 +309,7 @@ export default function Stall({ user }) {
       if (activeType !== "all") params.set("listing_type", activeType);
       if (activeCategory) params.set("category", activeCategory);
       if (search) params.set("search", search);
+      if (locationSuburb) params.set("suburb", locationSuburb);
       if (sortBy === "nearest" && user?.latitude && user?.longitude) {
         params.set("lat", user.latitude);
         params.set("lon", user.longitude);
@@ -319,7 +323,7 @@ export default function Stall({ user }) {
       }
     } catch {}
     finally { setLoading(false); }
-  }, [activeType, activeCategory, search, sortBy, user?.latitude, user?.longitude]);
+  }, [activeType, activeCategory, search, locationSuburb, sortBy, user?.latitude, user?.longitude]);
 
   const fetchSaved = useCallback(async () => {
     if (!isPremium) return;
@@ -370,26 +374,43 @@ export default function Stall({ user }) {
     setSearch(searchInput);
   };
 
-  // Free user gate
+  // Free user view — Donation Groups freely visible, everything else locked
   if (!isPremium) {
     return (
-      <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
+      <div className="min-h-screen bg-background lg:pl-60 lg:pb-0">
         <Navigation user={user} />
-        <main className="max-w-2xl mx-auto px-4 pt-16 lg:pt-8 pb-16 flex flex-col items-center text-center gap-6 py-20">
-          <div className="w-16 h-16 rounded-2xl bg-[var(--paper-3)] flex items-center justify-center">
-            <ShoppingBag className="h-8 w-8 text-primary" />
+        <main className="max-w-5xl mx-auto px-4 pt-16 lg:pt-8 pb-16">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6 mt-2">
+            <div>
+              <h1 className="font-heading text-2xl font-bold text-foreground">The Village Stall</h1>
+              <p className="text-sm text-muted-foreground mt-0.5">Buy, swap, give away — local parenting gear</p>
+            </div>
           </div>
-          <div>
-            <h1 className="font-heading text-2xl font-bold text-foreground mb-2">The Village Stall</h1>
-            <p className="text-muted-foreground leading-relaxed max-w-sm mx-auto">
-              Buy, swap, give away, and find baby gear from local parents. A Village+ exclusive feature.
-            </p>
+
+          {/* Village+ locked banner */}
+          <div className="village-card p-5 mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0" style={{ background: "var(--paper-3)" }}>
+              <Sparkles className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="font-heading font-semibold text-foreground mb-0.5">Village+ unlocks The Village Stall</h2>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Browse and post listings, save items, swap gear, and message sellers. Join local parents buying, swapping, and giving away baby gear.
+              </p>
+            </div>
+            <Button className="rounded-full shadow-sm shadow-primary/20 shrink-0" onClick={() => navigate("/plus")}>
+              <Sparkles className="h-4 w-4 mr-1.5" style={{ color: "hsl(var(--accent))" }} />
+              Unlock with Village+
+            </Button>
           </div>
-          <Button className="rounded-full shadow-lg shadow-primary/25" onClick={() => navigate("/plus")}>
-            <Sparkles className="h-4 w-4 mr-2" style={{ color: "hsl(var(--accent))" }} />
-            Unlock with Village+
-          </Button>
-          <p className="text-xs text-muted-foreground">From $7.99/month</p>
+
+          {/* Donation Groups — free for all */}
+          <div className="mb-4">
+            <h2 className="font-heading text-lg font-bold text-foreground mb-0.5">Donation Groups</h2>
+            <p className="text-sm text-muted-foreground">Community-organised giving drives — open to everyone.</p>
+          </div>
+          <DonationGroupsTab user={user} navigate={navigate} isPremium={false} />
         </main>
         <AppFooter />
       </div>
@@ -484,10 +505,14 @@ export default function Stall({ user }) {
                 <button
                   key={t.id}
                   onClick={() => setActiveType(t.id)}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all focus-visible:outline-none"
+                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all focus-visible:outline-none border ${
+                    activeType === t.id
+                      ? "border-[var(--sage)]/30"
+                      : "border-transparent text-[var(--ink-3)]"
+                  }`}
                   style={activeType === t.id
-                    ? { background: "var(--ink)", color: "var(--paper)", boxShadow: "var(--shadow-sm)" }
-                    : { color: "var(--ink-3)" }
+                    ? { background: "var(--sage-wash)", color: "var(--sage-deep)" }
+                    : {}
                   }
                 >
                   <t.icon className="h-3.5 w-3.5" />
@@ -515,30 +540,68 @@ export default function Stall({ user }) {
               </div>
             </div>
 
-            {/* Category filter */}
-            {showFilters && (
-              <div className="flex flex-wrap gap-2 mb-4 p-3 village-card">
-                <button
-                  onClick={() => setActiveCategory("")}
-                  className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-                    !activeCategory ? "border-[var(--sage)]/30 sage-pill-active" : "border-transparent text-[var(--ink-3)] hover:text-[var(--ink)]"
-                  }`}
-                  style={!activeCategory ? { background: "var(--sage-wash)", color: "var(--sage-deep)" } : {}}
+            {/* Active location chip */}
+            {locationLabel && (
+              <div className="flex items-center gap-2 mb-3">
+                <span
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border"
+                  style={{ background: "var(--sage-wash)", color: "var(--sage-deep)", borderColor: "color-mix(in srgb, var(--sage) 30%, transparent)" }}
                 >
-                  All categories
-                </button>
-                {CATEGORIES.map(c => (
-                  <button
-                    key={c.id}
-                    onClick={() => setActiveCategory(activeCategory === c.id ? "" : c.id)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-                      activeCategory === c.id ? "border-[var(--sage)]/30 sage-pill-active" : "border-transparent text-[var(--ink-3)] hover:text-[var(--ink)]"
-                    }`}
-                    style={activeCategory === c.id ? { background: "var(--sage-wash)", color: "var(--sage-deep)" } : {}}
-                  >
-                    {c.label}
+                  <MapPin className="h-3 w-3" />
+                  {locationLabel}
+                  <button type="button" onClick={() => { setLocationSuburb(""); setLocationLabel(""); }} className="hover:opacity-70 transition ml-0.5">
+                    <X className="h-3 w-3" />
                   </button>
-                ))}
+                </span>
+              </div>
+            )}
+
+            {/* Category + location filter panel */}
+            {showFilters && (
+              <div className="flex flex-col gap-3 mb-4 p-4 village-card">
+                {/* Location */}
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1.5">Filter by location</p>
+                  <SuburbSearch
+                    value={locationLabel}
+                    onSelect={(loc) => {
+                      const suburb = loc.suburb || loc.display_name?.split(",")[0] || "";
+                      const label = [suburb, loc.state].filter(Boolean).join(", ");
+                      setLocationSuburb(suburb);
+                      setLocationLabel(label);
+                      setShowFilters(false);
+                    }}
+                    onChange={(val) => { if (!val) { setLocationSuburb(""); setLocationLabel(""); } }}
+                    placeholder="e.g. Newtown, NSW"
+                  />
+                </div>
+                {/* Categories */}
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1.5">Filter by category</p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setActiveCategory("")}
+                      className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                        !activeCategory ? "border-[var(--sage)]/30 sage-pill-active" : "border-transparent text-[var(--ink-3)] hover:text-[var(--ink)]"
+                      }`}
+                      style={!activeCategory ? { background: "var(--sage-wash)", color: "var(--sage-deep)" } : {}}
+                    >
+                      All categories
+                    </button>
+                    {CATEGORIES.map(c => (
+                      <button
+                        key={c.id}
+                        onClick={() => setActiveCategory(activeCategory === c.id ? "" : c.id)}
+                        className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                          activeCategory === c.id ? "border-[var(--sage)]/30 sage-pill-active" : "border-transparent text-[var(--ink-3)] hover:text-[var(--ink)]"
+                        }`}
+                        style={activeCategory === c.id ? { background: "var(--sage-wash)", color: "var(--sage-deep)" } : {}}
+                      >
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
 
@@ -579,8 +642,8 @@ export default function Stall({ user }) {
                     : "Be the first to post something — someone local is probably looking for it."}
                 </p>
                 <div className="flex gap-2 justify-center flex-wrap">
-                  {(search || activeType !== "all" || activeCategory) && (
-                    <Button variant="outline" className="rounded-full" onClick={() => { setSearch(""); setSearchInput(""); setActiveType("all"); setActiveCategory(""); }}>
+                  {(search || activeType !== "all" || activeCategory || locationSuburb) && (
+                    <Button variant="outline" className="rounded-full" onClick={() => { setSearch(""); setSearchInput(""); setActiveType("all"); setActiveCategory(""); setLocationSuburb(""); setLocationLabel(""); }}>
                       Clear filters
                     </Button>
                   )}
@@ -603,7 +666,7 @@ export default function Stall({ user }) {
         )}
 
         {/* Donation Groups tab */}
-        {activeTab === "groups" && <DonationGroupsTab user={user} navigate={navigate} />}
+        {activeTab === "groups" && <DonationGroupsTab user={user} navigate={navigate} isPremium={isPremium} />}
 
         {/* Saved tab */}
         {activeTab === "saved" && <SavedTab user={user} navigate={navigate} onSaveToggle={handleSaveToggle} savedIds={savedIds} />}
@@ -627,32 +690,87 @@ export default function Stall({ user }) {
 
 // ── Donation Groups Tab ───────────────────────────────────────────────────────
 
-function DonationGroupsTab({ user, navigate }) {
-  const [groups,  setGroups]  = useState([]);
-  const [loading, setLoading] = useState(true);
+const PURPOSE_LABELS_STALL = {
+  baby_clothes: "Baby Clothes", kids_clothes: "Kids Clothes",
+  school_uniforms: "School Uniforms", toys_games: "Toys & Games",
+  baby_gear: "Baby Gear", maternity_feeding: "Maternity & Feeding",
+  nappies_essentials: "Nappies & Essentials", books_learning: "Books & Learning",
+  general_donations: "General Donations", other: "Other",
+};
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const params = new URLSearchParams({ limit: "20" });
-        if (user?.latitude && user?.longitude) {
-          params.set("lat", user.latitude);
-          params.set("lon", user.longitude);
+function GroupCard({ g }) {
+  const itemCount = g.item_count || 0;
+  return (
+    <Link to={`/stall/groups/${g.group_id}`} className="village-card village-card-hover p-3.5 flex flex-col gap-3">
+      <div className="flex items-start gap-3">
+        {g.cover_image
+          ? <img src={g.cover_image} alt="" className="w-11 h-11 rounded-xl object-cover shrink-0" />
+          : <div className="w-11 h-11 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0 text-xl">🤝</div>
         }
-        const res = await fetch(`${API_URL}/api/stall/groups?${params}`, { credentials: "include" });
-        if (res.ok) { const data = await res.json(); setGroups(data.groups || []); }
-      } catch {}
-      finally { setLoading(false); }
-    })();
-  }, [user]);
+        <div className="min-w-0 flex-1">
+          <h3 className="font-heading font-semibold text-sm text-foreground line-clamp-1 leading-snug">{g.name}</h3>
+          <p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5 leading-relaxed">{g.description}</p>
+        </div>
+      </div>
 
-  const GROUP_CATEGORY_COLORS = {
-    clothing:"bg-pink-500/10 text-pink-600",
-    equipment: "bg-sky-500/10 text-sky-600",
-    food:"bg-orange-500/10 text-orange-600",
-    books:"bg-violet-500/10 text-violet-600",
-    general:"bg-secondary text-muted-foreground",
-  };
+      {/* Donation count — prominent */}
+      <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: "var(--sage-wash)" }}>
+        <Heart className="h-4 w-4 shrink-0" style={{ color: "var(--sage-deep)" }} />
+        <span className="font-heading font-bold text-sm" style={{ color: "var(--sage-deep)" }}>
+          {itemCount} item{itemCount !== 1 ? "s" : ""} donated
+        </span>
+      </div>
+
+      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground flex-wrap border-t border-border/30 pt-2.5">
+        {g.purpose_type && (
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400">
+            {PURPOSE_LABELS_STALL[g.purpose_type] || g.purpose_type}
+          </span>
+        )}
+        {(g.is_organiser || g.is_member) && (
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "var(--sage-wash)", color: "var(--sage-deep)" }}>
+            {g.is_organiser ? "Organiser" : "Member"}
+          </span>
+        )}
+        <span className="flex items-center gap-0.5 ml-auto">
+          <Users className="h-3 w-3" /> {g.member_ids?.length || 0}
+        </span>
+        {(g.area_coverage || g.suburb) && (
+          <span className="flex items-center gap-0.5 truncate max-w-[120px]">
+            <MapPin className="h-3 w-3 shrink-0" />
+            <span className="truncate">{g.area_coverage || g.suburb}</span>
+          </span>
+        )}
+      </div>
+    </Link>
+  );
+}
+
+function DonationGroupsTab({ user, navigate, isPremium }) {
+  const [groups,         setGroups]         = useState([]);
+  const [loading,        setLoading]        = useState(true);
+  const [groupSearch,    setGroupSearch]    = useState("");
+  const [groupSearchInput, setGroupSearchInput] = useState("");
+  const [locationSuburb, setLocationSuburb] = useState("");
+  const [locationLabel,  setLocationLabel]  = useState("");
+
+  const fetchGroups = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ limit: "50" });
+      if (groupSearch)    params.set("search", groupSearch);
+      if (locationSuburb) params.set("suburb", locationSuburb);
+      if (user?.latitude && user?.longitude) {
+        params.set("lat", user.latitude);
+        params.set("lon", user.longitude);
+      }
+      const res = await fetch(`${API_URL}/api/stall/groups?${params}`, { credentials: "include" });
+      if (res.ok) { const data = await res.json(); setGroups(data.groups || []); }
+    } catch {}
+    finally { setLoading(false); }
+  }, [user, groupSearch, locationSuburb]);
+
+  useEffect(() => { fetchGroups(); }, [fetchGroups]);
 
   if (loading) return (
     <div className="grid sm:grid-cols-2 gap-4">
@@ -660,14 +778,86 @@ function DonationGroupsTab({ user, navigate }) {
     </div>
   );
 
+  const myGroups    = groups.filter(g => g.is_organiser || g.is_member);
+  const otherGroups = groups.filter(g => !g.is_organiser && !g.is_member);
+
+  const hasFilters = groupSearch || locationSuburb;
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-muted-foreground">{groups.length} active group{groups.length !== 1 ? "s" : ""} near you</p>
-        <Button variant="outline" className="rounded-full text-xs h-8" onClick={() => navigate("/stall/groups/new")}>
-          <Plus className="h-3.5 w-3.5 mr-1" />
-          Create group
-        </Button>
+      {/* Search + location bar */}
+      <div className="flex flex-col gap-2 mb-4">
+        <div className="flex gap-2 items-center">
+          {/* Group name search */}
+          <form
+            onSubmit={e => { e.preventDefault(); setGroupSearch(groupSearchInput); }}
+            className="flex-1 flex items-center gap-1.5 bg-card border border-border/50 rounded-full px-3 py-1.5 min-w-0"
+          >
+            <SearchIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <input
+              value={groupSearchInput}
+              onChange={e => { setGroupSearchInput(e.target.value); if (!e.target.value) setGroupSearch(""); }}
+              onBlur={() => setGroupSearch(groupSearchInput)}
+              placeholder="Search groups…"
+              className="flex-1 bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none min-w-0"
+            />
+            {groupSearchInput && (
+              <button type="button" onClick={() => { setGroupSearchInput(""); setGroupSearch(""); }}>
+                <X className="h-3 w-3 text-muted-foreground" />
+              </button>
+            )}
+          </form>
+
+          {/* Location search */}
+          <div className="flex-1 min-w-0">
+            <SuburbSearch
+              value={locationLabel}
+              onSelect={(loc) => {
+                const suburb = loc.suburb || loc.display_name?.split(",")[0] || "";
+                const label = [suburb, loc.state].filter(Boolean).join(", ");
+                setLocationSuburb(suburb);
+                setLocationLabel(label);
+              }}
+              onChange={(val) => { if (!val) { setLocationSuburb(""); setLocationLabel(""); } }}
+              placeholder="Suburb or area…"
+              inputClass="py-1.5 text-xs"
+            />
+          </div>
+
+          <Button
+            variant="outline"
+            className="rounded-full text-xs h-8 px-3 shrink-0"
+            onClick={() => navigate(isPremium ? "/stall/groups/new" : "/plus")}
+          >
+            {isPremium ? <Plus className="h-3.5 w-3.5 mr-1" /> : <Sparkles className="h-3.5 w-3.5 mr-1" />}
+            {isPremium ? "Create" : "Village+"}
+          </Button>
+        </div>
+
+        {/* Active filters */}
+        {hasFilters && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {locationLabel && (
+              <span
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border"
+                style={{ background: "var(--sage-wash)", color: "var(--sage-deep)", borderColor: "color-mix(in srgb, var(--sage) 30%, transparent)" }}
+              >
+                <MapPin className="h-3 w-3" />{locationLabel}
+                <button type="button" onClick={() => { setLocationSuburb(""); setLocationLabel(""); }} className="hover:opacity-70 ml-0.5">
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            )}
+            <button
+              onClick={() => { setGroupSearch(""); setGroupSearchInput(""); setLocationSuburb(""); setLocationLabel(""); }}
+              className="text-xs text-muted-foreground hover:text-foreground transition"
+            >
+              Clear all
+            </button>
+          </div>
+        )}
+
+        <p className="text-xs text-muted-foreground">{groups.length} active group{groups.length !== 1 ? "s" : ""}</p>
       </div>
 
       {groups.length === 0 ? (
@@ -675,38 +865,33 @@ function DonationGroupsTab({ user, navigate }) {
           <Heart className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
           <p className="font-heading font-semibold text-foreground text-sm mb-1">No donation groups yet</p>
           <p className="text-xs text-muted-foreground mb-4">Start a community giving group for families in your area.</p>
-          <Button variant="outline" className="rounded-full" onClick={() => navigate("/stall/groups/new")}>
-            Start a group
+          <Button variant="outline" className="rounded-full" onClick={() => navigate(isPremium ? "/stall/groups/new" : "/plus")}>
+            {isPremium ? "Start a group" : "Unlock with Village+"}
           </Button>
         </div>
       ) : (
-        <div className="grid sm:grid-cols-2 gap-4">
-          {groups.map(g => (
-            <Link
-              key={g.group_id}
-              to={`/stall/groups/${g.group_id}`}
-              className="village-card village-card-hover p-4 flex flex-col gap-2"
-            >
-              <div className="flex items-start gap-3">
-                {g.cover_image
-                  ? <img src={g.cover_image} alt="" className="w-12 h-12 rounded-xl object-cover shrink-0" />
-                  : <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0 text-2xl">🤝</div>
-                }
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-heading font-semibold text-sm text-foreground line-clamp-1">{g.name}</h3>
-                  <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{g.description}</p>
-                </div>
+        <div className="space-y-6">
+          {/* My groups */}
+          {myGroups.length > 0 && (
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--ink-3)" }}>My Groups</h3>
+              <div className="grid sm:grid-cols-2 gap-4">
+                {myGroups.map(g => <GroupCard key={g.group_id} g={g} />)}
               </div>
-              <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${GROUP_CATEGORY_COLORS[g.category] || GROUP_CATEGORY_COLORS.general}`}>
-                  {g.category}
-                </span>
-                <span className="flex items-center gap-0.5"><Users className="h-3 w-3" /> {g.member_ids?.length || 0}</span>
-                <span className="flex items-center gap-0.5"><ShoppingBag className="h-3 w-3" /> {g.item_count || 0} items</span>
-                {g.suburb && <span className="ml-auto flex items-center gap-0.5 truncate"><MapPin className="h-3 w-3" /> {g.suburb}</span>}
+            </div>
+          )}
+
+          {/* Browse all */}
+          {otherGroups.length > 0 && (
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--ink-3)" }}>
+                {myGroups.length > 0 ? "Browse All" : "Donation Groups"}
+              </h3>
+              <div className="grid sm:grid-cols-2 gap-4">
+                {otherGroups.map(g => <GroupCard key={g.group_id} g={g} />)}
               </div>
-            </Link>
-          ))}
+            </div>
+          )}
         </div>
       )}
     </div>

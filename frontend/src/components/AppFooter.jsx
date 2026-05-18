@@ -13,7 +13,7 @@ export default function AppFooter() {
           <Link to="/for-clinicians" className="hover:text-foreground transition-colors">For Clinicians</Link>
         </div>
         <p className="text-xs text-muted-foreground">
-          &copy; {new Date().getFullYear()} The Village — built for Australian parents
+          &copy; {new Date().getFullYear()} Our Little Village — built for Australian parents
         </p>
       </div>
     </footer>

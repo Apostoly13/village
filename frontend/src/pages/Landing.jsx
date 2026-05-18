@@ -319,7 +319,7 @@ export default function Landing() {
               <div className="flex flex-col gap-3">
                 <Link to="/register">
                   <Button size="lg" className="w-full rounded-full h-12 text-base" style={{ background: "var(--ink)", color: "var(--paper)" }} data-testid="hero-join-btn">
-                    Join The Village <ArrowRight className="ml-2 h-4 w-4" />
+                    Join Our Little Village <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </Link>
                 <Link to="/for-clinicians">
@@ -508,7 +508,7 @@ export default function Landing() {
               <div className="space-y-3">
                 <Link to="/register">
                   <Button size="lg" className="w-full rounded-full h-13 text-base" style={{ background: "var(--ink)", color: "var(--paper)" }} data-testid="cta-join-btn">
-                    Join The Village
+                    Join Our Little Village
                   </Button>
                 </Link>
                 <Link to="/login">
@@ -524,7 +524,7 @@ export default function Landing() {
                 <Link to="/community-guidelines" className="hover:text-[var(--ink)]">Community Guidelines</Link>
                 <Link to="/contact" className="hover:text-[var(--ink)]">Contact</Link>
               </div>
-              <p className="text-xs" style={{ color: "var(--ink-3)" }}>&copy; {new Date().getFullYear()} The Village · Made in Australia</p>
+              <p className="text-xs" style={{ color: "var(--ink-3)" }}>&copy; {new Date().getFullYear()} Our Little Village · Made in Australia</p>
             </div>
           </div>
         );
@@ -610,13 +610,13 @@ export default function Landing() {
               </h1>
               <p className="text-lg leading-relaxed" style={{ color: "var(--ink-2)" }}>
                 The 3am feeds. The second-guessing. The days that are too long and the nights that don't end.
-                The Village is a private, moderated community built for Australian mums and dads —
+                Our Little Village is a private, moderated community built for Australian mums and dads —
                 with real clinicians in the room and help close by when you need it.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 items-start">
                 <Link to="/register">
                   <Button size="lg" className="rounded-full px-8 h-12 text-base group" style={{ background: "var(--ink)", color: "var(--paper)" }} data-testid="hero-join-btn">
-                    Join The Village <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                    Join Our Little Village <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 </Link>
                 <Link to="/for-clinicians">
@@ -664,7 +664,7 @@ export default function Landing() {
               <span className="font-mono text-xs uppercase tracking-[0.16em]" style={{ color: "hsl(var(--accent))" }}>What's inside</span>
               <h2 className="font-heading text-3xl sm:text-4xl font-bold mt-2 mb-4" style={{ color: "var(--ink)" }}>Everything a parent needs, in one place</h2>
               <p className="max-w-2xl mx-auto" style={{ color: "var(--ink-2)" }}>
-                From 3am feeds to the school gate, from questions you'd never ask out loud to a verified midwife's answer — The Village holds all of it.
+                From 3am feeds to the school gate, from questions you'd never ask out loud to a verified midwife's answer — Our Little Village holds all of it.
               </p>
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -855,7 +855,7 @@ export default function Landing() {
               <div className="relative flex-1">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 mb-4"><Stethoscope className="h-4 w-4 text-sky-500" /><span className="text-xs font-semibold text-sky-600 dark:text-sky-400 uppercase tracking-wide">Healthcare professionals</span></div>
                 <h2 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-3">Somewhere you can safely refer a struggling mum</h2>
-                <p className="text-muted-foreground mb-5 max-w-xl">The Village is designed to be referral-ready — moderated, crisis-aware, anonymous-capable, with verified clinician voices and local community on tap.</p>
+                <p className="text-muted-foreground mb-5 max-w-xl">Our Little Village is designed to be referral-ready — moderated, crisis-aware, anonymous-capable, with verified clinician voices and local community on tap.</p>
                 <Link to="/for-clinicians"><Button className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90 gap-2"><Stethoscope className="h-4 w-4" />For Clinicians<ArrowRight className="h-4 w-4" /></Button></Link>
               </div>
               <div className="relative hidden lg:flex flex-col gap-3 shrink-0">
@@ -874,7 +874,7 @@ export default function Landing() {
             <p className="mb-8 max-w-xl mx-auto" style={{ color: "var(--ink-2)" }}>Join Australian parents supporting each other through the beautiful, exhausting, rewarding chaos of parenthood.</p>
             <Link to="/register">
               <Button size="lg" className="rounded-full px-12 h-14 text-lg" style={{ background: "var(--ink)", color: "var(--paper)" }} data-testid="cta-join-btn">
-                Join The Village
+                Join Our Little Village
               </Button>
             </Link>
             <p className="text-xs mt-4" style={{ color: "var(--ink-3)" }}>Free to join · No credit card · Cancel any time</p>
@@ -892,7 +892,7 @@ export default function Landing() {
               <Link to="/community-guidelines" className="opacity-70 hover:opacity-100 transition-opacity">Community Guidelines</Link>
               <Link to="/contact" className="opacity-70 hover:opacity-100 transition-opacity">Contact</Link>
             </div>
-            <p className="text-xs opacity-50" style={{ color: "var(--brand-cream)" }}>&copy; {new Date().getFullYear()} The Village · Made in Australia</p>
+            <p className="text-xs opacity-50" style={{ color: "var(--brand-cream)" }}>&copy; {new Date().getFullYear()} Our Little Village · Made in Australia</p>
           </div>
         </footer>
 

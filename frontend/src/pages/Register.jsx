@@ -82,7 +82,7 @@ export default function Register() {
             const data = await res.json();
             if (res.ok) {
               localStorage.setItem("user", JSON.stringify(data));
-              toast.success("Welcome to The Village!");
+              toast.success("Welcome to Our Little Village!");
               navigate(data.onboarding_complete ? "/dashboard" : "/onboarding");
             } else {
               toast.error(data.detail || "Google sign-in failed. Please try again.");
@@ -142,7 +142,7 @@ export default function Register() {
       return;
     }
     if (!dobValid) {
-      toast.error("You must be 18 or older to join The Village");
+      toast.error("You must be 18 or older to join Our Little Village");
       return;
     }
     if (!passwordValid) {
@@ -360,12 +360,12 @@ export default function Register() {
               />
               {dob && !dobValid && (
                 <p className="text-xs text-red-500 mt-1">
-                  You must be 18 or older to join The Village.
+                  You must be 18 or older to join Our Little Village.
                 </p>
               )}
               {!dob && (
                 <p className="text-xs text-muted-foreground">
-                  The Village is for adults 18+. We collect your date of birth to verify eligibility.
+                  Our Little Village is for adults 18+. We collect your date of birth to verify eligibility.
                 </p>
               )}
             </div>
@@ -420,7 +420,7 @@ export default function Register() {
                   htmlFor="terms-check"
                   className="text-sm text-muted-foreground leading-relaxed cursor-pointer select-none"
                 >
-                  I am 18 or older and I agree to The Village{" "}
+                  I am 18 or older and I agree to Our Little Village's{" "}
                   <Link
                     to="/terms"
                     target="_blank"

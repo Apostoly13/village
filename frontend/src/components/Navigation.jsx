@@ -284,13 +284,15 @@ export default function Navigation({ user }) {
                 { label: "My RSVPs",      href: "/events?tab=rsvp" },
               ]} : {}),
             },
-            { Icon: Stall,      label: "Stall",     href: isFree ? "/plus" : "/stall",      testId: "nav-stall",    locked: isFree,
-              ...(!isFree ? { subItems: [
-                { label: "Browse Stall",    href: "/stall" },
-                { label: "Sell Something",  href: "/stall/new" },
-                { label: "My Listings",     href: "/stall?tab=my" },
-                { label: "Donation Groups", href: "/stall?tab=groups" },
-              ]} : {}),
+            { Icon: Stall,      label: "Stall",     href: "/stall",                         testId: "nav-stall",    locked: isFree,
+              subItems: isFree
+                ? [{ label: "Donation Groups", href: "/stall?tab=groups" }]
+                : [
+                    { label: "Browse Stall",    href: "/stall" },
+                    { label: "Sell Something",  href: "/stall/new" },
+                    { label: "My Listings",     href: "/stall?tab=my" },
+                    { label: "Donation Groups", href: "/stall?tab=groups" },
+                  ],
             },
             { Icon: IconMail,   label: "Messages",  href: isFree ? "/plus" : "/messages",   testId: "nav-messages", locked: isFree, badge: isFree ? 0 : unreadMessages },
             { Icon: ParentChild, label: "Friends",  href: "/friends",                        testId: "nav-friends-link", badge: friendRequestCount,
@@ -616,9 +618,9 @@ export default function Navigation({ user }) {
               </Link>
 
               <Link
-                to={isFree ? "/plus" : "/stall"}
+                to="/stall"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 ${isFree ? "text-muted-foreground/60" : "text-foreground"}`}
+                className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
               >
                 <Stall size={20} />
                 Stall
@@ -747,11 +749,11 @@ export default function Navigation({ user }) {
       <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden" style={{ background: "var(--paper)", borderTop: "1px solid var(--line-2)" }}>
         <div className="flex items-center justify-around h-16 px-2">
           {[
-            { icon: IconHome,   label: "Home",     href: "/dashboard",                       testId: "bottom-nav-home" },
-            { icon: IconSpaces, label: "Spaces",   href: "/forums",                          testId: "bottom-nav-spaces" },
-            { icon: IconChat,   label: "Chats",    href: "/chat",                            testId: "bottom-nav-chat" },
-            { icon: Mail,       label: "Messages", href: isFree ? "/plus" : "/messages",     testId: "bottom-nav-messages", badge: isFree ? 0 : unreadMessages },
-            { icon: User,       label: "Me",       href: "/profile",                         testId: "bottom-nav-me" },
+            { icon: IconHome,   label: "Home",      href: "/dashboard",                       testId: "bottom-nav-home" },
+            { icon: IconSpaces, label: "Spaces",    href: "/forums",                          testId: "bottom-nav-spaces" },
+            { icon: ThreeAmMoon, label: "Chat Live", href: "/chat",                           testId: "bottom-nav-chat" },
+            { icon: Mail,       label: "Messages",  href: isFree ? "/plus" : "/messages",    testId: "bottom-nav-messages", badge: isFree ? 0 : unreadMessages },
+            { icon: User,       label: "Me",        href: "/profile",                        testId: "bottom-nav-me" },
           ].map(({ icon: Icon, label, href, testId, badge }) => {
             const isActive = location.pathname === href || (href !== "/dashboard" && location.pathname.startsWith(href));
             return (

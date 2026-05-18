@@ -25,7 +25,6 @@ import { toast } from "./components/ui/sonner";
 
 // Non-critical pages — lazy loaded (split into separate chunks)
 const Messages            = lazy(() => import("./pages/Messages"));
-const Conversation        = lazy(() => import("./pages/Conversation"));
 const Profile             = lazy(() => import("./pages/Profile"));
 const CreatePost          = lazy(() => import("./pages/CreatePost"));
 const Friends             = lazy(() => import("./pages/Friends"));
@@ -55,6 +54,7 @@ const CreateStallListing  = lazy(() => import("./pages/CreateStallListing"));
 const DonationGroupDetail = lazy(() => import("./pages/DonationGroupDetail"));
 const CreateDonationGroup = lazy(() => import("./pages/CreateDonationGroup"));
 const EditStallListing    = lazy(() => import("./pages/EditStallListing"));
+const EditDonationGroup   = lazy(() => import("./pages/EditDonationGroup"));
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -134,7 +134,7 @@ function VerifyEmailPage() {
               className="w-full py-2.5 rounded-xl text-sm font-medium transition-opacity hover:opacity-90"
               style={{ background: "var(--ink)", color: "var(--paper)" }}
             >
-              Go to The Village →
+              Go to Our Little Village →
             </button>
           </>
         )}
@@ -176,7 +176,7 @@ function VerifyEmailPage() {
               </p>
             )}
             <p className="text-xs mb-6" style={{ color: "var(--ink-3)" }}>
-              Click the link in the email to access The Village. Check your spam folder if you don't see it.
+              Click the link in the email to access Our Little Village. Check your spam folder if you don't see it.
             </p>
             <button
               onClick={resend}
@@ -422,7 +422,7 @@ const AppRouter = () => {
       } />
       <Route path="/messages/:userId" element={
         <ProtectedRoute>
-          {({ user }) => <Conversation user={user} />}
+          {({ user }) => <Messages user={user} />}
         </ProtectedRoute>
       } />
       <Route path="/profile" element={
@@ -530,6 +530,11 @@ const AppRouter = () => {
       <Route path="/stall/groups/new" element={
         <ProtectedRoute>
           {({ user }) => <CreateDonationGroup user={user} />}
+        </ProtectedRoute>
+      } />
+      <Route path="/stall/groups/:groupId/edit" element={
+        <ProtectedRoute>
+          {({ user }) => <EditDonationGroup user={user} />}
         </ProtectedRoute>
       } />
       <Route path="/stall/groups/:groupId" element={

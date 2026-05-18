@@ -64,7 +64,7 @@ function PremiumManagement({ user, onPortal, portalLoading, error }) {
           <span className="text-xs font-bold" style={{ color: "var(--sage-deep)" }}>Active subscription</span>
         </div>
         <h1 className="font-heading text-2xl font-bold mb-1" style={{ color: "var(--ink)" }}>You're on Village+</h1>
-        <p className="text-sm" style={{ color: "var(--ink-2)" }}>All limits lifted. Thank you for supporting The Village.</p>
+        <p className="text-sm" style={{ color: "var(--ink-2)" }}>All limits lifted. Thank you for supporting Our Little Village.</p>
       </div>
 
       {/* What's included */}
@@ -209,7 +209,7 @@ export default function VillagePlus({ user }) {
               <em style={{ fontStyle: "italic", color: "#f5c542" }}>without limits</em>
             </h1>
             <p className="text-lg max-w-xl mx-auto leading-relaxed mb-6" style={{ color: "rgba(245,230,208,0.75)" }}>
-              The Village is built for parents. Village+ removes every limit so you can connect, post, and support freely — any time of day.
+              Our Little Village is built for parents. Village+ removes every limit so you can connect, post, and support freely — any time of day.
             </p>
             <div
               className="inline-flex items-start gap-3 rounded-2xl px-5 py-4 mb-4 max-w-md mx-auto text-left"
@@ -219,7 +219,7 @@ export default function VillagePlus({ user }) {
               <div>
                 <p className="text-sm font-semibold mb-1" style={{ color: "#f5e6d0" }}>A family-run platform</p>
                 <p className="text-xs leading-relaxed" style={{ color: "rgba(245,230,208,0.65)" }}>
-                  The Village is independent and family-run — not a corporation. Your subscription directly funds the servers, development, and moderation that keep this community safe and growing.
+                  Our Little Village is independent and family-run — not a corporation. Your subscription directly funds the servers, development, and moderation that keep this community safe and growing.
                 </p>
               </div>
             </div>

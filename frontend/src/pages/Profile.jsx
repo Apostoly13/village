@@ -107,7 +107,7 @@ function ProfilePage({ user }) {
   const [isSingleParent, setIsSingleParent] = useState(false);
   const [isMultipleBirth, setIsMultipleBirth] = useState(false);
   const [anonymousByDefault, setAnonymousByDefault] = useState(false);
-  const [showLocationOnProfile, setShowLocationOnProfile] = useState(true);
+  const [showLocationOnProfile, setShowLocationOnProfile] = useState(false);
   const [showFullName, setShowFullName] = useState(false);
   const [picture, setPicture] = useState("");
 
@@ -185,7 +185,7 @@ function ProfilePage({ user }) {
           setMixedAgeGroups(data.mixed_age_groups || []);
           setInterests(data.interests || []);
           setLocationSearch(data.suburb || data.location || "");
-          setShowLocationOnProfile(data.show_location_on_profile !== false);
+          setShowLocationOnProfile(data.show_location_on_profile === true);
           setShowFullName(data.show_full_name || false);
           setEmailPrefs(data.email_preferences || {
             notify_replies: true,
@@ -1027,7 +1027,7 @@ function ProfilePage({ user }) {
                   <div>
                     <p className="text-sm font-medium text-foreground">Show area on my profile</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {showLocationOnProfile ? "Your suburb/area is visible to other members" : "Your area is hidden from your profile"}
+                      {showLocationOnProfile ? "Your suburb/area is visible to other members" : "Hidden by default — only you can see it"}
                     </p>
                   </div>
                   <Switch

@@ -194,7 +194,7 @@ export default function Onboarding({ user }) {
             <div className="text-center animate-fade-in">
               <img src="/BG Removed- Main Logo.png" alt="The Village" className="h-72 w-auto mx-auto mb-6" />
               <h1 className="font-heading text-3xl sm:text-4xl font-bold text-foreground mb-3">
-                Welcome to The Village,<br />
+                Welcome to Our Little Village,<br />
                 <span className="text-primary">{user?.name?.split(" ")[0] || "friend"}!</span>
               </h1>
               <p className="text-muted-foreground text-lg mb-8 max-w-md mx-auto leading-relaxed">
@@ -468,7 +468,7 @@ export default function Onboarding({ user }) {
                     id: "browse",
                     emoji: "👀",
                     title: "I'm just exploring",
-                    desc: "Have a look around and see what The Village has for you.",
+                    desc: "Have a look around and see what Our Little Village has for you.",
                   },
                 ].map(({ id, emoji, title, desc }) => (
                   <button
@@ -499,7 +499,7 @@ export default function Onboarding({ user }) {
             <div className="animate-fade-in text-center max-w-lg mx-auto w-full">
               <div className="text-5xl mb-4">🏡</div>
               <h2 className="font-heading text-2xl font-bold text-foreground mb-2">You're all set!</h2>
-              <p className="text-muted-foreground mb-8">Welcome to The Village. Here's what you have access to.</p>
+              <p className="text-muted-foreground mb-8">Welcome to Our Little Village. Here's what you have access to.</p>
 
               {/* Free / Trial / Premium explainer — no upsell language, just plain info */}
               <div className="village-card p-5 mb-6 text-left">

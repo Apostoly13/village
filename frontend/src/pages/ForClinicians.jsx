@@ -1,7 +1,8 @@
-﻿import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ShieldCheck, Heart, Download, ArrowRight, Moon, Sun } from "lucide-react";
+import { ShieldCheck, Heart, Download, ArrowRight, Moon, Sun, Stethoscope } from "lucide-react";
 import { Button } from "../components/ui/button";
+import Navigation from "../components/Navigation";
+import { useTheme } from "../useTheme";
 
 const WHY_RECOMMEND = [
   {
@@ -22,17 +23,17 @@ const WHY_RECOMMEND = [
   {
     icon: "👩‍👧",
     title: "Peer wisdom, not advice",
-    body: "Parents support parents — not a replacement for clinical care, but a complement to it. We encourage users to follow their healthcare provider's guidance.",
+    body: "Parents support parents — a complement to clinical care, not a replacement for it. We actively encourage users to follow their healthcare provider's guidance.",
   },
   {
     icon: "📍",
     title: "Local and national",
-    body: "Local events, suburb-based circles, and national spaces for topics like postnatal anxiety, feeding, and sleep.",
+    body: "Local area-based Chat Rooms, local events and meetups, and national spaces for topics like postnatal anxiety, feeding, and sleep.",
   },
   {
     icon: "🆓",
     title: "Free to try",
-    body: "Every new member gets a 7-day free trial with full access. The free tier keeps core features — posting, reading, anonymous sharing — available at no cost.",
+    body: "Every new member gets a 7-day free trial with full access. The free tier keeps core features — posting, reading, group chats, anonymous sharing — available at no cost.",
   },
 ];
 
@@ -43,49 +44,45 @@ const CRISIS_LINES = [
 ];
 
 export default function ForClinicians({ user }) {
-  const [darkMode, setDarkMode] = useState(
-    document.documentElement.classList.contains("dark")
-  );
-
-  const toggleTheme = () => {
-    const next = !darkMode;
-    setDarkMode(next);
-    if (next) {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
-    }
-  };
+  const [, setThemeSetting, themeResolved] = useTheme();
+  const darkMode = themeResolved === "night";
+  const toggleTheme = () => setThemeSetting(darkMode ? "day" : "night");
 
   return (
-    <div className="min-h-screen bg-background lg:pl-60">
-      {/* ── Public nav ─────────────────────────────── */}
-      <nav className="sticky top-0 z-50 border-b border-border/50 bg-background/95 backdrop-blur">
-        <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between">
-          <Link to="/">
-            <img src="/BG Removed- Main Logo.png" alt="The Village" className="h-20 w-auto" />
-          </Link>
-          <div className="flex items-center gap-2 sm:gap-3">
-            <Button variant="ghost" size="icon" onClick={toggleTheme} className="rounded-full">
-              {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </Button>
-            <Link to="/login">
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                Sign In
-              </Button>
-            </Link>
-            <Link to="/register">
-              <Button size="sm" className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90 px-5">
-                Join Free
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </nav>
+    <div className={`min-h-screen bg-background ${user ? "lg:pl-60 lg:pb-0" : ""}`}>
 
-      <main className="max-w-4xl mx-auto px-4 pt-12 ">
+      {/* ── Navigation: logged-in users get the full sidebar ── */}
+      {user ? (
+        <Navigation user={user} />
+      ) : (
+        /* ── Slim public nav for guests ── */
+        <nav className="sticky top-0 z-50 border-b border-border/50 bg-background/95 backdrop-blur">
+          <div className="max-w-5xl mx-auto px-5 py-3 flex items-center justify-between">
+            <Link to="/" className="flex items-center gap-2">
+              <Stethoscope className="h-4 w-4 text-primary" />
+              <span className="font-heading font-bold text-sm text-foreground">Our Little Village</span>
+              <span className="hidden sm:inline text-xs text-muted-foreground">· For Clinicians</span>
+            </Link>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="icon" onClick={toggleTheme} className="rounded-full h-8 w-8">
+                {darkMode ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+              </Button>
+              <Link to="/login">
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground text-xs h-8 px-3">
+                  Sign In
+                </Button>
+              </Link>
+              <Link to="/register">
+                <Button size="sm" className="rounded-full text-xs h-8 px-4">
+                  Join Free
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </nav>
+      )}
+
+      <main className="max-w-4xl mx-auto px-4 pt-10 pb-16">
 
         {/* Hero */}
         <div className="mb-10 text-center">
@@ -93,10 +90,10 @@ export default function ForClinicians({ user }) {
             <ShieldCheck className="h-3.5 w-3.5" />
             For healthcare professionals
           </div>
-          <h1 className="font-heading text-3xl sm:text-4xl font-bold text-foreground mb-4 leading-tight">
-            Recommend The Village<br className="hidden sm:block" /> to your patients
+          <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-3 leading-tight">
+            Recommend Our Little Village to your patients
           </h1>
-          <p className="text-base text-muted-foreground max-w-xl mx-auto leading-relaxed">
+          <p className="text-sm text-muted-foreground max-w-xl mx-auto leading-relaxed">
             A moderated, 24/7 peer-support community for Australian parents — built as a complement to clinical care, not a replacement for it.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-6">
@@ -121,15 +118,17 @@ export default function ForClinicians({ user }) {
 
         {/* What it is */}
         <div className="mb-8 village-card p-6">
-          <h2 className="font-heading font-bold text-lg text-foreground mb-3">What is The Village?</h2>
+          <h2 className="font-heading font-bold text-lg text-foreground mb-3">What is Our Little Village?</h2>
           <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-            The Village is a judgment-free community for Australian parents — from expectant mothers through to parents of teenagers. Members post questions, share experiences, and support each other around the clock, in topic-based Spaces and live Group Chats.
+            Our Little Village is a judgment-free community for Australian parents — from expectant mothers through to parents of teenagers. Members post questions, share experiences, and support each other around the clock, in topic-based Spaces, live Group Chats, Village+ Communities, and a local-area community marketplace.
           </p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
             {[
               { emoji: "💬", label: "Group Chats", sub: "Real-time support" },
               { emoji: "🗣️", label: "Spaces", sub: "Topic discussions" },
-              { emoji: "📍", label: "Local events", sub: "In-person meetups" },
+              { emoji: "🏘️", label: "Communities", sub: "Village+ groups" },
+              { emoji: "📍", label: "Local Events", sub: "In-person meetups" },
+              { emoji: "🛍️", label: "The Stall", sub: "Community marketplace" },
               { emoji: "🙈", label: "Anonymous", sub: "No stigma barrier" },
             ].map(({ emoji, label, sub }) => (
               <div key={label} className="bg-secondary/40 rounded-xl p-3 text-center">
@@ -192,7 +191,7 @@ export default function ForClinicians({ user }) {
             {[
               { step: "1", text: "Direct your patient to ourlittlevillage.com.au" },
               { step: "2", text: "They register with an email address — takes under 2 minutes" },
-              { step: "3", text: "A 7-day full-access trial starts automatically, then a free tier" },
+              { step: "3", text: "A 7-day full-access trial starts automatically, then a free tier kicks in" },
             ].map(({ step, text }) => (
               <div key={step} className="flex items-center gap-4">
                 <div className="w-7 h-7 rounded-full bg-[var(--honey-wash)] text-[var(--honey)] text-xs font-bold flex items-center justify-center shrink-0">{step}</div>
@@ -222,10 +221,10 @@ export default function ForClinicians({ user }) {
           </a>
         </div>
 
-        {/* Simple public footer */}
+        {/* Footer */}
         <div className="mt-12 pt-8 border-t border-border/50 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
-          <Link to="/">
-            <img src="/the_village_wordmark_light.png" alt="The Village" className="h-10 w-auto opacity-70" />
+          <Link to="/" className="font-semibold text-foreground hover:text-primary transition-colors">
+            Our Little Village
           </Link>
           <div className="flex items-center gap-4">
             <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
@@ -233,7 +232,7 @@ export default function ForClinicians({ user }) {
             <Link to="/contact" className="hover:text-foreground transition-colors">Contact</Link>
             <Link to="/" className="hover:text-foreground transition-colors">← Back to home</Link>
           </div>
-          <p>&copy; {new Date().getFullYear()} The Village · Made in Australia</p>
+          <p>&copy; {new Date().getFullYear()} Our Little Village · Made in Australia</p>
         </div>
       </main>
     </div>

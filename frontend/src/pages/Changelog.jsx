@@ -7,6 +7,37 @@ import AppFooter from "../components/AppFooter";
 // ── Full technical changelog (admin-only view) ────────────────────────────────
 const CHANGELOG = [
   {
+    version: "3.35.0",
+    date: "May 2026",
+    title: "Brand Rename, Privacy Hardening, Donation Groups Privacy & ForClinicians Overhaul",
+    entries: [
+      { tag: "Improved", text: "Brand rename: platform name updated to 'Our Little Village' across all user-facing copy — CTAs, welcome messages, onboarding, footers, install prompts, VillagePlus upsell, ForClinicians, Settings, Register, App.js, ComingSoon, PWAInstallBanner, Suggestions, Landing. Sub-brand 'The Village Stall', tier name 'Village+', and legal entity 'The Village AU Pty Ltd' unchanged." },
+      { tag: "Fixed",    text: "Profile location privacy: location fields (suburb, postcode, latitude, longitude, local_area) are now stripped from the GET /users/{user_id} API response for non-owners when show_location_on_profile is not explicitly true. Previously hiding was UI-only; the raw data was still visible in the API response." },
+      { tag: "Improved", text: "Profile location now hidden by default (opt-in). useState default changed from true to false; data load check changed from !== false to === true. Toggle label updated to 'Hidden by default — only you can see it'." },
+      { tag: "Improved", text: "DonationGroupDetail: postcode range labels now resolve to human-readable area names at display time. Old 'Postcodes 3030–3038' format is parsed with regex and resolved via /api/location/postcode/{n} to 'Brimbank to Melbourne City, VIC (3030–3038)'. resolvedCoverage state updated on group load." },
+      { tag: "Added",    text: "DonationGroupDetail: non-members can now contact the organiser before joining via an inline message form with the organiser's first name shown in the button label." },
+      { tag: "Improved", text: "ForClinicians page overhauled: logged-in users now get the full Navigation sidebar (lg:pl-60); logged-out users get a slim public nav with 'Our Little Village · For Clinicians' text + Sign In + Join Free. Dark mode toggle fixed — now uses useTheme() hook (sets data-theme attribute) instead of raw classList manipulation. Logo removed from nav header. Hero made more compact. Feature grid expanded to 6 tiles (added Communities and The Stall). 'Suburb-based circles' copy updated to 'local area-based Chat Rooms'. Footer image removed, replaced with text link." },
+      { tag: "Fixed",    text: "ForClinicians dark mode toggle: was using legacy localStorage 'theme' key and classList only; now uses useTheme() which correctly sets data-theme on html element, matching the rest of the app." },
+      { tag: "Fixed",    text: "Frontend .env: REACT_APP_BACKEND_URL restored to http://localhost:8000 (was temporarily changed to 8001 during a previous session's server workaround)." },
+    ],
+  },
+  {
+    version: "3.34.2",
+    date: "May 2026",
+    title: "Donation Groups: Edit Page, Suburb Multi-Add Fix, Navigation & Workflow Improvements",
+    entries: [
+      { tag: "Added",    text: "EditDonationGroup.jsx: new edit page for donation groups. Organiser and moderators can edit name, description, purpose type, area coverage (multi-suburb), cover image, accepted/not-accepted items, rules, end date, and open/closed status. Organiser can also add and remove moderators from this page." },
+      { tag: "Added",    text: "App.js: /stall/groups/:groupId/edit route added, lazy-loaded, protected." },
+      { tag: "Fixed",    text: "SuburbSearch: added onSelect and clearAfterSelect props. CreateDonationGroup suburb search now uses onSelect (fires only on dropdown pick) instead of onChange (fires every keystroke) — prevents a suburb chip being created for every typed character." },
+      { tag: "Improved", text: "DonationGroupDetail: 'Donate to this group' navigates to /stall/new?group=<id>. 'Request support' renamed to 'Contact organiser' and navigates to /messages/<organiser_id>. Edit button navigates to /stall/groups/<id>/edit." },
+      { tag: "Improved", text: "DonationGroupDetail: joining a group no longer requires Village+. All users can join to track and donate to groups." },
+      { tag: "Improved", text: "DonationGroupDetail: organiser can add/remove mods inline via a manage panel. Mods can send a cancel request. Organiser sees approve/decline cancel request banner when a mod has requested cancellation." },
+      { tag: "Improved", text: "Stall.jsx: Donation Groups tab splits into 'My Groups' (organiser or member) and 'Browse All' sections using is_member/is_organiser flags from backend. Limit increased to 50." },
+      { tag: "Improved", text: "Backend: browse_donation_groups annotates each group with is_member and is_organiser flags from JWT. New endpoints: POST /stall/groups/{id}/end, POST /stall/groups/{id}/request-cancel, POST /stall/groups/{id}/approve-cancel, POST /stall/groups/{id}/decline-cancel, POST/DELETE /stall/groups/{id}/moderators." },
+      { tag: "Improved", text: "CreateDonationGroup: 9 new purpose types (Baby Clothes, Kids Clothes, School Uniform Exchange, Toys & Games, Baby Gear, Maternity & Feeding, Nappies & Essentials, Books & Learning, General Donations). Rich field placeholders with drop-off examples. Multi-suburb search with chip display." },
+    ],
+  },
+  {
     version: "3.34.0",
     date: "May 2026",
     title: "Mobile Nav, Auth Persistence, Donation Groups Overhaul & UX Fixes",
@@ -724,6 +755,31 @@ const CHANGELOG = [
 // ── Curated user-facing changelog (non-admin view) ────────────────────────────
 // Plain readable summaries — no technical tags or implementation details.
 const USER_CHANGELOG = [
+  {
+    version: "3.35.0",
+    date: "May 2026",
+    title: "Our Little Village — Brand, Privacy & Platform Updates",
+    entries: [
+"We're now officially Our Little Village — you'll see the updated name across the app, sign-up pages, and footers.",
+"Your location is now hidden on your profile by default. You can choose to show your suburb in your profile settings if you'd like.",
+"Donation Group pages now show readable area names (e.g. 'Brimbank to Melbourne City, VIC') instead of raw postcode ranges.",
+"You can now message the organiser of a Donation Group before you've joined — handy if you have questions first.",
+"The For Clinicians page now works correctly for both signed-in and signed-out visitors, with dark mode fixed.",
+    ],
+  },
+  {
+    version: "3.34.2",
+    date: "May 2026",
+    title: "Donation Groups — Edit, Multi-Suburb & Workflow Improvements",
+    entries: [
+"You can now edit your Donation Group — update the description, accepted items, area coverage, cover photo, end date, and more.",
+"Area coverage now supports multiple suburbs — search and add as many areas as you need, each shown as a removable chip.",
+"Joining a Donation Group is now free for all users — track groups and donate across multiple drives without needing Village+.",
+"'Donate to this group' now takes you directly to create a listing linked to that group. 'Request support' is now 'Contact organiser' and opens a direct message.",
+"Organisers can add and remove moderators at any time from the group detail page.",
+"Moderators can request to close a group — the organiser will see the request and choose to approve or decline.",
+    ],
+  },
   {
     version: "3.34.0",
     date: "May 2026",
