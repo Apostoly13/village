@@ -96,8 +96,8 @@ export default function Navigation({ user }) {
         // Let other components (e.g. ChatPopout) piggyback on this poll cycle
         window.dispatchEvent(new Event("village:nav-poll"));
       } catch {}
-      // Heartbeat every 6th tick (~120s) — fire-and-forget
-      if (tickCount % 6 === 0) {
+      // Heartbeat every 3rd tick (~60s) — keeps user visible in online counts
+      if (tickCount % 3 === 0) {
         fetch(`${API_URL}/api/users/heartbeat`, { method: "POST", credentials: "include" }).catch(() => {});
       }
     };
@@ -132,12 +132,19 @@ export default function Navigation({ user }) {
     };
     window.addEventListener("village:dm-read", onDmRead);
 
+    // Allow any component to programmatically open the notifications panel
+    const onOpenNotif = () => handleNotificationsOpen(true);
+    window.addEventListener("village:open-notifications", onOpenNotif);
+
+    // Fire immediate heartbeat on mount so user is counted from first page load
+    fetch(`${API_URL}/api/users/heartbeat`, { method: "POST", credentials: "include" }).catch(() => {});
     poll();
     const interval = setInterval(poll, 20000);
     return () => {
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("village:dm-read", onDmRead);
+      window.removeEventListener("village:open-notifications", onOpenNotif);
     };
   }, []);
 
@@ -269,14 +276,8 @@ export default function Navigation({ user }) {
               { label: "All Australia", href: "/chat" },
               { label: "Local Rooms",   href: "/chat?tab=local" },
               { label: "Live now",      href: "/chat?tab=live" },
+              { label: "Communities",   href: isFree ? "/plus" : "/forums?tab=communities" },
             ]},
-            { Icon: Village,    label: "Communities", href: isFree ? "/plus" : "/forums?tab=communities", testId: "nav-communities", locked: isFree,
-              ...(!isFree ? { subItems: [
-                { label: "Browse Communities", href: "/forums?tab=communities" },
-                { label: "My Communities",     href: "/forums?tab=communities&filter=joined" },
-                { label: "Create Community",   href: "/create-community" },
-              ]} : {}),
-            },
             { Icon: IconCal,    label: "Events",    href: isFree ? "/plus" : "/events",     testId: "nav-events",   locked: isFree,
               ...(!isFree ? { subItems: [
                 { label: "Browse Events", href: "/events" },

@@ -56,7 +56,7 @@
 
 /* Sage sub-filter active glow — only fires in night mode */
 html[data-theme="night"] .sage-pill-active {
-  box-shadow: 0 0 10px 3px rgba(154, 201, 158, 0.28);
+  box-shadow: 0 0 6px 2px rgba(154, 201, 158, 0.28);
 }
 
 * {
@@ -77,7 +77,7 @@ body {
     background-color: var(--paper, hsl(var(--background)));
     color: var(--ink, hsl(var(--foreground)));
     min-height: 100vh;
-    transition: background-color var(--duration-slow) ease, color var(--duration-slow) ease;
+    transition: background-color var(--duration-slow) var(--ease-out), color var(--duration-slow) var(--ease-out);
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -122,10 +122,12 @@ code {
 
 /* Card elevation — theme-aware depth */
 .card-elevated {
-    box-shadow: 0 1px 4px hsl(var(--foreground) / 0.07), 0 1px 2px hsl(var(--foreground) / 0.04);
+    box-shadow: 0 2px 10px rgba(42,31,23,0.08), 0 1px 3px rgba(42,31,23,0.05);
 }
-.dark .card-elevated {
-    box-shadow: 0 2px 10px rgba(0,0,0,0.45), 0 1px 4px rgba(0,0,0,0.25);
+/* .dark selector never fires — project uses data-theme="night" */
+html[data-theme="night"] .card-elevated,
+[data-theme="night"] .card-elevated {
+    box-shadow: 0 2px 12px rgba(0,0,0,0.40), 0 1px 4px rgba(0,0,0,0.28);
 }
 
 /* Warm glow effect - adapts to theme */
@@ -135,6 +137,60 @@ code {
 
 .warm-glow-hover:hover {
     box-shadow: 0 0 25px hsl(var(--primary) / 0.25);
+}
+
+/* ── Motion system — buttons ────────────────────────────────────────────────
+   Scale 1.02 on hover using the spec easing.
+   Target the shadcn Button base class (inline-flex + font-medium).
+   Excludes: disabled, .no-scale escape hatch, icon-only sizes. */
+.village-btn,
+button.village-btn-scale:not([disabled]) {
+    transition:
+        transform        var(--duration-fast) var(--ease-out),
+        background-color var(--duration-fast) var(--ease-out),
+        border-color     var(--duration-fast) var(--ease-out),
+        color            var(--duration-fast) var(--ease-out),
+        box-shadow       var(--duration-fast) var(--ease-out);
+}
+
+/* Apply scale to solid-background shadcn buttons only (not icon-only, not outline/ghost).
+   Outline and ghost buttons have a border that looks thinner when scaled — excluded. */
+button.inline-flex.font-medium:not([disabled]):not(.no-scale):not(.h-9.w-9):not(.h-8.w-8):not(.border):not(.border-input),
+a.inline-flex.font-medium:not([disabled]):not(.no-scale):not(.border):not(.border-input) {
+    transition:
+        transform        var(--duration-fast) var(--ease-out),
+        background-color var(--duration-fast) var(--ease-out),
+        border-color     var(--duration-fast) var(--ease-out),
+        color            var(--duration-fast) var(--ease-out),
+        box-shadow       var(--duration-fast) var(--ease-out);
+}
+
+button.inline-flex.font-medium:not([disabled]):not(.no-scale):not(.h-9.w-9):not(.h-8.w-8):not(.border):not(.border-input):hover,
+a.inline-flex.font-medium:not([disabled]):not(.no-scale):not(.border):not(.border-input):hover {
+    transform: scale(1.02);
+}
+
+button.inline-flex.font-medium:not([disabled]):not(.no-scale):not(.border):not(.border-input):active,
+a.inline-flex.font-medium:not([disabled]):not(.no-scale):not(.border):not(.border-input):active {
+    transform: scale(0.99);
+}
+
+/* ── Input focus — clay border + soft ring ──────────────────────────────────
+   Targets ALL native inputs/textareas/selects, including those that don't
+   use the shadcn <Input> component (chat bars, search bars, etc.).
+   focus: covers both mouse-click and keyboard focus.
+   !important beats any Tailwind utility or component class.            ── */
+input:focus,
+input:focus-visible,
+textarea:focus,
+textarea:focus-visible,
+select:focus,
+select:focus-visible {
+    outline: none !important;
+    border-color: var(--clay) !important;
+    box-shadow: 0 0 0 3px rgba(196, 112, 90, 0.20) !important;
+    transition: border-color 150ms cubic-bezier(0.16,1,0.3,1),
+                box-shadow   150ms cubic-bezier(0.16,1,0.3,1);
 }
 
 /* Glass effect */
@@ -293,29 +349,48 @@ code {
    shadow-card from the design language doc. */
 .village-card {
     background: var(--paper-2, hsl(var(--card)));
-    border-radius: 18px;
+    border-radius: 12px;
     border: 1px solid var(--line, hsl(var(--border) / 0.5));
-    box-shadow: 0 2px 8px rgba(42,31,23,0.05), 0 1px 2px rgba(42,31,23,0.04);
+    box-shadow: 0 2px 10px rgba(42,31,23,0.08), 0 1px 3px rgba(42,31,23,0.05);
 }
 
 html[data-theme="night"] .village-card,
 [data-theme="night"] .village-card {
     background: var(--paper-2, hsl(var(--card)));
     border: 1px solid var(--line, hsl(var(--border) / 0.15));
-    box-shadow: 0 2px 8px rgba(0,0,0,0.25), 0 1px 2px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.35), 0 1px 4px rgba(0,0,0,0.25);
 }
 
 .village-card-hover {
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: transform var(--duration-fast) var(--ease-out),
+                box-shadow var(--duration-fast) var(--ease-out),
+                border-color var(--duration-fast) var(--ease-out);
     cursor: pointer;
 }
 
 .village-card-hover:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(42,31,23,0.08), 0 2px 6px rgba(42,31,23,0.05);
+    border-color: var(--clay);
+    box-shadow: 0 6px 20px rgba(42,31,23,0.11), 0 2px 6px rgba(42,31,23,0.06);
 }
 
 html[data-theme="night"] .village-card-hover:hover,
 [data-theme="night"] .village-card-hover:hover {
-    box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 2px 6px rgba(0,0,0,0.25);
+    border-color: var(--clay);
+    box-shadow: 0 6px 24px rgba(0,0,0,0.50), 0 2px 8px rgba(0,0,0,0.35);
+}
+
+/* ── Featured / Selected card ─────────────────────────────────────────────
+   Applied on top of .village-card for the selected/active state.
+   Day: 2px clay border. Night: 2px honey border + soft honey glow. */
+.village-card-selected {
+    border: 2px solid var(--clay);
+}
+
+html[data-theme="night"] .village-card-selected,
+[data-theme="night"] .village-card-selected {
+    border: 2px solid var(--clay);
+    box-shadow: 0 0 0 3px rgba(196, 112, 90, 0.18),
+                0 2px 12px rgba(0,0,0,0.35),
+                0 1px 4px rgba(0,0,0,0.25);
 }

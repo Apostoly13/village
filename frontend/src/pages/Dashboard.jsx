@@ -5,7 +5,9 @@ import { Input } from "../components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import Navigation from "../components/Navigation";
 // OnboardingModal removed — onboarding is now a standalone page at /onboarding
-import { Search, Plus, MessageCircle, Heart, Eye, Sparkles, X, Compass, Bell, HelpingHand, Users, EyeOff, HelpCircle, Moon, ChevronRight } from "lucide-react";
+import { Search, Plus, MessageCircle, Heart, Eye, Sparkles, X, Bell, Moon, ChevronRight, Pencil, Check } from "lucide-react";
+import { IconCheck, IconLock, IconShield, IconChat, IconCal } from "../icons";
+import { Stall as StallIcon } from "../components/village/icons";
 import RecommendedSpaces from "../components/RecommendedSpaces";
 import AppFooter from "../components/AppFooter";
 import { timeAgoVerbose } from "../utils/dateHelpers";
@@ -14,9 +16,13 @@ const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function typeEmoji(type) {
-  const map = { reply: "💬", like: "❤️", friend_request: "👋", friend_accept: "✅", moderation: "🛡️" };
-  return map[type] || "🔔";
+function typeIcon(type) {
+  if (type === "reply")          return <IconChat size={14} />;
+  if (type === "like")           return <span style={{ fontSize: 14 }}>♥</span>;
+  if (type === "friend_request") return <span style={{ fontSize: 14 }}>👋</span>;
+  if (type === "friend_accept")  return <IconCheck size={14} />;
+  if (type === "moderation")     return <IconShield size={14} />;
+  return <Bell className="h-3.5 w-3.5" />;
 }
 
 const fmtRelative = timeAgoVerbose;
@@ -81,7 +87,7 @@ function QuickThreadView({ post, liked, likeCount, onLike, onClose, onReplied, a
                 <p className="text-xs text-muted-foreground">{post.category_name}</p>
               </div>
             </div>
-            <h2 className="font-heading font-bold text-sm text-foreground mb-2 leading-snug">{post.title}</h2>
+            <h2 className="font-heading font-medium text-sm text-foreground mb-2 leading-snug">{post.title}</h2>
             <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{post.content}</p>
             {post.image && <img src={post.image} alt="" className="w-full rounded-xl mt-3 max-h-48 object-cover" />}
             <div className="mt-3">
@@ -183,7 +189,7 @@ function QuickReplyBox({ postId, onDone, apiUrl }) {
         onChange={e => setText(e.target.value)}
         onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
         placeholder="Write a quick reply..."
-        className="flex-1 bg-secondary/50 rounded-xl px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-border/50 border border-transparent focus:border-border"
+        className="flex-1 bg-secondary/50 rounded-xl px-3 py-2 text-sm outline-none border border-transparent"
       />
       <button
         onClick={handleSend}
@@ -204,14 +210,6 @@ const FEED_FILTERS = [
   { id: "unread",   label: "Unread" },
   { id: "trending", label: "Trending" },
   { id: "support",  label: "Support needed" },
-];
-
-// ── Dashboard modes ───────────────────────────────────────────────────────────
-
-const DASH_MODES = [
-  { id: "need-help", icon: HelpingHand, label: "I need help" },
-  { id: "browse",    icon: Compass,     label: "Browse"},
-  { id: "catch-up",  icon: Bell,        label: "Catch up"},
 ];
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -252,10 +250,22 @@ export default function Dashboard({ user }) {
   // Live gender — starts from prop, updates instantly when profile is saved
   const [liveGender, setLiveGender] = useState(user?.gender);
 
-  // ── Dashboard mode — always resets to Browse on page load ────────────────
-  const [dashMode, setDashMode] = useState("browse");
+  // ── Custom shortcuts (localStorage, per device) ───────────────────────────
+  const [shortcuts, setShortcuts] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("village_shortcuts") || "[]"); } catch { return []; }
+  });
+  const [editingShortcuts, setEditingShortcuts] = useState(false);
 
-  const switchMode = (id) => setDashMode(id);
+  const saveShortcuts = (updated) => {
+    setShortcuts(updated);
+    try { localStorage.setItem("village_shortcuts", JSON.stringify(updated)); } catch {}
+  };
+  const addShortcut = (s) => {
+    if (shortcuts.some(x => x.href === s.href)) return; // no dupes
+    if (shortcuts.length >= 8) return; // max 8
+    saveShortcuts([...shortcuts, s]);
+  };
+  const removeShortcut = (href) => saveShortcuts(shortcuts.filter(s => s.href !== href));
 
   // ── One-time downgrade notice ─────────────────────────────────────────────
   useEffect(() => {
@@ -354,7 +364,11 @@ export default function Dashboard({ user }) {
       fetchOnlineCount(),
       ...(user?.subscription_tier === "premium" ? [fetchUserCommunities()] : []),
     ]);
-    // Onboarding is now a standalone page (/onboarding) — ProtectedRoute handles the redirect
+    // Refresh online/room count every 30s so it stays live while the user browses
+    // (heartbeat to keep the user counted runs in Navigation.jsx via the 20s poll)
+    const onlineInterval = setInterval(() => {
+      if (!document.hidden) fetchOnlineCount();
+    }, 30000);
 
     // Listen for profile updates — re-apply gender filter on rooms instantly
     const handleProfileUpdate = (e) => {
@@ -377,6 +391,7 @@ export default function Dashboard({ user }) {
     window.addEventListener("village:dm-read", handleDmRead);
 
     return () => {
+      clearInterval(onlineInterval);
       window.removeEventListener("village:profileUpdated", handleProfileUpdate);
       window.removeEventListener("village:dm-read", handleDmRead);
     };
@@ -609,7 +624,7 @@ export default function Dashboard({ user }) {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-background  lg:pl-60 lg:pb-8">
+    <div className="min-h-screen bg-background lg:pl-60 lg:pb-8" style={{ backgroundImage: "var(--ambient-bg)" }}>
       <Navigation user={user} />
 
       <main className="max-w-5xl mx-auto px-4 pt-16 lg:pt-8">
@@ -659,7 +674,7 @@ export default function Dashboard({ user }) {
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                   <div className="rounded-xl bg-secondary/40 p-3">
-                    <p className="text-xs font-semibold text-foreground mb-1.5">Still with you ✓</p>
+                    <p className="text-xs font-semibold text-foreground mb-1.5 flex items-center gap-1">Still with you <IconCheck size={12} /></p>
                     <ul className="space-y-1 text-xs text-muted-foreground">
                       <li>• 5 Space posts per week</li>
                       <li>• 5 Space replies per week</li>
@@ -669,7 +684,7 @@ export default function Dashboard({ user }) {
                     </ul>
                   </div>
                   <div className="rounded-xl bg-secondary/40 p-3">
-                    <p className="text-xs font-semibold text-foreground mb-1.5">Now locked 🔒</p>
+                    <p className="text-xs font-semibold text-foreground mb-1.5 flex items-center gap-1">Now locked <IconLock size={12} /></p>
                     <ul className="space-y-1 text-xs text-muted-foreground">
                       <li>• Events — view &amp; RSVP</li>
                       <li>• Direct messages</li>
@@ -721,28 +736,56 @@ export default function Dashboard({ user }) {
 
         {/* ── Hero ── */}
         <div className="mb-5 px-1">
-          <p className="font-mono text-[10px] uppercase tracking-[0.16em] mb-1.5" style={{ color: "var(--ink-3)" }}>
-            {new Date().toLocaleDateString("en-AU", { weekday: "long" })} · {new Date().toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" })}
-          </p>
-          <h1
-            className="text-2xl sm:text-3xl font-medium leading-tight mb-1"
-            style={{ fontFamily: "var(--serif)", letterSpacing: "-0.02em", color: "var(--ink)" }}
-          >
-            {(() => {
-              const h = new Date().getHours();
-              const greeting = h < 12 ? "Morning" : h < 17 ? "Afternoon" : "Evening";
-              return <>{greeting}, <em style={{ fontStyle: "italic", color: "hsl(var(--accent))" }}>{firstName}</em>.</>;
-            })()}
-          </h1>
-          {heroContent.sentence ? (
-            <p className="text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>
-              {heroContent.sentence}
-            </p>
-          ) : (
-            <p className="text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>
-              Your village is here whenever you need it.
-            </p>
-          )}
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <p className="font-mono text-[10px] uppercase tracking-[0.16em] mb-1.5" style={{ color: "var(--ink-3)" }}>
+                {new Date().toLocaleDateString("en-AU", { weekday: "long" })} · {new Date().toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" })}
+              </p>
+              <h1
+                className="text-2xl sm:text-3xl font-medium leading-tight mb-1"
+                style={{ fontFamily: "var(--serif)", letterSpacing: "-0.02em", color: "var(--ink)" }}
+              >
+                {(() => {
+                  const h = new Date().getHours();
+                  const greeting = h < 12 ? "Morning" : h < 17 ? "Afternoon" : "Evening";
+                  return <>{greeting}, <em style={{ fontStyle: "italic", color: "hsl(var(--accent))" }}>{firstName}</em>.</>;
+                })()}
+              </h1>
+              {/* Parenting stage + location subtitle */}
+              {(() => {
+                const STAGE_LABELS = {
+                  expecting: "Expecting", newborn: "Newborn", infant: "Baby (0–12 months)",
+                  toddler: "Toddler", school_age: "School Age", teenager: "Teenager",
+                  multiples: "Twins/Multiples", mixed: "Mixed Ages",
+                };
+                const stage = user?.parenting_stage ? STAGE_LABELS[user.parenting_stage] : null;
+                const location = user?.suburb || user?.state || null;
+                const parts = [stage, location].filter(Boolean);
+                return (
+                  <p className="text-sm leading-relaxed mt-0.5" style={{ color: "var(--ink-2)" }}>
+                    {parts.length > 0 ? parts.join(" · ") : "Your village is here whenever you need it."}
+                  </p>
+                );
+              })()}
+            </div>
+            {/* Live stats — right-aligned */}
+            {(onlineCount > 0 || activeRoomsCount > 0) && (
+              <div className="flex flex-col items-end gap-1.5 shrink-0 pt-5">
+                {onlineCount > 0 && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] rounded-[8px]" style={{ background: "var(--paper-3)", border: "1px solid var(--line)", color: "var(--ink-2)" }}>
+                    <span className="w-1.5 h-1.5 rounded-full shrink-0 animate-pulse" style={{ background: "#4ade80", boxShadow: "0 0 5px rgba(74,222,128,0.5)" }} />
+                    {onlineCount} online
+                  </span>
+                )}
+                {activeRoomsCount > 0 && (
+                  <Link to="/chat" className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] rounded-[8px] hover:opacity-80 transition-opacity" style={{ background: "var(--paper-3)", border: "1px solid var(--line)", color: "var(--ink-2)" }}>
+                    <IconChat size={11} style={{ color: "var(--clay)", flexShrink: 0 }} />
+                    {activeRoomsCount} {activeRoomsCount === 1 ? "room" : "rooms"} active
+                  </Link>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* ── Night Owl 3am Club banner ── */}
@@ -775,216 +818,146 @@ export default function Dashboard({ user }) {
           </Link>
         )}
 
-        {/* ── Mode switcher ── */}
-        <div className="mb-5 flex rounded-full p-1 gap-1" style={{ background: "var(--paper-2)", border: "1px solid var(--line)" }}>
-          {DASH_MODES.map(({ id, icon: Icon, label }) => (
-            <button
-              key={id}
-              onClick={() => switchMode(id)}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-full text-xs font-semibold transition-all focus-visible:outline-none"
-              style={dashMode === id
-                ? { background: "var(--ink)", color: "var(--paper)", boxShadow: "var(--shadow-sm)" }
-                : { color: "var(--ink-3)" }
-              }
-            >
-              <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
-              <span>{label}</span>
-            </button>
-          ))}
-        </div>
+        {/* ══ Unified 2-column layout ══════════════════════════════════
+            Left: all primary content (actions → spaces preview → feed)
+            Right: persistent contextual rail (rooms, events, activity)
+        ══════════════════════════════════════════════════════════════ */}
+        <div className="flex flex-col lg:flex-row gap-5">
 
-        {/* ════════════════════════════════════════════════════════════
-            MODE: I need help
-        ════════════════════════════════════════════════════════════ */}
-        {dashMode === "need-help" && (
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground text-center leading-relaxed">
-              We're here — choose how you'd like to connect 💙
-            </p>
+          {/* ─── LEFT COLUMN ───────────────────────────────────────────── */}
+          <div className="flex-1 min-w-0 space-y-4">
 
-            {/* 3 big action cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <Link
-                to="/chat"
-                className="village-card p-5 hover:border-border hover:bg-muted/30 transition-colors text-center group"
-              >
-                <div className="flex justify-center mb-2.5">
-                  <span className="w-10 h-10 rounded-full bg-sage-wash flex items-center justify-center text-sage-deep" style={{ background: "var(--sage-wash)", color: "var(--sage-deep)" }}>
-                    <Users className="h-5 w-5" />
-                  </span>
-                </div>
-                <p className="font-heading font-semibold text-sm text-foreground group-hover:text-foreground transition-colors">
-                  Talk in a Group Chat
-                </p>
-                <p className="text-xs text-muted-foreground mt-1.5 leading-snug">
-                  Join a live conversation with other parents right now
-                </p>
+            {/* Quick Actions */}
+            <div className="grid grid-cols-3 gap-3">
+              <Link to="/create-post" className="village-card village-card-hover p-4 flex flex-col items-center gap-2 text-center">
+                <span className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: "var(--clay-wash)", color: "var(--clay)" }}>
+                  <Plus className="h-4 w-4" />
+                </span>
+                <p className="text-xs font-semibold" style={{ color: "var(--ink)" }}>New Post</p>
               </Link>
-
-              <Link
-                to="/create-post"
-                className="village-card p-5 hover:border-border hover:bg-muted/30 transition-colors text-center group"
-              >
-                <div className="flex justify-center mb-2.5">
-                  <span className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "var(--dusk-wash)", color: "var(--dusk)" }}>
-                    <EyeOff className="h-5 w-5" />
-                  </span>
-                </div>
-                <p className="font-heading font-semibold text-sm text-foreground group-hover:text-foreground transition-colors">
-                  Post anonymously
-                </p>
-                <p className="text-xs text-muted-foreground mt-1.5 leading-snug">
-                  Share what's on your mind — no name attached
-                </p>
+              <Link to="/chat" className="village-card village-card-hover p-4 flex flex-col items-center gap-2 text-center">
+                <span className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: "var(--sage-wash)", color: "var(--sage-deep)" }}>
+                  <IconChat size={18} />
+                </span>
+                <p className="text-xs font-semibold" style={{ color: "var(--ink)" }}>Join a Chat</p>
               </Link>
-
-              <Link
-                to="/create-post"
-                className="village-card p-5 hover:border-border hover:bg-muted/30 transition-colors text-center group"
-              >
-                <div className="flex justify-center mb-2.5">
-                  <span className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "var(--clay-wash)", color: "var(--clay-deep)" }}>
-                    <HelpCircle className="h-5 w-5" />
+              {isFree ? (
+                <Link to="/plus" className="village-card village-card-hover p-4 flex flex-col items-center gap-2 text-center relative">
+                  <span className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: "var(--honey-wash)", color: "var(--clay)" }}>
+                    <StallIcon size={18} strokeWidth={1.5} />
                   </span>
-                </div>
-                <p className="font-heading font-semibold text-sm text-foreground group-hover:text-foreground transition-colors">
-                  Ask a question
-                </p>
-                <p className="text-xs text-muted-foreground mt-1.5 leading-snug">
-                  Get advice from parents who've been there
-                </p>
-              </Link>
+                  <p className="text-xs font-semibold" style={{ color: "var(--ink)" }}>Village Stall</p>
+                  <IconLock size={10} className="absolute top-2.5 right-2.5" style={{ color: "var(--ink-3)" }} />
+                </Link>
+              ) : (
+                <Link to="/stall" className="village-card village-card-hover p-4 flex flex-col items-center gap-2 text-center">
+                  <span className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: "var(--honey-wash)", color: "var(--clay)" }}>
+                    <StallIcon size={18} strokeWidth={1.5} />
+                  </span>
+                  <p className="text-xs font-semibold" style={{ color: "var(--ink)" }}>Browse Stall</p>
+                </Link>
+              )}
             </div>
 
-            {/* Active Group Chats */}
-            {namedRooms.length > 0 && (
-              <div className="village-card p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-heading font-semibold text-sm text-foreground flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full animate-pulse inline-block shrink-0" style={{ background: "var(--status-online)" }} />
-                    Active right now
-                  </h3>
-                  <Link to="/chat" className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">See all</Link>
+            {/* Recent in Spaces — compact preview above the feed */}
+            <div className="village-card p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-heading font-semibold text-sm" style={{ color: "var(--ink)" }}>Recent in Spaces</h3>
+                <Link to="/forums" className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">See all →</Link>
+              </div>
+              {posts.length === 0 ? (
+                <div className="space-y-2">
+                  {[1,2,3].map(i => <div key={i} className="h-13 rounded-xl bg-[var(--paper-3)] animate-pulse" />)}
                 </div>
-                <div className="space-y-1">
-                  {namedRooms.map(r => (
-                    <Link key={r.href} to={r.href} className="flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-secondary/50 transition-colors group">
-                      <span className="text-base w-7 text-center shrink-0">{r.icon}</span>
-                      <p className="text-sm font-medium text-foreground group-hover:text-foreground transition-colors flex-1 truncate">{r.name}</p>
-                      {r.count > 0 ? (
-                        <span className="text-xs text-muted-foreground shrink-0">{r.count} online</span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-xs shrink-0" style={{ color: "var(--status-online)" }}>
-                          <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--status-online)" }} />
-                          Active
+              ) : (
+                <div className="divide-y" style={{ borderColor: "var(--line)" }}>
+                  {posts.slice(0, 3).map((post) => (
+                    <Link
+                      key={post.post_id}
+                      to={`/forums/post/${post.post_id}`}
+                      className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0 hover:opacity-75 transition-opacity group"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <span className="text-[11px] truncate" style={{ color: "var(--ink-3)" }}>
+                            {post.category_icon} {post.category_name}
+                          </span>
+                          <span className="text-[10px] ml-auto shrink-0" style={{ color: "var(--ink-3)" }}>{fmtRelative(post.created_at)}</span>
+                        </div>
+                        <p className="text-sm font-medium line-clamp-1 leading-snug" style={{ color: "var(--ink)" }}>{post.title}</p>
+                      </div>
+                      <div className="flex items-center gap-2.5 shrink-0 pt-0.5">
+                        <span className="flex items-center gap-1 text-[11px]" style={{ color: "var(--ink-3)" }}>
+                          <MessageCircle className="h-3 w-3" />{post.reply_count || 0}
                         </span>
-                      )}
+                        <span className="flex items-center gap-1 text-[11px]" style={{ color: "var(--ink-3)" }}>
+                          <Heart className="h-3 w-3" />{post.like_count || 0}
+                        </span>
+                      </div>
                     </Link>
                   ))}
                 </div>
-              </div>
-            )}
-
-            {/* Support spaces */}
-            <div className="village-card p-4">
-              <h3 className="font-heading font-semibold text-sm text-foreground mb-3">Support spaces</h3>
-              <RecommendedSpaces user={user} />
-              <Link to="/forums" className="block text-center text-xs text-primary font-medium mt-3 hover:underline">
-                Browse all spaces →
-              </Link>
+              )}
             </div>
-          </div>
-        )}
 
-        {/* ════════════════════════════════════════════════════════════
-            MODE: Browse community
-        ════════════════════════════════════════════════════════════ */}
-        {dashMode === "browse" && (
-          <>
-            {/* Search + action bar */}
-            <div className="mb-6 space-y-3">
-              <div className="flex gap-2.5">
-                <form onSubmit={handleSearch} className="flex-1 relative">
+            {/* Search + filter pills */}
+            <div className="space-y-3">
+              <div className="flex gap-2.5 overflow-visible">
+                <form onSubmit={handleSearch} className="flex-1 relative overflow-visible">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
                     placeholder="Search posts and spaces..."
-                    className="pl-11 h-11 rounded-xl bg-card border-border/50 focus:border-[var(--line-2)]"
+                    className="pl-11 h-11 rounded-xl bg-card border-border/50"
                     data-testid="search-input"
                   />
                 </form>
                 <Link to="/create-post">
-                  <Button
-                    className="h-11 px-5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 whitespace-nowrap"
-                    data-testid="create-post-btn"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    New Post
+                  <Button className="h-11 px-5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 whitespace-nowrap" data-testid="create-post-btn">
+                    <Plus className="h-4 w-4 mr-2" />New Post
                   </Button>
                 </Link>
               </div>
-
-              {/* Feed filter pills */}
-              <div className="flex gap-1 overflow-x-auto pb-0.5 scrollbar-none p-1 rounded-full" style={{ background: "var(--paper-2)", border: "1px solid var(--line)" }}>
-                {FEED_FILTERS.map(f => (
-                  <button
-                    key={f.id}
-                    onClick={() => { setFeedFilter(f.id); setVisibleCount(8); }}
-                    className="rounded-full px-3.5 py-1.5 text-xs font-medium whitespace-nowrap transition-all shrink-0 focus-visible:outline-none"
-                    style={feedFilter === f.id
-                      ? { background: "var(--ink)", color: "var(--paper)", boxShadow: "var(--shadow-sm)" }
-                      : { color: "var(--ink-3)" }
-                    }
-                  >
-                    {f.label}
-                  </button>
-                ))}
-                {/* Online count — real platform presence via heartbeat */}
-                {onlineCount !== null && onlineCount > 0 && (
-                  <span className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap shrink-0" style={{ background: "var(--sage-wash)", color: "var(--sage-deep)", border: "1px solid rgba(74,113,85,0.3)" }}>
-                    <span className="w-1.5 h-1.5 rounded-full animate-pulse inline-block" style={{ background: "var(--status-online)" }} />
-                    {onlineCount} online
-                  </span>
-                )}
+              <div className="overflow-x-auto scrollbar-none py-2">
+                <div className="flex gap-1 min-w-max pl-0.5">
+                  {FEED_FILTERS.map(f => (
+                    <button
+                      key={f.id}
+                      onClick={() => { setFeedFilter(f.id); setVisibleCount(8); }}
+                      className={`px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors shrink-0 focus-visible:outline-none border ${
+                        feedFilter === f.id
+                          ? "border-[var(--sage)]/30 sage-pill-active"
+                          : "border-transparent text-[var(--ink-3)] hover:text-[var(--ink)]"
+                      }`}
+                      style={feedFilter === f.id ? { background: "var(--sage-wash)", color: "var(--sage-deep)" } : {}}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
-            {/* Quick-access highlights strip — unread catch-up + spaces shortcut */}
-            {(unreadActivity.length > 0) && (
-              <div className="flex gap-2 mb-4 flex-wrap">
-                <button
-                  onClick={() => switchMode("catch-up")}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--paper-3)] border border-[var(--line)] text-primary text-xs font-medium hover:bg-muted/50 transition-colors"
-                >
-                  <span>🔔</span>
-                  {unreadActivity.length} unread
-                </button>
+
+            {/* Feed */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-heading font-semibold text-foreground text-base">
+                  {feedFilter === "latest"   && "Latest conversations"}
+                  {feedFilter === "trending" && "Trending discussions"}
+                  {feedFilter === "nearby"   && "Near you"}
+                  {feedFilter === "support"  && "Support needed"}
+                  {feedFilter === "unread"   && "Unread"}
+                </h2>
+                {feedFilter !== "latest" ? (
+                  <button onClick={() => { setFeedFilter("latest"); setVisibleCount(8); }} className="text-xs text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:underline">
+                    Clear filter
+                  </button>
+                ) : (
+                  <Link to="/forums" className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">Browse all →</Link>
+                )}
               </div>
-            )}
-
-            {/* Two-column layout */}
-            <div className="flex flex-col lg:flex-row gap-5">
-
-              {/* CENTER: feed */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="font-heading font-semibold text-foreground text-base">
-                    {feedFilter === "latest"&& "Latest conversations"}
-                    {feedFilter === "trending" && "Trending discussions"}
-                    {feedFilter === "nearby"&& "Near you"}
-                    {feedFilter === "support"&& "Support needed"}
-                    {feedFilter === "unread"&& "Unread"}
-                  </h2>
-                  {feedFilter !== "latest" && (
-                    <button
-                      onClick={() => { setFeedFilter("latest"); setVisibleCount(8); }}
-                      className="text-xs text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:underline"
-                    >
-                      Clear filter
-                    </button>
-                  )}
-                </div>
 
                 {loading ? (
                   <div className="space-y-3">
@@ -1036,8 +1009,7 @@ export default function Dashboard({ user }) {
                           tabIndex={0}
                           onKeyDown={e => e.key === "Enter" && navigate(`/forums/post/${post.post_id}`)}
                           aria-label={`Open post: ${post.title}`}
-                          className="rounded-2xl px-4 py-3.5 cursor-pointer hover:shadow-md hover:-translate-y-px transition-all duration-200 card-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-                          style={{ background: "var(--paper-2)", border: "1px solid var(--line)" }}
+                          className="village-card village-card-hover !rounded-2xl px-4 py-3.5 cursor-pointer focus-visible:outline-none"
                           data-testid={`post-card-${idx}`}
                         >
                           {/* Row 1: Author + meta */}
@@ -1096,7 +1068,7 @@ export default function Dashboard({ user }) {
 
                           {/* Row 2: Title + optional badge */}
                           <div className="mb-2">
-                            <h3 className="font-heading font-bold text-base text-foreground leading-snug line-clamp-2">
+                            <h3 className="font-heading font-medium text-base text-foreground leading-snug line-clamp-2">
                               {post.title}
                             </h3>
                             {badge && (
@@ -1153,254 +1125,253 @@ export default function Dashboard({ user }) {
                     )}
                   </div>
                 )}
+            </div>
+            {/* end feed */}
+
+          </div>
+          {/* end left column */}
+
+          {/* ─── RIGHT RAIL — desktop only ─────────────────────────────── */}
+          <div className="hidden lg:flex lg:flex-col lg:w-72 shrink-0 gap-4">
+
+            {/* 1. Activity — top priority */}
+            <div className="village-card p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-heading font-semibold text-sm text-foreground">Activity</h3>
+                {unreadActivity.length > 0 && (
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "var(--honey-wash)", color: "var(--honey)" }}>
+                    {unreadActivity.length} new
+                  </span>
+                )}
               </div>
-
-              {/* RIGHT RAIL — desktop only, 3 focused widgets */}
-              <div className="hidden lg:block lg:w-64 shrink-0 space-y-4">
-
-                {/* 1. Notifications */}
-                <div className="village-card p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-heading font-semibold text-sm text-foreground">Activity</h3>
-                    {unreadActivity.length > 0 && (
-                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[var(--honey-wash)] text-[var(--honey)]">
-                        {unreadActivity.length} new
-                      </span>
-                    )}
-                  </div>
-                  {unreadActivity.length > 0 ? (
-                    <div className="space-y-1.5">
-                      {unreadActivity.slice(0, 3).map((n, i) => (
-                        <Link
-                          key={n.notification_id || i}
-                          to={n.link || "#"}
-                          onClick={() => n.notification_id && markNotificationRead(n.notification_id)}
-                          className="flex items-start gap-2.5 p-2.5 rounded-xl bg-[var(--paper-3)] border border-[var(--sage)]/10 hover:bg-muted/50 transition-colors group"
-                        >
-                          <span className="text-sm shrink-0 mt-0.5">{typeEmoji(n.type)}</span>
-                          <p className="text-xs text-foreground line-clamp-2 flex-1 leading-relaxed group-hover:text-foreground transition-colors">{n.message}</p>
-                        </Link>
-                      ))}
-                      {unreadActivity.length > 3 && (
-                        <button onClick={() => switchMode("catch-up")} className="text-xs text-primary font-medium hover:underline block px-2 pt-1">
-                          See all {unreadActivity.length} →
-                        </button>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground px-1 py-2">
-                      <span style={{ color: "var(--status-online)" }}>✓</span>
-                      <span>You're all caught up</span>
-                    </div>
+              {unreadActivity.length > 0 ? (
+                <div className="space-y-1.5">
+                  {unreadActivity.slice(0, 3).map((n, i) => {
+                    // Resolve the best destination for each notification type
+                    const dest = n.link || (
+                      n.type === "friend_request" || n.type === "friend_accept" ? "/friends" :
+                      n.type === "dm" || n.type === "message_request" ? "/messages" : null
+                    );
+                    const inner = (
+                      <>
+                        <span className="shrink-0 mt-0.5 flex items-center">{typeIcon(n.type)}</span>
+                        <p className="text-xs text-foreground line-clamp-2 flex-1 leading-relaxed">{n.message}</p>
+                      </>
+                    );
+                    const cls = "flex items-start gap-2.5 p-2.5 rounded-xl hover:bg-muted/50 transition-colors cursor-pointer";
+                    const style = { background: "var(--paper-3)", border: "1px solid rgba(74,113,85,0.08)" };
+                    return dest ? (
+                      <Link
+                        key={n.notification_id || i}
+                        to={dest}
+                        onClick={() => n.notification_id && markNotificationRead(n.notification_id)}
+                        className={cls}
+                        style={style}
+                      >
+                        {inner}
+                      </Link>
+                    ) : (
+                      <button
+                        key={n.notification_id || i}
+                        onClick={() => n.notification_id && markNotificationRead(n.notification_id)}
+                        className={`${cls} w-full text-left`}
+                        style={style}
+                      >
+                        {inner}
+                      </button>
+                    );
+                  })}
+                  {unreadActivity.length > 3 && (
+                    <button
+                      onClick={() => window.dispatchEvent(new CustomEvent("village:open-notifications"))}
+                      className="text-xs text-primary font-medium hover:underline block px-2 pt-1"
+                    >
+                      See all {unreadActivity.length} →
+                    </button>
                   )}
                 </div>
-
-                {/* 2. Live now */}
-                <div className="village-card p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-heading font-semibold text-sm text-foreground flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full animate-pulse inline-block shrink-0" style={{ background: "var(--status-online)" }} />
-                      Live now
-                    </h3>
-                    <Link to="/chat" className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">See all</Link>
-                  </div>
-                  <div className="space-y-1">
-                    {namedRooms.length === 0 ? (
-                      <p className="text-xs text-muted-foreground px-1 py-2">Quiet right now — check back soon 🌿</p>
-                    ) : namedRooms.slice(0, 3).map(r => (
-                      <Link key={r.href} to={r.href} className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-secondary/50 transition-colors group">
-                        <span className="text-base w-7 text-center shrink-0">{r.icon}</span>
-                        <p className="text-sm font-medium text-foreground group-hover:text-foreground transition-colors flex-1 truncate">{r.name}</p>
-                        {r.count > 0 ? (
-                          <span className="text-xs text-muted-foreground shrink-0">{r.count}</span>
-                        ) : (
-                          <span className="w-1.5 h-1.5 rounded-full animate-pulse shrink-0" style={{ background: "var(--status-online)" }} />
-                        )}
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 3. Suggested spaces */}
-                <div className="village-card p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-heading font-semibold text-sm text-foreground">Spaces for you</h3>
-                    <Link to="/forums" className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">Browse</Link>
-                  </div>
-                  <RecommendedSpaces user={user} />
-                </div>
-
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* ════════════════════════════════════════════════════════════
-            MODE: Catch up
-        ════════════════════════════════════════════════════════════ */}
-        {dashMode === "catch-up" && (
-          <div className="space-y-4">
-
-            {/* Notifications */}
-            <div className="village-card p-4">
-              <h3 className="font-heading font-semibold text-sm text-foreground mb-3">
-                {unreadActivity.length > 0
-                  ? `${unreadActivity.length} thing${unreadActivity.length === 1 ? "" : "s"} to check`
-                  : "You're all caught up ✓"}
-              </h3>
-
-              {unreadActivity.length === 0 ? (
-                <div className="py-4 space-y-2">
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    Replies, likes, and friend requests will show up here as you get involved.
-                  </p>
-                  <Link to="/create-post" className="text-xs text-primary font-medium hover:underline block">
-                    Post something to get the ball rolling →
-                  </Link>
-                </div>
               ) : (
-                <div className="space-y-1.5">
-                  {unreadActivity.map((n, i) => (
-                    <Link
-                      key={n.notification_id || i}
-                      to={n.link || "#"}
-                      onClick={() => n.notification_id && markNotificationRead(n.notification_id)}
-                      className="flex items-start gap-2.5 p-2.5 rounded-xl bg-[var(--paper-3)] border border-[var(--sage)]/10 hover:bg-muted/50 transition-colors group"
-                    >
-                      <span className="text-sm shrink-0 mt-0.5">{typeEmoji(n.type)}</span>
-                      <p className="text-xs line-clamp-2 flex-1 leading-relaxed text-foreground group-hover:text-foreground transition-colors">
-                        {n.message}
-                      </p>
-                      <span className="text-[10px] text-muted-foreground/60 shrink-0 whitespace-nowrap mt-0.5">{fmtRelative(n.created_at)}</span>
-                    </Link>
-                  ))}
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground px-1 py-2">
+                  <IconCheck size={14} style={{ color: "var(--status-online)" }} />
+                  <span>You're all caught up</span>
                 </div>
               )}
             </div>
 
-            {/* What parents are talking about */}
-            {todaysPosts.length > 0 && (
-              <div className="village-card p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-heading font-semibold text-sm text-foreground">What parents are talking about</h3>
-                  <Link to="/forums" className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">Browse spaces</Link>
-                </div>
-                <div className="space-y-1">
-                  {todaysPosts.map((post, i) => (
-                    <Link key={post.post_id} to={`/forums/post/${post.post_id}`} className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-secondary/50 transition-colors group">
-                      <span className="text-sm font-bold text-muted-foreground/30 shrink-0 mt-0.5 w-4 text-right">{i + 1}</span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-foreground group-hover:text-foreground transition-colors line-clamp-2 leading-snug">
-                          {post.title}
-                        </p>
-                        <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground">
-                          <span>{post.category_icon} {post.category_name}</span>
-                          <span>·</span>
-                          <span>{post.reply_count || 0} replies</span>
+            {/* 2. Events near you */}
+            <div className="village-card p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-heading font-semibold text-sm text-foreground">Events near you</h3>
+                <Link to="/events" className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">See all</Link>
+              </div>
+              {!user?.suburb && !user?.state ? (
+                <Link to="/profile" className="flex items-start gap-2 p-2 rounded-xl hover:bg-secondary/50 transition-colors group">
+                  <IconCal size={15} className="shrink-0 mt-0.5" style={{ color: "var(--ink-3)" }} />
+                  <p className="text-xs leading-relaxed text-muted-foreground group-hover:text-foreground transition-colors">Add your location to see local events</p>
+                </Link>
+              ) : nearbyEvents.length === 0 ? (
+                <Link to="/events" className="flex items-center gap-2 p-2 rounded-xl hover:bg-secondary/50 transition-colors group">
+                  <IconCal size={15} className="shrink-0" style={{ color: "var(--ink-3)" }} />
+                  <p className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">Browse events near you</p>
+                </Link>
+              ) : (
+                <div className="space-y-0.5">
+                  {nearbyEvents.slice(0, 3).map((ev, i) => {
+                    const dateObj = ev.date ? new Date(...ev.date.split("-").map((v, j) => j === 1 ? +v - 1 : +v)) : null;
+                    const day = dateObj ? dateObj.getDate() : "?";
+                    const mon = dateObj ? dateObj.toLocaleString("en-AU", { month: "short" }) : "";
+                    return (
+                      <Link key={ev.event_id || i} to="/events" className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-secondary/50 transition-colors group">
+                        <div className="w-9 h-9 rounded-lg flex flex-col items-center justify-center shrink-0" style={{ background: "var(--honey-wash)", color: "var(--honey)" }}>
+                          <span className="text-xs font-bold leading-none">{day}</span>
+                          <span className="text-[9px] uppercase">{mon}</span>
                         </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Events */}
-            {!isFree && (
-              <div className="village-card p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-heading font-semibold text-sm text-foreground">Coming up near you</h3>
-                  <Link to="/events" className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">See all</Link>
-                </div>
-                {nearbyEvents.length === 0 ? (
-                  <Link to="/events" className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-secondary/50 transition-colors group">
-                    <span className="text-xl shrink-0">📅</span>
-                    <p className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">Browse events near you</p>
-                  </Link>
-                ) : (
-                  <div className="space-y-1">
-                    {nearbyEvents.slice(0, 3).map((ev, i) => {
-                      const dateObj = ev.date ? new Date(...ev.date.split("-").map((v, j) => j === 1 ? +v - 1 : +v)) : null;
-                      const day = dateObj ? dateObj.getDate() : "?";
-                      const mon = dateObj ? dateObj.toLocaleString("en-AU", { month: "short" }) : "";
-                      return (
-                        <Link key={ev.event_id || i} to="/events" className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-secondary/50 transition-colors group">
-                          <div className="w-9 h-9 rounded-lg bg-[var(--honey-wash)] text-[var(--honey)] flex flex-col items-center justify-center shrink-0">
-                            <span className="text-xs font-bold leading-none">{day}</span>
-                            <span className="text-[9px] uppercase">{mon}</span>
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-foreground truncate group-hover:text-foreground transition-colors">{ev.title}</p>
-                            <p className="text-xs text-muted-foreground truncate">
-                              {ev.suburb || ev.venue_name || ""}{ev.distance_km ? ` · ${Math.round(ev.distance_km)} km away` : ""}
-                            </p>
-                          </div>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Communities quick jump — Village+ only */}
-            {user?.subscription_tier === "premium" && (
-              <div className="village-card p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-heading font-semibold text-sm text-foreground">Your communities</h3>
-                  <Link to="/forums?tab=communities" className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">See all</Link>
-                </div>
-                {userCommunities.length > 0 ? (
-                  <div className="space-y-1">
-                    {userCommunities.slice(0, 4).map(c => (
-                      <Link key={c.category_id} to={`/community/${c.category_id}`} className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-secondary/50 transition-colors group">
-                        <span className="text-base w-7 text-center shrink-0">{c.icon || "💬"}</span>
-                        <p className="text-sm font-medium text-foreground group-hover:text-foreground transition-colors flex-1 truncate">{c.name}</p>
-                        {c.member_count > 0 && (
-                          <span className="text-xs text-muted-foreground shrink-0">{c.member_count}</span>
-                        )}
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate group-hover:text-foreground transition-colors" style={{ color: "var(--ink)" }}>{ev.title}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {ev.suburb || ev.venue_name || ""}{ev.distance_km ? ` · ${Math.round(ev.distance_km)} km away` : ""}
+                          </p>
+                        </div>
                       </Link>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="py-2 text-center">
-                    <p className="text-xs text-muted-foreground mb-2">You haven't joined any communities yet.</p>
-                    <Link to="/forums?tab=communities" className="text-xs text-primary hover:underline font-medium">Explore communities →</Link>
-                  </div>
-                )}
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
-            {/* Active chats */}
-            {namedRooms.length > 0 && (
-              <div className="village-card p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-heading font-semibold text-sm text-foreground flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full animate-pulse inline-block shrink-0" style={{ background: "var(--status-online)" }} />
-                    Group Chats — live now
-                  </h3>
-                  <Link to="/chat" className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">See all</Link>
-                </div>
-                <div className="space-y-1">
-                  {namedRooms.slice(0, 3).map(r => (
-                    <Link key={r.href} to={r.href} className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-secondary/50 transition-colors group">
-                      <span className="text-base w-7 text-center shrink-0">{r.icon}</span>
-                      <p className="text-sm font-medium text-foreground group-hover:text-foreground transition-colors flex-1 truncate">{r.name}</p>
-                      {r.count > 0 ? (
-                        <span className="text-xs text-muted-foreground shrink-0">{r.count} online</span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-xs shrink-0" style={{ color: "var(--status-online)" }}>
-                          <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--status-online)" }} />
-                          Active
-                        </span>
-                      )}
-                    </Link>
-                  ))}
-                </div>
+            {/* 3. Live chat rooms */}
+            <div className="village-card p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-heading font-semibold text-sm text-foreground flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full animate-pulse inline-block shrink-0" style={{ background: "var(--status-online)" }} />
+                  Live chat rooms
+                </h3>
+                <Link to="/chat" className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">All rooms</Link>
               </div>
-            )}
+              <div className="space-y-0.5">
+                {namedRooms.length === 0 ? (
+                  <p className="text-xs text-muted-foreground px-1 py-2">Quiet right now — check back soon 🌿</p>
+                ) : namedRooms.slice(0, 4).map(r => (
+                  <Link key={r.href} to={r.href} className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-secondary/50 transition-colors group">
+                    <span className="text-base w-7 text-center shrink-0">{r.icon}</span>
+                    <p className="text-sm font-medium text-foreground group-hover:text-foreground transition-colors flex-1 truncate">{r.name}</p>
+                    {r.count > 0 ? (
+                      <span className="text-xs text-muted-foreground shrink-0">{r.count}</span>
+                    ) : (
+                      <span className="w-1.5 h-1.5 rounded-full animate-pulse shrink-0" style={{ background: "var(--status-online)" }} />
+                    )}
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            {/* 4. My shortcuts */}
+            {/* ── My shortcuts — pinnable by every user ── */}
+            {(() => {
+              // Build the pool of things they can pin — drawn from data already fetched
+              const STATIC = [
+                { label: "Browse Spaces",  href: "/forums",                     icon: "🌿" },
+                { label: "Events",         href: "/events",                      icon: "📅" },
+                { label: "Friends",        href: "/friends",                     icon: "👋" },
+                { label: "Messages",       href: "/messages",                    icon: "💬" },
+                { label: "Village Stall",  href: isFree ? "/plus" : "/stall",   icon: "🛍️" },
+                { label: "Saved posts",    href: "/saved",                       icon: "🔖" },
+                { label: "My profile",     href: "/profile",                     icon: "👤" },
+              ];
+              const fromRooms = namedRooms.slice(0, 3).map(r => ({
+                label: r.name, href: r.href, icon: r.icon,
+              }));
+              const fromCommunities = userCommunities.slice(0, 4).map(c => ({
+                label: c.name, href: `/community/${c.category_id}`, icon: c.icon || "💬",
+              }));
+              const pool = [
+                ...STATIC,
+                ...fromRooms.map(r => ({ ...r, _group: "Chat rooms" })),
+                ...fromCommunities.map(c => ({ ...c, _group: "Your communities" })),
+              ].filter(s => !shortcuts.some(x => x.href === s.href));
+
+              return (
+                <div className="village-card p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-heading font-semibold text-sm text-foreground">My shortcuts</h3>
+                    <button
+                      onClick={() => setEditingShortcuts(e => !e)}
+                      className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none"
+                    >
+                      {editingShortcuts
+                        ? <><Check className="h-3 w-3" /> Done</>
+                        : <><Pencil className="h-3 w-3" /> Edit</>
+                      }
+                    </button>
+                  </div>
+
+                  {/* Pinned shortcuts */}
+                  {shortcuts.length > 0 && (
+                    <div className="space-y-0.5 mb-3">
+                      {shortcuts.map((s) => (
+                        <div key={s.href} className="flex items-center gap-1">
+                          {editingShortcuts && (
+                            <button
+                              onClick={() => removeShortcut(s.href)}
+                              className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-500 transition-colors focus-visible:outline-none"
+                              aria-label={`Remove ${s.label}`}
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          )}
+                          <Link to={s.href} className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-secondary/50 transition-colors group flex-1 min-w-0">
+                            <span className="text-base w-6 text-center shrink-0">{s.icon}</span>
+                            <p className="text-sm font-medium text-foreground group-hover:text-foreground transition-colors truncate">{s.label}</p>
+                          </Link>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Empty state */}
+                  {shortcuts.length === 0 && !editingShortcuts && (
+                    <button
+                      onClick={() => setEditingShortcuts(true)}
+                      className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors py-3 border border-dashed rounded-xl hover:border-foreground/30 focus-visible:outline-none"
+                      style={{ borderColor: "var(--line)" }}
+                    >
+                      + Add your first shortcut
+                    </button>
+                  )}
+
+                  {/* Add suggestions (edit mode) */}
+                  {editingShortcuts && shortcuts.length < 8 && pool.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-widest mb-2 px-1" style={{ color: "var(--ink-3)" }}>
+                        Add a shortcut
+                      </p>
+                      <div className="space-y-0.5 max-h-52 overflow-y-auto">
+                        {pool.map((s) => (
+                          <button
+                            key={s.href}
+                            onClick={() => addShortcut({ label: s.label, href: s.href, icon: s.icon })}
+                            className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-secondary/50 transition-colors group w-full text-left focus-visible:outline-none"
+                          >
+                            <span className="text-base w-6 text-center shrink-0">{s.icon}</span>
+                            <p className="text-sm text-foreground group-hover:text-foreground transition-colors flex-1 truncate">{s.label}</p>
+                            <Plus className="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-foreground transition-colors" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {editingShortcuts && shortcuts.length >= 8 && (
+                    <p className="text-[11px] text-muted-foreground text-center py-1">Max 8 shortcuts reached</p>
+                  )}
+                </div>
+              );
+            })()}
+
           </div>
-        )}
+          {/* end right rail */}
+
+        </div>
+        {/* end unified layout */}
 
         <AppFooter />
       </main>

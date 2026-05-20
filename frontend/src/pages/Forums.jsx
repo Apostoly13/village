@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { Button } from "../components/ui/button";
 import Navigation from "../components/Navigation";
 import { MessageCircle, Users, BookOpen, Sparkles, Plus, Clock, Lock, MapPin, UserCheck, UserPlus, Search, X } from "lucide-react";
+import { IconPin, IconCheck, IconLock } from "../icons";
 import { Village, Pram } from "../components/village/icons";
 import { toast } from "sonner";
 import { parseApiError } from "../utils/apiError";
@@ -131,7 +132,7 @@ export default function Forums({ user }) {
             {category.icon}
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-heading font-bold text-base text-foreground mb-1">{getSpaceName(category.name)}</h3>
+            <h3 className="font-heading font-medium text-base text-foreground mb-1">{getSpaceName(category.name)}</h3>
             <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{category.description}</p>
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
               <span className="flex items-center gap-1">
@@ -151,14 +152,14 @@ export default function Forums({ user }) {
 
   const FeaturedCard = ({ category, colorClass, borderClass, iconBg, label, labelColor, icon }) => (
     <Link to={`/forums/${category.category_id}`} className="block">
-      <div className={`${colorClass} rounded-[18px] p-5 border ${borderClass} border-l-4 hover:opacity-90 village-card-hover h-full`}>
+      <div className={`${colorClass} rounded-xl p-5 border ${borderClass} border-l-4 hover:opacity-90 village-card-hover h-full`}>
         <div className="flex items-start gap-4">
           <div className={`w-12 h-12 rounded-full ${iconBg} flex items-center justify-center text-2xl flex-shrink-0`}>
             {icon}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <h3 className="font-heading font-bold text-base text-foreground">{getSpaceName(category.name)}</h3>
+              <h3 className="font-heading font-medium text-base text-foreground">{getSpaceName(category.name)}</h3>
               <span className={`text-xs font-semibold ${labelColor}`}>{label}</span>
             </div>
             <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{category.description}</p>
@@ -194,7 +195,7 @@ export default function Forums({ user }) {
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <h3 className="font-heading font-bold text-base text-foreground">{community.name}</h3>
+              <h3 className="font-heading font-medium text-base text-foreground">{community.name}</h3>
               {community.is_private && <Lock className="h-3.5 w-3.5 text-muted-foreground" />}
               {community.community_subtype === "local" && (
                 <span className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: "var(--clay-wash)", color: "var(--clay-deep)" }}>Local</span>
@@ -406,21 +407,6 @@ export default function Forums({ user }) {
           </Button>
         </div>
 
-        {/* Group Chats shortcut — visible on mobile only (desktop has nav link) */}
-        <Link
-          to="/chat"
-          className="flex lg:hidden items-center gap-3 village-card village-card-hover px-4 py-3 mb-4 group"
-        >
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors" style={{ background: "var(--paper-3)" }}>
-            <MessageCircle className="h-4.5 w-4.5" style={{ color: "var(--ink-2)" }} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-foreground leading-tight">Chat Rooms</p>
-            <p className="text-xs text-muted-foreground">Drop in. Chat live with other parents.</p>
-          </div>
-          <span className="text-xs text-primary font-medium shrink-0">Join →</span>
-        </Link>
-
         {showCommunities ? (
           /* ── Communities standalone section ───────────────────────────── */
           <div className="w-full">
@@ -438,7 +424,7 @@ export default function Forums({ user }) {
                       value={communitySearch}
                       onChange={e => setCommunitySearch(e.target.value)}
                       placeholder="Search communities…"
-                      className="w-full pl-9 pr-3 py-2 text-sm rounded-xl bg-card border border-border/50 text-foreground placeholder:text-muted-foreground outline-none focus:border-border"
+                      className="w-full pl-9 pr-3 py-2 text-sm rounded-xl bg-card border border-border/50 text-foreground placeholder:text-muted-foreground outline-none"
                       style={{ height: 38 }}
                     />
                     {communitySearch && (
@@ -460,8 +446,8 @@ export default function Forums({ user }) {
                   <div className="flex gap-1.5 flex-wrap flex-1">
                     {[
                       { id: "all",    label: "All" },
-                      { id: "local",  label: "📍 Local" },
-                      { id: "joined", label: "✓ Joined" },
+                      { id: "local",  label: <><IconPin size={12} className="inline mr-0.5" />Local</> },
+                      { id: "joined", label: <><IconCheck size={12} className="inline mr-0.5" />Joined</> },
                       { id: "open",   label: "Open" },
                     ].map(f => (
                       <button key={f.id} onClick={() => setCommunityFilter(f.id)}
@@ -505,7 +491,7 @@ export default function Forums({ user }) {
                     <div className="w-14 h-14 rounded-full bg-[var(--paper-3)] flex items-center justify-center mb-4">
                       <Sparkles className="h-7 w-7" style={{ color: "hsl(var(--accent))" }} />
                     </div>
-                    <h3 className="font-heading font-bold text-xl text-foreground mb-2">Communities are a Village+ feature</h3>
+                    <h3 className="font-heading font-medium text-xl text-foreground mb-2">Communities are a Village+ feature</h3>
                     <p className="text-sm text-muted-foreground mb-1 max-w-sm">
                       Create and join member communities — local, topic-based, private or open.
                     </p>
@@ -778,7 +764,7 @@ export default function Forums({ user }) {
                 <p className="text-muted-foreground">Remember that everyone's parenting journey is different. Avoid judgment and focus on sharing experiences, not telling others what to do.</p>
               </div>
               <div>
-                <h3 className="font-semibold mb-2">🔒 Protect Privacy</h3>
+                <h3 className="font-semibold mb-2 flex items-center gap-1"><IconLock size={14} /> Protect Privacy</h3>
                 <p className="text-muted-foreground">Don't share personal information about others. Use the anonymous posting feature if you need to discuss sensitive topics.</p>
               </div>
               <div>

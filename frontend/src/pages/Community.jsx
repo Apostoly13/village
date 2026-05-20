@@ -206,7 +206,7 @@ function ReplySection({ postId, replyCount, currentUser }) {
                     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
                   }}
                   placeholder="Write a comment..."
-                  className="flex-1 text-sm bg-muted/40 border border-border/50 rounded-xl px-3 py-2 focus:outline-none focus:ring-1 focus:ring-border/50 min-w-0"
+                  className="flex-1 text-sm bg-muted/40 border border-border/50 rounded-xl px-3 py-2 focus:outline-none min-w-0"
                 />
                 <button
                   onClick={submit}
@@ -411,7 +411,7 @@ function PostCard({ post, currentUser, onReact, onPollVote, communityId }) {
 
   // ---- Standard card (discussion / general / question / poll) ----
   return (
-    <div className="rounded-2xl bg-card border border-border/50 hover:border-border/80 transition-colors p-5">
+    <div className="village-card village-card-hover !rounded-2xl p-5">
       {/* Header */}
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-center gap-3 min-w-0">
@@ -581,12 +581,12 @@ function CreatePostForm({ communityId, onPosted }) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="w-full bg-card border border-border/50 hover:border-border rounded-2xl px-4 py-3.5 flex items-center gap-3 text-left transition-all group"
+        className="w-full village-card village-card-hover px-4 py-3.5 flex items-center gap-3 text-left group"
       >
-        <div className="w-9 h-9 rounded-full bg-[var(--paper-3)] group-hover:bg-muted/50 flex items-center justify-center transition-colors">
-          <Plus className="h-4 w-4 text-primary" />
+        <div className="w-9 h-9 rounded-[8px] flex items-center justify-center transition-colors shrink-0" style={{ background: "var(--clay-wash)" }}>
+          <Plus className="h-4 w-4" style={{ color: "var(--clay)" }} />
         </div>
-        <span className="text-muted-foreground text-sm">Share something with your community...</span>
+        <span className="text-sm" style={{ color: "var(--ink-3)" }}>Share something with your community...</span>
       </button>
     );
   }
@@ -615,7 +615,7 @@ function CreatePostForm({ communityId, onPosted }) {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder={cfg?.titlePlaceholder || "Title (optional)"}
-          className="w-full text-sm bg-muted/30 border border-border/50 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-border/50"
+          className="w-full text-sm bg-muted/30 border border-border/50 rounded-xl px-3 py-2.5 focus:outline-none"
         />
       )}
 
@@ -626,7 +626,7 @@ function CreatePostForm({ communityId, onPosted }) {
           onChange={(e) => setContent(e.target.value)}
           placeholder={cfg?.placeholder}
           rows={type === "milestone" ? 3 : 4}
-          className="w-full text-sm bg-muted/30 border border-border/50 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-border/50 resize-none"
+          className="w-full text-sm bg-muted/30 border border-border/50 rounded-xl px-3 py-2.5 focus:outline-none resize-none"
         />
       )}
 
@@ -641,7 +641,7 @@ function CreatePostForm({ communityId, onPosted }) {
               type="datetime-local"
               value={meetupDate}
               onChange={(e) => setMeetupDate(e.target.value)}
-              className="w-full text-sm bg-muted/30 border border-border/50 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-border/50"
+              className="w-full text-sm bg-muted/30 border border-border/50 rounded-xl px-3 py-2.5 focus:outline-none"
             />
           </div>
           <div>
@@ -653,7 +653,7 @@ function CreatePostForm({ communityId, onPosted }) {
               value={meetupLocation}
               onChange={(e) => setMeetupLocation(e.target.value)}
               placeholder="e.g. Hyde Park, Sydney"
-              className="w-full text-sm bg-muted/30 border border-border/50 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-border/50"
+              className="w-full text-sm bg-muted/30 border border-border/50 rounded-xl px-3 py-2.5 focus:outline-none"
             />
           </div>
         </div>
@@ -675,7 +675,7 @@ function CreatePostForm({ communityId, onPosted }) {
                   })
                 }
                 placeholder={`Option ${i + 1}`}
-                className="flex-1 text-sm bg-muted/30 border border-border/50 rounded-xl px-3 py-2 focus:outline-none focus:ring-1 focus:ring-border/50"
+                className="flex-1 text-sm bg-muted/30 border border-border/50 rounded-xl px-3 py-2 focus:outline-none"
               />
               {pollOptions.length > 2 && (
                 <button
@@ -928,7 +928,7 @@ function ManageCommunityModal({ communityId, community, posts, user, isOpen, onC
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   maxLength={60}
-                  className="w-full text-sm bg-muted/30 border border-border/50 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-border/50"
+                  className="w-full text-sm bg-muted/30 border border-border/50 rounded-xl px-3 py-2.5 focus:outline-none"
                 />
                 <p className="text-xs text-muted-foreground mt-1 text-right">{newName.length}/60</p>
               </div>
@@ -939,7 +939,7 @@ function ManageCommunityModal({ communityId, community, posts, user, isOpen, onC
                   onChange={(e) => setNewDescription(e.target.value)}
                   maxLength={200}
                   rows={3}
-                  className="w-full text-sm bg-muted/30 border border-border/50 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-border/50 resize-none"
+                  className="w-full text-sm bg-muted/30 border border-border/50 rounded-xl px-3 py-2.5 focus:outline-none resize-none"
                 />
                 <p className="text-xs text-muted-foreground mt-1 text-right">{newDescription.length}/200</p>
               </div>

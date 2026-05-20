@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Sparkles } from "lucide-react";
+import { IconLock, IconShield, IconPin } from "../icons";
 import Navigation from "../components/Navigation";
 import LocationButton from "../components/LocationButton";
 import { Calendar, MapPin, Clock, Users, Plus, Download, Check, Pencil, UserPlus, X, MessageCircle, ExternalLink, Image, Upload } from "lucide-react";
@@ -22,7 +23,7 @@ const CATEGORIES = EVENT_CATEGORIES;
 
 const AU_STATES = ["NSW", "VIC", "QLD", "WA", "SA", "TAS", "ACT", "NT"];
 
-const INPUT_CLASS = "w-full rounded-xl border border-border bg-card text-foreground px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-border/50 dark:[color-scheme:dark]";
+const INPUT_CLASS = "w-full rounded-xl border border-border bg-card text-foreground px-3 py-2 text-sm focus:outline-none dark:[color-scheme:dark]";
 
 // formatEventDate imported from utils/dateHelpers
 
@@ -332,12 +333,12 @@ function EventCard({ event, onRsvp, onUpdated, user, onOpenDetail }) {
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={catStyle}>{catLabel}</span>
             {event.is_private && (
-              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600">🔒 Private</span>
+              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 flex items-center gap-1"><IconLock size={11} /> Private</span>
             )}
           </div>
         </div>
 
-        <h3 className="font-heading font-bold text-foreground mb-1 leading-snug">{event.title}</h3>
+        <h3 className="font-heading font-medium text-foreground mb-1 leading-snug">{event.title}</h3>
 
         {(event.venue_name || event.venue_address || event.suburb) && (
           <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
@@ -376,12 +377,22 @@ function EventCard({ event, onRsvp, onUpdated, user, onOpenDetail }) {
             {event.rsvp_limit ? ` / ${event.rsvp_limit}` : ""}
           </span>
 
+          {/* RSVP progress bar */}
+          {event.rsvp_limit > 0 && (
+            <div className="flex-1 min-w-[40px] max-w-[60px] h-[3px] rounded-full overflow-hidden" style={{ background: "var(--line-2, var(--paper-3))" }}>
+              <div
+                className="h-full rounded-full"
+                style={{ width: `${Math.min(100, (event.rsvp_count / event.rsvp_limit) * 100)}%`, background: "var(--clay)" }}
+              />
+            </div>
+          )}
+
           <Button
             variant={event.user_has_rsvp ? "default" : "outline"}
             size="sm"
             onClick={(e) => { e.stopPropagation(); handleRsvp(); }}
             disabled={rsvping}
-            className={`rounded-xl h-7 text-xs ml-auto ${event.user_has_rsvp ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""}`}
+            className={`rounded-[8px] h-7 text-xs ml-auto ${event.user_has_rsvp ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""}`}
           >
             {event.user_has_rsvp ? (
               <><Check className="h-3 w-3 mr-1" /> Going</>
@@ -439,7 +450,7 @@ function EventCard({ event, onRsvp, onUpdated, user, onOpenDetail }) {
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="bg-card border-border/50 max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="font-heading font-bold">Edit Event</DialogTitle>
+            <DialogTitle className="font-heading font-medium">Edit Event</DialogTitle>
           </DialogHeader>
           <EditEventDialog event={event} onUpdated={onUpdated} onClose={() => setEditOpen(false)} />
         </DialogContent>
@@ -449,7 +460,7 @@ function EventCard({ event, onRsvp, onUpdated, user, onOpenDetail }) {
       <Dialog open={modsOpen} onOpenChange={setModsOpen}>
         <DialogContent className="bg-card border-border/50 max-w-sm">
           <DialogHeader>
-            <DialogTitle className="font-heading font-bold">Event Moderators</DialogTitle>
+            <DialogTitle className="font-heading font-medium">Event Moderators</DialogTitle>
           </DialogHeader>
           <ManageModeratorsDialog event={event} onClose={() => setModsOpen(false)} />
         </DialogContent>
@@ -970,7 +981,7 @@ function EventDetailModal({ event, user, onClose, onRsvp, onUpdated }) {
           <div className="flex items-center gap-3">
             <span className="text-xs font-medium px-2.5 py-1 rounded-full" style={catStyle}>{catLabel}</span>
             {localEvent.is_private && (
-              <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-600">🔒 Private</span>
+              <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-600 flex items-center gap-1"><IconLock size={11} /> Private</span>
             )}
           </div>
           <div className="flex items-center gap-2">
@@ -995,7 +1006,7 @@ function EventDetailModal({ event, user, onClose, onRsvp, onUpdated }) {
                 <span className="text-xs font-semibold uppercase tracking-wide">{dateInfo.month}</span>
               </div>
               <div className="flex-1 min-w-0">
-                <h2 className="font-heading font-bold text-xl text-foreground leading-snug mb-1">{localEvent.title}</h2>
+                <h2 className="font-heading font-medium text-xl text-foreground leading-snug mb-1">{localEvent.title}</h2>
                 <p className="text-sm text-muted-foreground">{dateInfo.full}</p>
               </div>
             </div>
@@ -1078,8 +1089,8 @@ function EventDetailModal({ event, user, onClose, onRsvp, onUpdated }) {
             </div>
             {/* Safety notice for in-person events */}
             {(localEvent.venue_name || localEvent.venue_address || localEvent.suburb) && (
-              <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border/20">
-                🛡️ For in-person meetups, always meet in a public place and let someone know where you're going. Stay safe.
+              <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border/20 flex items-center gap-1.5">
+                <IconShield size={13} className="shrink-0" /> For in-person meetups, always meet in a public place and let someone know where you're going. Stay safe.
               </p>
             )}
           </div>
@@ -1134,7 +1145,7 @@ function EventDetailModal({ event, user, onClose, onRsvp, onUpdated }) {
                   value={newMsg}
                   onChange={e => setNewMsg(e.target.value.slice(0, 500))}
                   placeholder="Message the group..."
-                  className="flex-1 bg-secondary/50 rounded-full px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50"
+                  className="flex-1 bg-secondary/50 rounded-full px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none"
                   maxLength={500}
                   disabled={sending}
                 />
@@ -1167,7 +1178,7 @@ function EventDetailModal({ event, user, onClose, onRsvp, onUpdated }) {
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="bg-card border-border/50 max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="font-heading font-bold">Edit Event</DialogTitle>
+            <DialogTitle className="font-heading font-medium">Edit Event</DialogTitle>
           </DialogHeader>
           <EditEventDialog event={localEvent} onUpdated={(updated) => { setLocalEvent(prev => ({ ...prev, ...updated })); onUpdated(updated); }} onClose={() => setEditOpen(false)} />
         </DialogContent>
@@ -1341,7 +1352,7 @@ export default function Events({ user }) {
             </DialogTrigger>
             <DialogContent className="bg-card border-border/50 max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle className="font-heading font-bold">Create an Event</DialogTitle>
+                <DialogTitle className="font-heading font-medium">Create an Event</DialogTitle>
               </DialogHeader>
               <CreateEventForm onCreated={handleCreated} onClose={() => setDialogOpen(false)} />
             </DialogContent>
@@ -1352,23 +1363,6 @@ export default function Events({ user }) {
 
           {/* ── Main content ── */}
           <div className="min-w-0 space-y-5">
-
-            {/* Forum callout */}
-            <div className="p-4 rounded-[18px] bg-secondary/50 border border-border/30 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <span className="text-xl">📍</span>
-                <div>
-                  <p className="text-sm font-medium text-foreground">Discuss events in Spaces</p>
-                  <p className="text-xs text-muted-foreground">Share your experience or find others going</p>
-                </div>
-              </div>
-              <Link
-                to={localMeetupsId ? `/forums/${localMeetupsId}` : "/forums"}
-                className="text-xs text-primary hover:underline whitespace-nowrap"
-              >
-                Open →
-              </Link>
-            </div>
 
             {/* Time filter chips */}
             <div className="flex items-center gap-1 flex-wrap p-1 rounded-full" style={{ background: "var(--paper-2)", border: "1px solid var(--line)" }}>
@@ -1449,7 +1443,7 @@ export default function Events({ user }) {
             ) : filteredByTime.length === 0 ? (
               <div className="text-center py-14 village-card">
                 <Calendar size={28} style={{ color: "var(--ink-3)", margin: "0 auto 12px" }} />
-                <h3 className="font-heading font-bold text-lg mb-2" style={{ color: "var(--ink)" }}>
+                <h3 className="font-heading font-medium text-lg mb-2" style={{ color: "var(--ink)" }}>
                   {timeFilter === "going" ? "No upcoming RSVPs" : "No events found"}
                 </h3>
                 <p className="mb-6" style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 13, color: "var(--ink-3)" }}>
@@ -1460,7 +1454,7 @@ export default function Events({ user }) {
                 {timeFilter !== "going" && (
                   <Button
                     onClick={() => setDialogOpen(true)}
-                    className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90"
+                    className="rounded-[8px] bg-primary text-primary-foreground hover:bg-primary/90"
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Create Event

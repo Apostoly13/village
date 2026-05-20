@@ -7,6 +7,26 @@ import AppFooter from "../components/AppFooter";
 // ── Full technical changelog (admin-only view) ────────────────────────────────
 const CHANGELOG = [
   {
+    version: "3.36.0",
+    date: "May 2026",
+    title: "Dashboard Redesign, UI Consistency & Navigation Cleanup",
+    entries: [
+      { tag: "Improved", text: "Dashboard: replaced 3-mode switcher (I need help / Browse / Catch up) with a unified at-a-glance overview layout. Left column: Quick Actions, Recent in Spaces preview, search/filter pills, feed. Right rail (desktop): Activity notifications, Events Near You, Live Chat Rooms, My Shortcuts." },
+      { tag: "Added",    text: "Dashboard: Quick Actions row — New Post, Join a Chat, Browse Stall (lock icon + /plus for free users). Stall action now uses the Stall SVG icon instead of an emoji." },
+      { tag: "Added",    text: "Dashboard: personalised header shows good morning/afternoon/evening greeting, parenting stage, suburb, and live stats (parents online + active rooms). Online count polls every 30s. Rooms pill links to /chat." },
+      { tag: "Added",    text: "Dashboard: Activity widget in right rail — recent notifications with smart navigation per type (reply→post, friend_request→/friends, dm→/messages, like→mark-read). 'See all' dispatches village:open-notifications event to open nav panel." },
+      { tag: "Added",    text: "Dashboard: My Shortcuts widget — users can pin up to 8 links (communities, chat rooms, events, static pages) stored in localStorage. Edit/Done toggle, ✕ to remove, suggestions pool to add from." },
+      { tag: "Added",    text: "Navigation: village:open-notifications event listener added to open the notifications panel from any page." },
+      { tag: "Improved", text: "Navigation: heartbeat sent immediately on mount and every 3rd poll tick (was every 6th), keeping online count accurate while the user is active." },
+      { tag: "Improved", text: "Night mode: village-card-hover and village-card-selected now use --clay (terracotta) border instead of --honey (amber/yellow). Consistent warm accent across day and night mode." },
+      { tag: "Improved", text: "Post cards: ForumCategory, Community, and Dashboard feed post cards now all use village-card village-card-hover for consistent clay hover border in day mode and terracotta in night mode." },
+      { tag: "Fixed",    text: "Dashboard filter pill row: removed marginBlock:-12px hack that was blocking pointer events on all surrounding cards. Replaced with py-2 padding. Hover highlights restored across the entire page." },
+      { tag: "Fixed",    text: "Dashboard filter pill row: added pl-0.5 to inner flex container so the first pill (Latest) is not clipped against the scroll container edge." },
+      { tag: "Removed",  text: "Events page: removed 'Discuss events in Spaces' callout block from the top of the event feed." },
+      { tag: "Removed",  text: "Forums/Spaces page: removed Chat Rooms mobile shortcut card (was visible on mobile only via flex lg:hidden). Chat Rooms is accessible via the mobile bottom nav and overlay menu." },
+    ],
+  },
+  {
     version: "3.35.0",
     date: "May 2026",
     title: "Brand Rename, Privacy Hardening, Donation Groups Privacy & ForClinicians Overhaul",
@@ -755,6 +775,21 @@ const CHANGELOG = [
 // ── Curated user-facing changelog (non-admin view) ────────────────────────────
 // Plain readable summaries — no technical tags or implementation details.
 const USER_CHANGELOG = [
+  {
+    version: "3.36.0",
+    date: "May 2026",
+    title: "New Dashboard, Cleaner Spaces & Better Highlights",
+    entries: [
+      "Your dashboard now shows everything at a glance — recent posts, live chat rooms, upcoming events, and quick actions — without any mode switching.",
+      "New Quick Actions row: create a post, jump into a chat room, or browse the Stall in one tap.",
+      "Your dashboard shows how many parents are online right now, updated live.",
+      "New My Shortcuts widget: pin your favourite communities, rooms, and pages to the dashboard for quick access.",
+      "Activity notifications now take you directly to the relevant post, message, or friend request.",
+      "Cards across Spaces and Communities now highlight with a warm terracotta border when you hover over them — consistent across day and night mode.",
+      "Removed the 'Discuss events in Spaces' callout from the Events page to reduce clutter.",
+      "Removed the duplicate Chat Rooms shortcut from the Spaces page on mobile — it's still accessible from the bottom nav.",
+    ],
+  },
   {
     version: "3.35.0",
     date: "May 2026",

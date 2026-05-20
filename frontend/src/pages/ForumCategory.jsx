@@ -256,7 +256,7 @@ export default function ForumCategory({ user }) {
 
   const PostCard = ({ post, index }) => (
     <article
-      className="bg-card rounded-2xl px-4 py-3 border border-border/40 card-elevated hover:border-border/80 hover:shadow-md transition-all"
+      className="village-card village-card-hover !rounded-2xl px-4 py-3 cursor-pointer"
       data-testid={`post-card-${index}`}
     >
       {/* Top row: badges */}
