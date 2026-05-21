@@ -7,6 +7,18 @@ import AppFooter from "../components/AppFooter";
 // ── Full technical changelog (admin-only view) ────────────────────────────────
 const CHANGELOG = [
   {
+    version: "3.36.1",
+    date: "May 2026",
+    title: "Post Timestamps, Location Button Fix & Display Name Availability Check",
+    entries: [
+      { tag: "Fixed",    text: "Backend: create_reply now bumps updated_at on the parent post. Previously updated_at was never written after post creation, so timestamps were always the original post date even after many replies." },
+      { tag: "Improved", text: "Dashboard feed + ForumCategory: post cards now show 'last reply X ago' (using updated_at) when the post has replies, and 'X ago' (created_at) for posts with no replies yet. Surfaces live conversations correctly." },
+      { tag: "Fixed",    text: "LocationButton: hover state no longer goes white. Shadcn outline variant was overriding hover text with accent-foreground (near-white). Fixed with !important modifiers on hover:text and hover:bg classes." },
+      { tag: "Added",    text: "Profile: Display Name field now shows real-time availability feedback as you type — debounced 500ms check against GET /api/users/check-nickname. Shows: ✓ Available (green), ✗ Already taken (red with border tint), spinner while checking, 'must be 2+ chars' for short input. Status resets to idle when value matches saved name or after successful save." },
+      { tag: "Improved", text: "Dashboard greeting: now uses first_name from user profile before falling back to name split, avoiding full names from Google OAuth appearing in the greeting." },
+    ],
+  },
+  {
     version: "3.36.0",
     date: "May 2026",
     title: "Dashboard Redesign, UI Consistency & Navigation Cleanup",
@@ -775,6 +787,16 @@ const CHANGELOG = [
 // ── Curated user-facing changelog (non-admin view) ────────────────────────────
 // Plain readable summaries — no technical tags or implementation details.
 const USER_CHANGELOG = [
+  {
+    version: "3.36.1",
+    date: "May 2026",
+    title: "Smarter Timestamps, Location Fix & Username Checker",
+    entries: [
+      "Posts with replies now show 'last reply X ago' so you can see which conversations are still active, not just when they were first posted.",
+      "The 'Use my location' button in onboarding no longer goes white on hover.",
+      "When changing your display name, you now see instantly whether the name is available or already taken as you type.",
+    ],
+  },
   {
     version: "3.36.0",
     date: "May 2026",

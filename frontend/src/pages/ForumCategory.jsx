@@ -295,7 +295,10 @@ export default function ForumCategory({ user }) {
             <span className="text-xs text-muted-foreground">Anonymous</span>
           )}
           <span className="text-xs text-muted-foreground flex items-center gap-0.5 shrink-0">
-            <Clock className="h-3 w-3" />{formatDate(post.created_at)}
+            <Clock className="h-3 w-3" />
+            {post.reply_count > 0 && post.updated_at && post.updated_at !== post.created_at
+              ? <span title={`Posted ${formatDate(post.created_at)}`}>last reply {formatDate(post.updated_at)}</span>
+              : formatDate(post.created_at)}
           </span>
           {(post.suburb || post.postcode) && (
             <span className="text-xs text-muted-foreground hidden sm:flex items-center gap-0.5 shrink-0">

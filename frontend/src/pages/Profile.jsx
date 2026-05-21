@@ -94,6 +94,9 @@ function ProfilePage({ user }) {
   const [deleting, setDeleting] = useState(false);
   
   const [nickname, setNickname] = useState("");
+  const [savedNickname, setSavedNickname] = useState(""); // track original so we don't check self
+  const [nicknameStatus, setNicknameStatus] = useState("idle"); // idle | checking | available | taken | short
+  const nicknameTimerRef = useRef(null);
   const [bio, setBio] = useState("");
   const [userLocation, setUserLocation] = useState("");
   const [state, setState] = useState("");
@@ -167,6 +170,7 @@ function ProfilePage({ user }) {
           const data = await response.json();
           setProfile(data);
           setNickname(data.nickname || "");
+          setSavedNickname(data.nickname || "");
           setBio(data.bio || "");
           setUserLocation(data.location || "");
           setGender(data.gender || "");
@@ -324,6 +328,8 @@ function ProfilePage({ user }) {
         const updated = await response.json();
         setProfile(updated);
         setEditing(false);
+        setSavedNickname(nickname.trim());
+        setNicknameStatus("idle");
         toast.success("Profile updated!");
 
         // Sync localStorage so other pages see fresh data on next mount
@@ -399,6 +405,36 @@ function ProfilePage({ user }) {
     }, 300);
     return () => clearTimeout(timer);
   }, [locationSearch, state, editing]);
+
+  // Debounced nickname availability check
+  useEffect(() => {
+    if (nicknameTimerRef.current) clearTimeout(nicknameTimerRef.current);
+    const trimmed = nickname.trim();
+    // Don't check if unchanged from saved value or field is empty
+    if (!trimmed || trimmed.toLowerCase() === savedNickname.toLowerCase()) {
+      setNicknameStatus("idle");
+      return;
+    }
+    if (trimmed.length < 2) {
+      setNicknameStatus("short");
+      return;
+    }
+    setNicknameStatus("checking");
+    nicknameTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `${API_URL}/api/users/check-nickname?name=${encodeURIComponent(trimmed)}`,
+          { credentials: "include" }
+        );
+        if (!res.ok) { setNicknameStatus("idle"); return; }
+        const data = await res.json();
+        setNicknameStatus(data.available ? "available" : "taken");
+      } catch {
+        setNicknameStatus("idle");
+      }
+    }, 500);
+    return () => clearTimeout(nicknameTimerRef.current);
+  }, [nickname, savedNickname]);
 
   const selectLocation = (location) => {
     setSuburb(location.suburb || location.display_name.split(",")[0]);
@@ -663,7 +699,7 @@ function ProfilePage({ user }) {
 
         {/* Profile Incomplete Banner */}
         {isOwnProfile && !editing && profile && !profile.onboarding_complete && (
-          <div className="bg-amber-500/10 border border-amber-500/30 rounded-[18px] p-4 mb-6 flex items-center gap-4">
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 mb-6 flex items-center gap-4">
             <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
               <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
             </div>
@@ -816,10 +852,31 @@ function ProfilePage({ user }) {
                     value={nickname}
                     onChange={(e) => setNickname(e.target.value)}
                     placeholder="How should we call you?"
-                    className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-[var(--line-2)]"
+                    className={`h-12 rounded-xl bg-secondary/50 border-transparent ${nicknameStatus === "taken" ? "!border-red-400/60" : nicknameStatus === "available" ? "!border-green-500/50" : ""}`}
                     data-testid="nickname-input"
                   />
-                  <p className="text-xs text-muted-foreground">This is how other members see you. Your real name stays private unless you choose to share it.</p>
+                  {nicknameStatus === "checking" && (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <span className="inline-block w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
+                      Checking…
+                    </p>
+                  )}
+                  {nicknameStatus === "available" && (
+                    <p className="text-xs font-medium flex items-center gap-1" style={{ color: "var(--sage-deep)" }}>
+                      ✓ Available
+                    </p>
+                  )}
+                  {nicknameStatus === "taken" && (
+                    <p className="text-xs font-medium flex items-center gap-1 text-red-500">
+                      ✗ Already taken — choose a different name
+                    </p>
+                  )}
+                  {nicknameStatus === "short" && (
+                    <p className="text-xs text-muted-foreground">Must be at least 2 characters</p>
+                  )}
+                  {(nicknameStatus === "idle" || !nicknameStatus) && (
+                    <p className="text-xs text-muted-foreground">This is how other members see you. Your real name stays private unless you choose to share it.</p>
+                  )}
                 </div>
 
                 {/* Show full name toggle */}
@@ -851,7 +908,7 @@ function ProfilePage({ user }) {
                     value={bio}
                     onChange={(e) => setBio(e.target.value.slice(0, 300))}
                     placeholder="Tell other parents about yourself..."
-                    className="min-h-[100px] rounded-xl bg-secondary/50 border-transparent focus:border-[var(--line-2)] resize-none"
+                    className="min-h-[100px] rounded-xl bg-secondary/50 border-transparent resize-none"
                     data-testid="bio-input"
                     maxLength={300}
                   />
@@ -969,7 +1026,7 @@ function ProfilePage({ user }) {
                       searchLocation(e.target.value);
                     }}
                     placeholder="Suburb or postcode — e.g. Bondi, 2026"
-                    className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-[var(--line-2)]"
+                    className="h-12 rounded-xl bg-secondary/50 border-transparent"
                     autoComplete="off"
                     data-testid="location-input"
                   />
@@ -1202,7 +1259,7 @@ function ProfilePage({ user }) {
 
               {/* Verified Professional info — visible to all viewers */}
               {profile.professional_verification_status === "approved" && (
-                <div className="flex items-start gap-3 p-4 rounded-[18px] bg-green-500/8 border border-green-500/20">
+                <div className="flex items-start gap-3 p-4 rounded-xl bg-green-500/8 border border-green-500/20">
                   <Stethoscope className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-foreground">
@@ -1263,7 +1320,7 @@ function ProfilePage({ user }) {
         {/* Trust Badges */}
         <div className="village-card p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-heading font-bold text-lg text-foreground flex items-center gap-2">
+            <h2 className="font-heading font-medium text-lg text-foreground flex items-center gap-2">
               <Shield className="h-5 w-5 text-primary" />
               Badges &amp; Trust
             </h2>
@@ -1377,7 +1434,7 @@ function ProfilePage({ user }) {
         {isOwnProfile && (
           <div className="village-card p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-heading font-bold text-lg text-foreground flex items-center gap-2">
+              <h2 className="font-heading font-medium text-lg text-foreground flex items-center gap-2">
                 <Users className="h-5 w-5 text-primary" />
                 Friends ({friends.length})
               </h2>
@@ -1436,7 +1493,7 @@ function ProfilePage({ user }) {
         {/* Recent Posts */}
         {(postsLoading || userPosts.length > 0) && (
           <div className="village-card p-6 mb-6">
-            <h2 className="font-heading font-bold text-lg text-foreground flex items-center gap-2 mb-4">
+            <h2 className="font-heading font-medium text-lg text-foreground flex items-center gap-2 mb-4">
               <MessageCircle className="h-5 w-5 text-primary" />
               Recent Posts
             </h2>
@@ -1578,9 +1635,9 @@ function ProfilePage({ user }) {
 
         {/* Danger Zone — own profile only */}
         {isOwnProfile && (
-          <div className="rounded-[18px] border-2 border-red-500/40 border-l-4 border-l-red-500 mb-6 overflow-hidden shadow-sm shadow-red-500/5" style={{ background: "hsl(var(--card))" }}>
+          <div className="rounded-xl border-2 border-red-500/40 border-l-4 border-l-red-500 mb-6 overflow-hidden shadow-sm shadow-red-500/5" style={{ background: "hsl(var(--card))" }}>
             <div className="px-6 pt-5 pb-4">
-              <h2 className="font-heading font-bold text-base text-red-500 mb-1">Danger Zone</h2>
+              <h2 className="font-heading font-medium text-base text-red-500 mb-1">Danger Zone</h2>
               <p className="text-sm text-muted-foreground">These actions are permanent and cannot be undone.</p>
             </div>
             <div className="px-6 pb-5 flex items-center justify-between gap-4">

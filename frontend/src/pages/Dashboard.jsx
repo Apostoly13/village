@@ -618,7 +618,7 @@ export default function Dashboard({ user }) {
     } catch {}
   };
 
-  const firstName = user?.nickname || user?.name?.split(" ")[0] || "there";
+  const firstName = user?.nickname || user?.first_name || user?.name?.split(" ")[0] || "there";
   const unreadActivity = recentActivity.filter(n => !n.is_read);
   const isFree = user?.subscription_tier === "free";
 
@@ -882,7 +882,9 @@ export default function Dashboard({ user }) {
                           <span className="text-[11px] truncate" style={{ color: "var(--ink-3)" }}>
                             {post.category_icon} {post.category_name}
                           </span>
-                          <span className="text-[10px] ml-auto shrink-0" style={{ color: "var(--ink-3)" }}>{fmtRelative(post.created_at)}</span>
+                          <span className="text-[10px] ml-auto shrink-0" style={{ color: "var(--ink-3)" }}>
+                            {fmtRelative(post.updated_at && post.updated_at !== post.created_at ? post.updated_at : post.created_at)}
+                          </span>
                         </div>
                         <p className="text-sm font-medium line-clamp-1 leading-snug" style={{ color: "var(--ink)" }}>{post.title}</p>
                       </div>
@@ -1055,14 +1057,21 @@ export default function Dashboard({ user }) {
                                     Community
                                   </span>
                                 )}
-                                {post.category_name} · {fmtRelative(post.created_at)}
+                                {post.category_name} · {(() => {
+                                  const hasActivity = post.reply_count > 0 && post.updated_at && post.updated_at !== post.created_at;
+                                  return hasActivity
+                                    ? <span>last reply {fmtRelative(post.updated_at)}</span>
+                                    : fmtRelative(post.created_at);
+                                })()}
                               </span>
                             </div>
                             <span
                               className="font-mono text-[9px] uppercase tracking-[0.10em] shrink-0 ml-auto sm:hidden"
                               style={{ color: "var(--ink-3)" }}
                             >
-                              {fmtRelative(post.created_at)}
+                              {post.reply_count > 0 && post.updated_at && post.updated_at !== post.created_at
+                                ? fmtRelative(post.updated_at)
+                                : fmtRelative(post.created_at)}
                             </span>
                           </div>
 

@@ -2639,7 +2639,10 @@ async def create_reply(post_id: str, reply_data: ForumReplyCreate, user: dict = 
     doc["created_at"] = doc["created_at"].isoformat()
     
     await db.forum_replies.insert_one(doc)
-    await db.forum_posts.update_one({"post_id": post_id}, {"$inc": {"reply_count": 1}})
+    await db.forum_posts.update_one(
+        {"post_id": post_id},
+        {"$inc": {"reply_count": 1}, "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
     await increment_usage(user["user_id"], "forum_replies")
     fire_and_forget(_compute_badges_for_user(user["user_id"], user))
 

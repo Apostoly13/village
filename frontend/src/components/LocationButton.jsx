@@ -99,7 +99,7 @@ export default function LocationButton({ onLocation, className = "", size = "sm"
       type="button"
       variant="outline"
       size={size}
-      className={`rounded-xl gap-1.5 text-xs font-medium border-[var(--line)] text-primary hover:bg-muted/30 hover:border-border ${className}`}
+      className={`rounded-[8px] gap-1.5 text-xs font-medium no-scale border-[var(--line)] text-[var(--ink-2)] hover:!text-[var(--ink)] hover:border-[var(--clay)] hover:!bg-[var(--clay-wash)] transition-colors ${className}`}
       onClick={handleClick}
       disabled={loading}
     >
