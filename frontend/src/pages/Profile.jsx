@@ -13,7 +13,7 @@ import Navigation from "../components/Navigation";
 import LocationButton from "../components/LocationButton";
 import { ThemeToggle } from "../useTheme";
 import { toast } from "sonner";
-import { ArrowLeft, Edit2, MessageCircle, Save, X, Heart, UserPlus, UserCheck, Clock, Users, ChevronRight, MapPin, Bell, Camera, Search, AlertCircle, Sparkles, Shield, Handshake, Stethoscope, Ban, Moon, Sun, ChevronDown } from "lucide-react";
+import { ArrowLeft, Edit2, MessageCircle, Save, X, Heart, UserPlus, UserCheck, Clock, Users, ChevronRight, MapPin, Bell, Camera, Search, AlertCircle, Sparkles, Shield, Handshake, Stethoscope, Ban, Moon, Sun, ChevronDown, LogOut } from "lucide-react";
 import AppFooter from "../components/AppFooter";
 
 // Collapsible accordion section — works on all screen sizes
@@ -348,6 +348,14 @@ function ProfilePage({ user }) {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch(`${API_URL}/api/auth/logout`, { method: "POST", credentials: "include" });
+    } catch {}
+    localStorage.removeItem("user");
+    window.location.href = "/";
   };
 
   const handleDeleteAccount = async () => {
@@ -1631,6 +1639,20 @@ function ProfilePage({ user }) {
               </div>
             )}
           </div>
+        )}
+
+        {/* Sign out — own profile, mobile-primary (desktop has dropdown) */}
+        {isOwnProfile && (
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-5 py-4 rounded-xl mb-4 transition-colors text-left"
+            style={{ background: "var(--paper-2)", border: "1px solid var(--line)", color: "var(--ink-2)" }}
+            onMouseEnter={e => { e.currentTarget.style.color = "var(--ink)"; e.currentTarget.style.borderColor = "var(--line-2)"; }}
+            onMouseLeave={e => { e.currentTarget.style.color = "var(--ink-2)"; e.currentTarget.style.borderColor = "var(--line)"; }}
+          >
+            <LogOut className="h-4 w-4 shrink-0" />
+            <span className="text-sm font-medium">Sign out</span>
+          </button>
         )}
 
         {/* Danger Zone — own profile only */}

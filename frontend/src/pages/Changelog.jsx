@@ -7,6 +7,14 @@ import AppFooter from "../components/AppFooter";
 // ── Full technical changelog (admin-only view) ────────────────────────────────
 const CHANGELOG = [
   {
+    version: "3.36.2",
+    date: "May 2026",
+    title: "Mobile Sign Out",
+    entries: [
+      { tag: "Added", text: "Profile page: Sign out button added above Danger Zone, visible to own-profile viewers only. On mobile the bottom nav 'Me' tab leads here, making sign out reachable without the hamburger overlay. Desktop already had sign out in the avatar dropdown — button is shown there too for consistency." },
+    ],
+  },
+  {
     version: "3.36.1",
     date: "May 2026",
     title: "Post Timestamps, Location Button Fix & Display Name Availability Check",
@@ -787,6 +795,14 @@ const CHANGELOG = [
 // ── Curated user-facing changelog (non-admin view) ────────────────────────────
 // Plain readable summaries — no technical tags or implementation details.
 const USER_CHANGELOG = [
+  {
+    version: "3.36.2",
+    date: "May 2026",
+    title: "Sign Out Now Accessible on Mobile",
+    entries: [
+      "You can now sign out directly from your Profile page — no need to find the menu. Scroll to the bottom of your profile and tap Sign out.",
+    ],
+  },
   {
     version: "3.36.1",
     date: "May 2026",
