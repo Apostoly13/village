@@ -1,10 +1,11 @@
 import { Link } from "react-router-dom";
+import { Wordmark } from "./Wordmark";
 
 export default function AppFooter() {
   return (
     <footer className="border-t border-border/30 mt-12 py-8 px-4 pb-24 lg:pb-8">
       <div className="max-w-3xl mx-auto flex flex-col items-center gap-4">
-        <img src="/BG Removed- Main Logo - ps edit.png" alt="The Village" className="h-32 w-auto opacity-80" />
+        <Wordmark size={22} style={{ opacity: 0.85 }} />
         <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
           <Link to="/terms" className="hover:text-foreground transition-colors">Terms</Link>
           <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>

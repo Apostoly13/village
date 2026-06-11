@@ -36,7 +36,7 @@ function Avatar({ picture, name, size = "sm" }) {
     return <img src={picture} alt={name} className={`${cls} rounded-full object-cover shrink-0`} />;
   return (
     <div
-      className={`${cls} rounded-full bg-gradient-to-br from-primary/60 to-primary flex items-center justify-center text-white font-semibold shrink-0`}
+      className={`${cls} rounded-full flex items-center justify-center font-semibold shrink-0`} style={{ background: "var(--clay)", color: "var(--paper)" }}
     >
       {initials}
     </div>
@@ -268,22 +268,22 @@ function PostCard({ post, currentUser, onReact, onPollVote, communityId }) {
   // ---- Milestone card ----
   if (isMilestone) {
     return (
-      <div className="rounded-2xl bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 dark:from-amber-950/40 dark:via-yellow-950/30 dark:to-orange-950/30 border-2 border-amber-300/60 dark:border-amber-700/40 p-5">
+      <div className="rounded-2xl border-2 p-5" style={{ background: "var(--honey-wash, rgba(196,165,90,0.08))", borderColor: "rgba(196,165,90,0.35)" }}>
         <div className="flex items-start gap-3">
           <div className="text-3xl leading-none mt-0.5">🌟</div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-1">
-              <span className="font-semibold text-sm text-amber-900 dark:text-amber-100">{authorName}</span>
-              <span className="text-xs text-amber-700/60 dark:text-amber-300/50">{timeAgo(post.created_at)}</span>
+              <span className="font-semibold text-sm" style={{ color: "var(--ink)" }}>{authorName}</span>
+              <span className="text-xs" style={{ color: "var(--ink-3)" }}>{timeAgo(post.created_at)}</span>
               <span className="text-xs px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1" style={typeConfig.badgeCls}>
                 <typeConfig.Icon size={11} /> {typeConfig.label}
               </span>
             </div>
             {post.title && (
-              <h3 className="font-bold text-amber-900 dark:text-amber-100 text-base leading-snug">{post.title}</h3>
+              <h3 className="font-bold text-base leading-snug" style={{ color: "var(--ink)" }}>{post.title}</h3>
             )}
             {post.content && (
-              <p className="text-sm text-amber-800 dark:text-amber-200 mt-1 leading-relaxed">{post.content}</p>
+              <p className="text-sm mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>{post.content}</p>
             )}
             {post.image && (
               <img
@@ -311,38 +311,38 @@ function PostCard({ post, currentUser, onReact, onPollVote, communityId }) {
   // ---- Meetup card ----
   if (isMeetup) {
     return (
-      <div className="rounded-2xl bg-gradient-to-br from-rose-50 via-pink-50 to-red-50 dark:from-rose-950/40 dark:via-pink-950/30 dark:to-red-950/30 border-2 border-rose-300/60 dark:border-rose-700/40 p-5">
+      <div className="rounded-2xl border-2 p-5" style={{ background: "var(--clay-wash, rgba(196,112,90,0.08))", borderColor: "rgba(196,112,90,0.30)" }}>
         <div className="flex items-start gap-3">
           <div className="text-3xl leading-none mt-0.5">📍</div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-1">
               <Avatar picture={authorPic} name={authorName} size="xs" />
-              <span className="font-semibold text-sm text-rose-900 dark:text-rose-100">{authorName}</span>
-              <span className="text-xs text-rose-700/60 dark:text-rose-300/50">{timeAgo(post.created_at)}</span>
+              <span className="font-semibold text-sm" style={{ color: "var(--ink)" }}>{authorName}</span>
+              <span className="text-xs" style={{ color: "var(--ink-3)" }}>{timeAgo(post.created_at)}</span>
               <span className="text-xs px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1" style={typeConfig.badgeCls}>
                 <typeConfig.Icon size={11} /> {typeConfig.label}
               </span>
             </div>
             {post.title && (
-              <h3 className="font-bold text-rose-900 dark:text-rose-100 text-base leading-snug">{post.title}</h3>
+              <h3 className="font-bold text-base leading-snug" style={{ color: "var(--ink)" }}>{post.title}</h3>
             )}
             {post.content && (
-              <p className="text-sm text-rose-800 dark:text-rose-200 mt-1 leading-relaxed">{post.content}</p>
+              <p className="text-sm mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>{post.content}</p>
             )}
             {/* Meetup details */}
             <div className="mt-3 flex flex-wrap gap-3">
               {post.meetup_date && (
-                <div className="flex items-center gap-2 bg-rose-100/70 dark:bg-rose-900/30 border border-rose-200/60 dark:border-rose-800/40 rounded-xl px-3 py-2">
-                  <Calendar className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400 shrink-0" />
-                  <span className="text-xs font-medium text-rose-800 dark:text-rose-200">
+                <div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: "var(--paper-3)", border: "1px solid var(--line)" }}>
+                  <Calendar className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--clay)" }} />
+                  <span className="text-xs font-medium" style={{ color: "var(--ink-2)" }}>
                     {formatDate(post.meetup_date)}
                   </span>
                 </div>
               )}
               {post.meetup_location && (
-                <div className="flex items-center gap-2 bg-rose-100/70 dark:bg-rose-900/30 border border-rose-200/60 dark:border-rose-800/40 rounded-xl px-3 py-2">
-                  <MapPin className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400 shrink-0" />
-                  <span className="text-xs font-medium text-rose-800 dark:text-rose-200">
+                <div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: "var(--paper-3)", border: "1px solid var(--line)" }}>
+                  <MapPin className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--clay)" }} />
+                  <span className="text-xs font-medium" style={{ color: "var(--ink-2)" }}>
                     {post.meetup_location}
                   </span>
                 </div>
@@ -1224,7 +1224,7 @@ export default function Community() {
                     className="w-20 h-20 rounded-2xl object-cover border-2 border-border/30 shadow-md"
                   />
                 ) : (
-                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/40 to-primary flex items-center justify-center text-4xl shadow-md border-2 border-border/20">
+                  <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl shadow-md border-2 border-border/20" style={{ background: "var(--paper-3)" }}>
                     {community.icon || "🏘️"}
                   </div>
                 )}

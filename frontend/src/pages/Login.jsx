@@ -110,15 +110,6 @@ export default function Login() {
         style={{ background: "var(--paper)" }}
       >
         {/* Watercolour blob */}
-        <svg
-          className="absolute top-0 right-0 w-full opacity-40 pointer-events-none"
-          viewBox="0 0 480 520" fill="none" aria-hidden="true"
-        >
-          <ellipse cx="360" cy="160" rx="200" ry="180" fill="hsl(var(--accent))" fillOpacity="0.20" />
-          <ellipse cx="420" cy="80" rx="140" ry="110" fill="hsl(var(--accent))" fillOpacity="0.14" />
-          <ellipse cx="260" cy="240" rx="160" ry="120" fill="var(--honey)" fillOpacity="0.10" />
-        </svg>
-
         {/* Wordmark */}
         <div className="relative z-10">
           <Wordmark size={26} />

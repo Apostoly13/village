@@ -1,11 +1,11 @@
 ﻿/**
- * Wordmark — typographic lockup for The Village.
+ * Wordmark — typographic lockup for Our Little Village.
  * Uses Fraunces (loaded via Google Fonts in index.html).
  * Drop-in replacement for the logo PNG in Navigation, Footer, Landing hero.
  *
  * Props:
  *   size    : font-size in px (default 20)
- *   color   : override color for "The" (default: var(--ink))
+ *   color   : override color for "Our Little" (default: var(--ink))
  *   accent  : override color for italic "Village" (default: hsl(var(--accent)))
  *   invert  : if true, flips to cream text — use on dark panels / footers
  *   style   : extra inline styles
@@ -29,7 +29,7 @@ export function Wordmark({ size = 20, color, accent, invert = false, style, ...r
       }}
       {...rest}
     >
-      <span>The</span>
+      <span>Our Little</span>
       <span style={{ fontStyle: "italic", color: c2 }}>Village</span>
     </span>
   );
@@ -44,7 +44,7 @@ export function Monogram({ size = 36, invert = false, style }) {
   const fg = invert ? "var(--ink)": "var(--paper)";
   return (
     <span
-      aria-label="The Village"
+      aria-label="Our Little Village"
       style={{
         display: "inline-flex",
         alignItems: "center",

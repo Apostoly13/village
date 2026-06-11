@@ -122,7 +122,7 @@ export default function Suggestions({ user }) {
               name="category"
               value={form.category}
               onChange={handleChange}
-              className="w-full rounded-lg border border-border/50 bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-border/50 transition"
+              className="w-full rounded-lg border border-border/50 bg-background px-3 py-2 text-sm text-foreground focus:outline-none transition"
             >
               {CATEGORIES.map((c) => (
                 <option key={c} value={c}>

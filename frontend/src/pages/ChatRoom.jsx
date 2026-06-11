@@ -6,12 +6,14 @@ import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import Navigation from "../components/Navigation";
 import { toast } from "sonner";
 import { ArrowLeft, Users, Sparkles, Bookmark, ArrowRight, ShieldCheck } from "lucide-react";
+import { IconChat } from "../icons";
 import { SendIcon, ReportIcon } from "../components/village/VillageLineIcons";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../components/ui/dialog";
 import { Label } from "../components/ui/label";
 import { Textarea } from "../components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { timeAgoVerbose } from "../utils/dateHelpers";
+import { playChime } from "../utils/sounds";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -32,6 +34,7 @@ export default function ChatRoom({ user }) {
   const messagesEndRef = useRef(null);
   const scrollAreaRef = useRef(null);
   const isAtBottom = useRef(true);
+  const lastSeenMsgIdRef = useRef(null); // latest server message id — used to chime on new incoming messages
   const MESSAGE_LIMIT = 50;
 
   // Report state
@@ -126,6 +129,12 @@ export default function ChatRoom({ user }) {
       });
       if (response.ok) {
         const data = await response.json();
+        if (lastSeenMsgIdRef.current && data.length > 0) {
+          const idx = data.findIndex(m => m.message_id === lastSeenMsgIdRef.current);
+          const fresh = idx >= 0 ? data.slice(idx + 1) : [];
+          if (fresh.some(m => m.author_id !== user?.user_id)) playChime("message");
+        }
+        if (data.length > 0) lastSeenMsgIdRef.current = data[data.length - 1].message_id;
         // Merge: preserve any locally-added messages not yet returned by the server
         // (race condition: GET response can arrive before the POST is committed)
         setMessages(prev => {
@@ -345,7 +354,7 @@ export default function ChatRoom({ user }) {
   }
 
   return (
-    <div className="h-[100dvh] bg-background flex flex-col overflow-hidden lg:pl-60">
+    <div className="h-[100dvh] bg-background flex flex-col overflow-hidden lg:pl-60" style={{ backgroundImage: "var(--ambient-bg)" }}>
       <Navigation user={user} />
 
       <main className="flex-1 flex flex-col max-w-4xl mx-auto w-full px-4 pt-16 lg:pt-8 pb-[72px] lg:pb-4 min-h-0">
@@ -365,7 +374,7 @@ export default function ChatRoom({ user }) {
                 <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-card ${friendProfile?.is_online ? "" : "bg-muted-foreground/40"}`} style={friendProfile?.is_online ? { background: "var(--status-online)" } : {}} />
               </div>
               <div>
-                <h1 className="font-heading font-bold text-xl text-foreground">
+                <h1 className="font-heading font-medium text-xl text-foreground">
                   {friendProfile ? (friendProfile.nickname || friendProfile.name) : "Private Chat"}
                 </h1>
                 <p className="text-sm flex items-center gap-1 text-muted-foreground" style={friendProfile?.is_online ? { color: "var(--status-online)" } : {}}>
@@ -377,7 +386,7 @@ export default function ChatRoom({ user }) {
             <div className="flex items-center gap-3">
               <span className="text-2xl">{room.icon}</span>
               <div>
-                <h1 className="font-heading font-bold text-xl text-foreground">{room.name}</h1>
+                <h1 className="font-heading font-medium text-xl text-foreground">{room.name}</h1>
                 <p className="text-sm text-muted-foreground">{room.description}</p>
               </div>
             </div>
@@ -386,7 +395,7 @@ export default function ChatRoom({ user }) {
 
         {/* Gender restriction banner */}
         {room.is_gender_restricted && !room.user_can_access && (
-          <div className="mb-4 p-4 rounded-[18px] flex items-center gap-3" style={{ background: "var(--honey-wash)", borderColor: "rgba(245,197,66,0.3)", border: "1px solid rgba(245,197,66,0.3)" }}>
+          <div className="mb-4 p-4 rounded-xl flex items-center gap-3" style={{ background: "var(--honey-wash)", borderColor: "rgba(245,197,66,0.3)", border: "1px solid rgba(245,197,66,0.3)" }}>
             <span className="text-2xl">{room.icon}</span>
             <div>
               <p className="font-medium text-foreground text-sm">This space is for {room.gender_restriction === "female" ? "mums" : "dads"} only</p>
@@ -397,8 +406,8 @@ export default function ChatRoom({ user }) {
 
         {/* Messages Area */}
         <div className="village-card flex-1 min-h-0 flex flex-col">
-          <div className="flex-1 min-h-0 overflow-y-auto p-4" ref={scrollAreaRef} onScroll={handleScroll}>
-            <div className="space-y-4">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col" ref={scrollAreaRef} onScroll={handleScroll}>
+            <div className="space-y-4 mt-auto">
               {hasMore && (
                 <div className="text-center pb-2">
                   <button
@@ -412,7 +421,7 @@ export default function ChatRoom({ user }) {
               )}
               {messages.length === 0 ? (
                 <div className="text-center py-12">
-                  <span className="text-4xl mb-4 block">💬</span>
+                  <span className="flex justify-center mb-4"><IconChat size={36} style={{ color: "var(--ink-3)" }} /></span>
                   <p className="text-muted-foreground">No messages yet. Start the conversation!</p>
                 </div>
               ) : (
@@ -450,7 +459,7 @@ export default function ChatRoom({ user }) {
                         )}
                         <div className={`flex items-start gap-1 ${isOwnMessage(msg) ? 'flex-row-reverse' : ''}`}>
                           <div
-                            className="rounded-2xl px-4 py-2 shadow-sm"
+                            className="rounded-[10px] px-4 py-2 shadow-sm"
                             style={isOwnMessage(msg)
                               ? { background: "hsl(var(--accent))", color: "var(--tv-primary-fg, #f7f2e9)" }
                               : msg.author_verified_professional
@@ -492,24 +501,34 @@ export default function ChatRoom({ user }) {
           </div>
 
           {/* Message Input — shrink-0 keeps it pinned to the bottom of the card */}
-          {room.room_type !== "friends_only" && subscription?.limits_apply && subscription?.chat_messages && !subscription.chat_messages.allowed ? (
+          {room.room_type !== "friends_only" && room.daily_limit_applies !== false && subscription?.limits_apply && subscription?.chat_messages && !subscription.chat_messages.allowed ? (
             <div className="shrink-0 p-4 border-t border-border/50">
               <Link to="/plus" className="flex items-center gap-3 p-3 rounded-xl border hover:bg-amber-500/15 transition-colors group" style={{ background: "var(--honey-wash)", borderColor: "rgba(245,197,66,0.3)" }}>
                 <Sparkles className="h-5 w-5 flex-shrink-0" style={{ color: "hsl(var(--accent))" }} />
                 <div className="flex-1">
-                  <p className="font-medium text-foreground text-sm">Daily message limit reached</p>
-                  <p className="text-xs text-muted-foreground">Upgrade to Village+ for unlimited chat</p>
+                  <p className="font-medium text-foreground text-sm">You've used today's free messages</p>
+                  <p className="text-xs text-muted-foreground">They reset at midnight. Village+ chats without limits.</p>
                 </div>
                 <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "hsl(var(--accent))" }} />
               </Link>
             </div>
           ) : (
             <form onSubmit={handleSend} className="shrink-0 p-4 border-t border-border/50" data-testid="message-form">
-              {subscription?.limits_apply && subscription?.chat_messages && (
-                <p className="text-xs text-muted-foreground mb-2" data-testid="chat-limit-counter">
-                  {subscription.chat_messages.limit - subscription.chat_messages.used}/{subscription.chat_messages.limit} messages today
-                </p>
-              )}
+              {room.daily_limit_applies !== false && subscription?.limits_apply && subscription?.chat_messages && (() => {
+                const remaining = subscription.chat_messages.limit - subscription.chat_messages.used;
+                const isLow = remaining <= 5;
+                return (
+                  <p
+                    className="text-xs mb-2"
+                    data-testid="chat-limit-counter"
+                    style={{ color: isLow ? "var(--honey)" : "var(--ink-3)" }}
+                  >
+                    {isLow
+                      ? `${remaining} message${remaining === 1 ? "" : "s"} left today — resets at midnight`
+                      : `${remaining}/${subscription.chat_messages.limit} messages today`}
+                  </p>
+                );
+              })()}
               <div className="flex gap-2">
                 <Input
                   value={newMessage}

@@ -136,7 +136,7 @@ export default function Bookmarks({ user }) {
                 </div>
 
                 <Link to={`/forums/post/${post.post_id}`}>
-                  <h3 className="font-heading font-bold text-lg text-foreground mb-2 hover:text-foreground transition-colors">{post.title}</h3>
+                  <h3 className="font-heading font-medium text-lg text-foreground mb-2 hover:text-foreground transition-colors">{post.title}</h3>
                   <p className="text-muted-foreground line-clamp-2 mb-4">{post.content}</p>
                 </Link>
 

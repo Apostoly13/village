@@ -247,10 +247,10 @@ export default function ModeratorDashboard({ user }) {
         </div>
 
         <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <div className="overflow-x-auto pb-1 mb-5">
+          <div className="overflow-x-auto scrollbar-none pb-1 mb-5">
             <TabsList className="bg-card border border-border/50 rounded-xl p-1 flex gap-1 min-w-max items-center">
               {/* ── Information section ── */}
-              <span className="text-[10px] font-semibold uppercase tracking-widest px-2 select-none" style={{ color: "var(--ink-3)" }}>
+              <span className="tv-mono px-2 select-none" style={{ color: "var(--ink-3)" }}>
                 Information
               </span>
               {[
@@ -271,7 +271,7 @@ export default function ModeratorDashboard({ user }) {
               <div className="w-px h-5 mx-1 shrink-0" style={{ background: "var(--line)" }} />
 
               {/* ── Actions section ── */}
-              <span className="text-[10px] font-semibold uppercase tracking-widest px-2 select-none" style={{ color: "var(--ink-3)" }}>
+              <span className="tv-mono px-2 select-none" style={{ color: "var(--ink-3)" }}>
                 Actions
               </span>
               {[
@@ -455,7 +455,7 @@ export default function ModeratorDashboard({ user }) {
                   >
                     <div className="flex items-center gap-2 mb-2">
                       <Clock className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                      <span className="font-mono text-[9px] uppercase tracking-[0.12em]" style={{ color: "var(--ink-3)" }}>
+                      <span className="tv-mono" style={{ color: "var(--ink-3)" }}>
                         {post.category_name} · {fmtDate(post.created_at)} ago
                       </span>
                     </div>
@@ -497,7 +497,7 @@ export default function ModeratorDashboard({ user }) {
                     <div className="flex items-start gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <span className="font-mono text-[9px] uppercase tracking-[0.12em]" style={{ color: "var(--ink-3)" }}>
+                          <span className="tv-mono" style={{ color: "var(--ink-3)" }}>
                             {post.category_name} · {fmtDate(post.created_at)}
                           </span>
                           {post.is_anonymous && <Badge variant="outline" className="text-xs">Anon</Badge>}
@@ -558,7 +558,7 @@ export default function ModeratorDashboard({ user }) {
                       )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <span className="font-mono text-[9px] uppercase tracking-[0.12em]" style={{ color: "var(--ink-3)" }}>
+                          <span className="tv-mono" style={{ color: "var(--ink-3)" }}>
                             {listing.listing_type} · {fmtDate(listing.created_at)}
                           </span>
                           {listing.status === "removed" && (

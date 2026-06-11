@@ -79,7 +79,7 @@ function PostsTab() {
     return (
       <div className="text-center py-16 bg-card border border-border/50 rounded-2xl">
         <span className="text-5xl mb-4 block">🔖</span>
-        <h3 className="font-heading font-bold text-lg text-foreground mb-2">Nothing saved yet</h3>
+        <h3 className="font-heading font-medium text-lg text-foreground mb-2">Nothing saved yet</h3>
         <p className="text-sm text-muted-foreground mb-6">Tap the bookmark icon on any post to save it here.</p>
         <Link to="/forums">
           <Button className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90">Browse forums</Button>
@@ -130,7 +130,7 @@ function PostsTab() {
           </div>
 
           <Link to={`/forums/post/${post.post_id}`}>
-            <h3 className="font-heading font-bold text-lg text-foreground mb-2 hover:text-foreground transition-colors">{post.title}</h3>
+            <h3 className="font-heading font-medium text-lg text-foreground mb-2 hover:text-foreground transition-colors">{post.title}</h3>
             <p className="text-muted-foreground line-clamp-2 mb-4">{post.content}</p>
           </Link>
 
@@ -199,7 +199,7 @@ function ChatMessagesTab() {
     return (
       <div className="text-center py-16 bg-card border border-border/50 rounded-2xl">
         <span className="text-5xl mb-4 block">💬</span>
-        <h3 className="font-heading font-bold text-lg text-foreground mb-2">No saved messages</h3>
+        <h3 className="font-heading font-medium text-lg text-foreground mb-2">No saved messages</h3>
         <p className="text-sm text-muted-foreground mb-6">Save helpful chat messages to find them here later.</p>
         <Link to="/chat">
           <Button className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90">Browse Circles</Button>
@@ -297,7 +297,7 @@ function EventsTab({ user }) {
     return (
       <div className="text-center py-16 bg-card border border-border/50 rounded-2xl">
         <span className="text-5xl mb-4 block">📅</span>
-        <h3 className="font-heading font-bold text-lg text-foreground mb-2">No upcoming events</h3>
+        <h3 className="font-heading font-medium text-lg text-foreground mb-2">No upcoming events</h3>
         <p className="text-sm text-muted-foreground mb-6">RSVP to events to see them here.</p>
         <Link to="/events">
           <Button className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90">Browse Events</Button>
@@ -328,7 +328,7 @@ function EventsTab({ user }) {
                   </span>
                 )}
               </div>
-              <h3 className="font-heading font-bold text-foreground mb-1">{event.title}</h3>
+              <h3 className="font-heading font-medium text-foreground mb-1">{event.title}</h3>
               {event.time_start && (
                 <p className="text-xs text-muted-foreground flex items-center gap-1 mb-2">
                   <Clock className="h-3 w-3" />
@@ -442,7 +442,7 @@ function BlogTab() {
   return (
     <div className="text-center py-16 bg-card border border-border/50 rounded-2xl">
       <span className="text-5xl mb-4 block">📖</span>
-      <h3 className="font-heading font-bold text-lg text-foreground mb-2">Blog bookmarking coming soon</h3>
+      <h3 className="font-heading font-medium text-lg text-foreground mb-2">Blog bookmarking coming soon</h3>
       <p className="text-sm text-muted-foreground mb-6">
         For now, browse the full blog.
       </p>

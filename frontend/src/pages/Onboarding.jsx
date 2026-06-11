@@ -1,31 +1,35 @@
-﻿import { useState, useCallback } from "react";
+﻿import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { toast } from "sonner";
-import { ArrowRight, ArrowLeft, MapPin, Check, EyeOff } from "lucide-react";
+import { ArrowRight, ArrowLeft } from "lucide-react";
 import LocationButton from "../components/LocationButton";
+import { Wordmark } from "../components/Wordmark";
+import {
+  IconChat, IconCal, IconSpaces, IconHome, IconCheck, IconLock, IconShield, IconSpark, IconPeople, IconPin
+} from "../icons";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const PARENTING_STAGES = [
-  { id: "expecting",  label: "Expecting",     emoji: "🤰",        desc: "Baby on the way" },
-  { id: "newborn",    label: "Newborn",        emoji: "👶",        desc: "0 – 3 months" },
-  { id: "infant",     label: "Infant",         emoji: "🧒",        desc: "3 – 12 months" },
-  { id: "toddler",    label: "Toddler",        emoji: "🚶",        desc: "1 – 4 years" },
-  { id: "school_age", label: "School Age",     emoji: "🎒",        desc: "5 – 12 years" },
-  { id: "teenager",   label: "Teenager",       emoji: "🧑",        desc: "13+ years" },
-  { id: "multiples",  label: "Twins/Triplets", emoji: "👶👶",     desc: "Two or more!" },
-  { id: "mixed",      label: "Mixed ages",     emoji: "👨‍👩‍👧‍👦", desc: "Multiple kids" },
+  { id: "expecting",  label: "Expecting",        desc: "Baby on the way",  age: "Due soon" },
+  { id: "newborn",    label: "Newborn",           desc: "0 – 3 months",     age: "0–3m"    },
+  { id: "infant",     label: "Infant",            desc: "3 – 12 months",    age: "3–12m"   },
+  { id: "toddler",    label: "Toddler",           desc: "1 – 4 years",      age: "1–4yr"   },
+  { id: "school_age", label: "School Age",        desc: "5 – 12 years",     age: "5–12yr"  },
+  { id: "teenager",   label: "Teenager",          desc: "13+ years",        age: "13+"     },
+  { id: "multiples",  label: "Twins / Multiples", desc: "Two or more",      age: "×2+"     },
+  { id: "mixed",      label: "Mixed ages",        desc: "Multiple kids",    age: "Multi"   },
 ];
 
 const AUSTRALIAN_STATES = ["NSW", "VIC", "QLD", "WA", "SA", "TAS", "ACT", "NT"];
 
 const GENDER_OPTIONS = [
-  { id: "female",         label: "Mum",              emoji: "👩" },
-  { id: "male",           label: "Dad",              emoji: "👨" },
-  { id: "prefer_not_say", label: "Prefer not to say", emoji: "🤐" },
+  { id: "female",         label: "Mum"              },
+  { id: "male",           label: "Dad"              },
+  { id: "prefer_not_say", label: "Prefer not to say" },
 ];
 
 // Auto-assign interests from parenting stage — drives personalisation without an extra step
@@ -45,6 +49,14 @@ const TOTAL_STEPS = 5;
 
 export default function Onboarding({ user }) {
   const [saving, setSaving] = useState(false);
+  const [onlineCount, setOnlineCount] = useState(null);
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/stats/online`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setOnlineCount(data.online_now ?? null); })
+      .catch(() => {});
+  }, []);
 
   const [step, setStep] = useState(() => {
     if (user?.onboarding_complete) return 5;
@@ -173,14 +185,20 @@ export default function Onboarding({ user }) {
     <div className="min-h-screen bg-background">
 
       {/* ── Header / progress ─────────────────────────────────────────────────── */}
-      <div className="fixed top-0 left-0 right-0 z-50 backdrop-blur-sm border-b px-4 py-3" style={{ background: "var(--paper)", borderColor: "var(--line-2)" }}>
-        <div className="max-w-2xl mx-auto flex items-center gap-4">
-          <img src="/BG Removed- Main Logo.png" alt="The Village" className="h-16 w-auto shrink-0" />
-          <span
-            className="font-heading text-sm tracking-wide"
-            style={{ color: "var(--ink-3)" }}
-          >
-            {String(step).padStart(2, "0")} / {String(TOTAL_STEPS).padStart(2, "0")}
+      <div className="fixed top-0 left-0 right-0 z-50 backdrop-blur-sm border-b px-4 h-14 flex items-center" style={{ background: "var(--paper)", borderColor: "var(--line-2)" }}>
+        <div className="max-w-2xl mx-auto w-full flex items-center justify-between gap-4">
+          <Wordmark size={18} />
+          {/* Progress segments */}
+          <div className="flex items-center gap-1.5 flex-1 justify-center">
+            {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
+              <div key={i} className="h-[3px] rounded-full transition-all" style={{
+                width: i < step ? 40 : 28,
+                background: i < step ? "var(--clay)" : "var(--line)",
+              }} />
+            ))}
+          </div>
+          <span className="font-mono text-xs shrink-0" style={{ color: "var(--ink-3)", letterSpacing: "0.08em" }}>
+            {String(step).padStart(2, "0")}/{String(TOTAL_STEPS).padStart(2, "0")}
           </span>
         </div>
       </div>
@@ -192,34 +210,47 @@ export default function Onboarding({ user }) {
           {/* ── Step 1: Welcome ───────────────────────────────────────────────── */}
           {step === 1 && (
             <div className="text-center animate-fade-in">
-              <img src="/BG Removed- Main Logo.png" alt="The Village" className="h-72 w-auto mx-auto mb-6" />
-              <h1 className="font-heading text-3xl sm:text-4xl font-bold text-foreground mb-3">
-                Welcome to Our Little Village,<br />
-                <span className="text-primary">{user?.name?.split(" ")[0] || "friend"}!</span>
+              {/* Live badge — only shown when count is real and >= 5 */}
+              {onlineCount !== null && onlineCount >= 5 && (
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border mb-8" style={{ background: "var(--paper-2)", borderColor: "var(--line)" }}>
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
+                  </span>
+                  <span className="text-sm" style={{ color: "var(--ink-2)" }}>{onlineCount} Australian parent{onlineCount === 1 ? "" : "s"} online right now</span>
+                </div>
+              )}
+
+              <h1 className="font-heading font-medium mb-4" style={{ fontFamily: "var(--serif)", fontSize: "clamp(28px,6vw,42px)", letterSpacing: "-0.03em", lineHeight: 1.15, color: "var(--ink)" }}>
+                Welcome to Our Little{" "}
+                <em style={{ fontStyle: "italic", color: "hsl(var(--accent))" }}>Village</em>
+                {user?.name ? `, ${user.name.split(" ")[0]}` : ""}
               </h1>
-              <p className="text-muted-foreground text-lg mb-8 max-w-md mx-auto leading-relaxed">
-                A judgment-free community for Australian parents — whether you're expecting,
+              <p className="mb-8 max-w-md mx-auto leading-relaxed" style={{ fontSize: 15.5, lineHeight: 1.72, color: "var(--ink-2)" }}>
+                A judgement-free community for Australian parents — whether you're expecting,
                 up at 3am, or just need someone who gets it.
               </p>
 
-              <div className="flex items-center gap-3 bg-[var(--paper-3)] border border-[var(--line)] rounded-2xl p-4 mb-8 max-w-md mx-auto text-left">
-                <EyeOff className="h-5 w-5 text-primary shrink-0" />
+              {/* Privacy note */}
+              <div className="flex items-start gap-3 p-4 rounded-[8px] border mb-8 max-w-md mx-auto text-left" style={{ background: "var(--paper-2)", borderColor: "var(--line)" }}>
+                <IconLock size={16} style={{ color: "var(--clay)", flexShrink: 0, marginTop: 2 }} />
                 <div>
-                  <p className="text-sm font-medium text-foreground">You control your privacy</p>
-                  <p className="text-xs text-muted-foreground">Post or chat anonymously any time — no name, no avatar shown.</p>
+                  <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>You control your privacy</p>
+                  <p className="text-xs leading-relaxed" style={{ color: "var(--ink-3)" }}>Post or chat anonymously any time — no name, no avatar shown to anyone.</p>
                 </div>
               </div>
 
-              <div className="grid sm:grid-cols-3 gap-4 mb-10 text-left max-w-xl mx-auto">
+              {/* Feature cards */}
+              <div className="grid sm:grid-cols-3 gap-3 mb-10 text-left max-w-xl mx-auto">
                 {[
-                  { emoji: "💬", title: "Spaces",      desc: "Topic-based discussions — sleep, feeding, mental health, and more." },
-                  { emoji: "🗣️", title: "Group Chats", desc: "Real-time chat for your suburb, your stage, and Australia-wide." },
-                  { emoji: "📅", title: "Events",       desc: "Find local meetups, playgroups, and parent events near you." },
-                ].map(({ emoji, title, desc }) => (
-                  <div key={title} className="bg-card rounded-2xl p-4 border border-border/50">
-                    <span className="text-2xl mb-2 block">{emoji}</span>
-                    <h3 className="font-heading font-semibold text-foreground text-sm mb-1">{title}</h3>
-                    <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
+                  { Icon: IconChat,   title: "Group Chats",        desc: "The 3am Club is always open. Local, national, and stage-based rooms." },
+                  { Icon: IconSpaces, title: "Spaces",             desc: "Topic discussions for the real stuff — sleep, feeding, mental health." },
+                  { Icon: IconShield, title: "Verified clinicians", desc: "Midwives, paeds, and mental-health clinicians — clearly marked." },
+                ].map(({ Icon, title, desc }) => (
+                  <div key={title} className="rounded-[8px] p-4 border text-left" style={{ background: "var(--paper-2)", borderColor: "var(--line)" }}>
+                    <Icon size={18} style={{ color: "var(--clay)", marginBottom: 10 }} />
+                    <h3 className="font-medium text-sm mb-1" style={{ color: "var(--ink)" }}>{title}</h3>
+                    <p className="text-xs leading-relaxed" style={{ color: "var(--ink-3)" }}>{desc}</p>
                   </div>
                 ))}
               </div>
@@ -227,10 +258,11 @@ export default function Onboarding({ user }) {
               <Button
                 onClick={handleNext}
                 size="lg"
-                className="rounded-full px-8 bg-primary text-primary-foreground shadow-[0_0_20px_rgba(245,197,66,0.3)] hover:shadow-[0_0_30px_rgba(245,197,66,0.4)]"
+                className="rounded-[8px] px-8 h-11"
+                style={{ background: "var(--ink)", color: "var(--paper)" }}
               >
                 Set up my profile
-                <ArrowRight className="h-5 w-5 ml-2" />
+                <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             </div>
           )}
@@ -238,37 +270,44 @@ export default function Onboarding({ user }) {
           {/* ── Step 2: About You ─────────────────────────────────────────────── */}
           {step === 2 && (
             <div className="animate-fade-in max-w-lg mx-auto w-full">
-              <h2 className="font-heading text-2xl font-bold text-foreground mb-1">About you</h2>
-              <p className="text-muted-foreground mb-6">A nickname is fine — many parents prefer it for privacy.</p>
+              <p className="tv-mono mb-2" style={{ color: "var(--clay)" }}>Step 2</p>
+              <h2 className="font-heading font-medium text-2xl mb-1" style={{ color: "var(--ink)" }}>Tell us about you</h2>
+              <p className="mb-6 text-sm" style={{ color: "var(--ink-3)" }}>A nickname is fine — many parents prefer it for privacy.</p>
 
               <div className="space-y-5">
 
                 {/* Display name */}
                 <div className="space-y-1.5">
-                  <Label className="text-foreground font-medium">Display name</Label>
+                  <Label className="text-foreground font-medium text-sm">Display name</Label>
                   <Input
                     value={nickname}
                     onChange={e => setNickname(e.target.value)}
                     placeholder="What should we call you?"
-                    className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-[var(--line-2)]"
+                    className="h-11 rounded-[8px]"
+                    style={{ background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
                   />
                 </div>
 
                 {/* Parenting stage */}
                 <div className="space-y-2">
-                  <Label className="text-foreground font-medium">Where are you at?</Label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  <Label className="text-foreground font-medium text-sm">Where are you at?</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {PARENTING_STAGES.map(stage => (
                       <button
                         key={stage.id}
                         onClick={() => setParentingStage(stage.id)}
-                        className={`rounded-xl p-3 text-left border-2 transition-all ${
+                        className={`rounded-[8px] p-3 text-left border-2 transition-all relative ${
                           parentingStage === stage.id
-                            ? "border-[var(--sage)] bg-[var(--paper-3)]"
+                            ? "border-[var(--clay)] bg-[var(--paper-3)]"
                             : "border-border/50 bg-card hover:border-border"
                         }`}
                       >
-                        <span className="text-xl block mb-1">{stage.emoji}</span>
+                        {parentingStage === stage.id && (
+                          <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-[var(--clay)] flex items-center justify-center">
+                            <IconCheck size={9} style={{ color: "white" }} />
+                          </div>
+                        )}
+                        <span className="font-mono text-[10px] block mb-1" style={{ color: parentingStage === stage.id ? "var(--clay)" : "var(--ink-3)", letterSpacing: "0.04em" }}>{stage.age}</span>
                         <span className="text-sm font-medium text-foreground block">{stage.label}</span>
                         <span className="text-xs text-muted-foreground">{stage.desc}</span>
                       </button>
@@ -290,16 +329,16 @@ export default function Onboarding({ user }) {
                           <button
                             key={stage.id}
                             onClick={() => toggleMixedAgeGroup(stage.id)}
-                            className={`rounded-xl p-2.5 text-left border-2 transition-all flex items-center gap-2 ${
-                              active ? "border-[var(--sage)] bg-[var(--paper-3)]" : "border-border/50 bg-card hover:border-border"
+                            className={`rounded-[8px] p-2.5 text-left border-2 transition-all flex items-center gap-2 ${
+                              active ? "border-[var(--clay)] bg-[var(--paper-3)]" : "border-border/50 bg-card hover:border-border"
                             }`}
                           >
-                            <span className="text-lg">{stage.emoji}</span>
-                            <div>
+                            <span className="font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>{stage.age}</span>
+                            <div className="flex-1">
                               <span className="text-xs font-medium text-foreground block">{stage.label}</span>
                               <span className="text-xs text-muted-foreground">{stage.desc}</span>
                             </div>
-                            {active && <Check className="h-3.5 w-3.5 text-primary ml-auto flex-shrink-0" />}
+                            {active && <IconCheck size={14} style={{ color: "var(--clay)", flexShrink: 0 }} />}
                           </button>
                         );
                       })}
@@ -307,13 +346,12 @@ export default function Onboarding({ user }) {
                     {parentingStage === "mixed" && (
                       <button
                         onClick={() => setIsMultipleBirth(p => !p)}
-                        className={`w-full rounded-xl px-3 py-2.5 border-2 flex items-center gap-3 transition-all text-left ${
-                          isMultipleBirth ? "border-[var(--sage)] bg-[var(--paper-3)]" : "border-border/50 bg-card hover:border-border"
+                        className={`w-full rounded-[8px] px-3 py-2.5 border-2 flex items-center gap-3 transition-all text-left ${
+                          isMultipleBirth ? "border-[var(--clay)] bg-[var(--paper-3)]" : "border-border/50 bg-card hover:border-border"
                         }`}
                       >
-                        <span className="text-base">👶👶</span>
                         <span className="text-xs font-medium text-foreground flex-1">Some of these include twins or triplets</span>
-                        {isMultipleBirth && <Check className="h-3.5 w-3.5 text-primary flex-shrink-0" />}
+                        {isMultipleBirth && <IconCheck size={14} style={{ color: "var(--clay)", flexShrink: 0 }} />}
                       </button>
                     )}
                   </div>
@@ -324,17 +362,19 @@ export default function Onboarding({ user }) {
                   <Label className="text-foreground font-medium text-sm">
                     I am a… <span className="text-muted-foreground font-normal">(optional)</span>
                   </Label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="flex gap-2">
                     {GENDER_OPTIONS.map(opt => (
                       <button
                         key={opt.id}
                         onClick={() => setGender(gender === opt.id ? "" : opt.id)}
-                        className={`rounded-xl p-3 text-center border-2 flex flex-col items-center gap-1 transition-all ${
-                          gender === opt.id ? "border-[var(--sage)] bg-[var(--paper-3)]" : "border-border/50 bg-card hover:border-border"
+                        className={`flex-1 rounded-[8px] py-2.5 px-2 text-center border-2 transition-all text-sm ${
+                          gender === opt.id
+                            ? "border-[var(--clay)] bg-[var(--paper-3)] font-semibold"
+                            : "border-border/50 bg-card hover:border-border font-normal"
                         }`}
+                        style={{ color: gender === opt.id ? "var(--ink)" : "var(--ink-2)" }}
                       >
-                        <span className="text-xl">{opt.emoji}</span>
-                        <span className={`text-xs font-medium ${gender === opt.id ? "text-primary" : "text-foreground"}`}>{opt.label}</span>
+                        {opt.label}
                       </button>
                     ))}
                   </div>
@@ -344,18 +384,18 @@ export default function Onboarding({ user }) {
                 {/* Single parent */}
                 <button
                   onClick={() => setIsSingleParent(p => !p)}
-                  className={`w-full rounded-xl p-4 border-2 flex items-center gap-3 transition-all text-left ${
+                  className={`w-full rounded-[8px] p-4 border-2 flex items-center gap-3 transition-all text-left ${
                     isSingleParent ? "border-[var(--sage)] bg-[var(--paper-3)]" : "border-border/50 bg-card hover:border-border"
                   }`}
                 >
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                    isSingleParent ? "border-[var(--ink)] bg-[var(--ink)]" : "border-border"
+                  <div className={`w-5 h-5 rounded-[4px] border-2 flex items-center justify-center flex-shrink-0 ${
+                    isSingleParent ? "border-[var(--sage)] bg-[var(--sage)]" : "border-border"
                   }`}>
-                    {isSingleParent && <Check className="h-3 w-3 text-primary-foreground" />}
+                    {isSingleParent && <IconCheck size={10} style={{ color: "white" }} />}
                   </div>
                   <div>
-                    <p className="font-medium text-foreground text-sm">I'm a single parent 💪</p>
-                    <p className="text-xs text-muted-foreground">We'll connect you with others in the same boat</p>
+                    <p className="font-medium text-foreground text-sm">I'm a single parent</p>
+                    <p className="text-xs text-muted-foreground">We'll connect you with others who understand the unique journey</p>
                   </div>
                 </button>
 
@@ -366,10 +406,11 @@ export default function Onboarding({ user }) {
           {/* ── Step 3: Location ──────────────────────────────────────────────── */}
           {step === 3 && (
             <div className="animate-fade-in max-w-lg mx-auto w-full">
-              <h2 className="font-heading text-2xl font-bold text-foreground mb-1">Where are you based?</h2>
-              <p className="text-muted-foreground mb-2">Find parents near you and see local group chats and events.</p>
-              <div className="flex items-center gap-2 mb-6 text-xs text-muted-foreground bg-secondary/50 rounded-xl px-3 py-2">
-                <MapPin className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+              <p className="tv-mono mb-2" style={{ color: "var(--clay)" }}>Step 3</p>
+              <h2 className="font-heading font-medium text-2xl mb-1" style={{ color: "var(--ink)" }}>Where in Australia?</h2>
+              <p className="text-sm mb-2" style={{ color: "var(--ink-3)" }}>Find parents near you and see local group chats and events.</p>
+              <div className="flex items-center gap-2 mb-6 text-xs rounded-[8px] px-3 py-2" style={{ color: "var(--ink-3)", background: "var(--paper-2)", border: "1px solid var(--line)" }}>
+                <IconPin size={14} style={{ color: "var(--clay)", flexShrink: 0 }} />
                 Your location is never shown publicly — only used to surface local chats and nearby events.
               </div>
 
@@ -393,7 +434,8 @@ export default function Onboarding({ user }) {
                     value={locationSearch}
                     onChange={e => searchLocation(e.target.value)}
                     placeholder="e.g. Bondi, 2026, Fitzroy..."
-                    className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-[var(--line-2)]"
+                    className="h-11 rounded-[8px]"
+                    style={{ background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
                     autoComplete="off"
                   />
                   {searchingLocation && <p className="text-xs text-muted-foreground px-1 mt-1">Searching...</p>}
@@ -413,8 +455,8 @@ export default function Onboarding({ user }) {
                     </div>
                   )}
                   {suburb && (
-                    <p className="text-xs text-primary px-1 mt-1 flex items-center gap-1">
-                      <Check className="h-3 w-3" />
+                    <p className="text-xs px-1 mt-1 flex items-center gap-1" style={{ color: "var(--sage)" }}>
+                      <IconCheck size={12} style={{ color: "var(--sage)" }} />
                       {suburb}{postcode ? `, ${postcode}` : ""}{selectedState ? ` · ${selectedState}` : ""}
                     </p>
                   )}
@@ -429,9 +471,9 @@ export default function Onboarding({ user }) {
                       <button
                         key={s}
                         onClick={() => setSelectedState(s)}
-                        className={`rounded-xl py-2.5 text-sm font-medium border-2 transition-all ${
+                        className={`rounded-[8px] py-2.5 text-sm font-medium border-2 transition-all ${
                           selectedState === s
-                            ? "border-[var(--sage)] bg-[var(--paper-3)] text-primary"
+                            ? "border-[var(--clay)] bg-[var(--paper-3)] text-primary"
                             : "border-border/50 bg-card hover:border-border text-foreground"
                         }`}
                       >
@@ -447,47 +489,41 @@ export default function Onboarding({ user }) {
           {/* ── Step 4: What brings you here? ─────────────────────────────────── */}
           {step === 4 && (
             <div className="animate-fade-in max-w-lg mx-auto w-full">
-              <h2 className="font-heading text-2xl font-bold text-foreground mb-2">What brings you here today?</h2>
-              <p className="text-muted-foreground mb-8">We'll take you straight there when you're done.</p>
+              <p className="tv-mono mb-2" style={{ color: "var(--clay)" }}>Step 4</p>
+              <h2 className="font-heading font-medium text-2xl mb-2" style={{ color: "var(--ink)" }}>What brings you here today?</h2>
+              <p className="text-sm mb-8" style={{ color: "var(--ink-3)" }}>We'll take you straight there when you're done.</p>
 
               <div className="space-y-3">
                 {[
-                  {
-                    id: "vent",
-                    emoji: "💬",
-                    title: "I need to talk or vent",
-                    desc: "Find a real-time group chat or support space with other parents right now.",
-                  },
-                  {
-                    id: "question",
-                    emoji: "🙋",
-                    title: "I have a question",
-                    desc: "Post to a topic-based space and get answers from parents who've been there.",
-                  },
-                  {
-                    id: "browse",
-                    emoji: "👀",
-                    title: "I'm just exploring",
-                    desc: "Have a look around and see what Our Little Village has for you.",
-                  },
-                ].map(({ id, emoji, title, desc }) => (
+                  { id: "vent",     Icon: IconChat,   title: "I need to talk or vent",  desc: "Find a real-time group chat or support space with other parents right now." },
+                  { id: "question", Icon: IconSpaces, title: "I have a question",        desc: "Post to a topic-based space and get answers from parents who've been there." },
+                  { id: "browse",   Icon: IconHome,   title: "I'm just exploring",       desc: "Have a look around and see what Our Little Village has for you." },
+                ].map(({ id, Icon, title, desc }) => (
                   <button
                     key={id}
                     onClick={() => setImmediateNeed(id)}
-                    className={`w-full rounded-2xl p-5 text-left border-2 flex items-start gap-4 transition-all ${
+                    className={`w-full rounded-[8px] p-5 text-left border-2 flex items-start gap-4 transition-all ${
                       immediateNeed === id
-                        ? "border-[var(--sage)] bg-[var(--paper-3)]"
+                        ? "border-[var(--clay)] bg-[var(--paper-3)]"
                         : "border-border/50 bg-card hover:border-border"
                     }`}
                   >
-                    <span className="text-3xl shrink-0">{emoji}</span>
+                    <div className={`w-10 h-10 rounded-[8px] flex items-center justify-center flex-shrink-0 border ${
+                      immediateNeed === id ? "bg-[var(--clay-wash)] border-[var(--clay)]/30" : "bg-[var(--paper-3)] border-[var(--line)]"
+                    }`}>
+                      <Icon size={18} style={{ color: immediateNeed === id ? "var(--clay)" : "var(--ink-3)" }} />
+                    </div>
                     <div className="flex-1">
-                      <p className={`font-semibold text-base mb-1 ${immediateNeed === id ? "text-primary" : "text-foreground"}`}>
+                      <p className={`font-semibold text-base mb-1 ${immediateNeed === id ? "text-foreground" : "text-foreground"}`}>
                         {title}
                       </p>
                       <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
                     </div>
-                    {immediateNeed === id && <Check className="h-5 w-5 text-primary shrink-0 mt-1" />}
+                    {immediateNeed === id && (
+                      <div className="w-5 h-5 rounded-full bg-[var(--clay)] flex items-center justify-center shrink-0 mt-1">
+                        <IconCheck size={10} style={{ color: "white" }} />
+                      </div>
+                    )}
                   </button>
                 ))}
               </div>
@@ -497,16 +533,19 @@ export default function Onboarding({ user }) {
           {/* ── Step 5: You're in! — explainer + destination ──────────────────── */}
           {step === 5 && (
             <div className="animate-fade-in text-center max-w-lg mx-auto w-full">
-              <div className="text-5xl mb-4">🏡</div>
-              <h2 className="font-heading text-2xl font-bold text-foreground mb-2">You're all set!</h2>
-              <p className="text-muted-foreground mb-8">Welcome to Our Little Village. Here's what you have access to.</p>
+              {/* Check mark in circle */}
+              <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5" style={{ background: "var(--sage-wash)", border: "1px solid rgba(120,152,120,0.3)" }}>
+                <IconCheck size={28} style={{ color: "var(--sage)" }} />
+              </div>
+              <h2 className="font-heading font-medium text-3xl mb-2" style={{ color: "var(--ink)" }}>You're all set!</h2>
+              <p className="mb-8 text-sm" style={{ color: "var(--ink-3)" }}>Welcome to Our Little Village. Here's what you have access to.</p>
 
               {/* Free / Trial / Premium explainer — no upsell language, just plain info */}
               <div className="village-card p-5 mb-6 text-left">
                 {isTrial && (
                   <>
                     <div className="flex items-center gap-2 mb-3">
-                      <span className="text-lg">🎉</span>
+                      <IconSpark size={16} style={{ color: "var(--honey)" }} />
                       <p className="font-semibold text-foreground">Your 7-day Village+ trial is active</p>
                     </div>
                     <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
@@ -522,7 +561,7 @@ export default function Onboarding({ user }) {
 "Communities — member-led groups",
                       ].map(item => (
                         <div key={item} className="flex items-center gap-2 text-sm text-foreground">
-                          <Check className="h-4 w-4 text-green-500 shrink-0" />
+                          <IconCheck size={14} style={{ color: "var(--sage)", flexShrink: 0 }} />
                           {item}
                         </div>
                       ))}
@@ -533,7 +572,7 @@ export default function Onboarding({ user }) {
                 {isFree && (
                   <>
                     <div className="flex items-center gap-2 mb-3">
-                      <span className="text-lg">✅</span>
+                      <IconCheck size={16} style={{ color: "var(--sage)" }} />
                       <p className="font-semibold text-foreground">Free plan — always included</p>
                     </div>
                     <div className="space-y-2 mb-4">
@@ -543,7 +582,7 @@ export default function Onboarding({ user }) {
 "Post, reply, and react — no weekly cap on chats",
                       ].map(item => (
                         <div key={item} className="flex items-center gap-2 text-sm text-foreground">
-                          <Check className="h-4 w-4 text-green-500 shrink-0" />
+                          <IconCheck size={14} style={{ color: "var(--sage)", flexShrink: 0 }} />
                           {item}
                         </div>
                       ))}
@@ -558,7 +597,7 @@ export default function Onboarding({ user }) {
                 {isPremium && (
                   <>
                     <div className="flex items-center gap-2 mb-3">
-                      <span className="text-lg">⭐</span>
+                      <IconSpark size={16} style={{ color: "var(--honey)" }} />
                       <p className="font-semibold text-foreground">Village+ — full access</p>
                     </div>
                     <div className="space-y-2">
@@ -569,7 +608,7 @@ export default function Onboarding({ user }) {
 "Everything we add in the future",
                       ].map(item => (
                         <div key={item} className="flex items-center gap-2 text-sm text-foreground">
-                          <Check className="h-4 w-4 text-green-500 shrink-0" />
+                          <IconCheck size={14} style={{ color: "var(--sage)", flexShrink: 0 }} />
                           {item}
                         </div>
                       ))}
@@ -582,7 +621,8 @@ export default function Onboarding({ user }) {
               <Button
                 onClick={() => { window.location.href = getDestination(); }}
                 size="lg"
-                className="w-full rounded-full bg-primary text-primary-foreground shadow-[0_0_20px_rgba(245,197,66,0.3)] mb-3"
+                className="w-full rounded-[8px] h-12"
+                style={{ background: "var(--ink)", color: "var(--paper)" }}
                 disabled={saving}
               >
                 {saving ? "Setting up your village…" : getDestinationLabel()}
@@ -592,7 +632,7 @@ export default function Onboarding({ user }) {
               {immediateNeed !== "browse" && (
                 <button
                   onClick={() => { window.location.href = "/dashboard"; }}
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors mt-3 block mx-auto"
                 >
                   Explore the full village first →
                 </button>
@@ -609,7 +649,7 @@ export default function Onboarding({ user }) {
 
           {/* Back — steps 2-4 only */}
           {step > 1 && step < 5 ? (
-            <Button variant="ghost" onClick={handleBack} className="rounded-full">
+            <Button variant="ghost" onClick={handleBack} className="rounded-[8px]">
               <ArrowLeft className="h-4 w-4 mr-1" />
               Back
             </Button>
@@ -620,14 +660,14 @@ export default function Onboarding({ user }) {
             <div className="flex items-center gap-2 ml-auto">
               {/* Location can be skipped; the needs step cannot */}
               {step === 3 && (
-                <Button variant="ghost" onClick={handleNext} className="rounded-full text-muted-foreground">
+                <Button variant="ghost" onClick={handleNext} className="rounded-[8px] text-muted-foreground">
                   Skip for now
                 </Button>
               )}
               <Button
                 onClick={handleNext}
                 disabled={!canProceed() || saving}
-                className="rounded-full bg-primary text-primary-foreground px-6"
+                className="rounded-[8px] bg-primary text-primary-foreground px-6"
               >
                 {saving ? "Saving…" : step === 4 ? "Almost there" : "Continue"}
                 {!saving && <ArrowRight className="h-4 w-4 ml-1" />}

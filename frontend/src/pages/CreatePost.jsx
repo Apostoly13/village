@@ -192,7 +192,7 @@ export default function CreatePost({ user }) {
         navigate(`/forums/post/${post.post_id}`);
       } else if (response.status === 429) {
         const error = await response.json();
-        toast.error(parseApiError(error.detail, "Monthly post limit reached"));
+        toast.error(parseApiError(error.detail, "Weekly post limit reached — resets Monday"));
         fetchSubscription();
       } else {
         const error = await response.json();
@@ -234,8 +234,8 @@ export default function CreatePost({ user }) {
                   <Link to="/plus" className="flex items-center gap-3 w-full group">
                     <Sparkles className="h-5 w-5 flex-shrink-0" style={{ color: "hsl(var(--accent))" }} />
                     <div className="flex-1">
-                      <p className="font-medium text-foreground text-sm">Monthly post limit reached</p>
-                      <p className="text-xs text-muted-foreground">Upgrade to Village+ for unlimited posts</p>
+                      <p className="font-medium text-foreground text-sm">Weekly post limit reached</p>
+                      <p className="text-xs text-muted-foreground">Resets Monday — or upgrade to Village+ for unlimited posts.</p>
                     </div>
                     <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "hsl(var(--accent))" }} />
                   </Link>
@@ -243,7 +243,8 @@ export default function CreatePost({ user }) {
                   <>
                     <div className="flex-1">
                       <p className="text-sm text-foreground">
-                        <span className="font-medium">{remaining}</span> of {subscription.forum_posts.limit} posts remaining this month
+                        <span className="font-medium">{remaining}</span> of {subscription.forum_posts.limit} posts left this week
+                        {remaining <= 2 && <span className="text-muted-foreground"> — resets Monday</span>}
                       </p>
                     </div>
                     {remaining <= 2 && (
@@ -289,7 +290,7 @@ export default function CreatePost({ user }) {
                 value={title}
                 onChange={(e) => { setTitle(e.target.value.slice(0, 200)); setTouched(t => ({ ...t, title: true })); }}
                 placeholder="What's on your mind?"
-                className={`h-12 rounded-xl bg-secondary/50 border-transparent focus:border-[var(--line-2)] ${touched.title && !title.trim() ? "border-destructive/50 focus:border-destructive" : ""}`}
+                className={`h-12 rounded-xl bg-secondary/50 border-transparent ${touched.title && !title.trim() ? "border-destructive/50 focus:border-destructive" : ""}`}
                 maxLength={200}
                 data-testid="title-input"
               />
@@ -312,7 +313,7 @@ export default function CreatePost({ user }) {
                   onChange={(e) => { setContent(e.target.value.slice(0, MAX_CONTENT_LENGTH)); setTouched(t => ({ ...t, content: true })); }}
                   onKeyDown={(e) => handleListKeyDown(e, content, (v) => { setContent(v); setTouched(t => ({ ...t, content: true })); })}
                   placeholder="Share your thoughts, questions, or experiences..."
-                  className="min-h-[200px] border-0 bg-transparent focus:ring-0 shadow-none resize-none rounded-none"
+                  className="min-h-[200px] border-0 bg-transparent shadow-none resize-none rounded-none"
                   data-testid="content-input"
                 />
               </div>

@@ -268,7 +268,7 @@ function EmojiPicker({ value, onChange, onImageUpload, imagePreview, onClearImag
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search emojis (e.g. baby, heart, nature)…"
-              className="w-full pl-9 pr-4 py-2 rounded-xl bg-card border border-border/50 text-sm focus:outline-none focus:border-[var(--line-2)]"
+              className="w-full pl-9 pr-4 py-2 rounded-xl bg-card border border-border/50 text-sm focus:outline-none"
             />
           </div>
 
@@ -296,7 +296,7 @@ function EmojiPicker({ value, onChange, onImageUpload, imagePreview, onClearImag
             <div className="space-y-4 max-h-72 overflow-y-auto">
               {CATEGORY_LABELS.map(cat => (
                 <div key={cat.label}>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{cat.label}</p>
+                  <p className="tv-mono mb-2" style={{ color: "var(--ink-3)" }}>{cat.label}</p>
                   <div className="flex flex-wrap gap-1.5">
                     {cat.emojis.map(e => (
                       <button
@@ -388,7 +388,7 @@ function SuburbSearch({ selected, onChange }) {
           onChange={e => { setQuery(e.target.value); setShowDropdown(true); }}
           onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
           placeholder="Search suburb or postcode…"
-          className="w-full pl-9 pr-20 h-12 rounded-xl bg-secondary/50 border border-transparent focus:border-[var(--line-2)] focus:outline-none text-sm text-foreground placeholder:text-muted-foreground"
+          className="w-full pl-9 pr-20 h-12 rounded-xl bg-secondary/50 border border-transparent focus:outline-none text-sm text-foreground placeholder:text-muted-foreground"
         />
         {searching && (
           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">Searching…</span>
@@ -590,7 +590,7 @@ export default function CreateCommunity({ user }) {
                   value={name}
                   onChange={(e) => setName(e.target.value.slice(0, 60))}
                   placeholder="e.g. Aussie Veggie Parents"
-                  className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-[var(--line-2)]"
+                  className="h-12 rounded-xl bg-secondary/50 border-transparent"
                   maxLength={60}
                 />
                 <p className="text-xs text-muted-foreground text-right">{name.length}/60</p>
@@ -604,7 +604,7 @@ export default function CreateCommunity({ user }) {
                   value={description}
                   onChange={(e) => setDescription(e.target.value.slice(0, 200))}
                   placeholder="What is this community about?"
-                  className="min-h-[100px] rounded-xl bg-secondary/50 border-transparent focus:border-[var(--line-2)] resize-none"
+                  className="min-h-[100px] rounded-xl bg-secondary/50 border-transparent resize-none"
                   maxLength={200}
                 />
                 <p className="text-xs text-muted-foreground text-right">{description.length}/200</p>
@@ -681,7 +681,7 @@ export default function CreateCommunity({ user }) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-heading font-bold text-foreground text-base">{name.trim()}</p>
+                        <p className="font-heading font-medium text-foreground text-base">{name.trim()}</p>
                         {isPrivate && <Lock className="h-3.5 w-3.5 text-muted-foreground" />}
                         {communityType === "local" && <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--paper-3)] text-primary">Local</span>}
                       </div>

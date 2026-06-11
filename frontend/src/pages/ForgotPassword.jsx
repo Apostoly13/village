@@ -81,7 +81,7 @@ export default function ForgotPassword() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@example.com"
-                    className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-[var(--line-2)]"
+                    className="h-12 rounded-xl bg-secondary/50 border-transparent"
                     required
                     autoFocus
                   />

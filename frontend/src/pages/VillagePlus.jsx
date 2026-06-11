@@ -13,8 +13,9 @@ const PRICE_ANNUAL_TOTAL = 95.88;  // billed annually
 
 const FREE_FEATURES = [
   { label: "5 support space posts per week" },
-  { label: "5 support space replies per week" },
-  { label: "10 chat messages per day" },
+  { label: "30 support space replies per week" },
+  { label: "40 chat messages per day" },
+  { label: "Browse & RSVP to events" },
   { label: "Anonymous posting — always" },
   { label: "Read all posts and comments" },
 ];
@@ -22,7 +23,7 @@ const FREE_FEATURES = [
 const PREMIUM_FEATURES = [
   { label: "Unlimited posts, replies & messages" },
   { label: "Create & manage community spaces" },
-  { label: "Create & RSVP to local events" },
+  { label: "Host & create local events" },
   { label: "Unlimited direct messages" },
   { label: "Village+ badge on your profile" },
   { label: "Priority support & early feature access" },
@@ -31,16 +32,16 @@ const PREMIUM_FEATURES = [
 
 const COMPARISON = [
   { feature: "Support space posts",     free: "5/week",    plus: "Unlimited" },
-  { feature: "Support space replies",   free: "5/week",    plus: "Unlimited" },
-  { feature: "Chat messages",            free: "10/day",    plus: "Unlimited" },
+  { feature: "Support space replies",   free: "30/week",   plus: "Unlimited" },
+  { feature: "Chat messages",           free: "40/day",    plus: "Unlimited" },
   { feature: "Direct messages",         free: "—",         plus: "Unlimited" },
-  { feature: "View events",             free: "—",         plus: "✓" },
-  { feature: "Create events",           free: "—",         plus: "✓" },
+  { feature: "Browse & RSVP events",    free: "✓",         plus: "✓" },
+  { feature: "Host events",             free: "—",         plus: "✓" },
   { feature: "Create communities",      free: "—",         plus: "✓" },
   { feature: "Anonymous posting",       free: "✓",         plus: "✓" },
   { feature: "Read all posts",          free: "✓",         plus: "✓" },
   { feature: "Village+ badge",          free: "—",         plus: "✓" },
-  { feature: "The Village Stall",        free: "—",         plus: "✓" },
+  { feature: "The Village Stall",       free: "—",         plus: "✓" },
 ];
 
 // ── Premium management view ────────────────────────────────────────────────────
@@ -69,7 +70,7 @@ function PremiumManagement({ user, onPortal, portalLoading, error }) {
 
       {/* What's included */}
       <div className="village-card p-5 mb-4">
-        <p className="font-mono text-[10px] uppercase tracking-[0.14em] mb-4" style={{ color: "var(--ink-3)" }}>Your plan includes</p>
+        <p className="tv-mono mb-4" style={{ color: "var(--ink-3)" }}>Your plan includes</p>
         <div className="space-y-2.5">
           {PREMIUM_FEATURES.map(({ label }, i) => (
             <div key={i} className="flex items-center gap-3 text-sm" style={{ color: "var(--ink)" }}>
@@ -84,7 +85,7 @@ function PremiumManagement({ user, onPortal, portalLoading, error }) {
 
       {/* Manage billing */}
       <div className="village-card p-5 mb-4">
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Manage your subscription</p>
+        <p className="tv-mono mb-1" style={{ color: "var(--ink-3)" }}>Manage your subscription</p>
         <p className="text-sm text-muted-foreground mb-4">Update payment details, view invoices, or cancel — all managed securely through Stripe.</p>
 
         {error && (
@@ -275,7 +276,7 @@ export default function VillagePlus({ user }) {
           {/* Free */}
           <div className="village-card p-6 flex flex-col">
             <div className="mb-5">
-              <p className="font-mono text-[10px] uppercase tracking-[0.14em] mb-2" style={{ color: "var(--ink-3)" }}>Free</p>
+              <p className="tv-mono mb-2" style={{ color: "var(--ink-3)" }}>Free</p>
               <p className="font-heading text-4xl font-bold" style={{ color: "var(--ink)" }}>$0</p>
               <p className="text-sm mt-1" style={{ color: "var(--ink-2)" }}>Always free, forever</p>
             </div>
@@ -315,7 +316,7 @@ export default function VillagePlus({ user }) {
               </span>
             </div>
             <div className="mb-5 relative z-10">
-              <p className="font-mono text-[10px] uppercase tracking-[0.14em] mb-2 flex items-center gap-1.5" style={{ color: "var(--honey)" }}>
+              <p className="tv-mono mb-2 flex items-center gap-1.5" style={{ color: "var(--honey)" }}>
                 <Sparkles className="h-3.5 w-3.5" style={{ color: "var(--honey)" }} /> Village+
               </p>
               {billing === "annual" ? (
@@ -396,10 +397,10 @@ export default function VillagePlus({ user }) {
 
         {/* Comparison table */}
         <div className="mb-4">
-          <p className="font-mono text-[10px] uppercase tracking-[0.14em] mb-4" style={{ color: "var(--ink-3)" }}>Compare plans</p>
+          <p className="tv-mono mb-4" style={{ color: "var(--ink-3)" }}>Compare plans</p>
         </div>
         <div className="village-card overflow-hidden mb-6">
-          <div className="grid grid-cols-3 px-6 py-3.5 font-mono text-[10px] uppercase tracking-[0.14em]" style={{ background: "var(--paper-3)", color: "var(--ink-3)", borderBottom: "1px solid var(--line)" }}>
+          <div className="tv-mono grid grid-cols-3 px-6 py-3.5" style={{ background: "var(--paper-3)", color: "var(--ink-3)", borderBottom: "1px solid var(--line)" }}>
             <span>Feature</span>
             <span className="text-center">Free</span>
             <span className="flex items-center justify-center gap-1" style={{ color: "var(--honey)" }}>

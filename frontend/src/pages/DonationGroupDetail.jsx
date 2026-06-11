@@ -296,7 +296,7 @@ export default function DonationGroupDetail({ user }) {
                   onChange={e => setModQuery(e.target.value)}
                   placeholder="Search for a member to add as mod…"
                   autoComplete="off"
-                  className="w-full bg-background border border-border/50 rounded-xl pl-9 pr-4 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition"
+                  className="w-full bg-background border border-border/50 rounded-xl pl-9 pr-4 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none transition"
                 />
                 {modLoading && <div className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full border-2 border-[var(--line)] border-t-[var(--ink-2)] animate-spin" />}
               </div>
@@ -351,7 +351,7 @@ export default function DonationGroupDetail({ user }) {
 
             {/* Stats */}
             <div className="flex flex-wrap gap-4 mt-4 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" />{group.member_ids?.length || 0} members</span>
+              <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" />{group.member_count ?? group.member_ids?.length ?? 0} members</span>
               <span className="flex items-center gap-1"><ShoppingBag className="h-3.5 w-3.5" />{group.item_count || 0} items donated</span>
               {(resolvedCoverage || group.area_coverage || group.suburb) && (
                 <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{resolvedCoverage || group.area_coverage || group.suburb}</span>
@@ -427,7 +427,7 @@ export default function DonationGroupDetail({ user }) {
                     onChange={e => setContactMsg(e.target.value.slice(0, 500))}
                     rows={3}
                     placeholder="Hi, I'd like to donate some items…"
-                    className="w-full bg-background border border-border/50 rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition resize-none"
+                    className="w-full bg-background border border-border/50 rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none transition resize-none"
                   />
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-xs text-muted-foreground">{contactMsg.length}/500</span>
@@ -464,7 +464,7 @@ export default function DonationGroupDetail({ user }) {
                       onChange={e => setContactMsg(e.target.value.slice(0, 500))}
                       rows={3}
                       placeholder="Hi, I have a question about this group…"
-                      className="w-full bg-background border border-border/50 rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition resize-none"
+                      className="w-full bg-background border border-border/50 rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none transition resize-none"
                     />
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-xs text-muted-foreground">{contactMsg.length}/500</span>

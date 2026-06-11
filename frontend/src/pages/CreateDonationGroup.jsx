@@ -292,7 +292,7 @@ export default function CreateDonationGroup({ user }) {
               <select
                 value={form.purpose_type}
                 onChange={e => set("purpose_type", e.target.value)}
-                className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-border/50 transition"
+                className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm text-foreground outline-none transition"
               >
                 {PURPOSE_OPTIONS.map(o => (
                   <option key={o.value} value={o.value}>{o.label}</option>
@@ -317,7 +317,7 @@ export default function CreateDonationGroup({ user }) {
                 value={form.name}
                 onChange={e => set("name", e.target.value.slice(0, 80))}
                 placeholder="e.g. Inner West Baby Clothes Drive"
-                className={`w-full bg-background border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition ${errors.name ? "border-destructive" : "border-border/50"}`}
+                className={`w-full bg-background border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none transition ${errors.name ? "border-destructive" : "border-border/50"}`}
               />
               <div className="flex items-center justify-between mt-1">
                 {errors.name
@@ -337,7 +337,7 @@ export default function CreateDonationGroup({ user }) {
                 onChange={e => set("description", e.target.value.slice(0, 500))}
                 rows={5}
                 placeholder={"Describe what you're collecting, who it helps, and how donations work.\n\ne.g. Collecting clean baby clothes sizes 000–2 for families in the Inner West. Drop-offs welcome at Newtown Community Centre on Saturdays 9am–12pm. Contact Sarah before dropping off anything larger than a pram."}
-                className={`w-full bg-background border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition resize-none ${errors.description ? "border-destructive" : "border-border/50"}`}
+                className={`w-full bg-background border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none transition resize-none ${errors.description ? "border-destructive" : "border-border/50"}`}
               />
               <div className="flex items-center justify-between mt-1">
                 {errors.description
@@ -431,7 +431,7 @@ export default function CreateDonationGroup({ user }) {
                     value={rangeFrom}
                     onChange={e => { setRangeFrom(e.target.value.replace(/\D/g, "")); setRangeError(""); }}
                     placeholder="From"
-                    className="w-24 bg-background border border-border/50 rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition text-center"
+                    className="w-24 bg-background border border-border/50 rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none transition text-center"
                   />
                   <span className="text-xs text-muted-foreground shrink-0">to</span>
                   <input
@@ -441,7 +441,7 @@ export default function CreateDonationGroup({ user }) {
                     value={rangeTo}
                     onChange={e => { setRangeTo(e.target.value.replace(/\D/g, "")); setRangeError(""); }}
                     placeholder="To"
-                    className="w-24 bg-background border border-border/50 rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition text-center"
+                    className="w-24 bg-background border border-border/50 rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none transition text-center"
                   />
                   <button
                     type="button"
@@ -477,7 +477,7 @@ export default function CreateDonationGroup({ user }) {
                 value={form.end_date}
                 onChange={e => set("end_date", e.target.value)}
                 min={new Date(Date.now() + 86400000).toISOString().split("T")[0]}
-                className={`w-full bg-background border rounded-xl px-4 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-border/50 transition ${errors.end_date ? "border-destructive" : "border-border/50"}`}
+                className={`w-full bg-background border rounded-xl px-4 py-2.5 text-sm text-foreground outline-none transition ${errors.end_date ? "border-destructive" : "border-border/50"}`}
               />
               {errors.end_date && (
                 <p className="text-xs text-destructive mt-1 flex items-center gap-1">
@@ -502,7 +502,7 @@ export default function CreateDonationGroup({ user }) {
                 onChange={e => set("accepted_items", e.target.value.slice(0, 400))}
                 rows={3}
                 placeholder={"e.g.\n• Baby clothes sizes 000–2 (clean, no stains)\n• Muslin wraps and swaddles\n• Soft toys and baby books in good condition\n• Bouncer seats and play mats"}
-                className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition resize-none"
+                className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none transition resize-none"
               />
             </div>
 
@@ -513,7 +513,7 @@ export default function CreateDonationGroup({ user }) {
                 onChange={e => set("not_accepted", e.target.value.slice(0, 400))}
                 rows={3}
                 placeholder={"e.g.\n• No car seats (safety reasons)\n• No electrical items\n• No damaged, stained, or worn-out clothing\n• No formula or opened food items"}
-                className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition resize-none"
+                className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none transition resize-none"
               />
             </div>
 
@@ -524,7 +524,7 @@ export default function CreateDonationGroup({ user }) {
                 onChange={e => set("rules", e.target.value.slice(0, 500))}
                 rows={4}
                 placeholder={"e.g.\n• Items must be clean and in good condition\n• Message the organiser before dropping anything off\n• Drop-offs: Saturdays 9am–12pm, Newtown Community Centre\n• No drop-offs without prior contact — thank you!"}
-                className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition resize-none"
+                className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none transition resize-none"
               />
               <p className="text-xs text-muted-foreground mt-1">Include drop-off location, times, and any conditions donors should know about.</p>
             </div>
@@ -580,7 +580,7 @@ export default function CreateDonationGroup({ user }) {
                   onChange={e => setModQuery(e.target.value)}
                   placeholder="Search for a member by name…"
                   autoComplete="off"
-                  className="w-full bg-background border border-border/50 rounded-xl pl-9 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition"
+                  className="w-full bg-background border border-border/50 rounded-xl pl-9 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none transition"
                 />
                 {modLoading && <div className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full border-2 border-[var(--line)] border-t-[var(--ink-2)] animate-spin" />}
               </div>

@@ -249,7 +249,7 @@ function StallChatPanel({ listing, user, onClose }) {
           onKeyDown={handleKeyDown}
           placeholder="Message…"
           rows={1}
-          className="flex-1 resize-none bg-background border border-border rounded-2xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none focus:ring-2 focus:ring-border/50 transition overflow-hidden"
+          className="flex-1 resize-none bg-background border border-border rounded-2xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none transition overflow-hidden"
         />
         <button
           onClick={handleSend}
@@ -618,7 +618,7 @@ export default function StallListingDetail({ user }) {
             <div className="text-xs text-muted-foreground bg-secondary/30 rounded-xl p-3.5 leading-relaxed space-y-1.5">
               <p className="font-medium text-foreground/80">🤝 User-to-user transaction</p>
               <p>The Village Stall connects buyers and sellers — we don't process payments, handle disputes, or take responsibility for transactions. All deals are between you and the other party.</p>
-              <p>💡 Meet in a public place · Use PayID, cash or bank transfer · Never pay in advance for postage without verification.</p>
+              <p>💡 Meet in a public place · Pay in person at handover · Never transfer money in advance — advance-payment requests are the most common marketplace scam.</p>
             </div>
 
             {/* Report listing link — not own listing */}

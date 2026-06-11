@@ -111,7 +111,7 @@ export default function ResetPassword() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-[var(--line-2)] pr-10"
+                      className="h-12 rounded-xl bg-secondary/50 border-transparent pr-10"
                       required
                       disabled={!!error && !token}
                       autoFocus
@@ -134,7 +134,7 @@ export default function ResetPassword() {
                     value={confirm}
                     onChange={(e) => setConfirm(e.target.value)}
                     placeholder="••••••••"
-                    className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-[var(--line-2)]"
+                    className="h-12 rounded-xl bg-secondary/50 border-transparent"
                     required
                     disabled={!!error && !token}
                   />

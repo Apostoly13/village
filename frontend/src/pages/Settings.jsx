@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useTheme, ThemeToggle } from "../useTheme";
+import { playChime } from "../utils/sounds";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 const PREFS_KEY = "village_prefs";
@@ -110,7 +111,8 @@ export default function Settings({ user }) {
       // Chat (device-local)
       chatBubble:    true,
       messageToast:  true,
-      messageSounds: false,
+      messageSounds: true,
+      notificationSounds: true,
       // Privacy (synced to backend)
       showOnline:          user?.show_online ?? true,
       allowFriendRequests: user?.allow_friend_requests ?? true,
@@ -212,9 +214,9 @@ export default function Settings({ user }) {
         <ToggleRow
           icon={Bell}
           label="Message sounds"
-          desc="Play a soft sound when messages arrive"
-          checked={prefs.messageSounds === true}
-          onChange={v => set("messageSounds", v)}
+          desc="Play a soft chime when messages arrive"
+          checked={prefs.messageSounds !== false}
+          onChange={v => { set("messageSounds", v); if (v) playChime("message", { force: true }); }}
         />
       </div>
     ),
@@ -223,12 +225,24 @@ export default function Settings({ user }) {
       <div className="space-y-6">
         <div>
           <h2 className="font-heading font-semibold text-foreground mb-0.5">Notifications</h2>
-          <p className="text-xs text-muted-foreground">Synced across all your devices.</p>
+          <p className="text-xs text-muted-foreground">Email preferences are synced across all your devices.</p>
+        </div>
+
+        {/* In-app sounds (device-local) */}
+        <div>
+          <p className="tv-mono mb-3">Sounds — this device</p>
+          <ToggleRow
+            icon={Bell}
+            label="Notification sounds"
+            desc="Play a soft chime when a notification arrives"
+            checked={prefs.notificationSounds !== false}
+            onChange={v => { set("notificationSounds", v); if (v) playChime("notification", { force: true }); }}
+          />
         </div>
 
         {/* Email notifications */}
         <div>
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3">Email</p>
+          <p className="tv-mono mb-3">Email</p>
           <div className="space-y-4">
             <ToggleRow
               icon={MessageSquare}
@@ -286,7 +300,7 @@ export default function Settings({ user }) {
 
         {/* Online presence */}
         <div className="space-y-4">
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Online presence</p>
+          <p className="tv-mono">Online presence</p>
           <ToggleRow
             label="Show online status"
             desc="Let friends see when you're active"
@@ -303,7 +317,7 @@ export default function Settings({ user }) {
 
         {/* Profile visibility */}
         <div className="space-y-3">
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Profile visibility</p>
+          <p className="tv-mono">Profile visibility</p>
           <RadioGroup
             value={prefs.profileVisibility || "members"}
             onChange={v => setPrivacy("profileVisibility", v)}
@@ -317,7 +331,7 @@ export default function Settings({ user }) {
 
         {/* Who can message */}
         <div className="space-y-3">
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Who can message me</p>
+          <p className="tv-mono">Who can message me</p>
           <RadioGroup
             value={prefs.whoCanMessage || "anyone"}
             onChange={v => setPrivacy("whoCanMessage", v)}
@@ -383,7 +397,7 @@ export default function Settings({ user }) {
 
         {/* Danger zone */}
         <div className="pt-2 border-t border-border/30">
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3">Danger zone</p>
+          <p className="tv-mono mb-3">Danger zone</p>
           <div className="rounded-xl border-2 border-red-500/30 bg-red-500/5 p-4">
             <p className="text-sm font-medium text-foreground mb-1">Delete my account</p>
             <p className="text-xs text-muted-foreground mb-3">
@@ -409,7 +423,7 @@ export default function Settings({ user }) {
         <div className="rounded-xl border border-border/50 bg-card p-5">
           <div className="flex items-center gap-2 mb-2">
             <Sparkles className="h-5 w-5" style={{ color: "hsl(var(--accent))" }} />
-            <h3 className="font-heading font-bold text-foreground">Village+</h3>
+            <h3 className="font-heading font-medium text-foreground">Village+</h3>
             <span
               className={`text-xs font-medium px-2 py-0.5 rounded-full ${isPremium ? "" : "bg-secondary text-muted-foreground"}`}
               style={isPremium ? { background: "var(--sage-wash)", color: "var(--sage-deep)" } : {}}
@@ -487,11 +501,12 @@ export default function Settings({ user }) {
                     onClick={() => setActiveSection(s.id)}
                     className={`inline-flex items-center gap-2.5 h-10 px-3 rounded-xl text-sm font-medium whitespace-nowrap transition-colors text-left shrink-0 ${
                       active
-                        ? "bg-[var(--paper-3)] text-primary"
+                        ? "bg-[var(--paper-3)]"
                         : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
                     }`}
+                    style={active ? { color: "var(--clay)" } : {}}
                   >
-                    <s.icon className={`h-4 w-4 shrink-0 ${active ? "text-primary" : "text-muted-foreground"}`} />
+                    <s.icon className={`h-4 w-4 shrink-0 ${active ? "" : "text-muted-foreground"}`} style={active ? { color: "var(--clay)" } : {}} />
                     {s.label}
                   </button>
                 );

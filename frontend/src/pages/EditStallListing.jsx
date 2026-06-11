@@ -10,7 +10,7 @@ import SuburbSearch from "../components/SuburbSearch";
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const INPUT_CLASS =
-"w-full rounded-xl border border-border bg-card text-foreground px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-border/50 placeholder:text-muted-foreground";
+"w-full rounded-xl border border-border bg-card text-foreground px-3 py-2.5 text-sm focus:outline-none placeholder:text-muted-foreground";
 
 const CATEGORIES = [
   { id: "clothing",  label: "Clothing",         emoji: "👕" },

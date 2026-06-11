@@ -4,6 +4,7 @@ import { Sparkles, X, MessagesSquare, Send, Search, UserPlus, Lock } from "lucid
 import { toast } from "sonner";
 import { timeAgoVerbose } from "../utils/dateHelpers";
 import { parseApiError } from "../utils/apiError";
+import { playChime } from "../utils/sounds";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 const STORAGE_KEY = "chatPopout";
@@ -218,6 +219,7 @@ export default function ChatPopout({ user }) {
           const fromOthers = newMsgs.filter(m => m.author_id !== user?.user_id);
           if (fromOthers.length > 0) {
             setUnreadCount(p => p + fromOthers.length);
+            playChime("message");
             if (getPrefs().messageToast !== false) {
               const l = fromOthers[fromOthers.length - 1];
               const name = l.author_nickname || l.author_name || "Someone";
@@ -371,8 +373,8 @@ export default function ChatPopout({ user }) {
                 <div className="flex-1 overflow-y-auto">
                   {/* Private Messages label */}
                   <div className="px-4 pt-3 pb-1.5 flex items-center justify-between">
-                    <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Private Messages</span>
-                    <Link to="/plus" onClick={handleClose} className="flex items-center gap-1 text-[10px] text-primary hover:underline font-medium">
+                    <span className="tv-mono" style={{ color: "var(--ink-3)" }}>Private Messages</span>
+                    <Link to="/plus" onClick={handleClose} className="flex items-center gap-1 text-[10px] hover:underline font-medium" style={{ color: "var(--clay)" }}>
                       <Lock className="h-2.5 w-2.5" />Message anyone
                     </Link>
                   </div>
@@ -435,7 +437,7 @@ export default function ChatPopout({ user }) {
                     value={newMessage}
                     onChange={e => setNewMessage(e.target.value.slice(0, 500))}
                     placeholder={`Reply to ${activeDmUser?.name}…`}
-                    className="flex-1 bg-secondary/50 rounded-full px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50"
+                    className="flex-1 bg-secondary/50 rounded-full px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground outline-none"
                     disabled={sending}
                   />
                   <button type="submit" disabled={!newMessage.trim() || sending} className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-50 shrink-0">
@@ -577,7 +579,7 @@ export default function ChatPopout({ user }) {
                     <>
                       {/* Section label */}
                       <div className="px-4 pt-3 pb-1">
-                        <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Private Messages</span>
+                        <span className="tv-mono" style={{ color: "var(--ink-3)" }}>Private Messages</span>
                       </div>
                       {/* Filter pills */}
                       <div className="flex gap-1.5 px-3 py-2 border-b border-border/30 overflow-x-auto shrink-0">
@@ -701,7 +703,7 @@ export default function ChatPopout({ user }) {
               <form onSubmit={handleSend} className="flex gap-2 p-3 border-t border-border/40 shrink-0">
                 <input ref={inputRef} value={newMessage} onChange={e => setNewMessage(e.target.value.slice(0, 1000))}
                   placeholder="Message..." disabled={sending} maxLength={1000}
-                  className="flex-1 bg-secondary/50 rounded-full px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50" />
+                  className="flex-1 bg-secondary/50 rounded-full px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none" />
                 <button type="submit" disabled={!newMessage.trim() || sending}
                   className="w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-50 shrink-0">
                   <Send className="h-4 w-4" />

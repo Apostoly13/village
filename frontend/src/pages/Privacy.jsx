@@ -174,7 +174,7 @@ export default function Privacy() {
 
         {/* TL;DR */}
         <div className="my-6 bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-5">
-          <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide mb-3">The short version</p>
+          <p className="tv-mono mb-3" style={{ color: "var(--sage)" }}>The short version</p>
           <ul className="space-y-2.5">
             {TLDR.map((point, i) => (
               <li key={i} className="flex items-start gap-2.5 text-sm text-foreground">

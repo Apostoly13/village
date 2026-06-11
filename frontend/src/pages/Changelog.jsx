@@ -7,6 +7,49 @@ import AppFooter from "../components/AppFooter";
 // ── Full technical changelog (admin-only view) ────────────────────────────────
 const CHANGELOG = [
   {
+    version: "3.38.0",
+    date: "June 2026",
+    title: "Notification Chimes, Brand Refresh, Security & Polish Pass",
+    entries: [
+      { tag: "Added",    text: "Notification & message chimes: a soft, generated Web Audio chime now plays when a new notification or message arrives (Navigation poll, ChatRoom, ChatPopout, Messages all wired through a single utils/sounds.js helper). Two distinct tones — a gentle rising two-note for messages, a single warm note for notifications. Debounced so overlapping pollers can't double-chime, and a DM that bumps both counters plays only the message tone." },
+      { tag: "Added",    text: "Settings: 'Notification sounds' toggle added to the Notifications section, 'Message sounds' moved to default-on with refreshed copy. Both are device-local, default ON, and play a one-off preview chime when switched on. New pref keys: notificationSounds, messageSounds (village_prefs)." },
+      { tag: "Security", text: "Auth: banned users signing in via the Google OAuth session path are now rejected with 403 'Account suspended'. Previously the ban check existed only on the JWT path, so a banned Google user kept full access until their session expired." },
+      { tag: "Improved", text: "Brand refresh — every remaining old-logo PNG replaced with the typographic Wordmark/Monogram lockup: app footer, public nav bar, Coming Soon gate page, and the PWA install banner. No more legacy raster logo anywhere in the UI." },
+      { tag: "Improved", text: "App icons regenerated as the brand monogram (warm brown rounded square, cream italic serif 'V'): logo.png (512), logo192.png, apple-touch-icon.png and a proper multi-size favicon.ico. manifest theme/background colours and the HTML theme-color meta updated from the old amber #F5C542 to brand brown #2a1f17." },
+      { tag: "Fixed",    text: "Chat Rooms: room grid was cramped into two columns at laptop widths (~1000–1280px) where the right rail is present. Grid now drops to a single column at lg and only returns to two columns at xl — applied to Live now, Quiet/All Australia and featured gender-room grids." },
+      { tag: "Fixed",    text: "Chat Room: messages now anchor to the bottom of the scroll area (flex flex-col + mt-auto) so a room with only a few messages no longer leaves a dead gap above the composer." },
+      { tag: "Fixed",    text: "Moderator dashboard tab bar: added scrollbar-none so the horizontal tab strip no longer shows a native scrollbar on mobile." },
+      { tag: "Fixed",    text: "Dashboard feed filter pills: added negative-margin bleed + right padding so the row scrolls edge-to-edge on mobile without the last pill clipping." },
+      { tag: "Improved", text: "Backend: requirements.txt slimmed by 26 packages that were installed on every Railway deploy but never imported (boto3/botocore, black/flake8/isort/mypy + linters, google-generativeai/google-genai/litellm, numpy/pandas, huggingface/tokenizers/tiktoken, pillow, pytest, s5cmd). Faster, lighter production builds; no runtime imports affected." },
+      { tag: "Removed",  text: "Deleted a stray '=2.0.0' file from the repo root (a pip install artifact accidentally committed)." },
+      { tag: "Fixed",    text: "Onboarding: added the missing IconPin import that caused a white-screen crash on the location step for every new email signup." },
+      { tag: "Fixed",    text: "Events: state filter now defaults to the user's profile state, normalising full state names ('New South Wales') to the abbreviations the event data uses ('NSW'). The 'Hosting an event' button for free users now opens the Village+ upsell instead of doing nothing." },
+      { tag: "Fixed",    text: "API: creating a forum post with a non-existent category_id now returns 404 instead of silently creating an orphaned, unviewable post." },
+      { tag: "Fixed",    text: "Backend: startup environment validation was checking the wrong variable names (SECRET_KEY/MONGODB_URL) and so never validated the real secrets — corrected to JWT_SECRET/MONGO_URL plus the Stripe keys. .env.example updated to document IS_PRODUCTION (controls Secure cookies) and FRONTEND_URL." },
+      { tag: "Tested",   text: "Full platform simulation sweep run against two live accounts (free + premium): event create/RSVP gating, Stall listing/enquiry/report gating, community create gating, block/unblock + DM enforcement, weekly post cap (429), chat usage tracking, admin authz, login brute-force rate limit, XSS render safety (react-markdown v10, no rehype-raw), and anonymous-post masking — all behaving correctly." },
+    ],
+  },
+  {
+    version: "3.37.0",
+    date: "June 2026",
+    title: "Trust Integrity, API Privacy Hardening & Freemium Rebalance",
+    entries: [
+      { tag: "Fixed",    text: "Onboarding: hardcoded '247 Australian parents online' badge replaced with the real count from /api/stats/online. Badge only renders when 5+ parents are online — never shows a fabricated or empty-feeling number." },
+      { tag: "Improved", text: "Landing: 'LIVE PREVIEW / See what's happening right now' relabelled to 'A peek inside / What it looks like inside' with honest subcopy — sample posts are now clearly examples, not presented as live data. Hero chip 'Be the first parent online today' replaced with 'Now welcoming founding members'." },
+      { tag: "Fixed",    text: "Landing privacy card: 'stored on Australian servers' overstated reality (Railway/Vercel process offshore). Now reads 'protected under the Australian Privacy Principles, with primary storage in Australia' — matching the hedged Privacy Policy wording." },
+      { tag: "Improved", text: "Landing pricing table rewritten for marketing-product parity: free-tier fair-use limits disclosed, 'Ad-free forever' removed (no ads exist), The Village Stall added to both columns, 'Browse & RSVP to events' now true (see Events unlock below)." },
+      { tag: "Security", text: "API: forum reads (posts, trending, categories, category detail), /feed, /search, /events (+detail, +ical), /stall/listings (+detail), /stall/groups (+detail), /chat/rooms/all and /users/{id} now require authentication. Previously these returned author names, suburbs, postcodes and coordinates to unauthenticated callers." },
+      { tag: "Security", text: "API: raw latitude/longitude stripped from all forum post/reply payloads via mask_anonymous_post (distance_km computed server-side where needed). Profile API never returns coordinates even with location opt-in. Donation groups return member_count instead of the raw member_ids list; forum categories no longer expose member_ids. Private friends-room detail now 403s for non-participants." },
+      { tag: "Security", text: "API: coordinates rounded to 2 decimal places (~1.1 km) at write time for forum posts, stall listings and donation groups — device-GPS precision can never reach the database. Event venue coordinates intentionally untouched (public meeting places need accurate map pins)." },
+      { tag: "Improved", text: "Events unlocked for free users: browse and RSVP are now free; hosting events remains Village+ (backend 403 + gentle inline card: 'Hosting events is part of Village+ — browsing and RSVPing are always free.'). Nav lock removed on desktop, mobile overlay and bottom nav." },
+      { tag: "Improved", text: "Chat limits rebalanced: DAILY_CHAT_LIMIT_FREE raised 10 → 40. The 3am Club (room_3am_club) is fully exempt — no counter, no wall, driven by daily_limit_applies from the API. Counter turns amber at ≤5 remaining with 'resets at midnight'. Wall copy now warm and informative: 'You've used today's free messages / They reset at midnight.'" },
+      { tag: "Improved", text: "Reply limits rebalanced: WEEKLY_REPLY_LIMIT_FREE raised 5 → 30, and replies on your own posts never count against or get blocked by the limit — a parent can always respond in her own thread. Post limit stays 5/week with a quiet remaining-count line in CreatePost and 'resets Monday' messaging." },
+      { tag: "Improved", text: "Mobile bottom nav: free users now get a Friends tab (with request badge) instead of the locked Messages paywall tab. Premium/trial users keep Messages. VillagePlus comparison table updated to match new server constants (5/week posts, 30/week replies, 40/day chat)." },
+      { tag: "Improved", text: "Register: last name now optional (label, validation and backend model updated; full-name construction handles empty last name cleanly). Subtitle 'find your parenting tribe' → 'find your village.'" },
+      { tag: "Improved", text: "Stall safety copy: payment guidance rewritten around the real scam vector — 'Meet in a public place and pay in person at handover — never transfer money in advance.' PayID/bank-transfer phrasing removed from CreateStallListing and StallListingDetail." },
+    ],
+  },
+  {
     version: "3.36.2",
     date: "May 2026",
     title: "Mobile Sign Out",
@@ -796,6 +839,33 @@ const CHANGELOG = [
 // Plain readable summaries — no technical tags or implementation details.
 const USER_CHANGELOG = [
   {
+    version: "3.38.0",
+    date: "June 2026",
+    title: "Gentle Chimes, a Fresh Look & Behind-the-Scenes Fixes",
+    entries: [
+      "New: a soft chime now plays when you get a new message or notification — so you don't miss a reply while you're elsewhere on the page. You can turn message and notification sounds on or off any time in Settings.",
+      "A refreshed look: the Our Little Village wordmark and a new app icon now appear consistently everywhere — the footer, sign-in pages, and when you add the app to your home screen.",
+      "Chat Rooms now lay out more comfortably on laptop screens, and rooms with just a few messages no longer leave an awkward empty gap.",
+      "Fixed a crash some new members hit on the location step while setting up their profile.",
+      "Events now open to your own state automatically, and the 'Host an event' button now clearly leads to Village+ for free members.",
+      "A range of smaller reliability and safety fixes behind the scenes, plus a full end-to-end test pass across posting, chat, events, the Stall, messaging and privacy.",
+    ],
+  },
+  {
+    version: "3.37.0",
+    date: "June 2026",
+    title: "Events Free for Everyone, Bigger Chat Limits & Stronger Privacy",
+    entries: [
+      "Events are now free for everyone — browse what's on near you and RSVP without Village+. Hosting your own event is a Village+ feature.",
+      "Free chat limits got a lot more generous: 40 messages a day (up from 10), and The 3am Club has no limit at all — late-night support should never get cut off mid-conversation.",
+      "Reply limits went from 5 to 30 per week, and replying on your own posts never counts — you can always respond to the parents helping you out.",
+      "Privacy got stronger behind the scenes: your posts, profile and listings can no longer be viewed without being signed in, and precise location coordinates never leave our servers — other members only ever see your suburb.",
+      "On mobile, free members now see a Friends tab in the bottom bar instead of a locked Messages tab.",
+      "Signing up is a little quicker — last name is now optional.",
+      "Clearer safety guidance on The Village Stall: meet in a public place and pay in person at handover — never transfer money in advance.",
+    ],
+  },
+  {
     version: "3.36.2",
     date: "May 2026",
     title: "Sign Out Now Accessible on Mobile",
@@ -1471,7 +1541,7 @@ export default function Changelog({ user }) {
 
         {/* ── Release history ── */}
         <section className="space-y-4 mb-12">
-          <p className="font-heading font-semibold text-xs uppercase tracking-widest text-muted-foreground">
+          <p className="tv-mono">
             Release History
             {isAdmin && (searchQ || tagFilter !== "All") && (
               <span className="ml-2 normal-case font-normal text-muted-foreground/70">
@@ -1498,7 +1568,7 @@ export default function Changelog({ user }) {
 
         {/* ── Roadmap ── */}
         <section className="space-y-4">
-          <p className="font-heading font-semibold text-xs uppercase tracking-widest text-muted-foreground">Coming Up</p>
+          <p className="tv-mono">Coming Up</p>
           {ROADMAP.map(v => (
             <VersionCard key={v.version} {...v} muted />
           ))}

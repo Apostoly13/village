@@ -387,6 +387,12 @@ html[data-theme="night"] .village-card-hover:hover,
     border: 2px solid var(--clay);
 }
 
+/* ── Overlay surface (modals, sheets, drawers) ─────────────────────────────
+   More generous radius than a card — signals it's floating above the page. */
+.village-overlay {
+    border-radius: 20px;
+}
+
 html[data-theme="night"] .village-card-selected,
 [data-theme="night"] .village-card-selected {
     border: 2px solid var(--clay);

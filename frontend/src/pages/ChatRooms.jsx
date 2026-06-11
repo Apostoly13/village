@@ -6,6 +6,7 @@ import Navigation from "../components/Navigation";
 import AppFooter from "../components/AppFooter";
 import { toast } from "sonner";
 import { Users, MapPin, Search, Plus, Check, X, MessagesSquare, SearchX, Moon } from "lucide-react";
+import { IconPin } from "../icons";
 import LocationButton from "../components/LocationButton";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -277,7 +278,7 @@ export default function ChatRooms({ user }) {
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                  <h3 className="font-heading font-bold text-base text-foreground">{room.name}</h3>
+                  <h3 className="font-heading font-medium text-base text-foreground">{room.name}</h3>
                   {showDistance && room.distance_km !== undefined && (
                     <span className="text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1" style={{ background: "var(--sage-wash)", color: "var(--sage-deep)" }}>
                       <MapPin className="h-2.5 w-2.5" />{room.distance_km}km
@@ -320,7 +321,7 @@ export default function ChatRooms({ user }) {
   );
 
   const LoadingSkeleton = ({ count = 2 }) => (
-    <div className="grid sm:grid-cols-2 gap-4">
+    <div className="grid sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-4">
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="village-card p-4 animate-pulse">
           <div className="flex items-start gap-3">
@@ -349,14 +350,14 @@ export default function ChatRooms({ user }) {
 
     return (
       <Link to={`/chat/${room.room_id}`} className="block">
-        <div className={`rounded-[18px] p-4 ${colorBg} border ${colorBorder} hover:opacity-90 village-card-hover h-full`}>
+        <div className={`rounded-xl p-4 ${colorBg} border ${colorBorder} hover:opacity-90 village-card-hover h-full`}>
           <div className="flex items-start gap-3">
             <div className={`w-12 h-12 rounded-full ${avatarBg} flex items-center justify-center text-2xl flex-shrink-0`}>{emoji}</div>
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <h3 className="font-heading font-bold text-base text-foreground">{room.name}</h3>
+                    <h3 className="font-heading font-medium text-base text-foreground">{room.name}</h3>
                     <span className={`text-xs font-semibold ${colorLabel}`}>Featured</span>
                   </div>
                   <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{room.description}</p>
@@ -458,7 +459,7 @@ export default function ChatRooms({ user }) {
 
             {/* Night Owl banner */}
             {nightOwl && (activeFilter === "all" || activeFilter === "live") && (
-              <div className="p-4 rounded-[18px] flex items-center gap-3" style={{ background: "var(--honey-wash)", border: "1px solid rgba(217,161,91,0.35)" }}>
+              <div className="p-4 rounded-xl flex items-center gap-3" style={{ background: "var(--honey-wash)", border: "1px solid rgba(217,161,91,0.35)" }}>
                 <Moon size={20} style={{ color: "var(--honey)", flexShrink: 0 }} />
                 <div>
                   <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>Night Owl hours — you're not alone</p>
@@ -472,11 +473,11 @@ export default function ChatRooms({ user }) {
               liveLoading ? <LoadingSkeleton count={2} /> :
               liveRooms.length > 0 ? (
                 <section>
-                  <h2 className="font-heading text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <h2 className="tv-mono mb-3 flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--status-online)" }} />
                     Live now
                   </h2>
-                  <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-4">
                     {liveRooms
                       .filter(r => {
                         if (roomTypeFilter === "all") return true;
@@ -508,7 +509,7 @@ export default function ChatRooms({ user }) {
             {/* ── All Australia ── */}
             {activeFilter === "all" && (
               <section>
-                <h2 className="font-heading text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3">
+                <h2 className="tv-mono mb-3">
                   {liveRooms.length > 0 ? "Quiet right now — drop in anytime" : "All Australia"}
                 </h2>
                 {loading ? (
@@ -532,7 +533,7 @@ export default function ChatRooms({ user }) {
                       if (!mumChat && !dadChat) return null;
                       const isSingle = !mumChat || !dadChat;
                       return (
-                        <div className={`grid gap-4 ${isSingle ? "" : "sm:grid-cols-2"}`}>
+                        <div className={`grid gap-4 ${isSingle ? "" : "sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2"}`}>
                           {mumChat && <FeaturedGenderCard room={mumChat} gender="female" />}
                           {dadChat  && <FeaturedGenderCard room={dadChat}  gender="male"/>}
                         </div>
@@ -544,13 +545,13 @@ export default function ChatRooms({ user }) {
                       const club = allAustraliaRooms.find(r => r.name?.toLowerCase().includes("3am"));
                       return club ? (
                         <Link to={`/chat/${club.room_id}`} className="block">
-                          <div className="rounded-[18px] p-4 village-card-hover flex items-center gap-4" style={{ background: "var(--honey-wash)", border: "1px solid rgba(217,161,91,0.35)" }}>
+                          <div className="rounded-xl p-4 village-card-hover flex items-center gap-4" style={{ background: "var(--honey-wash)", border: "1px solid rgba(217,161,91,0.35)" }}>
                             <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(217,161,91,0.18)" }}>
                               <Moon size={22} style={{ color: "var(--honey)" }} />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <span className="font-mono text-[10px] uppercase tracking-[0.14em] block mb-0.5" style={{ color: "var(--honey)" }}>Active now · Night Owl hours</span>
-                              <h3 className="font-heading font-bold text-foreground">{club.name}</h3>
+                              <span className="tv-mono block mb-0.5" style={{ color: "var(--honey)" }}>Active now · Night Owl hours</span>
+                              <h3 className="font-heading font-medium text-foreground">{club.name}</h3>
                               <p className="text-xs text-muted-foreground">{club.description}</p>
                             </div>
                             <span className="shrink-0 text-xs font-medium px-2.5 py-1 rounded-full" style={{ background: "var(--sage-wash)", color: "var(--sage-deep)" }}>Drop in</span>
@@ -560,7 +561,7 @@ export default function ChatRooms({ user }) {
                     })()}
 
                     {/* Main grid — filter gender-restricted + featured rooms + anything already in Live now */}
-                    <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-4">
                       {allAustraliaRooms
                         .filter(r => {
                           if (liveRoomIds.has(r.room_id)) return false;
@@ -591,7 +592,7 @@ export default function ChatRooms({ user }) {
             {/* ── Local rooms ── */}
             {(activeFilter === "all" || activeFilter === "local") && (
               <section>
-                <h2 className="font-heading text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3">Local Rooms</h2>
+                <h2 className="tv-mono mb-3">Local Rooms</h2>
 
                 {loading ? <LoadingSkeleton count={2} /> : (
                   <div className="space-y-5">
@@ -599,7 +600,7 @@ export default function ChatRooms({ user }) {
                     {/* Primary room — linked to profile */}
                     {myAreaRoom ? (
                       <div>
-                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Your Local Room</p>
+                        <p className="tv-mono mb-2">Your Local Room</p>
                         <RoomCard room={myAreaRoom} idx="my-area" />
                         <p className="text-xs text-muted-foreground mt-1.5 pl-1">
                           Based on your profile suburb. <Link to="/profile" className="text-primary hover:underline">Change suburb</Link> to update.
@@ -607,7 +608,7 @@ export default function ChatRooms({ user }) {
                       </div>
                     ) : mySuburbRoom ? (
                       <div>
-                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Your Suburb</p>
+                        <p className="tv-mono mb-2">Your Suburb</p>
                         <RoomCard room={mySuburbRoom} idx="my-suburb" />
                       </div>
                     ) : (
@@ -627,7 +628,7 @@ export default function ChatRooms({ user }) {
                     {/* Joined area rooms */}
                     {joinedAreaRooms.length > 0 && (
                       <div>
-                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Also Following</p>
+                        <p className="tv-mono mb-2">Also Following</p>
                         <div className="space-y-3">
                           {joinedAreaRooms.map((room, idx) => (
                             <div key={room.room_id} className="relative group">
@@ -648,14 +649,14 @@ export default function ChatRooms({ user }) {
 
                     {/* Browse / search other area rooms */}
                     <div>
-                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Browse Area Rooms</p>
+                      <p className="tv-mono mb-2">Browse Area Rooms</p>
                       <div className="mb-3 relative">
                         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                         <Input
                           value={areaSearch}
                           onChange={(e) => setAreaSearch(e.target.value)}
                           placeholder="Search by area name (e.g. Manly, Yarra, Geelong)..."
-                          className="h-10 pl-10 rounded-xl bg-secondary/50 border-transparent focus:border-[var(--line-2)]"
+                          className="h-10 pl-10 rounded-xl bg-secondary/50 border-transparent"
                           data-testid="area-search-input"
                         />
                       </div>
@@ -673,11 +674,11 @@ export default function ChatRooms({ user }) {
                                 key={result.area_name}
                                 className="village-card p-3 flex items-center gap-3"
                               >
-                                <div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg shrink-0" style={{ background: "var(--clay-wash)" }}>📍</div>
+                                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: "var(--clay-wash)" }}><IconPin size={18} /></div>
                                 <div className="flex-1 min-w-0">
                                   <p className="font-medium text-sm text-foreground leading-tight">
                                     {result.area_name} Parents
-                                    {isPrimary && <span className="ml-2 text-xs text-primary font-normal">Your room</span>}
+                                    {isPrimary && <span className="ml-2 text-xs font-normal" style={{ color: "var(--sage)" }}>Your room</span>}
                                   </p>
                                   {result.postcode_range && (
                                     <p className="text-xs text-muted-foreground">postcodes {result.postcode_range}</p>

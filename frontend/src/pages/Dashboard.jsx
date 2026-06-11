@@ -62,7 +62,7 @@ function QuickThreadView({ post, liked, likeCount, onLike, onClose, onReplied, a
             <Link
               to={`/forums/post/${post.post_id}`}
               onClick={onClose}
-              className="text-xs text-primary font-medium hover:underline px-2 py-1 rounded-lg hover:bg-muted/50 transition-colors"
+              className="text-xs font-medium hover:underline px-2 py-1 rounded-lg hover:bg-muted/50 transition-colors" style={{ color: "var(--clay)" }}
             >
               Open post →
             </Link>
@@ -644,7 +644,7 @@ export default function Dashboard({ user }) {
                       <a
                         href={a.link.startsWith("http") ? a.link : a.link}
                         {...(a.link.startsWith("http") ? { target: "_blank", rel: "noreferrer" } : {})}
-                        className="text-xs text-primary font-medium hover:underline"
+                        className="text-xs font-medium hover:underline" style={{ color: "var(--clay)" }}
                       >
                         Learn more →
                       </a>
@@ -738,7 +738,7 @@ export default function Dashboard({ user }) {
         <div className="mb-5 px-1">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
-              <p className="font-mono text-[10px] uppercase tracking-[0.16em] mb-1.5" style={{ color: "var(--ink-3)" }}>
+              <p className="tv-mono mb-1.5" style={{ color: "var(--ink-3)" }}>
                 {new Date().toLocaleDateString("en-AU", { weekday: "long" })} · {new Date().toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" })}
               </p>
               <h1
@@ -759,12 +759,23 @@ export default function Dashboard({ user }) {
                   multiples: "Twins/Multiples", mixed: "Mixed Ages",
                 };
                 const stage = user?.parenting_stage ? STAGE_LABELS[user.parenting_stage] : null;
-                const location = user?.suburb || user?.state || null;
-                const parts = [stage, location].filter(Boolean);
-                return (
-                  <p className="text-sm leading-relaxed mt-0.5" style={{ color: "var(--ink-2)" }}>
-                    {parts.length > 0 ? parts.join(" · ") : "Your village is here whenever you need it."}
-                  </p>
+                const location = user?.suburb || null;
+                const hasContext = stage || location;
+                return hasContext ? (
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                    {stage && (
+                      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full" style={{ background: "var(--paper-3)", border: "1px solid var(--line)", color: "var(--ink-3)" }}>
+                        <span style={{ fontSize: "10px" }}>👶</span> {stage}
+                      </span>
+                    )}
+                    {location && (
+                      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full" style={{ background: "var(--paper-3)", border: "1px solid var(--line)", color: "var(--ink-3)" }}>
+                        <span style={{ fontSize: "10px" }}>📍</span> {location}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm mt-1" style={{ color: "var(--ink-3)" }}>Your village is here whenever you need it.</p>
                 );
               })()}
             </div>
@@ -808,7 +819,7 @@ export default function Dashboard({ user }) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
                   <span className="w-1.5 h-1.5 rounded-full animate-pulse shrink-0" style={{ background: "var(--honey)" }} />
-                  <span className="font-mono text-[10px] uppercase tracking-[0.14em]" style={{ color: "var(--honey)" }}>Night Owl hours · Active now</span>
+                  <span className="tv-mono" style={{ color: "var(--honey)" }}>Night Owl hours · Active now</span>
                 </div>
                 <p className="font-heading font-semibold text-sm" style={{ color: "var(--ink)" }}>The 3am Club is active</p>
                 <p className="text-xs" style={{ color: "var(--ink-2)" }}>Late-night company for those who can't sleep. You're not alone.</p>
@@ -921,8 +932,8 @@ export default function Dashboard({ user }) {
                   </Button>
                 </Link>
               </div>
-              <div className="overflow-x-auto scrollbar-none py-2">
-                <div className="flex gap-1 min-w-max pl-0.5">
+              <div className="overflow-x-auto scrollbar-none py-2 -mx-4 px-4 sm:mx-0 sm:px-0">
+                <div className="flex gap-1 min-w-max pl-0.5 pr-4 sm:pr-0">
                   {FEED_FILTERS.map(f => (
                     <button
                       key={f.id}
@@ -1049,7 +1060,7 @@ export default function Dashboard({ user }) {
                                 <Sparkles className="h-3 w-3 shrink-0" style={{ color: "hsl(var(--accent))" }} />
                               )}
                               <span
-                                className="font-mono text-[9px] uppercase tracking-[0.12em] shrink-0 hidden sm:inline"
+                                className="tv-mono shrink-0 hidden sm:inline"
                                 style={{ color: "var(--ink-3)" }}
                               >
                                 {post.is_community_post && (
@@ -1066,7 +1077,7 @@ export default function Dashboard({ user }) {
                               </span>
                             </div>
                             <span
-                              className="font-mono text-[9px] uppercase tracking-[0.10em] shrink-0 ml-auto sm:hidden"
+                              className="tv-mono shrink-0 ml-auto sm:hidden"
                               style={{ color: "var(--ink-3)" }}
                             >
                               {post.reply_count > 0 && post.updated_at && post.updated_at !== post.created_at
@@ -1193,7 +1204,7 @@ export default function Dashboard({ user }) {
                   {unreadActivity.length > 3 && (
                     <button
                       onClick={() => window.dispatchEvent(new CustomEvent("village:open-notifications"))}
-                      className="text-xs text-primary font-medium hover:underline block px-2 pt-1"
+                      className="text-xs font-medium hover:underline block px-2 pt-1" style={{ color: "var(--clay)" }}
                     >
                       See all {unreadActivity.length} →
                     </button>
@@ -1351,7 +1362,7 @@ export default function Dashboard({ user }) {
                   {/* Add suggestions (edit mode) */}
                   {editingShortcuts && shortcuts.length < 8 && pool.length > 0 && (
                     <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-widest mb-2 px-1" style={{ color: "var(--ink-3)" }}>
+                      <p className="tv-mono mb-2 px-1" style={{ color: "var(--ink-3)" }}>
                         Add a shortcut
                       </p>
                       <div className="space-y-0.5 max-h-52 overflow-y-auto">

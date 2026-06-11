@@ -23,6 +23,25 @@ const CATEGORIES = EVENT_CATEGORIES;
 
 const AU_STATES = ["NSW", "VIC", "QLD", "WA", "SA", "TAS", "ACT", "NT"];
 
+// Profile locations store full state names; events use abbreviations
+const STATE_ABBREVIATIONS = {
+  "new south wales": "NSW",
+  "victoria": "VIC",
+  "queensland": "QLD",
+  "western australia": "WA",
+  "south australia": "SA",
+  "tasmania": "TAS",
+  "australian capital territory": "ACT",
+  "northern territory": "NT",
+};
+
+function toStateAbbreviation(state) {
+  if (!state) return null;
+  const trimmed = state.trim();
+  if (AU_STATES.includes(trimmed.toUpperCase())) return trimmed.toUpperCase();
+  return STATE_ABBREVIATIONS[trimmed.toLowerCase()] || null;
+}
+
 const INPUT_CLASS = "w-full rounded-xl border border-border bg-card text-foreground px-3 py-2 text-sm focus:outline-none dark:[color-scheme:dark]";
 
 // formatEventDate imported from utils/dateHelpers
@@ -1003,7 +1022,7 @@ function EventDetailModal({ event, user, onClose, onRsvp, onUpdated }) {
             <div className="flex gap-4 mb-5">
               <div className="w-16 h-16 rounded-2xl flex flex-col items-center justify-center shrink-0" style={getDateChipStyle(localEvent.category)}>
                 <span className="text-2xl font-bold leading-none">{dateInfo.day}</span>
-                <span className="text-xs font-semibold uppercase tracking-wide">{dateInfo.month}</span>
+                <span className="tv-mono">{dateInfo.month}</span>
               </div>
               <div className="flex-1 min-w-0">
                 <h2 className="font-heading font-medium text-xl text-foreground leading-snug mb-1">{localEvent.title}</h2>
@@ -1193,9 +1212,10 @@ export default function Events({ user }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("all");
-  const [stateFilter, setStateFilter] = useState("all");
+  const [stateFilter, setStateFilter] = useState(toStateAbbreviation(user?.state) || "all");
   const [distanceFilter, setDistanceFilter] = useState("any");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [showCreateUpsell, setShowCreateUpsell] = useState(false);
   const [localMeetupsId, setLocalMeetupsId] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
   // Client-side time filter (server handles category/state/distance)
@@ -1206,7 +1226,10 @@ export default function Events({ user }) {
   //   ?tab=rsvp       → shows only events the user is going to
   //   ?event=EVENT_ID → fetches and opens that event's detail modal directly
   useEffect(() => {
-    if (searchParams.get("action") === "create" && !isFree) setDialogOpen(true);
+    if (searchParams.get("action") === "create") {
+      if (isFree) setShowCreateUpsell(true);
+      else setDialogOpen(true);
+    }
     if (searchParams.get("tab") === "rsvp") setTimeFilter("going");
     const eventId = searchParams.get("event");
     if (eventId) {
@@ -1296,29 +1319,6 @@ export default function Events({ user }) {
     return true;
   });
 
-  if (isFree) {
-    return (
-      <div className="min-h-screen bg-background  lg:pl-60 lg:pb-0">
-        <Navigation user={user} />
-        <main className="max-w-lg mx-auto px-4 pt-24 pb-16 text-center">
-          <div className="w-16 h-16 rounded-full bg-[var(--honey-wash)] border border-[var(--line)] flex items-center justify-center mx-auto mb-5">
-            <Sparkles className="h-8 w-8" style={{ color: "hsl(var(--accent))" }} />
-          </div>
-          <h1 className="font-heading text-2xl font-bold text-foreground mb-2">Events are a Village+ feature</h1>
-          <p className="text-muted-foreground text-sm mb-6">
-            Find local meetups, playgroups and parent events near you — upgrade to Village+ to browse and create events.
-          </p>
-          <Link to="/plus">
-            <Button className="rounded-xl px-8">
-              <Sparkles className="h-4 w-4 mr-2" style={{ color: "hsl(var(--accent))" }} />
-              Upgrade to Village+
-            </Button>
-          </Link>
-        </main>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-background  lg:pl-60 lg:pb-8">
       <Navigation user={user} />
@@ -1342,22 +1342,52 @@ export default function Events({ user }) {
             </p>
           </div>
 
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2 flex-shrink-0">
-                <Plus className="h-4 w-4" />
-                <span className="hidden sm:inline">Create Event</span>
-                <span className="sm:hidden">Create</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="bg-card border-border/50 max-w-lg max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle className="font-heading font-medium">Create an Event</DialogTitle>
-              </DialogHeader>
-              <CreateEventForm onCreated={handleCreated} onClose={() => setDialogOpen(false)} />
-            </DialogContent>
-          </Dialog>
+          {isFree ? (
+            <Button
+              onClick={() => setShowCreateUpsell(v => !v)}
+              className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2 flex-shrink-0"
+            >
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">Create Event</span>
+              <span className="sm:hidden">Create</span>
+            </Button>
+          ) : (
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2 flex-shrink-0">
+                  <Plus className="h-4 w-4" />
+                  <span className="hidden sm:inline">Create Event</span>
+                  <span className="sm:hidden">Create</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="bg-card border-border/50 max-w-lg max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="font-heading font-medium">Create an Event</DialogTitle>
+                </DialogHeader>
+                <CreateEventForm onCreated={handleCreated} onClose={() => setDialogOpen(false)} />
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
+
+        {/* Gentle upsell card for free users clicking Create Event */}
+        {isFree && showCreateUpsell && (
+          <div className="mb-6 flex items-start gap-3 rounded-xl p-4" style={{ background: "var(--honey-wash)", border: "1px solid rgba(245,197,66,0.3)" }}>
+            <Sparkles className="h-5 w-5 flex-shrink-0 mt-0.5" style={{ color: "hsl(var(--accent))" }} />
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-foreground text-sm">Hosting events is part of Village+</p>
+              <p className="text-xs mt-0.5" style={{ color: "var(--ink-2)" }}>
+                Browsing and RSVPing are always free.{" "}
+                <Link to="/plus" className="underline font-medium" style={{ color: "var(--ink)" }}>Upgrade to Village+ →</Link>
+              </p>
+            </div>
+            <button
+              onClick={() => setShowCreateUpsell(false)}
+              className="text-muted-foreground hover:text-foreground flex-shrink-0"
+              aria-label="Dismiss"
+            >×</button>
+          </div>
+        )}
 
         <div className="grid lg:grid-cols-[1fr_272px] gap-8">
 
@@ -1401,7 +1431,7 @@ export default function Events({ user }) {
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <Select value={distanceFilter} onValueChange={setDistanceFilter}>
-                  <SelectTrigger className="rounded-xl border-border h-8 text-xs min-w-[110px]">
+                  <SelectTrigger className="rounded-xl border-border h-8 text-xs min-w-[130px]">
                     <SelectValue placeholder="Distance" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1453,7 +1483,7 @@ export default function Events({ user }) {
                 </p>
                 {timeFilter !== "going" && (
                   <Button
-                    onClick={() => setDialogOpen(true)}
+                    onClick={() => isFree ? setShowCreateUpsell(true) : setDialogOpen(true)}
                     className="rounded-[8px] bg-primary text-primary-foreground hover:bg-primary/90"
                   >
                     <Plus className="h-4 w-4 mr-2" />
@@ -1499,8 +1529,8 @@ export default function Events({ user }) {
                         className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/50 transition-colors text-left"
                       >
                         <div className="w-10 h-10 rounded-lg bg-[var(--paper-3)] flex flex-col items-center justify-center shrink-0">
-                          <span className="text-sm font-bold text-primary leading-none">{d ? d.getDate() : "?"}</span>
-                          <span className="text-[9px] uppercase tracking-wide text-muted-foreground">{d ? d.toLocaleString("en-AU", { month: "short" }) : ""}</span>
+                          <span className="text-sm font-bold leading-none" style={{ color: "var(--clay)" }}>{d ? d.getDate() : "?"}</span>
+                          <span className="tv-mono" style={{ color: "var(--ink-3)" }}>{d ? d.toLocaleString("en-AU", { month: "short" }) : ""}</span>
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-foreground truncate">{e.title}</p>
@@ -1523,7 +1553,7 @@ export default function Events({ user }) {
                 variant="outline"
                 size="sm"
                 className="rounded-full w-full"
-                onClick={() => setDialogOpen(true)}
+                onClick={() => isFree ? setShowCreateUpsell(true) : setDialogOpen(true)}
               >
                 <Plus className="h-3.5 w-3.5 mr-1.5" />
                 Create event

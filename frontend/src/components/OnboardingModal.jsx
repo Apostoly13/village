@@ -262,7 +262,7 @@ export default function OnboardingModal({ user, onComplete, onSkip: onSkipProp }
                   onChange={(e) => setDisplayName(e.target.value)}
                   placeholder="e.g., Sarah, DadOfTwo, Mama Bear"
                   maxLength={30}
-                  className="h-11 rounded-xl bg-secondary/50 border-transparent focus:ring-border/50"
+                  className="h-11 rounded-xl bg-secondary/50 border-transparent"
                 />
                 <p className="text-xs text-muted-foreground">
                   This is how others in the village will see you. You can change it anytime.
@@ -389,7 +389,7 @@ export default function OnboardingModal({ user, onComplete, onSkip: onSkipProp }
               <div className="space-y-1.5">
                 <Label className="text-sm text-foreground">State</Label>
                 <Select value={state} onValueChange={setState}>
-                  <SelectTrigger className="h-11 rounded-xl bg-secondary/50 border-transparent focus:ring-border/50">
+                  <SelectTrigger className="h-11 rounded-xl bg-secondary/50 border-transparent">
                     <SelectValue placeholder="Select your state" />
                   </SelectTrigger>
                   <SelectContent>
@@ -407,7 +407,7 @@ export default function OnboardingModal({ user, onComplete, onSkip: onSkipProp }
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="e.g., Bondi, 2026"
-                    className="h-11 rounded-xl bg-secondary/50 border-transparent focus:ring-border/50 pr-10"
+                    className="h-11 rounded-xl bg-secondary/50 border-transparent pr-10"
                   />
                   {searching && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">

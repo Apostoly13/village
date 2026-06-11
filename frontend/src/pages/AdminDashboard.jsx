@@ -511,7 +511,7 @@ export default function AdminDashboard({ user }) {
 
             {/* ── Row 1: Insights ── */}
             <div className="flex items-center gap-1 flex-wrap bg-card border border-border/50 rounded-xl p-1">
-              <span className="text-[10px] font-semibold uppercase tracking-widest px-2 select-none shrink-0" style={{ color: "var(--ink-3)" }}>
+              <span className="tv-mono px-2 select-none shrink-0" style={{ color: "var(--ink-3)" }}>
                 Insights
               </span>
               {[
@@ -530,7 +530,7 @@ export default function AdminDashboard({ user }) {
 
             {/* ── Row 2: Actions ── */}
             <div className="flex items-center gap-1 flex-wrap bg-card border border-border/50 rounded-xl p-1">
-              <span className="text-[10px] font-semibold uppercase tracking-widest px-2 select-none shrink-0" style={{ color: "var(--ink-3)" }}>
+              <span className="tv-mono px-2 select-none shrink-0" style={{ color: "var(--ink-3)" }}>
                 Actions
               </span>
               {[
@@ -641,7 +641,7 @@ export default function AdminDashboard({ user }) {
 
             {/* Subscription breakdown — clickable tiles */}
             <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
-              <h3 className="font-heading font-bold text-foreground mb-4">Subscription Breakdown <span className="text-xs text-muted-foreground font-normal ml-2">click to see members</span></h3>
+              <h3 className="font-heading font-medium text-foreground mb-4">Subscription Breakdown <span className="text-xs text-muted-foreground font-normal ml-2">click to see members</span></h3>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {[
                   { type: "premium", label: "Village+", value: analytics?.users?.premium || 0, cls: "bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400" },
@@ -659,12 +659,12 @@ export default function AdminDashboard({ user }) {
 
             {/* New users + Content volume — with period filter */}
             <div className="flex items-center justify-between">
-              <h3 className="font-heading font-bold text-foreground">Activity Breakdown</h3>
+              <h3 className="font-heading font-medium text-foreground">Activity Breakdown</h3>
               <TimePeriodToggle value={overviewPeriod} onChange={setOverviewPeriod} />
             </div>
             <div className="grid sm:grid-cols-2 gap-6">
               <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated">
-                <h3 className="font-heading font-bold text-foreground mb-4">New Signups <span className="text-xs text-muted-foreground font-normal ml-2">click to see users</span></h3>
+                <h3 className="font-heading font-medium text-foreground mb-4">New Signups <span className="text-xs text-muted-foreground font-normal ml-2">click to see users</span></h3>
                 <div className="space-y-3">
                   {[
                     { label: "Today",      value: analytics?.users?.new_today || 0,      type: "new_today" },
@@ -682,7 +682,7 @@ export default function AdminDashboard({ user }) {
                 </div>
               </div>
               <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated">
-                <h3 className="font-heading font-bold text-foreground mb-4">Content Volume <span className="text-xs text-muted-foreground font-normal ml-2">click to inspect</span></h3>
+                <h3 className="font-heading font-medium text-foreground mb-4">Content Volume <span className="text-xs text-muted-foreground font-normal ml-2">click to inspect</span></h3>
                 <div className="space-y-3">
                   {[
                     { label: "Forum Posts",    value: analytics?.content?.total_posts || 0,         type: "posts" },
@@ -704,7 +704,7 @@ export default function AdminDashboard({ user }) {
 
             {/* User growth chart — 30 days */}
             <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
-              <h3 className="font-heading font-bold text-foreground mb-4">Signup Growth (30 days)</h3>
+              <h3 className="font-heading font-medium text-foreground mb-4">Signup Growth (30 days)</h3>
               <div className="space-y-1.5">
                 {growth.slice(-14).map(day => (
                   <div key={day.date} className="flex items-center gap-3 text-sm">
@@ -723,7 +723,7 @@ export default function AdminDashboard({ user }) {
             {/* Top forum categories */}
             {analytics?.categories?.length > 0 && (
               <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
-                <h3 className="font-heading font-bold text-foreground mb-4">Forum Categories by Activity</h3>
+                <h3 className="font-heading font-medium text-foreground mb-4">Forum Categories by Activity</h3>
                 <div className="space-y-2">
                   {analytics.categories.slice(0, 10).map(cat => {
                     const max = analytics.categories[0]?.post_count || 1;
@@ -748,7 +748,7 @@ export default function AdminDashboard({ user }) {
 
             {/* What DAU/WAU/MAU means */}
             <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
-              <h3 className="font-heading font-bold text-foreground mb-4">Active User Metrics</h3>
+              <h3 className="font-heading font-medium text-foreground mb-4">Active User Metrics</h3>
               <p className="text-sm text-muted-foreground mb-4">These measure how many unique users performed <em>any</em> action (post, reply, message) in each time window. Click a number to see who they are.</p>
               <div className="grid grid-cols-3 gap-4">
                 {[
@@ -776,7 +776,7 @@ export default function AdminDashboard({ user }) {
               <>
                 <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-heading font-bold text-foreground">Retention Rates</h3>
+                    <h3 className="font-heading font-medium text-foreground">Retention Rates</h3>
                     <button onClick={fetchRetention} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"><RefreshCw className="h-3 w-3" />Refresh</button>
                   </div>
                   <p className="text-sm text-muted-foreground mb-5">% of users from the prior period who came back in the current period.</p>
@@ -809,7 +809,7 @@ export default function AdminDashboard({ user }) {
 
                 {/* Daily activity chart — 30 days */}
                 <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
-                  <h3 className="font-heading font-bold text-foreground mb-4">Daily Active Users (30 days)</h3>
+                  <h3 className="font-heading font-medium text-foreground mb-4">Daily Active Users (30 days)</h3>
                   <div className="space-y-1.5">
                     {retention.daily_activity.slice(-14).map(day => (
                       <div key={day.date} className="flex items-center gap-3 text-sm">
@@ -833,7 +833,7 @@ export default function AdminDashboard({ user }) {
             {/* Period toggle */}
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="font-heading font-bold text-foreground">Leaderboards</h2>
+                <h2 className="font-heading font-medium text-foreground">Leaderboards</h2>
                 <p className="text-xs text-muted-foreground mt-0.5">Filter by time period to see who's most active</p>
               </div>
               <div className="flex items-center gap-2">
@@ -867,7 +867,7 @@ export default function AdminDashboard({ user }) {
                   <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
                     <div className="flex items-center gap-2 mb-4">
                       <MessageSquare className="h-5 w-5 text-primary" />
-                      <h3 className="font-heading font-bold text-foreground">Top Support Space Posters</h3>
+                      <h3 className="font-heading font-medium text-foreground">Top Support Space Posters</h3>
                     </div>
                     {leaderboards.top_posters.length === 0
                       ? <p className="text-sm text-muted-foreground">No posts yet.</p>
@@ -881,7 +881,7 @@ export default function AdminDashboard({ user }) {
                   <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
                     <div className="flex items-center gap-2 mb-4">
                       <Repeat2 className="h-5 w-5 text-primary" />
-                      <h3 className="font-heading font-bold text-foreground">Most Thread Replies</h3>
+                      <h3 className="font-heading font-medium text-foreground">Most Thread Replies</h3>
                     </div>
                     {leaderboards.top_repliers.length === 0
                       ? <p className="text-sm text-muted-foreground">No replies yet.</p>
@@ -895,7 +895,7 @@ export default function AdminDashboard({ user }) {
                   <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
                     <div className="flex items-center gap-2 mb-4">
                       <MessageCircle className="h-5 w-5 text-primary" />
-                      <h3 className="font-heading font-bold text-foreground">Most Chat Messages</h3>
+                      <h3 className="font-heading font-medium text-foreground">Most Chat Messages</h3>
                     </div>
                     {leaderboards.top_chatters.length === 0
                       ? <p className="text-sm text-muted-foreground">No chat messages yet.</p>
@@ -909,7 +909,7 @@ export default function AdminDashboard({ user }) {
                   <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
                     <div className="flex items-center gap-2 mb-4">
                       <Users className="h-5 w-5 text-primary" />
-                      <h3 className="font-heading font-bold text-foreground">Most Communities Created</h3>
+                      <h3 className="font-heading font-medium text-foreground">Most Communities Created</h3>
                     </div>
                     {leaderboards.top_community_creators.length === 0
                       ? <p className="text-sm text-muted-foreground">No communities yet.</p>
@@ -925,7 +925,7 @@ export default function AdminDashboard({ user }) {
                   <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
                     <div className="flex items-center gap-2 mb-4">
                       <Heart className="h-5 w-5 text-red-500" />
-                      <h3 className="font-heading font-bold text-foreground">Most Liked Posts</h3>
+                      <h3 className="font-heading font-medium text-foreground">Most Liked Posts</h3>
                     </div>
                     {leaderboards.top_liked_posts.length === 0
                       ? <p className="text-sm text-muted-foreground">No likes yet.</p>
@@ -948,7 +948,7 @@ export default function AdminDashboard({ user }) {
                   <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
                     <div className="flex items-center gap-2 mb-4">
                       <MessageSquare className="h-5 w-5 text-primary" />
-                      <h3 className="font-heading font-bold text-foreground">Most Replied Posts</h3>
+                      <h3 className="font-heading font-medium text-foreground">Most Replied Posts</h3>
                     </div>
                     {leaderboards.top_replied_posts.length === 0
                       ? <p className="text-sm text-muted-foreground">No replies yet.</p>
@@ -1180,7 +1180,7 @@ export default function AdminDashboard({ user }) {
           <TabsContent value="content" className="mt-0 space-y-6">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="font-heading font-bold text-foreground">Content Health</h2>
+                <h2 className="font-heading font-medium text-foreground">Content Health</h2>
                 <p className="text-xs text-muted-foreground mt-0.5">Post volume, engagement, and space activity</p>
               </div>
               <button onClick={fetchContentHealth} className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors" title="Refresh">
@@ -1213,7 +1213,7 @@ export default function AdminDashboard({ user }) {
                 <div className="grid sm:grid-cols-2 gap-6">
                   {/* Engagement stats */}
                   <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
-                    <h3 className="font-heading font-bold text-foreground mb-4">Engagement Metrics</h3>
+                    <h3 className="font-heading font-medium text-foreground mb-4">Engagement Metrics</h3>
                     <div className="space-y-3">
                       {[
                         { label: "Avg replies per post", value: contentHealth.avg_replies_per_post },
@@ -1240,7 +1240,7 @@ export default function AdminDashboard({ user }) {
 
                   {/* Posts by space */}
                   <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
-                    <h3 className="font-heading font-bold text-foreground mb-4">Posts by Space</h3>
+                    <h3 className="font-heading font-medium text-foreground mb-4">Posts by Space</h3>
                     <div className="space-y-2">
                       {(contentHealth.posts_by_category || []).slice(0, 8).map(cat => {
                         const max = contentHealth.posts_by_category[0]?.post_count || 1;
@@ -1327,7 +1327,7 @@ export default function AdminDashboard({ user }) {
           <TabsContent value="revenue" className="mt-0 space-y-6">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="font-heading font-bold text-foreground">Revenue Overview</h2>
+                <h2 className="font-heading font-medium text-foreground">Revenue Overview</h2>
                 <p className="text-xs text-muted-foreground mt-0.5">Subscription metrics and growth estimates</p>
               </div>
               <button onClick={fetchRevenue} className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground" title="Refresh">
@@ -1355,7 +1355,7 @@ export default function AdminDashboard({ user }) {
 
                 {/* Subscription breakdown */}
                 <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
-                  <h3 className="font-heading font-bold text-foreground mb-4">Subscription Tier Breakdown</h3>
+                  <h3 className="font-heading font-medium text-foreground mb-4">Subscription Tier Breakdown</h3>
                   <div className="grid grid-cols-3 gap-4">
                     {[
                       { label: "Village+", value: revenue.premium_count, cls: "text-amber-500", bg: "bg-amber-500/10 border-amber-500/20" },
@@ -1372,7 +1372,7 @@ export default function AdminDashboard({ user }) {
 
                 {/* Growth & conversion */}
                 <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
-                  <h3 className="font-heading font-bold text-foreground mb-4">Growth & Conversion</h3>
+                  <h3 className="font-heading font-medium text-foreground mb-4">Growth & Conversion</h3>
                   <div className="space-y-3">
                     {[
                       { label: "Free → Premium conversion rate", value: `${revenue.conversion_rate}%` },
@@ -1398,7 +1398,7 @@ export default function AdminDashboard({ user }) {
           <TabsContent value="professionals" className="mt-0 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="font-heading font-bold text-foreground">Professionals</h2>
+                <h2 className="font-heading font-medium text-foreground">Professionals</h2>
                 <p className="text-xs text-muted-foreground mt-0.5">Manage professional verification applications and approved clinicians</p>
               </div>
               <button onClick={() => proTab === "pending" ? fetchProfessionalApps() : fetchApprovedProfessionals(approvedProPage)}
@@ -1546,7 +1546,7 @@ export default function AdminDashboard({ user }) {
             <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
               <div className="flex items-center gap-2 mb-4">
                 <Megaphone className="h-5 w-5 text-primary" />
-                <h3 className="font-heading font-bold text-foreground">Send Platform Announcement</h3>
+                <h3 className="font-heading font-medium text-foreground">Send Platform Announcement</h3>
               </div>
               <div className="space-y-3">
                 <div>
@@ -1608,7 +1608,7 @@ export default function AdminDashboard({ user }) {
             {/* Pinned announcements */}
             {announcements?.pinned?.length > 0 && (
               <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-amber-500/40">
-                <h3 className="font-heading font-bold text-foreground mb-4 flex items-center gap-2"><span>📌</span>Pinned on Dashboard</h3>
+                <h3 className="font-heading font-medium text-foreground mb-4 flex items-center gap-2"><span>📌</span>Pinned on Dashboard</h3>
                 <div className="space-y-3">
                   {announcements.pinned.map((a) => (
                     <div key={a.announcement_id} className={`p-4 rounded-xl border ${a.is_active ? "bg-amber-500/5 border-amber-500/20" : "bg-secondary/30 border-border/30 opacity-60"}`}>
@@ -1645,7 +1645,7 @@ export default function AdminDashboard({ user }) {
             {/* Sent history */}
             <div className="bg-card rounded-2xl p-6 border border-border/40 card-elevated border-l-2 border-l-[var(--line)]">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-heading font-bold text-foreground">Sent History</h3>
+                <h3 className="font-heading font-medium text-foreground">Sent History</h3>
                 <button onClick={fetchAnnouncements} className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground"><RefreshCw className="h-3.5 w-3.5" /></button>
               </div>
               {(!announcements?.sent || announcements.sent.length === 0) ? (
@@ -1671,7 +1671,7 @@ export default function AdminDashboard({ user }) {
           <TabsContent value="chatrooms" className="mt-0 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="font-heading font-bold text-foreground text-lg">Chat Rooms</h2>
+                <h2 className="font-heading font-medium text-foreground text-lg">Chat Rooms</h2>
                 <p className="text-sm text-muted-foreground">Monitor activity and manage slow mode per room.</p>
               </div>
               <Button variant="outline" size="sm" className="rounded-lg gap-1.5" onClick={fetchChatRooms}>
@@ -1778,7 +1778,7 @@ export default function AdminDashboard({ user }) {
           {/* ══════════ BLOG TAB ══════════ */}
           <TabsContent value="blog" className="mt-0 space-y-4">
             <div className="flex items-center justify-between mb-2">
-              <h2 className="font-heading font-bold text-foreground text-lg">Blog Queue</h2>
+              <h2 className="font-heading font-medium text-foreground text-lg">Blog Queue</h2>
               <Button variant="outline" size="sm" className="rounded-lg" onClick={fetchPendingBlogPosts}>Refresh</Button>
             </div>
             {pendingBlogPosts.length === 0 ? (
@@ -1866,7 +1866,7 @@ export default function AdminDashboard({ user }) {
               {/* Reported content */}
               {selectedReport.content && (
                 <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Reported content</p>
+                  <p className="tv-mono mb-2" style={{ color: "var(--ink-3)" }}>Reported content</p>
                   <div className="bg-secondary/50 rounded-xl p-4 border border-border/30 space-y-2">
                     {selectedReport.content.title && (
                       <p className="font-semibold text-foreground">{selectedReport.content.title}</p>

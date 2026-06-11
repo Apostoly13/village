@@ -70,7 +70,7 @@ export default function SubscriptionSuccess({ user }) {
 
         {/* What's unlocked */}
         <div className="village-card p-5 mb-5">
-          <p className="font-mono text-[10px] uppercase tracking-[0.14em] mb-4" style={{ color: "var(--ink-3)" }}>What's now unlocked</p>
+          <p className="tv-mono mb-4" style={{ color: "var(--ink-3)" }}>What's now unlocked</p>
           <div className="space-y-3">
             {[
 "Unlimited posts, replies & messages",
@@ -92,7 +92,7 @@ export default function SubscriptionSuccess({ user }) {
 
         {/* Manage subscription card */}
         <div className="village-card p-5 mb-5">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Manage your subscription</p>
+          <p className="tv-mono mb-1" style={{ color: "var(--ink-3)" }}>Manage your subscription</p>
           <p className="text-sm text-muted-foreground mb-4">
             Update payment details, view invoices, or cancel any time — no lock-in, no hassle.
           </p>

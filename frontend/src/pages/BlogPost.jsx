@@ -27,19 +27,19 @@ function renderMarkdown(md = "") {
 
     if (line.startsWith("## ")) {
       elements.push(
-        <h2 key={i} className="font-heading font-bold text-xl text-foreground mt-8 mb-3 pb-1 border-b border-border/40">
+        <h2 key={i} className="font-heading font-medium text-xl text-foreground mt-8 mb-3 pb-1 border-b border-border/40">
           {inlineFormat(line.slice(3))}
         </h2>
       );
     } else if (line.startsWith("### ")) {
       elements.push(
-        <h3 key={i} className="font-heading font-semibold text-base text-foreground mt-6 mb-2 uppercase tracking-wide text-xs text-muted-foreground">
+        <h3 key={i} className="font-heading font-semibold text-base text-foreground mt-6 mb-2">
           {inlineFormat(line.slice(4))}
         </h3>
       );
     } else if (line.startsWith("# ")) {
       elements.push(
-        <h1 key={i} className="font-heading font-bold text-2xl text-foreground mt-8 mb-4">
+        <h1 key={i} className="font-heading font-medium text-2xl text-foreground mt-8 mb-4">
           {inlineFormat(line.slice(2))}
         </h1>
       );
@@ -187,7 +187,7 @@ export default function BlogPost({ user }) {
                 </div>
               </div>
 
-              <h1 className="font-heading font-bold text-2xl sm:text-3xl text-foreground leading-tight mb-3">
+              <h1 className="font-heading font-medium text-2xl sm:text-3xl text-foreground leading-tight mb-3">
                 {post.title}
               </h1>
               {post.summary && (
@@ -216,7 +216,7 @@ export default function BlogPost({ user }) {
             {/* Source topics (admin only) */}
             {isAdmin && post.source_topics?.length > 0 && (
               <div className="bg-secondary/30 rounded-xl p-4 mb-6 text-sm border border-border/30">
-                <p className="font-heading font-semibold text-foreground mb-2 text-xs uppercase tracking-widest text-muted-foreground">Source topics (community trending)</p>
+                <p className="tv-mono mb-2" style={{ color: "var(--ink-3)" }}>Source topics (community trending)</p>
                 <ul className="list-disc list-inside text-muted-foreground space-y-0.5">
                   {post.source_topics.map((t, i) => <li key={i}>{t}</li>)}
                 </ul>

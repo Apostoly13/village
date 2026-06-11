@@ -48,11 +48,17 @@ module.exports = {
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)"
+        sm: "calc(var(--radius) - 4px)",
+        /* ── Design-spec card radius ──────────────────────────────────────────
+           Card spec is 12px. Tailwind's default 2xl = 16px overshoots it.
+           Remapping 2xl → 12px means every rounded-2xl card hits the spec
+           without touching 170+ JSX files. xl stays at 12px (same value).
+           If you need 16px explicitly, use rounded-[16px].                 */
+        "2xl": "0.75rem",
       },
       fontFamily: {
-        sans:    ['Inter Tight', 'Inter', 'DM Sans', 'sans-serif'],
-        heading: ['Fraunces', 'Nunito', 'serif'],
+        sans:    ['Instrument Sans', 'DM Sans', 'sans-serif'],
+        heading: ['Fraunces', 'serif'],
         mono:    ['JetBrains Mono', 'ui-monospace', 'monospace'],
       },
       keyframes: {
@@ -73,8 +79,8 @@ module.exports = {
           "100%": { opacity: "1", transform: "translateY(0)" }
         },
         "pulse-glow": {
-          "0%, 100%": { boxShadow: "0 0 15px rgba(245, 197, 66, 0.2)" },
-          "50%": { boxShadow: "0 0 25px rgba(245, 197, 66, 0.4)" }
+          "0%, 100%": { boxShadow: "0 0 15px rgba(201, 168, 80, 0.2)" },
+          "50%": { boxShadow: "0 0 25px rgba(201, 168, 80, 0.4)" }
         }
       },
       animation: {

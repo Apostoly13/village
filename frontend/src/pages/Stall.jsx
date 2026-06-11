@@ -32,11 +32,12 @@ const CATEGORIES = [
   { id: "other",     label: "Other" },
 ];
 
-const TYPE_STYLES = {
-  sell:"bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
-  swap:"bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20",
-  give_away: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
-  wanted:"bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20",
+// Type badge styles — use design-system tokens (clay=sell, sage=give_away, honey=swap)
+const TYPE_CONFIG = {
+  sell:     { bg: "rgba(196,112,90,0.10)",   color: "var(--clay)",         border: "1px solid rgba(196,112,90,0.22)"   },
+  swap:     { bg: "rgba(201,168,80,0.10)",   color: "var(--honey)",        border: "1px solid rgba(201,168,80,0.22)"   },
+  give_away:{ bg: "rgba(110,143,106,0.09)",  color: "var(--sage)",         border: "1px solid rgba(110,143,106,0.22)"  },
+  wanted:   { bg: "rgba(141,122,168,0.10)",  color: "var(--dusk,#8d7aa8)", border: "1px solid rgba(141,122,168,0.22)"  },
 };
 
 const TYPE_LABELS = { sell: "Selling", swap: "Swapping", give_away: "Giving Away", wanted: "Wanted" };
@@ -93,7 +94,8 @@ function ListingCard({ listing, onSaveToggle, savedIds }) {
         <div className="p-3 flex flex-col gap-1.5 flex-1">
           <div className="flex items-center justify-between gap-1">
             <div className="flex items-center gap-1.5">
-              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${TYPE_STYLES.wanted}`}>
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-[4px]"
+                style={{ background: TYPE_CONFIG.wanted.bg, color: TYPE_CONFIG.wanted.color, border: TYPE_CONFIG.wanted.border }}>
                 Wanted
               </span>
               {listing.status === "pending" && (
@@ -115,7 +117,7 @@ function ListingCard({ listing, onSaveToggle, savedIds }) {
           {/* Search icon + title */}
           <div className="flex items-start gap-2 py-1">
             <SearchIcon className="h-4 w-4 text-violet-500/60 shrink-0 mt-0.5" />
-            <h3 className="font-heading font-bold text-[14px] leading-snug line-clamp-2 text-foreground">
+            <h3 className="font-heading font-medium text-[14px] leading-snug line-clamp-2 text-foreground">
               {listing.title}
             </h3>
           </div>
@@ -197,9 +199,17 @@ function ListingCard({ listing, onSaveToggle, savedIds }) {
           </>
         )}
 
-        <span className={`absolute top-2 left-2 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${TYPE_STYLES[listing.listing_type] || ""}`}>
-          {TYPE_LABELS[listing.listing_type] || listing.listing_type}
-        </span>
+        {(() => {
+          const tc = TYPE_CONFIG[listing.listing_type];
+          return (
+            <span
+              className="absolute top-2 left-2 text-[10px] font-semibold px-2 py-0.5 rounded-[4px]"
+              style={tc ? { background: tc.bg, color: tc.color, border: tc.border } : {}}
+            >
+              {TYPE_LABELS[listing.listing_type] || listing.listing_type}
+            </span>
+          );
+        })()}
         <button
           onClick={handleSave}
           className="absolute top-2 right-2 w-7 h-7 rounded-full bg-card/80 backdrop-blur-sm flex items-center justify-center hover:bg-card transition-colors"
@@ -226,18 +236,18 @@ function ListingCard({ listing, onSaveToggle, savedIds }) {
       </div>
 
       <div className="p-3 flex flex-col gap-1 flex-1">
-        <h3 className="font-heading font-bold text-[14px] leading-snug line-clamp-1 text-foreground">
+        <h3 className="font-heading font-medium text-[14px] leading-snug line-clamp-1 text-foreground">
           {listing.title}
         </h3>
 
         <p className="text-sm font-bold text-foreground leading-none">
-          {listing.listing_type === "give_away" && <span className="text-amber-600 dark:text-amber-400">Free</span>}
+          {listing.listing_type === "give_away" && <span style={{ color: "var(--sage)" }}>Free</span>}
           {listing.listing_type === "sell" && (
-            listing.make_offer ? <span className="text-emerald-600 dark:text-emerald-400">Make an offer</span>
-              : listing.price != null ? <span className="text-emerald-600 dark:text-emerald-400">${listing.price.toFixed(0)}</span>
+            listing.make_offer ? <span style={{ color: "var(--clay)" }}>Make an offer</span>
+              : listing.price != null ? <span style={{ color: "var(--clay)" }}>${listing.price.toFixed(0)}</span>
               : <span className="text-muted-foreground text-sm">POA</span>
           )}
-          {listing.listing_type === "swap" && <span className="text-sky-600 dark:text-sky-400">Swap</span>}
+          {listing.listing_type === "swap" && <span style={{ color: "var(--honey)" }}>Swap</span>}
         </p>
 
         {listing.description && (
@@ -716,7 +726,7 @@ function GroupCard({ g }) {
       {/* Donation count — prominent */}
       <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: "var(--sage-wash)" }}>
         <Heart className="h-4 w-4 shrink-0" style={{ color: "var(--sage-deep)" }} />
-        <span className="font-heading font-bold text-sm" style={{ color: "var(--sage-deep)" }}>
+        <span className="font-heading font-medium text-sm" style={{ color: "var(--sage-deep)" }}>
           {itemCount} item{itemCount !== 1 ? "s" : ""} donated
         </span>
       </div>
@@ -733,7 +743,7 @@ function GroupCard({ g }) {
           </span>
         )}
         <span className="flex items-center gap-0.5 ml-auto">
-          <Users className="h-3 w-3" /> {g.member_ids?.length || 0}
+          <Users className="h-3 w-3" /> {g.member_count ?? g.member_ids?.length ?? 0}
         </span>
         {(g.area_coverage || g.suburb) && (
           <span className="flex items-center gap-0.5 truncate max-w-[120px]">
@@ -874,7 +884,7 @@ function DonationGroupsTab({ user, navigate, isPremium }) {
           {/* My groups */}
           {myGroups.length > 0 && (
             <div>
-              <h3 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--ink-3)" }}>My Groups</h3>
+              <h3 className="tv-mono mb-3" style={{ color: "var(--ink-3)" }}>My Groups</h3>
               <div className="grid sm:grid-cols-2 gap-4">
                 {myGroups.map(g => <GroupCard key={g.group_id} g={g} />)}
               </div>
@@ -884,7 +894,7 @@ function DonationGroupsTab({ user, navigate, isPremium }) {
           {/* Browse all */}
           {otherGroups.length > 0 && (
             <div>
-              <h3 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--ink-3)" }}>
+              <h3 className="tv-mono mb-3" style={{ color: "var(--ink-3)" }}>
                 {myGroups.length > 0 ? "Browse All" : "Donation Groups"}
               </h3>
               <div className="grid sm:grid-cols-2 gap-4">
@@ -1026,7 +1036,7 @@ function MyListingsTab({ user, navigate }) {
               </p>
               {l.status === "active" && (
                 <div className="flex items-center gap-2 mt-2 flex-wrap">
-                  <button onClick={() => navigate(`/stall/listing/${l.listing_id}`)} className="text-xs text-primary hover:underline">View</button>
+                  <button onClick={() => navigate(`/stall/listing/${l.listing_id}`)} className="text-xs hover:underline" style={{ color: "var(--clay)" }}>View</button>
                   <button onClick={() => navigate(`/stall/listing/${l.listing_id}/edit`)} className="text-xs text-muted-foreground hover:text-foreground">Edit</button>
                   <button
                     onClick={() => markStatus(l.listing_id, l.listing_type === "give_away" ? "gone" : l.listing_type === "swap" ? "swapped" : "sold")}
@@ -1047,7 +1057,7 @@ function MyListingsTab({ user, navigate }) {
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 mt-2 flex-wrap">
-                    <button onClick={() => navigate(`/stall/listing/${l.listing_id}`)} className="text-xs text-primary hover:underline">View</button>
+                    <button onClick={() => navigate(`/stall/listing/${l.listing_id}`)} className="text-xs hover:underline" style={{ color: "var(--clay)" }}>View</button>
                     <button onClick={() => navigate(`/stall/listing/${l.listing_id}/edit`)} className="text-xs text-muted-foreground hover:text-foreground">Edit</button>
                     <button onClick={() => markStatus(l.listing_id, "active")} className="text-xs text-emerald-600 hover:underline">Unpause</button>
                     <button onClick={() => deleteListing(l.listing_id)} className="text-xs text-destructive hover:underline ml-auto">Delete</button>
@@ -1065,7 +1075,7 @@ function MyListingsTab({ user, navigate }) {
               )}
               {!["active", "paused", "pending"].includes(l.status) && (
                 <div className="flex items-center gap-2 mt-2">
-                  <button onClick={() => markStatus(l.listing_id, "active")} className="text-xs text-primary hover:underline">Reactivate</button>
+                  <button onClick={() => markStatus(l.listing_id, "active")} className="text-xs hover:underline" style={{ color: "var(--clay)" }}>Reactivate</button>
                   <button onClick={() => deleteListing(l.listing_id)} className="text-xs text-destructive hover:underline ml-auto">Delete</button>
                 </div>
               )}
@@ -1268,7 +1278,7 @@ function StallThreadView({ conv, user, onBack }) {
         </div>
         <Link
           to={`/stall/listing/${conv.listing_id}`}
-          className="text-xs text-primary hover:underline shrink-0"
+          className="text-xs hover:underline shrink-0" style={{ color: "var(--clay)" }}
         >
           View listing
         </Link>
@@ -1325,7 +1335,7 @@ function StallThreadView({ conv, user, onBack }) {
           onKeyDown={handleKeyDown}
           placeholder="Message…"
           rows={1}
-          className="flex-1 resize-none bg-background border border-border rounded-2xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none focus:ring-2 focus:ring-border/50 transition overflow-hidden"
+          className="flex-1 resize-none bg-background border border-border rounded-2xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none transition overflow-hidden"
         />
         <button
           onClick={handleSend}

@@ -5,7 +5,7 @@
 :root {
   /* Shared type + shape */
   --serif:  'Fraunces', 'Playfair Display', Georgia, serif;
-  --sans:   'Inter Tight', 'Inter', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --sans:   'Instrument Sans', 'DM Sans', -apple-system, sans-serif;
   --mono:   'JetBrains Mono', ui-monospace, Menlo, monospace;
   --r-xs: 6px; --r-sm: 10px; --r-md: 14px; --r-lg: 20px; --r-xl: 28px; --r-pill: 9999px;
 }
@@ -14,14 +14,14 @@
    Warm paper cream + brand brown from the wordmark. */
 html[data-theme="day"], [data-theme="day"] {
   /* Raw design tokens — hex, use directly in component styles */
-  --paper:        #f7f2e9;
-  --paper-2:      #f1eadc;
-  --paper-3:      #eadfcc;
-  --ink:          #2a1f17;
-  --ink-2:        #5a4638;
-  --ink-3:        #8a7a67;
-  --line:         rgba(42, 31, 23, 0.10);
-  --line-2:       rgba(42, 31, 23, 0.05);
+  --paper:        #f7f4ef;
+  --paper-2:      #ede8e0;
+  --paper-3:      #e2dbd0;
+  --ink:          #1e1812;
+  --ink-2:        #50403a;
+  --ink-3:        #887868;
+  --line:         rgba(42, 31, 23, 0.13);
+  --line-2:       rgba(42, 31, 23, 0.06);
 
   --brand:        #6b3a25;
   --brand-soft:   #a04f33;
@@ -59,6 +59,7 @@ html[data-theme="day"], [data-theme="day"] {
   --tv-primary-fg:    #f7f2e9;
 
   --glow: none;
+  --ambient-bg: none;
 
   --shadow-sm:   0 1px 2px rgba(42,31,23,0.05), 0 1px 1px rgba(42,31,23,0.03);
   --shadow-md:   0 6px 20px rgba(42,31,23,0.07), 0 2px 6px rgba(42,31,23,0.04);
@@ -95,14 +96,14 @@ html[data-theme="day"], [data-theme="day"] {
    Candlelight-warm dark. Keeps existing NightOwl amber for primary actions. */
 html[data-theme="night"], [data-theme="night"] {
   /* Raw design tokens */
-  --paper:        #17120e;
-  --paper-2:      #1f1812;
-  --paper-3:      #2a2119;
+  --paper:        #111009;
+  --paper-2:      #18150e;
+  --paper-3:      #201c14;
   --ink:          #f5e6d0;
   --ink-2:        #d8c3a0;
   --ink-3:        #8f7d62;
-  --line:         rgba(245, 230, 208, 0.08);
-  --line-2:       rgba(245, 230, 208, 0.04);
+  --line:         rgba(245, 230, 208, 0.13);
+  --line-2:       rgba(245, 230, 208, 0.06);
 
   --brand:        #f5e6d0;
   --brand-soft:   #e8a898;
@@ -112,15 +113,15 @@ html[data-theme="night"], [data-theme="night"] {
   --sage-deep:    #6e8f6a;
   --sage-wash:    rgba(154, 201, 158, 0.12);
 
-  --clay:         #e08968;
-  --clay-deep:    #c96a4a;
-  --clay-wash:    rgba(224, 137, 104, 0.14);
+  --clay:         #c07860;
+  --clay-deep:    #a05848;
+  --clay-wash:    rgba(192, 120, 96, 0.14);
 
   --dusk:         #b5a4cf;
   --dusk-wash:    rgba(181, 164, 207, 0.12);
 
-  --honey:        #f5c542;       /* existing NightOwl amber */
-  --honey-wash:   rgba(245, 197, 66, 0.14);
+  --honey:        #c9a850;       /* muted warm gold — replaces bright #f5c542 */
+  --honey-wash:   rgba(201, 168, 80, 0.14);
 
   --peach:        #f0b5a3;
   --peach-wash:   rgba(240, 181, 163, 0.12);
@@ -135,11 +136,12 @@ html[data-theme="night"], [data-theme="night"] {
   --badge-danger:   var(--danger);
 
   /* Named aliases */
-  --tv-accent-hex:    #e08968;
-  --tv-primary-hex:   #f5c542;
+  --tv-accent-hex:    #c07860;
+  --tv-primary-hex:   #c9a850;
   --tv-primary-fg:    #1a1208;
 
-  --glow: 0 0 24px rgba(245, 197, 66, 0.22);
+  --glow: 0 0 24px rgba(201, 168, 80, 0.22);
+  --ambient-bg: radial-gradient(ellipse 90% 52% at 50% -4%, rgba(201, 168, 80, 0.09) 0%, transparent 100%);
 
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
   --shadow-md: 0 8px 28px rgba(0,0,0,0.45), 0 2px 6px rgba(0,0,0,0.35);
@@ -152,7 +154,7 @@ html[data-theme="night"], [data-theme="night"] {
   --card-foreground:     40 65% 89%;
   --popover:             26 24% 10%;
   --popover-foreground:  40 65% 89%;
-  --primary:             47 91% 61%;    /* #f5c542 amber */
+  --primary:             47 72% 55%;    /* #c9a850 muted warm gold */
   --primary-foreground:  30 45% 6%;
   --secondary:           26 23% 13%;    /* #2a2119 */
   --secondary-foreground: 40 65% 89%;
@@ -162,12 +164,12 @@ html[data-theme="night"], [data-theme="night"] {
   --accent-foreground:   30 45% 6%;
   --destructive:         2 70% 55%;
   --destructive-foreground: 0 0% 98%;
-  --border:              26 20% 20%;    /* warm dark border */
-  --input:               26 23% 13%;
-  --ring:                47 91% 61%;
+  --border:              26 20% 22%;    /* warm dark border */
+  --input:               26 20% 22%;   /* match border so inputs are visible */
+  --ring:                47 72% 55%;
   --radius:              0.875rem;
   --success:             142 55% 45%;
-  --warning:             47 91% 61%;
+  --warning:             47 72% 55%;
   --info:                199 65% 55%;
 }
 

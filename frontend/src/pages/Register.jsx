@@ -6,10 +6,11 @@ import { Label } from "../components/ui/label";
 import { Textarea } from "../components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { toast } from "sonner";
-import { ArrowLeft, Eye, EyeOff, Check, Stethoscope } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { Checkbox } from "../components/ui/checkbox";
 import { parseApiError } from "../utils/apiError";
 import { Wordmark } from "../components/Wordmark";
+import { IconCheck, IconShield, IconChat, IconSpaces, IconCal } from "../icons";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
@@ -129,10 +130,6 @@ export default function Register() {
       toast.error("First name is required");
       return;
     }
-    if (!lastName.trim()) {
-      toast.error("Last name is required");
-      return;
-    }
     if (!email.trim()) {
       toast.error("Email is required");
       return;
@@ -226,7 +223,7 @@ export default function Register() {
     });
   };
 
-  const canSubmit = !loading && passwordValid && firstName.trim() && lastName.trim() && dobValid && agreedToTerms && proFormValid;
+  const canSubmit = !loading && passwordValid && firstName.trim() && dobValid && agreedToTerms && proFormValid;
 
   return (
     <div className="min-h-screen flex" style={{ background: "var(--paper)" }}>
@@ -234,20 +231,31 @@ export default function Register() {
       {/* Left panel — 40% design panel */}
       <div
         className="hidden lg:flex lg:w-[40%] flex-col justify-between relative overflow-hidden px-12 py-10"
-        style={{ background: "var(--paper)" }}
+        style={{ background: "var(--paper-2)" }}
       >
-        {/* Watercolour blob */}
-        <svg className="absolute top-0 right-0 w-full opacity-40 pointer-events-none" viewBox="0 0 480 520" fill="none" aria-hidden="true">
-          <ellipse cx="360" cy="160" rx="200" ry="180" fill="hsl(var(--accent))" fillOpacity="0.20" />
-          <ellipse cx="420" cy="80" rx="140" ry="110" fill="hsl(var(--accent))" fillOpacity="0.14" />
-          <ellipse cx="260" cy="240" rx="160" ry="120" fill="var(--honey)" fillOpacity="0.10" />
-        </svg>
         <div className="relative z-10"><Wordmark size={26} /></div>
         <div className="relative z-10 mb-8">
           <p style={{ fontFamily: "var(--serif)", fontSize: "clamp(18px,2vw,24px)", fontStyle: "italic", fontWeight: 400, letterSpacing: "-0.02em", lineHeight: 1.5, color: "var(--ink)" }}>
 "The support here is incredible"
           </p>
           <p className="mt-2 text-sm" style={{ color: "var(--ink-3)" }}>— Mike, dad of two</p>
+
+          <div className="mt-6 flex flex-col gap-3">
+            {[
+              [IconSpaces, "Spaces", "Topic-based discussions — sleep, feeding, mental health"],
+              [IconChat,   "Group Chats", "The 3am Club and local rooms, always open"],
+              [IconCal,    "Events", "Local playgroups and meetups near you"],
+            ].map(([Icon, title, desc]) => (
+              <div key={title} className="flex gap-3 items-start">
+                <div className="mt-0.5 shrink-0 w-5 h-5 rounded-[4px] flex items-center justify-center" style={{ background: "var(--clay-wash)" }}>
+                  <IconCheck size={11} style={{ color: "var(--clay)" }} />
+                </div>
+                <span className="text-xs leading-relaxed" style={{ color: "var(--ink-2)" }}>
+                  <strong style={{ color: "var(--ink)", fontWeight: 600 }}>{title}</strong> — {desc}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -262,13 +270,13 @@ export default function Register() {
           <div className="lg:hidden mb-6"><Wordmark size={22} /></div>
 
           <h1 className="text-3xl font-medium mb-1" style={{ fontFamily: "var(--serif)", color: "var(--ink)" }}>Join the community</h1>
-          <p className="mb-6 text-sm" style={{ color: "var(--ink-2)" }}>Create your account and find your parenting tribe</p>
+          <p className="mb-6 text-sm" style={{ color: "var(--ink-2)" }}>Create your account and find your village.</p>
 
           {/* Google Signup */}
           <Button
             type="button"
             variant="outline"
-            className="w-full rounded-full border-[var(--line)] hover:bg-[var(--paper)] mb-6"
+            className="w-full rounded-[8px] border-[var(--line)] hover:bg-[var(--paper)] mb-6"
             style={{ height: 44, color: "var(--ink)", background: "var(--paper)" }}
             onClick={handleGoogleLogin}
             disabled={googleLoading}
@@ -303,23 +311,22 @@ export default function Register() {
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   placeholder="Jane"
-                  className="rounded-xl"
+                  className="rounded-[8px]"
                   style={{ height: 44, background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
                   required
                   data-testid="first-name-input"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="last_name" className="text-foreground">Last name</Label>
+                <Label htmlFor="last_name" className="text-foreground">Last name (optional)</Label>
                 <Input
                   id="last_name"
                   type="text"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   placeholder="Smith"
-                  className="rounded-xl"
+                  className="rounded-[8px]"
                   style={{ height: 44, background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
-                  required
                   data-testid="last-name-input"
                 />
               </div>
@@ -337,7 +344,7 @@ export default function Register() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="rounded-xl"
+                className="rounded-[8px]"
                 style={{ height: 44, background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
                 required
                 data-testid="email-input"
@@ -353,7 +360,7 @@ export default function Register() {
                 value={dob}
                 onChange={(e) => setDob(e.target.value)}
                 max={maxDobDate()}
-                className="rounded-xl"
+                className="rounded-[8px]"
                 style={{ height: 44, background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
                 required
                 data-testid="dob-input"
@@ -380,7 +387,7 @@ export default function Register() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="rounded-xl pr-10"
+                  className="rounded-[8px] pr-10"
                   style={{ height: 44, background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
                   required
                   data-testid="password-input"
@@ -398,7 +405,7 @@ export default function Register() {
                 {passwordRequirements.map((req, idx) => (
                   <div key={idx} className="flex items-center gap-2 text-sm">
                     <div className={`w-4 h-4 rounded-full flex items-center justify-center ${req.met ? 'bg-green-500/20 text-green-500' : 'bg-muted text-muted-foreground'}`}>
-                      {req.met && <Check className="h-3 w-3" />}
+                      {req.met && <IconCheck size={10} />}
                     </div>
                     <span className={req.met ? 'text-green-500' : 'text-muted-foreground'}>{req.label}</span>
                   </div>
@@ -407,7 +414,7 @@ export default function Register() {
             </div>
 
             {/* Legal acceptance */}
-            <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
+            <div className="rounded-[8px] border border-border/50 bg-secondary/20 p-4">
               <div className="flex items-start gap-3">
                 <Checkbox
                   id="terms-check"
@@ -456,7 +463,7 @@ export default function Register() {
             </div>
 
             {/* Healthcare professional opt-in + inline form */}
-            <div className="rounded-xl border border-sky-500/30 bg-sky-500/5 overflow-hidden">
+            <div className="rounded-[8px] border border-sky-500/30 bg-sky-500/5 overflow-hidden">
               <div className="flex items-start gap-3 px-4 py-3.5">
                 <Checkbox
                   id="hcp-check"
@@ -472,7 +479,7 @@ export default function Register() {
               {isHealthcarePro && (
                 <div className="border-t border-sky-500/20 px-4 pb-4 pt-3 space-y-3">
                   <div className="flex items-center gap-2 mb-1">
-                    <Stethoscope className="h-4 w-4 text-sky-500" />
+                    <IconShield size={16} style={{ color: "rgb(14 165 233)" }} />
                     <p className="text-xs font-medium text-sky-600 dark:text-sky-400">Professional verification application</p>
                   </div>
                   <p className="text-xs text-muted-foreground">Your application will be reviewed by our team. Your verified badge will appear once approved.</p>
@@ -481,7 +488,7 @@ export default function Register() {
                   <div>
                     <label className="text-xs font-medium text-foreground mb-1.5 block">Professional type</label>
                     <Select value={proType} onValueChange={setProType}>
-                      <SelectTrigger className="rounded-xl text-sm" style={{ height: 40, background: "var(--paper)", border: "1px solid var(--line)" }}>
+                      <SelectTrigger className="rounded-[8px] text-sm" style={{ height: 40, background: "var(--paper)", border: "1px solid var(--line)" }}>
                         <SelectValue placeholder="Select your role…" />
                       </SelectTrigger>
                       <SelectContent>
@@ -499,7 +506,7 @@ export default function Register() {
                       value={proWorkplace}
                       onChange={e => setProWorkplace(e.target.value)}
                       placeholder="e.g. Royal Hospital for Women, private practice"
-                      className="rounded-xl text-sm"
+                      className="rounded-[8px] text-sm"
                       style={{ height: 40, background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
                     />
                   </div>
@@ -511,7 +518,7 @@ export default function Register() {
                       value={proCredentials}
                       onChange={e => setProCredentials(e.target.value)}
                       placeholder="Describe your qualifications, registration number, years of experience."
-                      className="rounded-xl resize-none text-sm"
+                      className="rounded-[8px] resize-none text-sm"
                       rows={3}
                       maxLength={2000}
                       style={{ background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
@@ -526,7 +533,7 @@ export default function Register() {
                       value={proServicesUrl}
                       onChange={e => setProServicesUrl(e.target.value)}
                       placeholder="e.g. https://yourwebsite.com.au, hospital profile, LinkedIn"
-                      className="rounded-xl text-sm"
+                      className="rounded-[8px] text-sm"
                       style={{ height: 40, background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
                     />
                     <p className="text-xs text-muted-foreground mt-1">Link to your website, clinic profile, or professional directory listing.</p>
@@ -537,7 +544,7 @@ export default function Register() {
 
             <Button
               type="submit"
-              className="w-full rounded-full"
+              className="w-full rounded-[8px]"
               style={{ height: 44, background: "var(--ink)", color: "var(--paper)" }}
               disabled={!canSubmit}
               data-testid="register-submit-btn"

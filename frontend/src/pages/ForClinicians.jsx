@@ -60,7 +60,7 @@ export default function ForClinicians({ user }) {
           <div className="max-w-5xl mx-auto px-5 py-3 flex items-center justify-between">
             <Link to="/" className="flex items-center gap-2">
               <Stethoscope className="h-4 w-4 text-primary" />
-              <span className="font-heading font-bold text-sm text-foreground">Our Little Village</span>
+              <span className="font-heading font-medium text-sm text-foreground">Our Little Village</span>
               <span className="hidden sm:inline text-xs text-muted-foreground">· For Clinicians</span>
             </Link>
             <div className="flex items-center gap-2">
@@ -118,7 +118,7 @@ export default function ForClinicians({ user }) {
 
         {/* What it is */}
         <div className="mb-8 village-card p-6">
-          <h2 className="font-heading font-bold text-lg text-foreground mb-3">What is Our Little Village?</h2>
+          <h2 className="font-heading font-medium text-lg text-foreground mb-3">What is Our Little Village?</h2>
           <p className="text-sm text-muted-foreground leading-relaxed mb-4">
             Our Little Village is a judgment-free community for Australian parents — from expectant mothers through to parents of teenagers. Members post questions, share experiences, and support each other around the clock, in topic-based Spaces, live Group Chats, Village+ Communities, and a local-area community marketplace.
           </p>
@@ -141,7 +141,7 @@ export default function ForClinicians({ user }) {
         </div>
 
         {/* Why recommend */}
-        <h2 className="font-heading font-bold text-lg text-foreground mb-4">Why clinicians recommend it</h2>
+        <h2 className="font-heading font-medium text-lg text-foreground mb-4">Why clinicians recommend it</h2>
         <div className="grid sm:grid-cols-2 gap-4 mb-8">
           {WHY_RECOMMEND.map(({ icon, title, body }) => (
             <div key={title} className="village-card p-5 flex gap-4">
@@ -183,7 +183,7 @@ export default function ForClinicians({ user }) {
 
         {/* How to refer */}
         <div className="mb-8 village-card p-6">
-          <h2 className="font-heading font-bold text-lg text-foreground mb-3">How to refer a patient</h2>
+          <h2 className="font-heading font-medium text-lg text-foreground mb-3">How to refer a patient</h2>
           <p className="text-sm text-muted-foreground leading-relaxed mb-4">
             No formal referral process needed. Simply share the link or mention it during a consultation:
           </p>

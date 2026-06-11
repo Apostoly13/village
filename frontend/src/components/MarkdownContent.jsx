@@ -9,7 +9,7 @@ import remarkGfm from "remark-gfm";
 const components = {
   // Headings — demoted so they never compete with the page <h1> title
   // h1 in markdown → renders as a bold subheading (not giant)
-  h1: ({ children }) => <p className="font-heading font-bold text-base text-foreground mt-3 mb-1 leading-snug">{children}</p>,
+  h1: ({ children }) => <p className="font-heading font-medium text-base text-foreground mt-3 mb-1 leading-snug">{children}</p>,
   h2: ({ children }) => <p className="font-heading font-semibold text-sm text-foreground mt-2 mb-1 leading-snug">{children}</p>,
   h3: ({ children }) => <p className="font-semibold text-sm text-muted-foreground mt-2 mb-0.5">{children}</p>,
 

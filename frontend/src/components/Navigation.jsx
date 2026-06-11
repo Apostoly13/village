@@ -13,12 +13,13 @@ import {
 } from "./ui/dropdown-menu";
 import { ScrollArea } from "./ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
-import { Mail, User, LogOut, UserPlus, Bell, Shield, ScrollText, Lock, FileText, Settings, ChevronDown } from "lucide-react";
+import { Mail, User, LogOut, UserPlus, Bell, Shield, ScrollText, Lock, FileText, Settings, ChevronDown, Stethoscope } from "lucide-react";
 import { IconHome, IconChat, IconCal, IconMail, IconShield, IconCog, IconSpaces, IconMoon, IconSun } from "../icons";
 import { Village, Stall, Sparkle, Quill, ParentChild, ThreeAmMoon } from "./village/icons";
 import { MenuIcon, CloseIcon, BackIcon, SavedIcon } from "./village/VillageLineIcons";
 import { toast } from "sonner";
 import { FEATURES } from "../config/features";
+import { playChime } from "../utils/sounds";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -34,6 +35,7 @@ export default function Navigation({ user }) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const prevUnreadCountRef = useRef(null);
+  const prevUnreadMessagesRef = useRef(null);
   const notificationsOpenRef = useRef(false);
   const fetchNotificationsRef = useRef(null);
 
@@ -80,18 +82,27 @@ export default function Navigation({ user }) {
           const data = await friendsRes.json();
           setFriendRequestCount(data.length);
         }
+        // Process messages first so a DM that bumps both counters plays
+        // only the message chime, not two overlapping sounds
+        let msgIncreased = false;
+        if (msgRes.ok) {
+          const data = await msgRes.json();
+          setUnreadMessages(data.count);
+          if (prevUnreadMessagesRef.current !== null && data.count > prevUnreadMessagesRef.current) {
+            msgIncreased = true;
+            playChime("message");
+          }
+          prevUnreadMessagesRef.current = data.count;
+        }
         if (notifCountRes.ok) {
           const data = await notifCountRes.json();
           const newCount = data.count;
           setUnreadCount(newCount);
           if (prevUnreadCountRef.current !== null && newCount > prevUnreadCountRef.current) {
             showNewNotificationToast();
+            if (!msgIncreased) playChime("notification");
           }
           prevUnreadCountRef.current = newCount;
-        }
-        if (msgRes.ok) {
-          const data = await msgRes.json();
-          setUnreadMessages(data.count);
         }
         // Let other components (e.g. ChatPopout) piggyback on this poll cycle
         window.dispatchEvent(new Event("village:nav-poll"));
@@ -215,18 +226,20 @@ export default function Navigation({ user }) {
         { label: "Friends",       href: "/chat?tab=friends" },
       ],
     },
-    { icon: IconCal, label: "Events", href: isFree ? "/plus" : "/events", testId: "nav-events", locked: isFree },
+    { icon: IconCal, label: "Events", href: "/events", testId: "nav-events" },
     { icon: IconMail, label: "Messages", href: isFree ? "/plus" : "/messages", testId: "nav-messages", locked: isFree, badge: isFree ? 0 : unreadMessages },
     ...(FEATURES.BLOG ? [{ icon: Quill, label: "Blog", href: "/blog", testId: "nav-blog" }] : []),
     ...(isAdmin ? [{ icon: IconShield, label: "Admin", href: "/admin", testId: "nav-admin" }] : []),
   ];
 
-  // Mobile bottom tab bar — 5 focused tabs including Group Chats for direct access
+  // Mobile bottom tab bar — free users see Friends (with badge) instead of Messages
   const mobileNavItems = [
     { icon: IconHome,      label: "Home",     href: "/dashboard",                        testId: "nav-home" },
     { icon: IconSpaces,    label: "Spaces",   href: "/forums",                           testId: "nav-forums" },
     { icon: IconChat,      label: "Chats",    href: "/chat",                             testId: "nav-chat" },
-    { icon: Mail,          label: "Messages", href: isFree ? "/plus" : "/messages",      testId: "nav-messages",  locked: isFree, badge: isFree ? 0 : unreadMessages },
+    isFree
+      ? { icon: ParentChild, label: "Friends", href: "/friends",                         testId: "bottom-nav-friends", badge: friendRequestCount }
+      : { icon: Mail,        label: "Messages", href: "/messages",                       testId: "bottom-nav-messages", badge: unreadMessages },
     { icon: User,          label: "Me",       href: "/profile",                          testId: "nav-me" },
   ];
 
@@ -272,18 +285,18 @@ export default function Navigation({ user }) {
               { label: "Create Post",   href: "/create-post" },
               { label: "Saved Posts",   href: "/saved" },
             ]},
+            { Icon: Village,    label: "Communities", href: isFree ? "/plus" : "/forums?tab=communities", testId: "nav-communities", locked: isFree },
             { Icon: IconChat,   label: "Chat Rooms", href: "/chat",                          testId: "nav-chat",     subItems: [
               { label: "All Australia", href: "/chat" },
               { label: "Local Rooms",   href: "/chat?tab=local" },
               { label: "Live now",      href: "/chat?tab=live" },
-              { label: "Communities",   href: isFree ? "/plus" : "/forums?tab=communities" },
             ]},
-            { Icon: IconCal,    label: "Events",    href: isFree ? "/plus" : "/events",     testId: "nav-events",   locked: isFree,
-              ...(!isFree ? { subItems: [
+            { Icon: IconCal,    label: "Events",    href: "/events",                         testId: "nav-events",
+              subItems: [
                 { label: "Browse Events", href: "/events" },
-                { label: "Create Event",  href: "/events?action=create" },
+                { label: "Create Event",  href: isFree ? "/plus" : "/events?action=create" },
                 { label: "My RSVPs",      href: "/events?tab=rsvp" },
-              ]} : {}),
+              ],
             },
             { Icon: Stall,      label: "Stall",     href: "/stall",                         testId: "nav-stall",    locked: isFree,
               subItems: isFree
@@ -304,6 +317,7 @@ export default function Navigation({ user }) {
               ],
             },
             { Icon: SavedIcon,  label: "Saved",     href: "/saved",                         testId: "nav-saved" },
+            { Icon: Stethoscope, label: "Professionals", href: "/professionals",              testId: "nav-professionals" },
             ...(FEATURES.BLOG  ? [{ Icon: Quill,       label: "Blog",      href: "/blog",      testId: "nav-blog"}] : []),
             ...(user?.role === "moderator" ? [{ Icon: IconShield, label: "Moderator",  href: "/moderator", testId: "nav-mod"}] : []),
             ...(user?.role === "admin"? [{ Icon: IconShield, label: "Admin",      href: "/admin",     testId: "nav-admin" }] : []),
@@ -609,13 +623,12 @@ export default function Navigation({ user }) {
               </Link>
 
               <Link
-                to={isFree ? "/plus" : "/events"}
+                to="/events"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 ${isFree ? "text-muted-foreground/60" : "text-foreground"}`}
+                className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
               >
                 <IconCal size={20} />
                 Events
-                {isFree && <Lock className="h-3.5 w-3.5 ml-auto opacity-60" />}
               </Link>
 
               <Link
@@ -645,6 +658,15 @@ export default function Navigation({ user }) {
               >
                 <SavedIcon size={20} />
                 Saved
+              </Link>
+
+              <Link
+                to="/professionals"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 text-foreground"
+              >
+                <Stethoscope className="h-5 w-5" />
+                Find a Professional
               </Link>
 
               <Link
@@ -730,16 +752,15 @@ export default function Navigation({ user }) {
                 <FileText className="h-4 w-4" />
                 Terms of Service
               </Link>
-            </div>
 
-            {/* Sign out — always visible, pinned at bottom */}
-            <div className="shrink-0 px-4 py-3" style={{ borderTop: "1px solid var(--line-2)" }}>
+              <div className="border-t border-border/30 my-1" />
+
               <button
                 onClick={handleLogout}
                 className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-secondary/50 text-destructive"
               >
                 <LogOut className="h-5 w-5" />
-                Log out
+                Sign out
               </button>
             </div>
           </div>
@@ -750,11 +771,13 @@ export default function Navigation({ user }) {
       <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden" style={{ background: "var(--paper)", borderTop: "1px solid var(--line-2)" }}>
         <div className="flex items-center justify-around h-16 px-2">
           {[
-            { icon: IconHome,   label: "Home",      href: "/dashboard",                       testId: "bottom-nav-home" },
-            { icon: IconSpaces, label: "Spaces",    href: "/forums",                          testId: "bottom-nav-spaces" },
-            { icon: ThreeAmMoon, label: "Chat Live", href: "/chat",                           testId: "bottom-nav-chat" },
-            { icon: Mail,       label: "Messages",  href: isFree ? "/plus" : "/messages",    testId: "bottom-nav-messages", badge: isFree ? 0 : unreadMessages },
-            { icon: User,       label: "Me",        href: "/profile",                        testId: "bottom-nav-me" },
+            { icon: IconHome,    label: "Home",    href: "/dashboard",  testId: "bottom-nav-home" },
+            { icon: IconSpaces,  label: "Spaces",  href: "/forums",     testId: "bottom-nav-spaces" },
+            { icon: ThreeAmMoon, label: "Chat",    href: "/chat",       testId: "bottom-nav-chat" },
+            isFree
+              ? { icon: ParentChild, label: "Friends",  href: "/friends",  testId: "bottom-nav-friends",  badge: friendRequestCount }
+              : { icon: Mail,        label: "Messages", href: "/messages", testId: "bottom-nav-messages", badge: unreadMessages },
+            { icon: User,        label: "Me",      href: "/profile",    testId: "bottom-nav-me" },
           ].map(({ icon: Icon, label, href, testId, badge }) => {
             const isActive = location.pathname === href || (href !== "/dashboard" && location.pathname.startsWith(href));
             return (

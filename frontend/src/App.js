@@ -48,6 +48,7 @@ const VillagePlus         = lazy(() => import("./pages/VillagePlus"));
 const SubscriptionSuccess = lazy(() => import("./pages/SubscriptionSuccess"));
 const SubscriptionCancel  = lazy(() => import("./pages/SubscriptionCancel"));
 const ForClinicians       = lazy(() => import("./pages/ForClinicians"));
+const Professionals       = lazy(() => import("./pages/Professionals"));
 const Stall               = lazy(() => import("./pages/Stall"));
 const StallListingDetail  = lazy(() => import("./pages/StallListingDetail"));
 const CreateStallListing  = lazy(() => import("./pages/CreateStallListing"));
@@ -546,6 +547,11 @@ const AppRouter = () => {
       <Route path="/subscription/success" element={<SubscriptionSuccess user={popoutUser} />} />
       <Route path="/subscription/cancel" element={<SubscriptionCancel user={popoutUser} />} />
       <Route path="/for-clinicians" element={<ForClinicians user={popoutUser} />} />
+      <Route path="/professionals" element={
+        <ProtectedRoute>
+          {({ user }) => <Professionals user={user} />}
+        </ProtectedRoute>
+      } />
       <Route path="*" element={<NotFound />} />
     </Routes>
     </Suspense>

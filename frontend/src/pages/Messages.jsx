@@ -12,25 +12,12 @@ import { Sparkles, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { timeAgoVerbose } from "../utils/dateHelpers";
 import { parseApiError } from "../utils/apiError";
+import { playChime } from "../utils/sounds";
 import AppFooter from "../components/AppFooter";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
-function playDing() {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.value = 880;
-    osc.type = "sine";
-    gain.gain.setValueAtTime(0.12, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.4);
-  } catch {}
-}
+const playDing = () => playChime("message");
 
 const formatTime = timeAgoVerbose;
 
@@ -746,7 +733,7 @@ export default function Messages({ user }) {
             const err = await res.json();
             const detail = err.detail || {};
             if (detail.error === "daily_chat_limit") {
-              toast.error(`You've reached your daily message limit. Upgrade to Village+ for unlimited messaging.`, {
+              toast.error(`You've used today's free messages — they reset at midnight. Village+ chats without limits.`, {
                 action: { label: "Upgrade", onClick: () => navigate("/plus") },
               });
             } else if (detail.error === "village_plus_required") {
@@ -957,7 +944,7 @@ export default function Messages({ user }) {
                       {messageRequests.length > 0 && (inboxTab === "all" || inboxTab === "unread") && (
                         <>
                           <div className="px-4 py-2 border-b border-amber-500/20 flex items-center gap-2" style={{ background: "var(--honey-wash)" }}>
-                            <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--honey-deep, #a07820)" }}>Message Requests</span>
+                            <span className="tv-mono" style={{ color: "var(--honey-deep, #a07820)" }}>Message Requests</span>
                             <span className="text-xs rounded-full px-1.5 font-semibold" style={{ background: "rgba(245,197,66,0.15)", color: "var(--honey-deep, #a07820)" }}>{messageRequests.length}</span>
                           </div>
                           <div className="divide-y divide-border/30">
@@ -1019,7 +1006,7 @@ export default function Messages({ user }) {
                           return (
                             <>
                               <div className="px-4 py-2">
-                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Friends</p>
+                                <p className="tv-mono" style={{ color: "var(--ink-3)" }}>Friends</p>
                               </div>
                               <div className="divide-y divide-border/30">
                                 {allFriendItems.map(item => {
@@ -1183,7 +1170,7 @@ export default function Messages({ user }) {
                             <>
                               {filteredRecent.length > 0 && <div className="h-px bg-border/30 mx-4" />}
                               <div className="px-4 py-2">
-                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Friends</p>
+                                <p className="tv-mono" style={{ color: "var(--ink-3)" }}>Friends</p>
                               </div>
                               <div className="divide-y divide-border/30">
                                 {friendsContactOnly.map(friend => (
@@ -1219,12 +1206,12 @@ export default function Messages({ user }) {
                                   <>
                                     <p className="text-sm text-muted-foreground mb-1">No messages yet.</p>
                                     <p className="text-xs text-muted-foreground mb-3">When another parent messages you, you can reply here for free.</p>
-                                    <button onClick={() => navigate("/plus")} className="text-xs text-primary hover:underline">Upgrade to Village+ to message anyone →</button>
+                                    <button onClick={() => navigate("/plus")} className="text-xs hover:underline" style={{ color: "var(--clay)" }}>Upgrade to Village+ to message anyone →</button>
                                   </>
                                 ) : (
                                   <>
                                     <p className="text-sm text-muted-foreground mb-2">No conversations yet.</p>
-                                    <button onClick={() => setShowSearch(true)} className="text-xs text-primary hover:underline">Find parents to connect with →</button>
+                                    <button onClick={() => setShowSearch(true)} className="text-xs hover:underline" style={{ color: "var(--clay)" }}>Find parents to connect with →</button>
                                   </>
                                 )
                               )}
@@ -1301,7 +1288,7 @@ export default function Messages({ user }) {
                     ) : (
                       <>
                         {/* Clickable avatar → profile */}
-                        <button onClick={() => navigate(`/profile/${activeUser.user_id}`)} className="shrink-0 rounded-full focus:outline-none focus:ring-2 focus:ring-border/50">
+                        <button onClick={() => navigate(`/profile/${activeUser.user_id}`)} className="shrink-0 rounded-full focus:outline-none">
                           <UserAvatar picture={activeUser.picture} name={activeUser.name} nickname={activeUser.nickname} isOnline={activeUser.is_online} />
                         </button>
                         {/* Clickable name → profile */}
@@ -1426,7 +1413,7 @@ export default function Messages({ user }) {
                         chatMode === "stall" ? `Message about ${activeStallConv?.listing_title || "this listing"}...` :
                         `Message ${activeUser?.nickname || activeUser?.name}...`
                       }
-                      className="flex-1 bg-secondary/50 rounded-full px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50"
+                      className="flex-1 bg-secondary/50 rounded-full px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none"
                       maxLength={1000}
                       disabled={sending || uploadingImage}
                     />

@@ -1,3 +1,5 @@
+import { Wordmark } from "../components/Wordmark";
+
 /**
  * ComingSoonPublic — public-facing gate page shown on main deployment
  * when REACT_APP_COMING_SOON=true and no bypass token is present.
@@ -19,11 +21,9 @@ export default function ComingSoonPublic() {
         textAlign: "center",
       }}
     >
-      <img
-        src="/BG Removed- Main Logo - ps edit.png"
-        alt="Our Little Village"
-        style={{ height: "80px", width: "auto", marginBottom: "2rem", opacity: 0.95 }}
-      />
+      <div style={{ marginBottom: "2rem" }}>
+        <Wordmark size={34} color="#f5e6d0" accent="#e8a898" />
+      </div>
       <h1
         style={{
           fontSize: "clamp(2rem, 5vw, 3.5rem)",

@@ -407,7 +407,7 @@ export default function EditDonationGroup({ user }) {
               <select
                 value={form.purpose_type}
                 onChange={e => set("purpose_type", e.target.value)}
-                className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-border/50 transition"
+                className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm text-foreground outline-none transition"
               >
                 {PURPOSE_OPTIONS.map(o => (
                   <option key={o.value} value={o.value}>{o.label}</option>
@@ -432,7 +432,7 @@ export default function EditDonationGroup({ user }) {
                 value={form.name}
                 onChange={e => set("name", e.target.value.slice(0, 80))}
                 placeholder="e.g. Inner West Baby Clothes Drive"
-                className={`w-full bg-background border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition ${errors.name ? "border-destructive" : "border-border/50"}`}
+                className={`w-full bg-background border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none transition ${errors.name ? "border-destructive" : "border-border/50"}`}
               />
               <div className="flex items-center justify-between mt-1">
                 {errors.name
@@ -452,7 +452,7 @@ export default function EditDonationGroup({ user }) {
                 onChange={e => set("description", e.target.value.slice(0, 600))}
                 rows={4}
                 placeholder={`Tell people what this group is about.\n\nInclude:\n• What you're collecting and why\n• Where and when to drop off (e.g. 42 Smith St, Saturdays 9–11am)\n• How long the drive runs\n• Who to contact with questions`}
-                className={`w-full bg-background border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition resize-none ${errors.description ? "border-destructive" : "border-border/50"}`}
+                className={`w-full bg-background border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none transition resize-none ${errors.description ? "border-destructive" : "border-border/50"}`}
               />
               <div className="flex items-center justify-between mt-1">
                 {errors.description
@@ -536,7 +536,7 @@ export default function EditDonationGroup({ user }) {
                   value={rangeFrom}
                   onChange={e => { setRangeFrom(e.target.value.replace(/\D/g, "")); setRangeError(""); }}
                   placeholder="From"
-                  className="w-24 bg-background border border-border/50 rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition text-center"
+                  className="w-24 bg-background border border-border/50 rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none transition text-center"
                 />
                 <span className="text-xs text-muted-foreground shrink-0">to</span>
                 <input
@@ -546,7 +546,7 @@ export default function EditDonationGroup({ user }) {
                   value={rangeTo}
                   onChange={e => { setRangeTo(e.target.value.replace(/\D/g, "")); setRangeError(""); }}
                   placeholder="To"
-                  className="w-24 bg-background border border-border/50 rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition text-center"
+                  className="w-24 bg-background border border-border/50 rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none transition text-center"
                 />
                 <button
                   type="button"
@@ -576,7 +576,7 @@ export default function EditDonationGroup({ user }) {
                 onChange={e => set("accepted_items", e.target.value.slice(0, 400))}
                 rows={3}
                 placeholder={`e.g.\n• Baby clothes sizes 000–2\n• Clean, good condition only\n• Folded and in bags please\n• Bibs, wraps, and onesies welcome`}
-                className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition resize-none"
+                className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none transition resize-none"
               />
               <p className="text-xs text-muted-foreground mt-1 text-right">{form.accepted_items.length}/400</p>
             </div>
@@ -588,7 +588,7 @@ export default function EditDonationGroup({ user }) {
                 onChange={e => set("not_accepted", e.target.value.slice(0, 300))}
                 rows={2}
                 placeholder={`e.g.\n• Stained or damaged items\n• Car seats or cots\n• Items without labels`}
-                className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition resize-none"
+                className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none transition resize-none"
               />
               <p className="text-xs text-muted-foreground mt-1 text-right">{form.not_accepted.length}/300</p>
             </div>
@@ -605,7 +605,7 @@ export default function EditDonationGroup({ user }) {
               onChange={e => set("rules", e.target.value.slice(0, 400))}
               rows={3}
               placeholder={`e.g.\n• All items are donated freely — no selling within this group\n• Contact the organiser before dropping off\n• Please don't request specific items`}
-              className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50 transition resize-none"
+              className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none transition resize-none"
             />
             <p className="text-xs text-muted-foreground text-right">{form.rules.length}/400</p>
           </div>
@@ -622,7 +622,7 @@ export default function EditDonationGroup({ user }) {
                 value={form.end_date}
                 onChange={e => set("end_date", e.target.value)}
                 min={new Date().toISOString().slice(0, 10)}
-                className={`w-full bg-background border rounded-xl px-4 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-border/50 transition ${errors.end_date ? "border-destructive" : "border-border/50"}`}
+                className={`w-full bg-background border rounded-xl px-4 py-2.5 text-sm text-foreground outline-none transition ${errors.end_date ? "border-destructive" : "border-border/50"}`}
               />
               {errors.end_date && <p className="text-xs text-destructive mt-1">{errors.end_date}</p>}
               {form.end_date && (
@@ -696,7 +696,7 @@ export default function EditDonationGroup({ user }) {
                   value={modQuery}
                   onChange={e => setModQuery(e.target.value)}
                   placeholder="Search for a member to add as moderator…"
-                  className="w-full bg-background border border-border/50 rounded-xl pl-9 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-border/50"
+                  className="w-full bg-background border border-border/50 rounded-xl pl-9 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none"
                 />
                 {modLoading && (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2">

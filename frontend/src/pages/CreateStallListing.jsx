@@ -9,7 +9,7 @@ import SuburbSearch from "../components/SuburbSearch";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
-const INPUT_CLASS = "w-full rounded-xl border border-border bg-card text-foreground px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-border/50 placeholder:text-muted-foreground";
+const INPUT_CLASS = "w-full rounded-xl border border-border bg-card text-foreground px-3 py-2.5 text-sm focus:outline-none placeholder:text-muted-foreground";
 
 const LISTING_TYPES = [
   { id: "sell",      label: "Selling",      desc: "Set a price for your item",           icon: Tag,            color: "emerald" },
@@ -165,7 +165,7 @@ export default function CreateStallListing({ user }) {
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
-            <h1 className="font-heading font-bold text-lg text-foreground">{groupId ? "Donate an item" : "Post a listing"}</h1>
+            <h1 className="font-heading font-medium text-lg text-foreground">{groupId ? "Donate an item" : "Post a listing"}</h1>
             <p className="text-xs text-muted-foreground">Step {step} of {TOTAL_STEPS}</p>
           </div>
         </div>
@@ -181,7 +181,7 @@ export default function CreateStallListing({ user }) {
         {step === 1 && (
           <div className="space-y-4">
             <div>
-              <h2 className="font-heading font-bold text-xl text-foreground mb-1">Add photos</h2>
+              <h2 className="font-heading font-medium text-xl text-foreground mb-1">Add photos</h2>
               <p className="text-sm text-muted-foreground">Up to 4 photos. Listings with photos get more enquiries.</p>
             </div>
 
@@ -223,7 +223,7 @@ export default function CreateStallListing({ user }) {
         {step === 2 && (
           <div className="space-y-5">
             <div>
-              <h2 className="font-heading font-bold text-xl text-foreground mb-1">{groupId ? "What are you donating?" : "What are you listing?"}</h2>
+              <h2 className="font-heading font-medium text-xl text-foreground mb-1">{groupId ? "What are you donating?" : "What are you listing?"}</h2>
               {groupId && (
                 <div className="flex items-center gap-2 mt-2 px-3 py-2 rounded-xl text-xs" style={{ background: "var(--sage-wash)", color: "var(--sage-deep)" }}>
                   <Heart className="h-3.5 w-3.5 shrink-0" />
@@ -314,7 +314,7 @@ export default function CreateStallListing({ user }) {
         {/* ── Step 3: Details ── */}
         {step === 3 && (
           <div className="space-y-5">
-            <h2 className="font-heading font-bold text-xl text-foreground mb-1">
+            <h2 className="font-heading font-medium text-xl text-foreground mb-1">
               {listingType === "sell" ? "Pricing" : listingType === "swap" ? "What you're after" : listingType === "give_away" ? (groupId ? "Item condition" : "Condition") : "Budget (optional)"}
             </h2>
 
@@ -442,7 +442,7 @@ export default function CreateStallListing({ user }) {
             {groupId ? (
               <>
                 <div>
-                  <h2 className="font-heading font-bold text-xl text-foreground mb-1">Collection or postage</h2>
+                  <h2 className="font-heading font-medium text-xl text-foreground mb-1">Collection or postage</h2>
                   <p className="text-sm text-muted-foreground">How can the organiser receive this item?</p>
                 </div>
 
@@ -464,7 +464,7 @@ export default function CreateStallListing({ user }) {
             ) : (
               <>
                 <div>
-                  <h2 className="font-heading font-bold text-xl text-foreground mb-1">Location</h2>
+                  <h2 className="font-heading font-medium text-xl text-foreground mb-1">Location</h2>
                   <p className="text-sm text-muted-foreground">Help local parents find your listing.</p>
                 </div>
 
@@ -497,7 +497,7 @@ export default function CreateStallListing({ user }) {
         {step === 5 && (
           <div className="space-y-5">
             <div>
-              <h2 className="font-heading font-bold text-xl text-foreground mb-1">Final details</h2>
+              <h2 className="font-heading font-medium text-xl text-foreground mb-1">Final details</h2>
             </div>
 
             <div>
@@ -530,7 +530,7 @@ export default function CreateStallListing({ user }) {
             <div className="text-xs text-muted-foreground leading-relaxed p-3.5 bg-secondary/30 rounded-xl space-y-1.5">
               <p className="font-medium text-foreground/80">🤝 User-to-user listing</p>
               <p>By posting you confirm your description is accurate and agree to The Village Stall community guidelines. The Village connects buyers and sellers but does not process payments, handle disputes, or take responsibility for transactions.</p>
-              <p>Please meet in a public place and use a secure payment method like PayID or cash.</p>
+              <p>Meet in a public place and pay in person at handover — never transfer money in advance.</p>
             </div>
           </div>
         )}

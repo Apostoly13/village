@@ -84,3 +84,21 @@ export const IconCog = (p) => <SvgIcon {...p}><circle cx="12" cy="12" r="2.8" />
 
 // Spaces / Forums — panel with header bar and topic rows
 export const IconSpaces = (p) => <SvgIcon {...p}><rect x="3" y="3.5" width="18" height="17" rx="2.5" /><path d="M3 8.5h18" /><path d="M7.5 12.5h9M7.5 16h6" /></SvgIcon>;
+
+// Gift / Donate
+export const IconGift = (p) => (
+  <SvgIcon {...p}>
+    <path d="M20 12v10H4V12"/>
+    <path d="M22 7H2v5h20V7z"/>
+    <path d="M12 22V7"/>
+    <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/>
+    <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>
+  </SvgIcon>
+);
+
+// Swap arrows — two-directional exchange
+export const IconSwap = (p) => (
+  <SvgIcon {...p}>
+    <path d="M7 16V4m0 0L3 8m4-4 4 4M17 8v12m0 0 4-4m-4 4-4-4"/>
+  </SvgIcon>
+);

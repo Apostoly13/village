@@ -226,7 +226,7 @@ export default function ForumPost({ user }) {
         toast.success("Reply posted!");
       } else if (response.status === 429) {
         const err = await response.json();
-        toast.error(err.detail?.message || "Daily reply limit reached");
+        toast.error(err.detail?.message || "Weekly reply limit reached — resets Monday");
         fetchSubscription();
       } else {
         toast.error("Failed to post reply");
@@ -400,7 +400,7 @@ export default function ForumPost({ user }) {
     return (
       <div key={reply.reply_id} className={depth > 0 ? 'ml-4 border-l-2 border-[var(--line)] pl-3' : 'pl-3 rounded-l-sm'}>
         <div
-          className={`${bgClass} rounded-[18px] p-4 border mb-3 ${isEven ? 'border-border/40' : 'border-[var(--line)]'}`}
+          className={`${bgClass} rounded-xl p-4 border mb-3 ${isEven ? 'border-border/40' : 'border-[var(--line)]'}`}
           data-testid={`reply-${reply.reply_id}`}
         >
           <div className="flex items-start gap-3">
@@ -487,7 +487,7 @@ export default function ForumPost({ user }) {
                   <Textarea
                     value={editReplyContent}
                     onChange={(e) => setEditReplyContent(e.target.value)}
-                    className="min-h-[80px] bg-secondary/50 border-transparent focus:border-[var(--line-2)] rounded-xl"
+                    className="min-h-[80px] bg-secondary/50 border-transparent rounded-xl"
                   />
                   <div className="flex gap-2">
                     <Button size="sm" onClick={() => handleEditReply(reply.reply_id)} className="rounded-xl">Save</Button>
@@ -730,14 +730,14 @@ export default function ForumPost({ user }) {
               <Input
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
-                className="text-xl font-bold bg-secondary/50 border-transparent focus:border-[var(--line-2)]"
+                className="text-xl font-bold bg-secondary/50 border-transparent"
                 placeholder="Post title"
               />
               <div className="relative">
                 <Textarea
                   value={editContent}
                   onChange={(e) => setEditContent(e.target.value.slice(0, MAX_CONTENT_LENGTH))}
-                  className="min-h-[150px] bg-secondary/50 border-transparent focus:border-[var(--line-2)] rounded-xl"
+                  className="min-h-[150px] bg-secondary/50 border-transparent rounded-xl"
                   placeholder="Post content"
                 />
                 <span className="absolute bottom-2 right-2 text-xs text-muted-foreground">
@@ -828,7 +828,7 @@ export default function ForumPost({ user }) {
 
         {/* Bottom reply form — only for top-level replies (not replying to a specific reply) */}
         <div className="village-card p-6 mb-8" data-testid="reply-form">
-          <h3 className="font-heading font-bold text-lg text-foreground mb-4">Add a Reply</h3>
+          <h3 className="font-heading font-medium text-lg text-foreground mb-4">Add a Reply</h3>
           <form onSubmit={handleReply} className="space-y-4">
             <div className="relative">
               <Textarea
@@ -842,7 +842,7 @@ export default function ForumPost({ user }) {
                 }}
                 onKeyDown={(e) => handleListKeyDown(e, replyContent, setReplyContent)}
                 placeholder="Share your thoughts or support..."
-                className="min-h-[44px] bg-secondary/50 border-transparent focus:border-[var(--line-2)] rounded-xl"
+                className="min-h-[44px] bg-secondary/50 border-transparent rounded-xl"
                 style={{ overflow: 'hidden', resize: 'none' }}
                 data-testid="reply-input"
               />

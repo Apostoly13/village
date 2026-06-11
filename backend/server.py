@@ -22,6 +22,7 @@ import httpx
 import bcrypt
 import jwt
 import resend
+from mjml.mjml2html import mjml_to_html as _mjml_to_html
 import stripe
 import time
 from collections import defaultdict
@@ -178,8 +179,11 @@ if STRIPE_SECRET_KEY:
 
 # Freemium Limits
 WEEKLY_POST_LIMIT_FREE = 5
-WEEKLY_REPLY_LIMIT_FREE = 5
-DAILY_CHAT_LIMIT_FREE = 10
+WEEKLY_REPLY_LIMIT_FREE = 30
+DAILY_CHAT_LIMIT_FREE = 40
+
+# Rooms exempt from the daily chat limit (support/crisis rooms)
+EXEMPT_ROOM_IDS = {"room_3am_club"}
 
 # Image upload config
 MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
@@ -555,6 +559,8 @@ async def get_current_user(request: Request) -> dict:
         user = await db.users.find_one({"user_id": session["user_id"]}, {"_id": 0})
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
+        if user.get("is_banned"):
+            raise HTTPException(status_code=403, detail="Account suspended")
         return user
     
     # Try JWT token
@@ -665,309 +671,418 @@ async def send_email_notification(to_email: str, subject: str, html_content: str
         return None
 
 def get_email_template(template_type: str, data: dict) -> tuple:
-    """Generate email subject and HTML content based on template type"""
+    """Generate email subject and HTML via MJML — cross-client, Outlook-safe."""
     # Sanitise all user-controlled string values to prevent HTML injection
     data = {k: html_module.escape(str(v)) if isinstance(v, str) else v for k, v in data.items()}
 
-    base_style = """
-        <style>
-            body { font-family: 'Segoe UI', Tahoma, Geneva, sans-serif; background-color: #FDF8F3; margin: 0; padding: 20px; }
-            .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-            .header { background: linear-gradient(135deg, #F5C542 0%, #E5A832 100%); padding: 30px; text-align: center; }
-            .header h1 { color: #1A1A2E; margin: 0; font-size: 24px; }
-            .content { padding: 30px; }
-            .content h2 { color: #1A1A2E; margin-top: 0; }
-            .content p { color: #4A4A4A; line-height: 1.6; }
-            .button { display: inline-block; background: #F5C542; color: #1A1A2E; padding: 12px 24px; border-radius: 25px; text-decoration: none; font-weight: bold; margin: 20px 0; }
-            .footer { background: #F5F5F5; padding: 20px; text-align: center; color: #888; font-size: 12px; }
-        </style>
-    """
-    
-    if template_type == "reply":
-        subject = f"💬 New reply to your post: {data.get('post_title', 'Your post')[:50]}"
-        html = f"""
-        <html><head>{base_style}</head><body>
-        <div class="container">
-            <div class="header"><h1>🏡 The Village</h1></div>
-            <div class="content">
-                <h2>Someone replied to your post!</h2>
-                <p><strong>{data.get('replier_name', 'A community member')}</strong> replied to your post "<em>{data.get('post_title', '')}</em>":</p>
-                <p style="background: #F5F5F5; padding: 15px; border-radius: 8px; border-left: 4px solid #F5C542;">
-                    {data.get('reply_preview', '')[:200]}...
-                </p>
-                <a href="{data.get('link', '#')}" class="button">View Reply</a>
-            </div>
-            <div class="footer">You're receiving this because you have email notifications enabled.<br/>Our Little Village — Parenting Assistance Platform<br/>support@ourlittlevillage.com.au</div>
-        </div>
-        </body></html>
-        """
-    elif template_type == "dm":
-        subject = f"📨 New message from {data.get('sender_name', 'Someone')}"
-        html = f"""
-        <html><head>{base_style}</head><body>
-        <div class="container">
-            <div class="header"><h1>🏡 The Village</h1></div>
-            <div class="content">
-                <h2>You have a new message!</h2>
-                <p><strong>{data.get('sender_name', 'A community member')}</strong> sent you a direct message:</p>
-                <p style="background: #F5F5F5; padding: 15px; border-radius: 8px; border-left: 4px solid #F5C542;">
-                    {data.get('message_preview', '')[:200]}...
-                </p>
-                <a href="{data.get('link', '#')}" class="button">Read Message</a>
-            </div>
-            <div class="footer">You're receiving this because you have email notifications enabled.<br/>Our Little Village — Parenting Assistance Platform<br/>support@ourlittlevillage.com.au</div>
-        </div>
-        </body></html>
-        """
-    elif template_type == "friend_request":
-        subject = f"👋 {data.get('sender_name', 'Someone')} wants to connect!"
-        html = f"""
-        <html><head>{base_style}</head><body>
-        <div class="container">
-            <div class="header"><h1>🏡 The Village</h1></div>
-            <div class="content">
-                <h2>New friend request!</h2>
-                <p><strong>{data.get('sender_name', 'A community member')}</strong> would like to connect with you on The Village.</p>
-                <a href="{data.get('link', '#')}" class="button">View Request</a>
-            </div>
-            <div class="footer">You're receiving this because you have email notifications enabled.<br/>Our Little Village — Parenting Assistance Platform<br/>support@ourlittlevillage.com.au</div>
-        </div>
-        </body></html>
-        """
-    elif template_type == "weekly_digest":
-        subject = "🏡 Your Weekly Village Digest"
-        html = f"""
-        <html><head>{base_style}</head><body>
-        <div class="container">
-            <div class="header"><h1>🏡 The Village</h1></div>
-            <div class="content">
-                <h2>Your Week in The Village</h2>
-                <p>Here's what's been happening in your community this week:</p>
-                <ul style="color: #4A4A4A; line-height: 2;">
-                    <li>📝 <strong>{data.get('new_posts', 0)}</strong> new posts in your favorite categories</li>
-                    <li>💬 <strong>{data.get('new_replies', 0)}</strong> replies to discussions</li>
-                    <li>🔥 <strong>{data.get('trending_topic', 'Community support')}</strong> is trending</li>
-                </ul>
-                <a href="{data.get('link', '#')}" class="button">Visit The Village</a>
-            </div>
-            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>support@ourlittlevillage.com.au</div>
-        </div>
-        </body></html>
-        """
-    elif template_type == "password_reset":
-        subject = "Reset your Village password"
-        html = f"""
-        <html><head>{base_style}</head><body>
-        <div class="container">
-            <div class="header"><h1>🏡 The Village</h1></div>
-            <div class="content">
-                <h2>Password reset request</h2>
-                <p>Hi {data.get('first_name', 'there')}, we received a request to reset your password.</p>
-                <p>Click the button below — this link expires in <strong>1 hour</strong>.</p>
-                <a href="{data.get('link', '#')}" class="button">Reset Password</a>
-                <p style="font-size: 13px; color: #888; margin-top: 20px;">
-                    If you didn't request this, you can safely ignore this email. Your password won't change.
-                </p>
-            </div>
-            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>support@ourlittlevillage.com.au</div>
-        </div>
-        </body></html>
-        """
-    elif template_type == "trial_warning":
-        subject = "⏰ Your Village+ trial ends in 2 days"
-        html = f"""
-        <html><head>{base_style}</head><body>
-        <div class="container">
-            <div class="header"><h1>🏡 The Village</h1></div>
-            <div class="content">
-                <h2>Your trial ends soon, {data.get('first_name', 'there')}</h2>
-                <p>Your free Village+ trial expires in <strong>2 days</strong>. After that you'll move to the free plan with limited posts and messages.</p>
-                <p>Upgrade now to keep unlimited access — it's just A$9.99/month or A$7.99/month billed annually.</p>
-                <a href="{FRONTEND_URL}/plus" class="button">Keep Village+ Access</a>
-                <p style="font-size: 13px; color: #888; margin-top: 20px;">
-                    No lock-in. Cancel any time.
-                </p>
-            </div>
-            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>support@ourlittlevillage.com.au</div>
-        </div>
-        </body></html>
-        """
-    elif template_type == "trial_expired":
-        subject = "Your Village+ trial has ended"
-        html = f"""
-        <html><head>{base_style}</head><body>
-        <div class="container">
-            <div class="header"><h1>🏡 The Village</h1></div>
-            <div class="content">
-                <h2>Your trial has ended, {data.get('first_name', 'there')}</h2>
-                <p>Your Village+ trial has expired and your account has moved to the free plan.</p>
-                <p>You can still read all posts, chat with the community, and post anonymously — but with limits.</p>
-                <p>Upgrade any time to restore unlimited access.</p>
-                <a href="{FRONTEND_URL}/plus" class="button">Upgrade to Village+</a>
-            </div>
-            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>support@ourlittlevillage.com.au</div>
-        </div>
-        </body></html>
-        """
-    elif template_type == "verify_email":
-        verify_link = f"{FRONTEND_URL}/verify-email?token={data.get('verification_token', '')}"
-        subject = "✅ Please verify your email — The Village"
-        html = f"""
-        <html><head>{base_style}</head><body>
-        <div class="container">
-            <div class="header"><h1>🏡 The Village</h1></div>
-            <div class="content">
-                <h2>Verify your email, {data.get('first_name', 'there')}</h2>
-                <p>One quick step — please click the button below to confirm your email address. This helps keep The Village safe for all families.</p>
-                <a href="{verify_link}" class="button">Verify my email</a>
-                <p style="font-size: 12px; color: #aaa; margin-top: 16px;">
-                    If you didn't create an account, you can safely ignore this email.
-                    This link expires in 7 days.
-                </p>
-            </div>
-            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>support@ourlittlevillage.com.au</div>
-        </div>
-        </body></html>
-        """
-    elif template_type == "welcome":
-        subject = "👋 Welcome to The Village!"
-        verify_link = f"{FRONTEND_URL}/verify-email?token={data.get('verification_token', '')}"
-        html = f"""
-        <html><head>{base_style}</head><body>
-        <div class="container">
-            <div class="header"><h1>🏡 The Village</h1></div>
-            <div class="content">
-                <h2>Welcome, {data.get('first_name', 'there')}!</h2>
-                <p>You've joined a warm, safe space built for Australian parents. You're not alone on this journey.</p>
-                <p>Here's what you can do right now:</p>
-                <ul style="color: #4A4A4A; line-height: 2;">
-                    <li>💬 Join a <strong>Chat Space</strong> and connect with other parents</li>
-                    <li>📝 Post in a <strong>Support Space</strong> — anonymously if you prefer</li>
-                    <li>📅 Find or create a <strong>local event</strong> near you</li>
-                </ul>
-                <a href="{FRONTEND_URL}/dashboard" class="button">Go to Dashboard</a>
-                <p style="font-size: 13px; color: #888; margin-top: 20px;">
-                    You have a 7-day free trial of Village+ — unlimited posts, messages and access to every feature.
-                </p>
-                <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
-                <p style="font-size: 13px; color: #888;">
-                    <strong>One more step:</strong> please <a href="{verify_link}" style="color: #E5A832;">verify your email address</a> to keep your account secure.
-                </p>
-            </div>
-            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>support@ourlittlevillage.com.au</div>
-        </div>
-        </body></html>
-        """
-    elif template_type == "stall_enquiry":
-        subject = f"📦 New enquiry on your Stall listing: {data.get('listing_title', 'your listing')}"
-        html = f"""
-        <html><head>{base_style}</head><body>
-        <div class="container">
-            <div class="header"><h1>🏡 The Village Stall</h1></div>
-            <div class="content">
-                <h2>Someone's interested in your listing!</h2>
-                <p><strong>{data.get('sender_name', 'A member')}</strong> has sent you an enquiry about:</p>
-                <p style="font-size:16px;font-weight:600;color:#1A1A2E;">📦 {data.get('listing_title', 'Your listing')}</p>
-                <p style="background:#F5F5F5;padding:15px;border-radius:8px;border-left:4px solid #F5C542;">
-                    {data.get('message_preview', '')[:300]}
-                </p>
-                <a href="{data.get('link', '#')}" class="button">Reply to Enquiry</a>
-                <p style="font-size:13px;color:#888;margin-top:20px;">
-                    All Stall transactions are between users. Our Little Village is not a party to any sale.
-                </p>
-            </div>
-            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>support@ourlittlevillage.com.au</div>
-        </div>
-        </body></html>
-        """
-    elif template_type == "stall_message":
-        subject = f"💬 New message about your Stall listing: {data.get('listing_title', 'your listing')}"
-        html = f"""
-        <html><head>{base_style}</head><body>
-        <div class="container">
-            <div class="header"><h1>🏡 The Village Stall</h1></div>
-            <div class="content">
-                <h2>New message from {data.get('sender_name', 'a member')}</h2>
-                <p>Re: <strong>{data.get('listing_title', 'your listing')}</strong></p>
-                <p style="background:#F5F5F5;padding:15px;border-radius:8px;border-left:4px solid #F5C542;">
-                    {data.get('message_preview', '')[:300]}
-                </p>
-                <a href="{data.get('link', '#')}" class="button">View Conversation</a>
-            </div>
-            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>support@ourlittlevillage.com.au</div>
-        </div>
-        </body></html>
-        """
-    elif template_type == "subscription_confirmed":
-        subject = "🎉 Village+ is now active!"
-        html = f"""
-        <html><head>{base_style}</head><body>
-        <div class="container">
-            <div class="header"><h1>🏡 The Village</h1></div>
-            <div class="content">
-                <h2>You're on Village+, {data.get('first_name', 'there')}!</h2>
-                <p>Your subscription is confirmed. Every limit has been lifted — post, chat, and connect freely.</p>
-                <ul style="color: #4A4A4A; line-height: 2;">
-                    <li>✅ Unlimited posts, replies &amp; messages</li>
-                    <li>✅ Create &amp; manage community spaces</li>
-                    <li>✅ Create &amp; RSVP to local events</li>
-                    <li>✅ Unlimited direct messages</li>
-                    <li>✅ Crown badge on your profile</li>
-                </ul>
-                <a href="{FRONTEND_URL}/plus" class="button">Manage Subscription</a>
-                <p style="font-size: 13px; color: #888; margin-top: 20px;">
-                    You can cancel any time from the Village+ page — no lock-in, no hassle. Stripe handles all billing securely.
-                </p>
-            </div>
-            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>support@ourlittlevillage.com.au</div>
-        </div>
-        </body></html>
-        """
-    elif template_type == "subscription_cancelled":
-        subject = "Your Village+ subscription has been cancelled"
-        html = f"""
-        <html><head>{base_style}</head><body>
-        <div class="container">
-            <div class="header"><h1>🏡 The Village</h1></div>
-            <div class="content">
-                <h2>Subscription cancelled</h2>
-                <p>Hi {data.get('first_name', 'there')}, your Village+ subscription has been cancelled.</p>
-                <p>You'll keep full Village+ access until the end of your current billing period. After that your account moves to the free plan.</p>
-                <p>We'd love to know why you cancelled — your feedback helps us improve. Reply to this email or reach us at <a href="mailto:support@ourlittlevillage.com.au" style="color:#E5A832;">support@ourlittlevillage.com.au</a>.</p>
-                <a href="{FRONTEND_URL}/suggestions" class="button">Leave Feedback</a>
-                <p style="font-size: 13px; color: #888; margin-top: 20px;">
-                    Changed your mind? You can resubscribe any time from the Village+ page.
-                </p>
-            </div>
-            <div class="footer">Our Little Village — Parenting Assistance Platform<br/>support@ourlittlevillage.com.au</div>
-        </div>
-        </body></html>
-        """
-    else:
-        subject = "🏡 Notification from The Village"
-        html = f"""
-        <html><head>{base_style}</head><body>
-        <div class="container">
-            <div class="header"><h1>🏡 The Village</h1></div>
-            <div class="content">
-                <p>{data.get('message', 'You have a new notification.')}</p>
-                <a href="{data.get('link', '#')}" class="button">View Details</a>
-            </div>
-            <div class="footer">The Village - You're not alone on this journey.</div>
-        </div>
-        </body></html>
-        """
+    AMBER   = "#F5C542"
+    DARK    = "#1A1A2E"
+    BODY    = "#4A4A4A"
+    MUTED   = "#888888"
+    BG      = "#FDF8F3"
+    WHITE   = "#ffffff"
+    FOOTER_BG = "#F5F5F5"
+    SUPPORT = "support@ourlittlevillage.com.au"
 
-    return subject, html
+    def _q(text: str) -> str:
+        """Quoted message block — left-bordered callout box."""
+        return (
+            f'<div style="background:#F5F5F5;padding:14px 16px;border-radius:8px;'
+            f'border-left:4px solid {AMBER};color:{BODY};font-size:14px;line-height:1.6;">'
+            f'{text}</div>'
+        )
+
+    def _event_card(title: str, date: str = "", location: str = "") -> str:
+        rows = f'<p style="margin:0;font-size:17px;font-weight:700;color:{DARK};">{title}</p>'
+        if date:
+            rows += f'<p style="margin:8px 0 0;color:{BODY};font-size:14px;">{date}</p>'
+        if location:
+            rows += f'<p style="margin:4px 0 0;color:{BODY};font-size:14px;">{location}</p>'
+        return (
+            f'<div style="background:#F5F5F5;padding:16px;border-radius:12px;'
+            f'border-left:4px solid {AMBER};margin:8px 0 16px;">{rows}</div>'
+        )
+
+    def _build(subject: str, body: str, notif_footer: bool = False) -> tuple:
+        footer_line = (
+            "You're receiving this because you have email notifications enabled.<br/>"
+            if notif_footer else ""
+        )
+        mjml = f"""<mjml>
+  <mj-head>
+    <mj-attributes>
+      <mj-all font-family="'Segoe UI',Tahoma,Geneva,sans-serif" />
+      <mj-text font-size="15px" line-height="1.6" color="{BODY}" padding="0 0 14px 0" />
+      <mj-button background-color="{AMBER}" color="{DARK}" font-weight="bold"
+        font-size="15px" border-radius="25px" inner-padding="12px 28px"
+        padding="20px 0 8px 0" />
+    </mj-attributes>
+  </mj-head>
+  <mj-body background-color="{BG}">
+    <mj-section background-color="{AMBER}" border-radius="16px 16px 0 0" padding="24px 30px">
+      <mj-column>
+        <mj-text align="center" font-size="22px" font-weight="700"
+          color="{DARK}" padding="0">Our Little Village</mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-section background-color="{WHITE}" padding="32px 36px 20px">
+      <mj-column>
+        {body}
+      </mj-column>
+    </mj-section>
+    <mj-section background-color="{FOOTER_BG}" border-radius="0 0 16px 16px" padding="16px 30px">
+      <mj-column>
+        <mj-text align="center" color="{MUTED}" font-size="12px" padding="0">
+          {footer_line}Our Little Village &mdash; Parenting Assistance Platform<br/>
+          <a href="mailto:{SUPPORT}" style="color:{MUTED};text-decoration:none;">{SUPPORT}</a>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>"""
+        result = _mjml_to_html(mjml)
+        return subject, result.html
+
+    # ── Templates ─────────────────────────────────────────────────────────────
+
+    if template_type == "reply":
+        name   = data.get("replier_name", "A community member")
+        title  = data.get("post_title", "your post")[:80]
+        preview = data.get("reply_preview", "")[:200]
+        link   = data.get("link", "#")
+        return _build(
+            f"New reply to your post: {title}",
+            f"""<mj-text font-size="20px" font-weight="700" color="{DARK}" padding-bottom="16px">Someone replied to your post!</mj-text>
+            <mj-text><strong>{name}</strong> replied to your post &ldquo;<em>{title}</em>&rdquo;:</mj-text>
+            <mj-text>{_q(preview + "&hellip;")}</mj-text>
+            <mj-button href="{link}">View Reply</mj-button>""",
+            notif_footer=True,
+        )
+
+    elif template_type == "dm":
+        name    = data.get("sender_name", "Someone")
+        preview = data.get("message_preview", "")[:200]
+        link    = data.get("link", "#")
+        return _build(
+            f"New message from {name}",
+            f"""<mj-text font-size="20px" font-weight="700" color="{DARK}" padding-bottom="16px">You have a new message!</mj-text>
+            <mj-text><strong>{name}</strong> sent you a direct message:</mj-text>
+            <mj-text>{_q(preview + "&hellip;")}</mj-text>
+            <mj-button href="{link}">Read Message</mj-button>""",
+            notif_footer=True,
+        )
+
+    elif template_type == "friend_request":
+        name = data.get("sender_name", "Someone")
+        link = data.get("link", "#")
+        return _build(
+            f"{name} wants to connect on Our Little Village!",
+            f"""<mj-text font-size="20px" font-weight="700" color="{DARK}" padding-bottom="16px">New friend request!</mj-text>
+            <mj-text><strong>{name}</strong> would like to connect with you on Our Little Village.</mj-text>
+            <mj-button href="{link}">View Request</mj-button>""",
+            notif_footer=True,
+        )
+
+    elif template_type == "weekly_digest":
+        new_posts   = data.get("new_posts", 0)
+        new_replies = data.get("new_replies", 0)
+        trending    = data.get("trending_topic", "Community support")
+        link        = data.get("link", "#")
+        return _build(
+            "Your weekly Our Little Village digest",
+            f"""<mj-text font-size="20px" font-weight="700" color="{DARK}" padding-bottom="16px">Your week in Our Little Village</mj-text>
+            <mj-text>Here's what's been happening in your community this week:</mj-text>
+            <mj-text>
+              &bull;&nbsp; <strong>{new_posts}</strong> new posts in your favourite spaces<br/>
+              &bull;&nbsp; <strong>{new_replies}</strong> replies to discussions<br/>
+              &bull;&nbsp; <strong>{trending}</strong> is trending this week
+            </mj-text>
+            <mj-button href="{link}">Visit Our Little Village</mj-button>""",
+        )
+
+    elif template_type == "password_reset":
+        first = data.get("first_name", "there")
+        link  = data.get("link", "#")
+        return _build(
+            "Reset your password — Our Little Village",
+            f"""<mj-text font-size="20px" font-weight="700" color="{DARK}" padding-bottom="16px">Password reset request</mj-text>
+            <mj-text>Hi {first}, we received a request to reset your password.</mj-text>
+            <mj-text>Click the button below &mdash; this link expires in <strong>1 hour</strong>.</mj-text>
+            <mj-button href="{link}">Reset Password</mj-button>
+            <mj-text color="{MUTED}" font-size="13px" padding-top="8px">If you didn't request this, you can safely ignore this email. Your password won't change.</mj-text>""",
+        )
+
+    elif template_type == "trial_warning":
+        first = data.get("first_name", "there")
+        return _build(
+            "Your Village+ trial ends in 2 days",
+            f"""<mj-text font-size="20px" font-weight="700" color="{DARK}" padding-bottom="16px">Your trial ends soon, {first}</mj-text>
+            <mj-text>Your free Village+ trial expires in <strong>2 days</strong>. After that you'll move to the free plan with limited posts and messages.</mj-text>
+            <mj-text>Upgrade now to keep unlimited access &mdash; just A$9.99/month, or A$7.99/month billed annually.</mj-text>
+            <mj-button href="{FRONTEND_URL}/plus">Keep Village+ Access</mj-button>
+            <mj-text color="{MUTED}" font-size="13px" padding-top="8px">No lock-in. Cancel any time.</mj-text>""",
+        )
+
+    elif template_type == "trial_expired":
+        first = data.get("first_name", "there")
+        return _build(
+            "Your Village+ trial has ended",
+            f"""<mj-text font-size="20px" font-weight="700" color="{DARK}" padding-bottom="16px">Your trial has ended, {first}</mj-text>
+            <mj-text>Your Village+ trial has expired and your account has moved to the free plan.</mj-text>
+            <mj-text>You can still read all posts, chat with the community, and post anonymously &mdash; but with limits.</mj-text>
+            <mj-text>Upgrade any time to restore unlimited access.</mj-text>
+            <mj-button href="{FRONTEND_URL}/plus">Upgrade to Village+</mj-button>""",
+        )
+
+    elif template_type == "verify_email":
+        first       = data.get("first_name", "there")
+        verify_link = f"{FRONTEND_URL}/verify-email?token={data.get('verification_token', '')}"
+        return _build(
+            "Please verify your email — Our Little Village",
+            f"""<mj-text font-size="20px" font-weight="700" color="{DARK}" padding-bottom="16px">Verify your email, {first}</mj-text>
+            <mj-text>One quick step &mdash; click the button below to confirm your email address. This helps keep Our Little Village safe for all families.</mj-text>
+            <mj-button href="{verify_link}">Verify my email</mj-button>
+            <mj-text color="{MUTED}" font-size="12px" padding-top="8px">If you didn't create an account, you can safely ignore this email. This link expires in 7 days.</mj-text>""",
+        )
+
+    elif template_type == "welcome":
+        first       = data.get("first_name", "there")
+        verify_link = f"{FRONTEND_URL}/verify-email?token={data.get('verification_token', '')}"
+        return _build(
+            "Welcome to Our Little Village!",
+            f"""<mj-text font-size="20px" font-weight="700" color="{DARK}" padding-bottom="16px">Welcome, {first}! &#x1F44B;</mj-text>
+            <mj-text>You've joined a warm, safe space built for Australian parents. You're not alone on this journey. &#x1F49B;</mj-text>
+            <mj-text>Here's what you can do right now:</mj-text>
+            <mj-text>
+              &bull;&nbsp; Join a <strong>Chat Room</strong> and connect with other parents<br/>
+              &bull;&nbsp; Post in a <strong>Support Space</strong> &mdash; anonymously if you prefer<br/>
+              &bull;&nbsp; Find or create a <strong>local event</strong> near you
+            </mj-text>
+            <mj-button href="{FRONTEND_URL}/dashboard">Go to my dashboard &rarr;</mj-button>
+            <mj-text color="{MUTED}" font-size="13px" padding-top="8px">You have a 7-day free trial of Village+ &mdash; unlimited posts, messages and access to every feature. No credit card needed.</mj-text>
+            <mj-divider border-color="#eeeeee" border-width="1px" padding="16px 0" />
+            <mj-text color="{MUTED}" font-size="13px"><strong style="color:{BODY};">One more step:</strong> please <a href="{verify_link}" style="color:{AMBER};font-weight:bold;">verify your email address</a> to keep your account secure.</mj-text>""",
+        )
+
+    elif template_type == "stall_enquiry":
+        sender  = data.get("sender_name", "A member")
+        listing = data.get("listing_title", "your listing")
+        preview = data.get("message_preview", "")[:300]
+        link    = data.get("link", "#")
+        return _build(
+            f"New enquiry on your Stall listing: {listing}",
+            f"""<mj-text font-size="20px" font-weight="700" color="{DARK}" padding-bottom="16px">Someone's interested in your listing!</mj-text>
+            <mj-text><strong>{sender}</strong> has sent you an enquiry about <strong>{listing}</strong>:</mj-text>
+            <mj-text>{_q(preview)}</mj-text>
+            <mj-button href="{link}">Reply to Enquiry</mj-button>
+            <mj-text color="{MUTED}" font-size="13px" padding-top="8px">All Stall transactions are between users. Our Little Village is not a party to any sale.</mj-text>""",
+        )
+
+    elif template_type == "stall_message":
+        sender  = data.get("sender_name", "a member")
+        listing = data.get("listing_title", "your listing")
+        preview = data.get("message_preview", "")[:300]
+        link    = data.get("link", "#")
+        return _build(
+            f"New message about your Stall listing: {listing}",
+            f"""<mj-text font-size="20px" font-weight="700" color="{DARK}" padding-bottom="16px">New message from {sender}</mj-text>
+            <mj-text>Re: <strong>{listing}</strong></mj-text>
+            <mj-text>{_q(preview)}</mj-text>
+            <mj-button href="{link}">View Conversation</mj-button>""",
+        )
+
+    elif template_type == "friend_request_accepted":
+        name = data.get("acceptor_name", "Someone")
+        link = data.get("link", "#")
+        return _build(
+            f"{name} accepted your friend request!",
+            f"""<mj-text font-size="20px" font-weight="700" color="{DARK}" padding-bottom="16px">You have a new friend! &#x1F389;</mj-text>
+            <mj-text>Great news &mdash; <strong>{name}</strong> accepted your friend request!</mj-text>
+            <mj-text>You're now connected on Our Little Village. Send them a message, check out their profile, and stay in touch.</mj-text>
+            <mj-button href="{link}">View Their Profile</mj-button>
+            <mj-text color="{MUTED}" font-size="13px" padding-top="8px">The more friends you have in Our Little Village, the richer your experience. Keep connecting!</mj-text>""",
+            notif_footer=True,
+        )
+
+    elif template_type == "professional_approved":
+        first = data.get("first_name", "there")
+        return _build(
+            "You're officially a verified professional on Our Little Village!",
+            f"""<mj-text font-size="20px" font-weight="700" color="{DARK}" padding-bottom="16px">Congratulations, {first}! &#x1F389;</mj-text>
+            <mj-text>Your professional verification has been <strong>approved</strong>.</mj-text>
+            <mj-text>A <strong>Verified Professional</strong> badge will now appear on your profile and all your posts &mdash; helping parents know they're getting trusted, expert advice.</mj-text>
+            <mj-text>
+              &bull;&nbsp; Verified badge on your profile<br/>
+              &bull;&nbsp; Verified badge on every post and reply<br/>
+              &bull;&nbsp; Increased trust and visibility in the community<br/>
+              &bull;&nbsp; Parents can find you through the Professionals directory
+            </mj-text>
+            <mj-button href="{FRONTEND_URL}/profile">View Your Profile</mj-button>
+            <mj-text color="{MUTED}" font-size="13px" padding-top="8px">Thank you for being part of what makes Our Little Village a trusted space for Australian families.</mj-text>""",
+        )
+
+    elif template_type == "professional_rejected":
+        first = data.get("first_name", "there")
+        return _build(
+            "An update on your professional application — Our Little Village",
+            f"""<mj-text font-size="20px" font-weight="700" color="{DARK}" padding-bottom="16px">Hi {first},</mj-text>
+            <mj-text>Thank you for applying for professional verification on Our Little Village. We truly appreciate your interest in supporting our community.</mj-text>
+            <mj-text>Unfortunately, we weren't able to approve your application at this time. This can happen if we need more information to verify your credentials.</mj-text>
+            <mj-text>Here's what you can do next:</mj-text>
+            <mj-text>
+              &bull;&nbsp; Reply to this email with additional credentials or documentation<br/>
+              &bull;&nbsp; Reach out to us at <a href="mailto:{SUPPORT}" style="color:{AMBER};">{SUPPORT}</a><br/>
+              &bull;&nbsp; Re-apply in the future with updated information
+            </mj-text>
+            <mj-text>You're still a valued member of our community &mdash; we'd love to see you keep participating.</mj-text>
+            <mj-button href="{FRONTEND_URL}/dashboard">Back to Our Little Village</mj-button>""",
+        )
+
+    elif template_type == "event_rsvp_confirmation":
+        title    = data.get("event_title", "your event")
+        date_str = data.get("event_date", "")
+        location = data.get("event_location", "")
+        link     = data.get("link", "#")
+        return _build(
+            f"You're going to {title}!",
+            f"""<mj-text font-size="20px" font-weight="700" color="{DARK}" padding-bottom="16px">You're in! &#x1F389;</mj-text>
+            <mj-text>You've successfully RSVPed to:</mj-text>
+            <mj-text>{_event_card(title, date_str, location)}</mj-text>
+            <mj-text>We're excited to see you there! You can get updates and chat with other attendees on the event page.</mj-text>
+            <mj-button href="{link}">View Event Details</mj-button>
+            <mj-text color="{MUTED}" font-size="13px" padding-top="8px">Need to cancel? You can remove your RSVP from the event page at any time.</mj-text>""",
+        )
+
+    elif template_type == "event_cancelled":
+        first    = data.get("first_name", "there")
+        title    = data.get("event_title", "an event")
+        date_str = data.get("event_date", "")
+        return _build(
+            f"Update: {title} has been cancelled",
+            f"""<mj-text font-size="20px" font-weight="700" color="{DARK}" padding-bottom="16px">Event cancellation notice</mj-text>
+            <mj-text>Hi {first}, we're sorry to let you know that an event you RSVPed to has been cancelled:</mj-text>
+            <mj-text>{_event_card(title, date_str)}</mj-text>
+            <mj-text>We're sorry for any inconvenience. Keep an eye on Our Little Village for similar events coming up soon!</mj-text>
+            <mj-button href="{FRONTEND_URL}/events">Browse Other Events</mj-button>""",
+        )
+
+    elif template_type == "email_verified":
+        first = data.get("first_name", "there")
+        return _build(
+            "Your email is verified — you're all set!",
+            f"""<mj-text font-size="20px" font-weight="700" color="{DARK}" padding-bottom="16px">Email verified, {first}! &#x2705;</mj-text>
+            <mj-text>Your account is now fully secured and you're ready to get the most out of Our Little Village.</mj-text>
+            <mj-text>
+              &bull;&nbsp; Join a <strong>Chat Room</strong> and connect with other parents<br/>
+              &bull;&nbsp; Post in a <strong>Support Space</strong> &mdash; anonymously if you prefer<br/>
+              &bull;&nbsp; Find or create a <strong>local event</strong> near you<br/>
+              &bull;&nbsp; Browse <strong>The Village Stall</strong> marketplace
+            </mj-text>
+            <mj-button href="{FRONTEND_URL}/dashboard">Go to Dashboard</mj-button>""",
+        )
+
+    elif template_type == "password_changed":
+        first = data.get("first_name", "there")
+        return _build(
+            "Your password on Our Little Village has been changed",
+            f"""<mj-text font-size="20px" font-weight="700" color="{DARK}" padding-bottom="16px">Password updated successfully</mj-text>
+            <mj-text>Hi {first}, your password was just changed successfully.</mj-text>
+            <mj-text>{_q(f"<strong>Wasn't you?</strong> If you didn't change your password, contact us immediately at <a href='mailto:{SUPPORT}' style='color:{AMBER};'>{SUPPORT}</a> &mdash; we'll help you secure your account right away.")}</mj-text>
+            <mj-text>If this was you, no action is needed. Stay safe!</mj-text>
+            <mj-button href="{FRONTEND_URL}/dashboard">Go to Dashboard</mj-button>""",
+        )
+
+    elif template_type == "payment_failed":
+        first = data.get("first_name", "there")
+        return _build(
+            "Payment failed — action needed to keep your Village+",
+            f"""<mj-text font-size="20px" font-weight="700" color="{DARK}" padding-bottom="16px">Heads up, {first}</mj-text>
+            <mj-text>We weren't able to process your Village+ subscription payment.</mj-text>
+            <mj-text>This can happen when a card expires or a bank declines the charge. Don't worry &mdash; it happens to the best of us!</mj-text>
+            <mj-text>To keep your Village+ access uninterrupted, please update your payment details as soon as possible:</mj-text>
+            <mj-button href="{FRONTEND_URL}/plus">Update Payment Details</mj-button>
+            <mj-text color="{MUTED}" font-size="13px" padding-top="8px">If we can't collect payment after a few attempts, your account will move to the free plan. Update your details to avoid any interruption.</mj-text>""",
+        )
+
+    elif template_type == "post_removed":
+        first = data.get("first_name", "there")
+        title = data.get("post_title", "your post")
+        return _build(
+            "Your post has been removed by a moderator",
+            f"""<mj-text font-size="20px" font-weight="700" color="{DARK}" padding-bottom="16px">Hi {first},</mj-text>
+            <mj-text>Your post &mdash; <em>&ldquo;{title}&rdquo;</em> &mdash; has been removed by one of our moderators.</mj-text>
+            <mj-text>Our moderators work hard to keep Our Little Village a warm, safe, and supportive space for all Australian families. Posts are removed when they don't meet our community guidelines.</mj-text>
+            <mj-text>If you believe this was a mistake, or you'd like to understand the reason, please reach out:</mj-text>
+            <mj-button href="mailto:{SUPPORT}">Contact Support</mj-button>
+            <mj-text color="{MUTED}" font-size="13px" padding-top="8px">You can review our <a href="{FRONTEND_URL}/community-guidelines" style="color:{AMBER};">Community Guidelines</a> for guidance on appropriate content. We appreciate your understanding.</mj-text>""",
+        )
+
+    elif template_type == "stall_listing_sold":
+        first   = data.get("first_name", "there")
+        listing = data.get("listing_title", "your listing")
+        return _build(
+            "Congratulations — your listing has been marked as sold!",
+            f"""<mj-text font-size="20px" font-weight="700" color="{DARK}" padding-bottom="16px">Sold! Nice one, {first}! &#x1F389;</mj-text>
+            <mj-text>Your listing has been marked as sold:</mj-text>
+            <mj-text>{_event_card(listing)}</mj-text>
+            <mj-text>The listing is now marked as sold and no longer visible in The Village Stall.</mj-text>
+            <mj-text>Got more things to sell, swap, or donate? List them &mdash; someone in your community will love them!</mj-text>
+            <mj-button href="{FRONTEND_URL}/stall/new">List Something New</mj-button>
+            <mj-text color="{MUTED}" font-size="13px" padding-top="8px">All Stall transactions are between users. Our Little Village is not a party to any sale.</mj-text>""",
+        )
+
+    elif template_type == "subscription_confirmed":
+        first = data.get("first_name", "there")
+        return _build(
+            "Village+ is now active!",
+            f"""<mj-text font-size="20px" font-weight="700" color="{DARK}" padding-bottom="16px">You're on Village+, {first}! &#x1F389;</mj-text>
+            <mj-text>Your subscription is confirmed. Every limit has been lifted &mdash; post, chat, and connect freely.</mj-text>
+            <mj-text>
+              &bull;&nbsp; Unlimited posts, replies &amp; messages<br/>
+              &bull;&nbsp; Create &amp; manage community spaces<br/>
+              &bull;&nbsp; Create &amp; RSVP to local events<br/>
+              &bull;&nbsp; Unlimited direct messages<br/>
+              &bull;&nbsp; Crown badge on your profile
+            </mj-text>
+            <mj-button href="{FRONTEND_URL}/plus">Manage Subscription</mj-button>
+            <mj-text color="{MUTED}" font-size="13px" padding-top="8px">Cancel any time from the Village+ page &mdash; no lock-in, no hassle. Stripe handles all billing securely.</mj-text>""",
+        )
+
+    elif template_type == "subscription_cancelled":
+        first = data.get("first_name", "there")
+        return _build(
+            "Your Village+ subscription has been cancelled",
+            f"""<mj-text font-size="20px" font-weight="700" color="{DARK}" padding-bottom="16px">Subscription cancelled</mj-text>
+            <mj-text>Hi {first}, your Village+ subscription has been cancelled.</mj-text>
+            <mj-text>You'll keep full Village+ access until the end of your current billing period. After that your account moves to the free plan.</mj-text>
+            <mj-text>We'd love to know why you cancelled &mdash; your feedback helps us improve. Reply to this email or reach us at <a href="mailto:{SUPPORT}" style="color:{AMBER};">{SUPPORT}</a>.</mj-text>
+            <mj-button href="{FRONTEND_URL}/suggestions">Leave Feedback</mj-button>
+            <mj-text color="{MUTED}" font-size="13px" padding-top="8px">Changed your mind? You can resubscribe any time from the Village+ page.</mj-text>""",
+        )
+
+    else:
+        message = data.get("message", "You have a new notification.")
+        link    = data.get("link", "#")
+        return _build(
+            "Notification from Our Little Village",
+            f"""<mj-text>{message}</mj-text>
+            <mj-button href="{link}">View Details</mj-button>""",
+        )
 
 # ==================== SHARED HELPERS ====================
 
 def mask_anonymous_post(post: dict) -> dict:
-    """Overwrite author fields on anonymous posts. Returns the same dict (mutates in-place)."""
+    """Sanitize a post/reply for API responses. Returns the same dict (mutates in-place).
+    - Overwrites author fields on anonymous posts.
+    - Strips raw coordinates from every post: suburb/state/postcode are the only
+      location fields that leave the API. Where distance matters, distance_km is
+      computed server-side before this runs."""
     if post.get("is_anonymous"):
         post["author_name"] = "Anonymous Parent"
         post["author_picture"] = None
         post["author_id"] = "anonymous"
+    post.pop("latitude", None)
+    post.pop("longitude", None)
     return post
 
 def _community_requires_membership(category: Optional[dict]) -> bool:
@@ -1117,9 +1232,6 @@ async def register(user_data: UserCreate, response: Response, request: Request):
         raise HTTPException(status_code=400, detail="Password is required")
     if not (user_data.first_name or "").strip():
         raise HTTPException(status_code=400, detail="First name is required")
-    if not (user_data.last_name or "").strip():
-        raise HTTPException(status_code=400, detail="Last name is required")
-
     # Age verification — must be 18+
     if not user_data.date_of_birth:
         raise HTTPException(status_code=400, detail="Date of birth is required")
@@ -1146,14 +1258,15 @@ async def register(user_data: UserCreate, response: Response, request: Request):
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    full_name = f"{user_data.first_name.strip()} {user_data.last_name.strip()}".strip()
+    last_name_val = (user_data.last_name or "").strip()
+    full_name = " ".join(filter(None, [user_data.first_name.strip(), last_name_val]))
     user_id = f"user_{uuid.uuid4().hex[:12]}"
     now = datetime.now(timezone.utc)
     user = {
         "user_id": user_id,
         "email": user_data.email,
         "first_name": user_data.first_name.strip(),
-        "last_name": user_data.last_name.strip(),
+        "last_name": last_name_val,
         "name": full_name,
         "date_of_birth": user_data.date_of_birth,  # stored for age verification; not surfaced publicly
         "password_hash": hash_password(user_data.password),
@@ -1218,7 +1331,7 @@ async def register(user_data: UserCreate, response: Response, request: Request):
         "user_id": user_id,
         "email": user_data.email,
         "first_name": user_data.first_name.strip(),
-        "last_name": user_data.last_name.strip(),
+        "last_name": last_name_val,
         "name": full_name,
         "picture": None,
         "nickname": None,
@@ -1532,6 +1645,11 @@ async def reset_password(payload: ResetPasswordRequest, request: Request):
         {"user_id": user["user_id"]},
         {"$set": {"password_hash": hashed, "reset_token": None, "reset_token_expires": None}}
     )
+    # Send password changed confirmation email
+    subj, html = get_email_template("password_changed", {
+        "first_name": user.get("first_name") or user.get("name", "there"),
+    })
+    fire_and_forget(send_email_notification(user["email"], subj, html))
     return {"message": "Password updated. You can now sign in."}
 
 
@@ -1540,7 +1658,7 @@ async def verify_email(token: str):
     """Verify an email address using the token sent on registration."""
     if not token:
         raise HTTPException(status_code=400, detail="Verification token is required")
-    user = await db.users.find_one({"email_verification_token": token}, {"_id": 0, "user_id": 1, "email_verified": 1})
+    user = await db.users.find_one({"email_verification_token": token}, {"_id": 0, "user_id": 1, "email": 1, "email_verified": 1, "first_name": 1, "name": 1})
     if not user:
         raise HTTPException(status_code=400, detail="Invalid or expired verification link. You may already be verified.")
     if user.get("email_verified"):
@@ -1549,6 +1667,11 @@ async def verify_email(token: str):
         {"user_id": user["user_id"]},
         {"$set": {"email_verified": True, "email_verification_token": None}}
     )
+    # Send confirmation email
+    subj, html = get_email_template("email_verified", {
+        "first_name": user.get("first_name") or user.get("name", "there"),
+    })
+    fire_and_forget(send_email_notification(user["email"], subj, html))
     return {"message": "Email verified! Welcome to The Village."}
 
 
@@ -1849,21 +1972,16 @@ _PROFILE_SENSITIVE_FIELDS = {
 }
 
 @api_router.get("/users/{user_id}")
-async def get_user_profile(user_id: str, request: Request):
+async def get_user_profile(user_id: str, caller: dict = Depends(get_current_user)):
     user = await db.users.find_one({"user_id": user_id}, {"_id": 0, "password_hash": 0})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    try:
-        caller = await get_current_user(request)
-        is_owner = caller.get("user_id") == user_id
-        is_admin = caller.get("role") in ("admin", "moderator")
-    except HTTPException:
-        is_owner = False
-        is_admin = False
+    is_owner = caller.get("user_id") == user_id
+    is_admin = caller.get("role") in ("admin", "moderator")
 
     if not is_owner and not is_admin:
-        # Strip all sensitive fields for public profile views
+        # Strip all sensitive fields for member-facing profile views
         for field in _PROFILE_SENSITIVE_FIELDS:
             user.pop(field, None)
         if not user.get("show_full_name"):
@@ -1871,8 +1989,12 @@ async def get_user_profile(user_id: str, request: Request):
             user.pop("last_name", None)
         # Hide location fields unless the user has opted in to showing them
         if not user.get("show_location_on_profile"):
-            for field in ("suburb", "location", "postcode", "latitude", "longitude", "local_area"):
+            for field in ("suburb", "location", "postcode", "local_area"):
                 user.pop(field, None)
+        # Raw coordinates never leave the API, regardless of the opt-in —
+        # suburb/local_area is the most precise location another member can see
+        user.pop("latitude", None)
+        user.pop("longitude", None)
 
     return user
 
@@ -1938,22 +2060,15 @@ async def delete_account(request: Request, response: Response, user: dict = Depe
 # ==================== FORUM ENDPOINTS ====================
 
 @api_router.get("/forums/categories")
-async def get_categories(request: Request):
-    # Optional auth — used to compute is_member
-    try:
-        current_user = await get_current_user(request)
-    except HTTPException:
-        current_user = None
-
+async def get_categories(current_user: dict = Depends(get_current_user)):
     categories = await db.forum_categories.find({}, {"_id": 0}).to_list(500)
 
     # Filter gender-restricted categories based on the authenticated user's gender
-    if current_user:
-        user_gender = current_user.get("gender")
-        if user_gender == "male":
-            categories = [c for c in categories if c.get("gender_restriction") != "female"]
-        elif user_gender == "female":
-            categories = [c for c in categories if c.get("gender_restriction") != "male"]
+    user_gender = current_user.get("gender")
+    if user_gender == "male":
+        categories = [c for c in categories if c.get("gender_restriction") != "female"]
+    elif user_gender == "female":
+        categories = [c for c in categories if c.get("gender_restriction") != "male"]
 
     if categories:
         cat_ids = [c["category_id"] for c in categories]
@@ -1978,30 +2093,37 @@ async def get_categories(request: Request):
         active_map = {r["_id"]: r["active_users"] for r in active_results}
 
         # Merge stats into each category document
-        current_user_id = current_user["user_id"] if current_user else None
+        current_user_id = current_user["user_id"]
         for cat in categories:
             cid = cat["category_id"]
             cat["last_post_at"] = last_post_map.get(cid)
             cat["active_users"] = active_map.get(cid, 0)
-            if current_user_id and cat.get("is_user_created"):
+            if cat.get("is_user_created"):
                 cat["is_member"] = current_user_id in cat.get("member_ids", [])
                 cat["is_creator"] = cat.get("created_by") == current_user_id
             else:
                 cat["is_member"] = False
                 cat["is_creator"] = False
+            # Never expose the raw membership list — is_member is all a client needs
+            cat.pop("member_ids", None)
 
     return categories
 
 @api_router.get("/forums/categories/{category_id}")
-async def get_category(category_id: str):
+async def get_category(category_id: str, current_user: dict = Depends(get_current_user)):
     category = await db.forum_categories.find_one({"category_id": category_id}, {"_id": 0})
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
+    if category.get("is_user_created"):
+        category["is_member"] = current_user["user_id"] in category.get("member_ids", [])
+        category["is_creator"] = category.get("created_by") == current_user["user_id"]
+    # Never expose the raw membership list — is_member is all a client needs
+    category.pop("member_ids", None)
     return category
 
 @api_router.get("/forums/posts")
 async def get_posts(
-    request: Request,
+    current_user: dict = Depends(get_current_user),
     category_id: Optional[str] = None,
     limit: int = Query(default=20, ge=1, le=100),
     skip: int = Query(default=0, ge=0, le=10000),
@@ -2012,17 +2134,9 @@ async def get_posts(
     distance_km: Optional[int] = Query(default=None, ge=1, le=500),
     search: Optional[str] = None,
 ):
-    # Get blocked user IDs for the current user (if authenticated)
-    blocked_ids = []
-    current_user_id = None
-    current_user = None
-    try:
-        current_user = await get_current_user(request)
-        current_user_id = current_user["user_id"]
-        blocks = await db.user_blocks.find({"blocker_id": current_user_id}, {"_id": 0, "blocked_id": 1}).to_list(200)
-        blocked_ids = [b["blocked_id"] for b in blocks]
-    except Exception:
-        pass
+    current_user_id = current_user["user_id"]
+    blocks = await db.user_blocks.find({"blocker_id": current_user_id}, {"_id": 0, "blocked_id": 1}).to_list(200)
+    blocked_ids = [b["blocked_id"] for b in blocks]
 
     # Exclude only_me posts (unless viewer is the author)
     visibility_filter = {"$or": [
@@ -2114,14 +2228,9 @@ async def get_posts(
     return {"posts": posts, "total": total, "limit": limit, "skip": skip}
 
 @api_router.get("/forums/posts/trending")
-async def get_trending_posts(request: Request, limit: int = 5):
+async def get_trending_posts(current_user: dict = Depends(get_current_user), limit: int = 5):
     """Get trending posts based on recent engagement"""
     seven_days_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
-    current_user = None
-    try:
-        current_user = await get_current_user(request)
-    except Exception:
-        pass
     inaccessible_communities = await get_inaccessible_community_ids(current_user)
     match_query = {"created_at": {"$gte": seven_days_ago}}
     if inaccessible_communities:
@@ -2218,6 +2327,8 @@ async def get_post(post_id: str, user: dict = Depends(get_current_user)):
 async def create_post(post_data: ForumPostCreate, user: dict = Depends(get_current_user)):
     await _check_rate_limit(f"{user['user_id']}:post-create", 5, 300)  # 5 posts per 5 minutes
     category = await require_category_access(post_data.category_id, user)
+    if category is None:
+        raise HTTPException(status_code=404, detail="Category not found")
 
     # Check freemium limits
     sub = await get_user_subscription_status(user)
@@ -2245,6 +2356,13 @@ async def create_post(post_data: ForumPostCreate, user: dict = Depends(get_curre
         post_suburb = post_suburb or user.get("suburb")
         post_postcode = post_postcode or user.get("postcode")
         post_state = post_state or user.get("state")
+
+    # Privacy: never store coordinates more precise than ~1.1 km (2 decimal places).
+    # Guards against device-GPS precision reaching the database, regardless of client.
+    if post_lat is not None:
+        post_lat = round(post_lat, 2)
+    if post_lon is not None:
+        post_lon = round(post_lon, 2)
 
     post = ForumPost(
         category_id=post_data.category_id,
@@ -2380,6 +2498,19 @@ async def delete_post(post_id: str, user: dict = Depends(get_current_user)):
         {"category_id": post["category_id"]},
         {"$inc": {"post_count": -1}}
     )
+
+    # Email the author when a moderator or admin removes a non-anonymous post
+    if (is_admin or is_community_creator) and not is_author and not post.get("is_anonymous"):
+        author_doc = await db.users.find_one(
+            {"user_id": post["author_id"]},
+            {"_id": 0, "email": 1, "first_name": 1, "name": 1}
+        )
+        if author_doc and author_doc.get("email"):
+            subj, html = get_email_template("post_removed", {
+                "first_name": author_doc.get("first_name") or author_doc.get("name", "there"),
+                "post_title": post.get("title", "your post"),
+            })
+            fire_and_forget(send_email_notification(author_doc["email"], subj, html))
 
     return {"message": "Post deleted successfully"}
 
@@ -2605,16 +2736,17 @@ async def create_reply(post_id: str, reply_data: ForumReplyCreate, user: dict = 
         raise HTTPException(status_code=404, detail="Post not found")
     await require_post_access(post, user)
 
-    # Check freemium limits
+    # Check freemium limits — own-thread replies are always allowed and don't count
+    is_own_thread = post.get("author_id") == user["user_id"]
     sub = await get_user_subscription_status(user)
-    if sub["limits_apply"]:
+    if sub["limits_apply"] and not is_own_thread:
         reply_limit = await check_forum_reply_limit(user["user_id"])
         if not reply_limit["allowed"]:
             raise HTTPException(status_code=429, detail={
                 "error": "weekly_reply_limit",
                 "used": reply_limit["used"],
                 "limit": reply_limit["limit"],
-                "message": f"You've used all {reply_limit['limit']} replies this week. Upgrade to Village+ for unlimited replies."
+                "message": f"You've used your {reply_limit['limit']} free replies this week — resets Monday. Upgrade to Village+ for unlimited replies."
             })
 
     # If replying to another reply, verify it exists
@@ -2643,7 +2775,9 @@ async def create_reply(post_id: str, reply_data: ForumReplyCreate, user: dict = 
         {"post_id": post_id},
         {"$inc": {"reply_count": 1}, "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}}
     )
-    await increment_usage(user["user_id"], "forum_replies")
+    # Own-thread replies don't count against the weekly quota
+    if not is_own_thread:
+        await increment_usage(user["user_id"], "forum_replies")
     fire_and_forget(_compute_badges_for_user(user["user_id"], user))
 
     # Create notification for post author (if not replying to own post and not anonymous)
@@ -3217,10 +3351,10 @@ class EventCreate(BaseModel):
 async def create_event(event_data: EventCreate, user: dict = Depends(get_current_user)):
     """Create a new event"""
     sub = await get_user_subscription_status(user)
-    if sub["tier"] != "premium":
+    if sub["tier"] not in ("premium", "trial"):
         raise HTTPException(status_code=403, detail={
             "error": "village_plus_required",
-            "message": "Creating events requires Village+. Upgrade to create and manage local events."
+            "message": "Hosting events is part of Village+ — browsing and RSVPing are always free."
         })
     event = {
         "event_id": str(uuid.uuid4()),
@@ -3256,7 +3390,7 @@ async def create_event(event_data: EventCreate, user: dict = Depends(get_current
 
 @api_router.get("/events")
 async def get_events(
-    request: Request,
+    current_user: dict = Depends(get_current_user),
     suburb: Optional[str] = None,
     state: Optional[str] = None,
     category: str = "all",
@@ -3266,12 +3400,6 @@ async def get_events(
     skip: int = 0,
 ):
     """Get upcoming events with optional filters"""
-    # Optional auth
-    current_user = None
-    try:
-        current_user = await get_current_user(request)
-    except Exception:
-        pass
 
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     query: dict = {
@@ -3381,14 +3509,8 @@ async def get_my_event_chats(user: dict = Depends(get_current_user)):
     return result
 
 @api_router.get("/events/{event_id}")
-async def get_event(event_id: str, request: Request):
+async def get_event(event_id: str, current_user: dict = Depends(get_current_user)):
     """Get a single event by ID"""
-    current_user = None
-    try:
-        current_user = await get_current_user(request)
-    except Exception:
-        pass
-
     event = await db.events.find_one({"event_id": event_id, "is_cancelled": False}, {"_id": 0})
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
@@ -3428,6 +3550,18 @@ async def toggle_rsvp(event_id: str, user: dict = Depends(get_current_user)):
         )
         rsvp_list.append(user_id)
         rsvped = True
+        # Send RSVP confirmation email
+        event_date = event.get("date", "")
+        time_start = event.get("time_start", "")
+        event_date_str = f"{event_date} {time_start}".strip() if time_start else event_date
+        event_location = ", ".join(filter(None, [event.get("venue_name"), event.get("suburb"), event.get("state")]))
+        subj, html = get_email_template("event_rsvp_confirmation", {
+            "event_title": event.get("title", "the event"),
+            "event_date": event_date_str,
+            "event_location": event_location,
+            "link": f"{FRONTEND_URL}/events/{event_id}",
+        })
+        fire_and_forget(send_email_notification(user["email"], subj, html))
 
     return {"rsvped": rsvped, "rsvp_count": len(rsvp_list)}
 
@@ -3468,8 +3602,8 @@ async def send_event_chat(event_id: str, message_data: ChatMessageCreate, user: 
     return msg
 
 @api_router.get("/events/{event_id}/ical")
-async def get_event_ical(event_id: str):
-    """Download event as ICS calendar file"""
+async def get_event_ical(event_id: str, user: dict = Depends(get_current_user)):
+    """Download event as ICS calendar file (session cookie rides on same-site navigation)"""
     event = await db.events.find_one({"event_id": event_id}, {"_id": 0})
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
@@ -3543,6 +3677,25 @@ async def delete_event(event_id: str, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Not authorised to delete this event")
 
     await db.events.update_one({"event_id": event_id}, {"$set": {"is_cancelled": True}})
+
+    # Email all RSVPed users (fire-and-forget, skip errors per user)
+    rsvp_ids = event.get("rsvp_list", [])
+    if rsvp_ids:
+        event_date = event.get("date", "")
+        time_start = event.get("time_start", "")
+        event_date_str = f"{event_date} {time_start}".strip() if time_start else event_date
+        rsvped_users = await db.users.find(
+            {"user_id": {"$in": rsvp_ids}},
+            {"_id": 0, "email": 1, "first_name": 1, "name": 1}
+        ).to_list(None)
+        for rsvp_user in rsvped_users:
+            subj, html = get_email_template("event_cancelled", {
+                "first_name": rsvp_user.get("first_name") or rsvp_user.get("name", "there"),
+                "event_title": event.get("title", "the event"),
+                "event_date": event_date_str,
+            })
+            fire_and_forget(send_email_notification(rsvp_user["email"], subj, html))
+
     return {"message": "Event cancelled"}
 
 class EventUpdate(BaseModel):
@@ -4147,8 +4300,8 @@ async def get_live_chat_rooms(user: dict = Depends(get_current_user)):
     return result
 
 @api_router.get("/chat/rooms/all")
-async def get_all_chat_rooms():
-    """Get main chat rooms without authentication (for landing page)"""
+async def get_all_chat_rooms(user: dict = Depends(get_current_user)):
+    """Get main chat rooms (members only — no frontend caller uses this logged out)"""
     rooms = await db.chat_rooms.find(
         {"is_active": True, "room_type": "all_australia"},
         {"_id": 0}
@@ -4299,14 +4452,16 @@ async def search_suburb_rooms(
     return {"rooms": rooms, "can_create": can_create, "search_postcode": search_postcode}
 
 @api_router.get("/chat/rooms/{room_id}")
-async def get_chat_room(room_id: str, request: Request):
+async def get_chat_room(room_id: str, current_user: dict = Depends(get_current_user)):
     room = await db.chat_rooms.find_one({"room_id": room_id}, {"_id": 0})
     if not room:
         raise HTTPException(status_code=404, detail="Chat room not found")
 
-    # For friends_only rooms, enrich with participant profiles
+    # For friends_only rooms, only participants may see the room at all
     if room.get("room_type") == "friends_only":
         participant_ids = room.get("participant_ids", [])
+        if current_user["user_id"] not in participant_ids:
+            raise HTTPException(status_code=403, detail="This is a private chat")
         if participant_ids:
             participants = await db.users.find(
                 {"user_id": {"$in": participant_ids}},
@@ -4317,18 +4472,16 @@ async def get_chat_room(room_id: str, request: Request):
     # Add gender restriction info so frontend can show appropriate messaging
     gender_restriction = room.get("gender_restriction")
     if gender_restriction:
-        try:
-            current_user = await get_current_user(request)
-            user_gender = current_user.get("gender", "")
-            room["is_gender_restricted"] = True
-            room["gender_restriction"] = gender_restriction
-            room["user_can_access"] = (user_gender == gender_restriction)
-        except HTTPException:
-            room["is_gender_restricted"] = True
-            room["user_can_access"] = False
+        user_gender = current_user.get("gender", "")
+        room["is_gender_restricted"] = True
+        room["gender_restriction"] = gender_restriction
+        room["user_can_access"] = (user_gender == gender_restriction)
     else:
         room["is_gender_restricted"] = False
         room["user_can_access"] = True
+
+    # Signal whether daily limits apply for this room (exempt rooms skip the counter)
+    room["daily_limit_applies"] = room_id not in EXEMPT_ROOM_IDS
 
     return room
 
@@ -4437,17 +4590,19 @@ async def send_room_message(room_id: str, message_data: ChatMessageCreate, user:
             if user_gender != gender_restriction:
                 gender_label = "mums" if gender_restriction == "female" else "dads"
                 raise HTTPException(status_code=403, detail=f"This space is only for {gender_label}")
-        # Check freemium limits for non-friends rooms
-        sub = await get_user_subscription_status(user)
-        if sub["limits_apply"]:
-            limit_check = await check_chat_message_limit(user["user_id"])
-            if not limit_check["allowed"]:
-                raise HTTPException(status_code=429, detail={
-                    "error": "daily_chat_limit",
-                    "used": limit_check["used"],
-                    "limit": limit_check["limit"],
-                    "message": f"You've used all {limit_check['limit']} messages today. Upgrade to premium for unlimited chat."
-                })
+        # Check freemium limits for non-friends rooms (support rooms are exempt)
+        is_exempt = room_id in EXEMPT_ROOM_IDS
+        if not is_exempt:
+            sub = await get_user_subscription_status(user)
+            if sub["limits_apply"]:
+                limit_check = await check_chat_message_limit(user["user_id"])
+                if not limit_check["allowed"]:
+                    raise HTTPException(status_code=429, detail={
+                        "error": "daily_chat_limit",
+                        "used": limit_check["used"],
+                        "limit": limit_check["limit"],
+                        "message": f"You've used today's {limit_check['limit']} free messages. They reset at midnight. Upgrade to Village+ for unlimited chat."
+                    })
 
     # Per-room per-user cooldown.
     # Friends rooms: no cooldown (private chat).
@@ -4477,7 +4632,8 @@ async def send_room_message(room_id: str, message_data: ChatMessageCreate, user:
     doc["created_at"] = doc["created_at"].isoformat()
 
     await db.chat_messages.insert_one(doc)
-    if not is_friends_room:
+    # Don't count exempt (support) rooms or friends-only rooms against the daily limit
+    if not is_friends_room and room_id not in EXEMPT_ROOM_IDS:
         await increment_usage(user["user_id"], "chat_messages")
 
     # Update room last_activity_at and re-activate if archived
@@ -4990,6 +5146,13 @@ async def accept_friend_request(request_id: str, user: dict = Depends(get_curren
     requester_doc = await db.users.find_one({"user_id": request["from_user_id"]}, {"_id": 0, "password_hash": 0})
     if requester_doc:
         fire_and_forget(_compute_badges_for_user(request["from_user_id"], requester_doc))
+        # Email the original requester that their request was accepted
+        acceptor_name = user.get("nickname") or user.get("first_name") or user.get("name", "Someone")
+        subj, html = get_email_template("friend_request_accepted", {
+            "acceptor_name": acceptor_name,
+            "link": f"{FRONTEND_URL}/profile/{user['user_id']}",
+        })
+        fire_and_forget(send_email_notification(requester_doc["email"], subj, html))
 
     return {"message": "Friend request accepted"}
 
@@ -5124,16 +5287,10 @@ async def remove_friend(friend_id: str, user: dict = Depends(get_current_user)):
 # ==================== FEED/HOME ENDPOINTS ====================
 
 @api_router.get("/feed")
-async def get_feed(request: Request, limit: int = Query(default=20, ge=1, le=100), skip: int = Query(default=0, ge=0, le=10000)):
+async def get_feed(cu: dict = Depends(get_current_user), limit: int = Query(default=20, ge=1, le=100), skip: int = Query(default=0, ge=0, le=10000)):
     """Get recent posts for the home feed"""
     # Exclude only_me posts unless the viewer is the author
-    current_user_id = None
-    cu = None
-    try:
-        cu = await get_current_user(request)
-        current_user_id = cu["user_id"]
-    except Exception:
-        pass
+    current_user_id = cu["user_id"]
 
     query = {"$or": [{"visibility": {"$ne": "only_me"}}, {"visibility": None}]}
     # Run inaccessible communities + block lookups in parallel
@@ -5241,16 +5398,10 @@ async def get_feed(request: Request, limit: int = Query(default=20, ge=1, le=100
     return result
 
 @api_router.get("/search")
-async def search_posts(q: str, limit: int = Query(default=20, ge=1, le=100), request: Request = None):
+async def search_posts(q: str, current_user: dict = Depends(get_current_user), limit: int = Query(default=20, ge=1, le=100), request: Request = None):
     """Search posts by title or content"""
     if request:
         await rate_limit(request, max_requests=30, window_seconds=60, endpoint="post-search")
-    current_user = None
-    if request:
-        try:
-            current_user = await get_current_user(request)
-        except Exception:
-            pass
     inaccessible_communities = await get_inaccessible_community_ids(current_user)
     query = {"$or": [
         {"title": {"$regex": re.escape(q), "$options": "i"}},
@@ -5445,7 +5596,7 @@ async def stripe_webhook(request: Request):
             customer_id = data.get("customer")
             doc = await db.users.find_one({"stripe_customer_id": customer_id})
             if doc:
-                # Notify the user
+                # Notify the user in-app
                 await db.notifications.insert_one({
                     "notification_id": str(uuid.uuid4()),
                     "user_id": doc["user_id"],
@@ -5455,6 +5606,11 @@ async def stripe_webhook(request: Request):
                     "is_read": False,
                     "created_at": datetime.now(timezone.utc).isoformat()
                 })
+                # Send payment failed email
+                subj, html = get_email_template("payment_failed", {
+                    "first_name": doc.get("first_name") or doc.get("name", "there"),
+                })
+                fire_and_forget(send_email_notification(doc["email"], subj, html))
                 logging.info(f"Stripe: payment failed for customer {customer_id} — notified user")
 
     except Exception as e:
@@ -6180,6 +6336,11 @@ async def approve_professional(user_id: str, admin: dict = Depends(get_admin_use
         "is_read": False,
         "created_at": datetime.now(timezone.utc).isoformat()
     })
+    # Email the applicant
+    subj, html = get_email_template("professional_approved", {
+        "first_name": user.get("first_name") or user.get("name", "there"),
+    })
+    fire_and_forget(send_email_notification(user["email"], subj, html))
     return {"message": "Professional status approved"}
 
 @api_router.post("/admin/professional-applications/{user_id}/reject")
@@ -6206,6 +6367,11 @@ async def reject_professional(user_id: str, admin: dict = Depends(get_admin_user
         "is_read": False,
         "created_at": datetime.now(timezone.utc).isoformat()
     })
+    # Email the applicant
+    subj, html = get_email_template("professional_rejected", {
+        "first_name": user.get("first_name") or user.get("name", "there"),
+    })
+    fire_and_forget(send_email_notification(user["email"], subj, html))
     return {"message": "Application rejected"}
 
 _AGE_GROUP_CANONICAL = {
@@ -6377,6 +6543,46 @@ async def get_approved_professionals(
         "page": page,
         "pages": math.ceil(total / limit) if total > 0 else 1
     }
+
+# ─── Public: Professional Directory ──────────────────────────────────────────
+
+@api_router.get("/professionals")
+async def get_public_professionals(
+    page: int = 1,
+    limit: int = 20,
+    professional_type: Optional[str] = None,
+    current_user: dict = Depends(get_current_user),
+):
+    """Public directory of verified professionals — returns safe public fields only."""
+    query: dict = {"verified_professional": True}
+    if professional_type:
+        query["professional_type"] = professional_type
+
+    skip = (page - 1) * limit
+    projection = {
+        "_id": 0,
+        "user_id": 1,
+        "first_name": 1,
+        "name": 1,
+        "nickname": 1,
+        "picture": 1,
+        "professional_type": 1,
+        "professional_workplace": 1,
+        "professional_credentials": 1,
+        "professional_services_url": 1,
+        "suburb": 1,
+        "state": 1,
+        "created_at": 1,
+    }
+    pros = await db.users.find(query, projection).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    total = await db.users.count_documents(query)
+    return {
+        "professionals": pros,
+        "total": total,
+        "page": page,
+        "pages": math.ceil(total / limit) if total > 0 else 1,
+    }
+
 
 # ─── Admin: Revenue & Financials ──────────────────────────────────────────────
 
@@ -7510,7 +7716,7 @@ def _check_stall_access(user: dict):
 
 @api_router.get("/stall/listings")
 async def browse_stall_listings(
-    request: Request,
+    user: dict = Depends(get_current_user),
     listing_type: Optional[str] = None,
     category: Optional[str] = None,
     age_group: Optional[str] = None,
@@ -7608,19 +7814,14 @@ async def my_saved_listings(user: dict = Depends(get_current_user)):
 
 
 @api_router.get("/stall/listings/{listing_id}")
-async def get_stall_listing(listing_id: str, request: Request):
+async def get_stall_listing(listing_id: str, current_user: dict = Depends(get_current_user)):
     doc = await db.stall_listings.find_one({"listing_id": listing_id}, {"_id": 0})
     if not doc:
         raise HTTPException(status_code=404, detail="Listing not found")
     await db.stall_listings.update_one({"listing_id": listing_id}, {"$inc": {"views": 1}})
-    try:
-        current_user = await get_current_user(request)
-        saved = await db.stall_saves.find_one({"listing_id": listing_id, "user_id": current_user["user_id"]})
-        doc["user_saved"] = bool(saved)
-        doc["is_own_listing"] = current_user["user_id"] == doc.get("seller_id")
-    except Exception:
-        doc["user_saved"] = False
-        doc["is_own_listing"] = False
+    saved = await db.stall_saves.find_one({"listing_id": listing_id, "user_id": current_user["user_id"]})
+    doc["user_saved"] = bool(saved)
+    doc["is_own_listing"] = current_user["user_id"] == doc.get("seller_id")
     return _strip_listing_coords(doc)
 
 
@@ -7637,8 +7838,9 @@ async def create_stall_listing(data: StallListingCreate, user: dict = Depends(ge
         suburb=data.suburb or user.get("suburb"),
         postcode=data.postcode or user.get("postcode"),
         state=data.state or user.get("state"),
-        latitude=data.latitude or user.get("latitude"),
-        longitude=data.longitude or user.get("longitude"),
+        # Privacy: round to ~1.1 km so device-GPS precision never reaches the database
+        latitude=round(data.latitude or user.get("latitude"), 2) if (data.latitude or user.get("latitude")) is not None else None,
+        longitude=round(data.longitude or user.get("longitude"), 2) if (data.longitude or user.get("longitude")) is not None else None,
         **{k: v for k, v in data.model_dump().items() if k not in ("suburb","postcode","state","latitude","longitude")}
     )
     doc = listing.model_dump()
@@ -7651,7 +7853,7 @@ async def create_stall_listing(data: StallListingCreate, user: dict = Depends(ge
     if data.donation_group_id:
         await db.donation_groups.update_one({"group_id": data.donation_group_id}, {"$inc": {"item_count": 1}})
     doc.pop("_id", None)
-    return doc
+    return _strip_listing_coords(doc)
 
 
 @api_router.put("/stall/listings/{listing_id}")
@@ -7665,6 +7867,20 @@ async def update_stall_listing(listing_id: str, data: StallListingUpdate, user: 
     updates = {k: v for k, v in data.model_dump().items() if v is not None}
     updates["updated_at"] = datetime.now(timezone.utc).isoformat()
     await db.stall_listings.update_one({"listing_id": listing_id}, {"$set": updates})
+
+    # If the listing was just marked as sold, email the seller
+    if updates.get("status") == "sold" and listing.get("status") != "sold":
+        seller_doc = await db.users.find_one(
+            {"user_id": listing["seller_id"]},
+            {"_id": 0, "email": 1, "first_name": 1, "name": 1}
+        )
+        if seller_doc and seller_doc.get("email"):
+            subj, html = get_email_template("stall_listing_sold", {
+                "first_name": seller_doc.get("first_name") or seller_doc.get("name", "there"),
+                "listing_title": listing.get("title", "your listing"),
+            })
+            fire_and_forget(send_email_notification(seller_doc["email"], subj, html))
+
     return {"message": "Listing updated"}
 
 
@@ -7875,7 +8091,7 @@ async def send_group_message(group_id: str, data: GroupMessageCreate, user: dict
 
 @api_router.get("/stall/groups")
 async def browse_donation_groups(
-    request: Request,
+    current_user: dict = Depends(get_current_user),
     category: Optional[str] = None,
     search: Optional[str] = None,
     suburb: Optional[str] = None,
@@ -7915,40 +8131,31 @@ async def browse_donation_groups(
         groups = [g for g in groups if g.get("distance_km", 0) <= distance_km or not g.get("latitude")]
         groups.sort(key=lambda x: x.get("distance_km") or 9999)
     # Annotate with is_member / is_organiser for the current user
-    try:
-        current_user = await get_current_user(request)
-        uid = current_user["user_id"]
-        for g in groups:
-            g["is_member"] = uid in g.get("member_ids", [])
-            g["is_organiser"] = uid == g.get("organiser_id")
-    except Exception:
-        for g in groups:
-            g["is_member"] = False
-            g["is_organiser"] = False
+    uid = current_user["user_id"]
+    for g in groups:
+        g["is_member"] = uid in g.get("member_ids", [])
+        g["is_organiser"] = uid == g.get("organiser_id")
+        # Expose a count, never the raw membership list or coordinates
+        g["member_count"] = len(g.get("member_ids", []))
+        g.pop("member_ids", None)
+        g.pop("latitude", None)
+        g.pop("longitude", None)
     total = await db.donation_groups.count_documents(query)
     return {"groups": groups, "total": total}
 
 
 @api_router.get("/stall/groups/{group_id}")
-async def get_donation_group(group_id: str, request: Request):
+async def get_donation_group(group_id: str, current_user: dict = Depends(get_current_user)):
     group = await db.donation_groups.find_one({"group_id": group_id}, {"_id": 0})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
-    current_user = None
-    try:
-        current_user = await get_current_user(request)
-        group["is_member"] = current_user["user_id"] in group.get("member_ids", [])
-        group["is_organiser"] = current_user["user_id"] == group.get("organiser_id")
-    except Exception:
-        group["is_member"] = False
-        group["is_organiser"] = False
+    group["is_member"] = current_user["user_id"] in group.get("member_ids", [])
+    group["is_organiser"] = current_user["user_id"] == group.get("organiser_id")
     # Items are private — only visible to organiser and admin/moderators
     can_see_items = (
-        current_user and (
-            current_user["user_id"] == group.get("organiser_id")
-            or current_user["user_id"] in group.get("moderator_ids", [])
-            or current_user.get("role") in ("admin", "moderator")
-        )
+        current_user["user_id"] == group.get("organiser_id")
+        or current_user["user_id"] in group.get("moderator_ids", [])
+        or current_user.get("role") in ("admin", "moderator")
     )
     if can_see_items:
         items = await db.stall_listings.find(
@@ -7957,6 +8164,11 @@ async def get_donation_group(group_id: str, request: Request):
         group["items"] = items
     else:
         group["items"] = []  # count already in group.item_count
+    # Expose a count, never the raw membership list or coordinates
+    group["member_count"] = len(group.get("member_ids", []))
+    group.pop("member_ids", None)
+    group.pop("latitude", None)
+    group.pop("longitude", None)
     return group
 
 
@@ -7973,8 +8185,9 @@ async def create_donation_group(data: DonationGroupCreate, user: dict = Depends(
         suburb=data.suburb or user.get("suburb"),
         postcode=data.postcode or user.get("postcode"),
         state=data.state or user.get("state"),
-        latitude=data.latitude or user.get("latitude"),
-        longitude=data.longitude or user.get("longitude"),
+        # Privacy: round to ~1.1 km so device-GPS precision never reaches the database
+        latitude=round(data.latitude or user.get("latitude"), 2) if (data.latitude or user.get("latitude")) is not None else None,
+        longitude=round(data.longitude or user.get("longitude"), 2) if (data.longitude or user.get("longitude")) is not None else None,
         member_ids=[user["user_id"]],
         **{k: v for k, v in data.model_dump().items() if k not in ("suburb","postcode","state","latitude","longitude")}
     )
@@ -8262,8 +8475,8 @@ async def seed_required_rooms():
     """Upsert required rooms and categories — safe to run on every startup, never creates duplicates."""
     # C4 — Validate required environment variables at startup
     _required_env = {
-        "SECRET_KEY":            os.environ.get("SECRET_KEY", ""),
-        "MONGODB_URL":           os.environ.get("MONGODB_URL", ""),
+        "JWT_SECRET":            os.environ.get("JWT_SECRET", ""),
+        "MONGO_URL":             os.environ.get("MONGO_URL", ""),
         "STRIPE_SECRET_KEY":     os.environ.get("STRIPE_SECRET_KEY", ""),
         "STRIPE_WEBHOOK_SECRET": os.environ.get("STRIPE_WEBHOOK_SECRET", ""),
         "STRIPE_MONTHLY_PRICE_ID": os.environ.get("STRIPE_MONTHLY_PRICE_ID", ""),

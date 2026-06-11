@@ -70,7 +70,7 @@ function WriteArticleDialog({ onSubmitted }) {
       </DialogTrigger>
       <DialogContent className="bg-card border-border/50 max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-heading font-bold">Write an Article</DialogTitle>
+          <DialogTitle className="font-heading font-medium">Write an Article</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           <div className="space-y-1">
@@ -246,13 +246,13 @@ export default function Blog({ user }) {
                 {idx === 0 ? (
                   /* Featured / hero card for the first post */
                   <article className="village-card village-card-hover overflow-hidden">
-                    <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent px-6 py-5">
+                    <div className="px-6 py-5" style={{ background: "var(--paper-2)" }}>
                       <div className="flex items-center gap-2 mb-3">
-                        <span className="text-xs font-semibold uppercase tracking-widest text-[var(--ink-2)]">Featured</span>
+                        <span className="tv-mono" style={{ color: "var(--ink-2)" }}>Featured</span>
                         <span className="w-1 h-1 rounded-full bg-[var(--honey-wash)]" />
                         <span className="text-xs text-muted-foreground">{formatDate(post.created_at)}</span>
                       </div>
-                      <h2 className="font-heading font-bold text-xl sm:text-2xl text-foreground mb-2 leading-snug">
+                      <h2 className="font-heading font-medium text-xl sm:text-2xl text-foreground mb-2 leading-snug">
                         {post.title}
                       </h2>
                       <p className="text-sm text-muted-foreground line-clamp-3 mb-4">{post.summary}</p>
@@ -285,7 +285,7 @@ export default function Blog({ user }) {
                         <BookOpen className="h-5 w-5 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h2 className="font-heading font-bold text-base text-foreground mb-1 leading-snug">
+                        <h2 className="font-heading font-medium text-base text-foreground mb-1 leading-snug">
                           {post.title}
                         </h2>
                         <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{post.summary}</p>
@@ -321,7 +321,7 @@ export default function Blog({ user }) {
         {/* My submissions section */}
         {ownDrafts.length > 0 && (
           <div className="mt-10">
-            <p className="font-heading font-semibold text-xs uppercase tracking-widest text-muted-foreground mb-4">My submissions</p>
+            <p className="tv-mono mb-4" style={{ color: "var(--ink-3)" }}>My submissions</p>
             <div className="space-y-3">
               {ownDrafts.map((post, idx) => (
                 <div key={post.blog_id || idx} className="bg-card rounded-2xl p-5 border border-border/50 shadow-sm">
